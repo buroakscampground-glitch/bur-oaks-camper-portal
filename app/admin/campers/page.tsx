@@ -1,43 +1,138 @@
-import { supabase } from '@/lib/supabase'
+'use client'
 
-export default async function AdminCampersPage() {
-  const { data: campers, error } = await supabase
-    .from('campers')
-    .select('*')
-    .order('lot_number', { ascending: true })
+import { useEffect, useState } from 'react'
+import { supabase } from '../../../lib/supabase'
+
+export default function AdminCampersPage() {
+  const [campers, setCampers] = useState<any[]>([])
+  const [lotNumber, setLotNumber] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [message, setMessage] = useState('')
+
+  async function loadCampers() {
+    const { data } = await supabase
+      .from('campers')
+      .select('*')
+      .order('lot_number', { ascending: true })
+
+    setCampers(data || [])
+  }
+
+  useEffect(() => {
+    loadCampers()
+  }, [])
+
+  function clearForm() {
+    setLotNumber('')
+    setFirstName('')
+    setLastName('')
+    setEmail('')
+    setPhone('')
+    setEditingId(null)
+  }
+
+  async function saveCamper() {
+    if (editingId) {
+      const { error } = await supabase
+        .from('campers')
+        .update({
+          lot_number: lotNumber,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone,
+        })
+        .eq('id', editingId)
+
+      if (error) {
+        setMessage(error.message)
+        return
+      }
+
+      setMessage('Camper updated!')
+    } else {
+      const { error } = await supabase.from('campers').insert({
+        lot_number: lotNumber,
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone,
+      })
+
+      if (error) {
+        setMessage(error.message)
+        return
+      }
+
+      setMessage('Camper added!')
+    }
+
+    clearForm()
+    loadCampers()
+  }
+
+  function editCamper(camper: any) {
+    setEditingId(camper.id)
+    setLotNumber(camper.lot_number || '')
+    setFirstName(camper.first_name || '')
+    setLastName(camper.last_name || '')
+    setEmail(camper.email || '')
+    setPhone(camper.phone || '')
+    setMessage('Editing camper...')
+  }
+
+  async function deleteCamper(id: string) {
+    const confirmDelete = confirm('Are you sure you want to delete this camper?')
+
+    if (!confirmDelete) return
+
+    const { error } = await supabase.from('campers').delete().eq('id', id)
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    setMessage('Camper deleted!')
+    loadCampers()
+  }
 
   return (
-    <main className="mx-auto max-w-6xl p-6 space-y-6">
-      <h1 className="text-3xl font-bold">Manage Campers</h1>
+    <main style={{ padding: '40px', fontFamily: 'Arial' }}>
+      <h1>Manage Campers</h1>
 
-      {error && (
-        <div className="rounded-2xl bg-red-50 border border-red-200 p-5 text-red-700">
-          Could not load campers. Check your Supabase keys in .env.local.
+      <h2>{editingId ? 'Edit Camper' : 'Add Camper'}</h2>
+
+      <input placeholder="Lot Number" value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} />
+      <input placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+      <input placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+      <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
+      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+
+      <button onClick={saveCamper}>
+        {editingId ? 'Update Camper' : 'Add Camper'}
+      </button>
+
+      {editingId && <button onClick={clearForm}>Cancel Edit</button>}
+
+      {message && <p>{message}</p>}
+
+      <h2>Current Campers</h2>
+
+      {campers.map((camper) => (
+        <div key={camper.id} style={{ marginBottom: '12px' }}>
+          Lot {camper.lot_number} - {camper.first_name} {camper.last_name} - {camper.email}
+
+          <br />
+
+          <button onClick={() => editCamper(camper)}>Edit</button>
+          <button onClick={() => deleteCamper(camper.id)}>Delete</button>
         </div>
-      )}
-
-      <div className="rounded-2xl bg-white shadow-sm border overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-100 text-left">
-            <tr>
-              <th className="p-3">Lot</th>
-              <th className="p-3">Name</th>
-              <th className="p-3">Email</th>
-              <th className="p-3">Phone</th>
-            </tr>
-          </thead>
-          <tbody>
-            {campers?.map((camper) => (
-              <tr key={camper.id} className="border-t">
-                <td className="p-3">{camper.lot_number}</td>
-                <td className="p-3">{camper.first_name} {camper.last_name}</td>
-                <td className="p-3">{camper.email}</td>
-                <td className="p-3">{camper.phone}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      ))}
     </main>
   )
 }
