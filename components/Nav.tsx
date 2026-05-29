@@ -1,25 +1,44 @@
-import Link from 'next/link'
-
-const links = [
-  ['Dashboard', '/'],
-  ['Electric', '/electric'],
-  ['Invoices', '/invoices'],
-  ['Documents', '/documents'],
-  ['Calendar', '/calendar'],
-  ['Admin', '/admin'],
-]
-
 export default function Nav() {
   return (
-    <nav className="bg-white border-b">
-      <div className="mx-auto max-w-6xl px-6 py-4 flex flex-wrap gap-4">
-        <div className="font-bold mr-6">Bur Oaks Portal</div>
-        {links.map(([label, href]) => (
-          <Link key={href} href={href} className="text-sm font-medium text-slate-700 hover:text-slate-950">
-            {label}
-          </Link>
-        ))}
-      </div>
+    <nav
+      style={{
+        background: '#2f5d3a',
+        color: 'white',
+        padding: '14px 28px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '22px',
+        flexWrap: 'wrap',
+        boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
+        fontFamily: 'Arial',
+      }}
+    >
+      <a
+        href="/"
+        style={{
+          color: 'white',
+          textDecoration: 'none',
+          fontWeight: 'bold',
+          fontSize: '18px',
+          marginRight: '18px',
+        }}
+      >
+        🌳 Bur Oaks Portal
+      </a>
+
+      <a href="/" style={link}>Home</a>
+      <a href="/invoices" style={link}>Invoices</a>
+      <a href="/electric" style={link}>Electric</a>
+      <a href="/documents" style={link}>Documents</a>
+      <a href="/calendar" style={link}>Events</a>
+      <a href="/admin" style={link}>Admin</a>
     </nav>
   )
 }
+
+const link = {
+  color: 'white',
+  textDecoration: 'none',
+  fontWeight: 'bold',
+  fontSize: '15px',
+} as React.CSSProperties
