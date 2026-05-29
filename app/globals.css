@@ -1,8 +1,90 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+* {
+  box-sizing: border-box;
+}
 
 body {
-  background: #f8fafc;
-  color: #0f172a;
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f4f1ea;
+  color: #1f2933;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #d6d0c4;
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 15px;
+}
+
+button {
+  background: #2f5d3a;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-weight: bold;
+}
+
+button:hover {
+  background: #24482d;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 30px;
+}
+
+.container {
+  max-width: 1150px;
+  margin: 0 auto;
+}
+
+.card {
+  background: white;
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e3ded2;
+}
+
+.grid {
+  display: grid;
+  gap: 20px;
+}
+
+.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.muted {
+  color: #667085;
+}
+
+.admin-link {
+  text-decoration: none;
+  color: #1f2933;
+}
+
+.admin-link h2 {
+  margin-top: 0;
+}
+
+@media (max-width: 700px) {
+  .page {
+    padding: 18px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
 }
