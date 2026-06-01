@@ -8,7 +8,7 @@ export default function ElectricPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function loadReadings() {
+    async function loadElectricHistory() {
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -29,66 +29,110 @@ export default function ElectricPage() {
         return
       }
 
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('electric_readings')
         .select('*')
         .eq('camper_id', camper.id)
         .order('reading_date', { ascending: false })
 
-      if (error) {
-        console.error(error)
-      } else {
-        setReadings(data || [])
-      }
-
+      setReadings(data || [])
       setLoading(false)
     }
 
-    loadReadings()
+    loadElectricHistory()
   }, [])
 
-  if (loading) {
-    return <p style={{ padding: '40px' }}>Loading electric usage...</p>
-  }
+  if (loading) return <p style={{ padding: '40px' }}>Loading electric history...</p>
+
+  const latest = readings[0]
+  const totalDue = readings.reduce((sum, item) => sum + Number(item.amount_due || 0), 0)
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'Arial' }}>
-      <h1>My Electric Usage</h1>
-
-      {readings.length === 0 && <p>No electric readings found yet.</p>}
-
-      {readings.map((reading) => (
-        <div
-          key={reading.id}
+    <main className="page">
+      <div className="container">
+        <section
+          className="card"
           style={{
-            border: '1px solid #ccc',
-            padding: '20px',
-            borderRadius: '10px',
-            marginBottom: '20px',
-            maxWidth: '650px',
+            marginBottom: '25px',
+            background: 'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          <h2>Reading Date: {reading.reading_date}</h2>
+          <div style={{ position: 'absolute', right: 25, top: 20, fontSize: 80, opacity: 0.15 }}>
+            🌳
+          </div>
 
-          <p>
-            <strong>Previous Reading:</strong> {reading.previous_reading}
-          </p>
+          <p className="muted">BUR OAKS CAMPGROUND</p>
+          <h1>My Electric Usage</h1>
+          <p className="muted">Review your meter readings, kWh usage, and electric charges.</p>
+        </section>
 
-          <p>
-            <strong>Current Reading:</strong> {reading.current_reading}
-          </p>
+        <div className="grid grid-3" style={{ marginBottom: '25px' }}>
+          <section className="card">
+            <h2>{latest ? latest.kwh_used : 0} kWh</h2>
+            <p className="muted">Latest Usage</p>
+          </section>
 
-          <p>
-            <strong>kWh Used:</strong> {reading.kwh_used}
-          </p>
+          <section className="card">
+            <h2>${latest ? Number(latest.amount_due || 0).toFixed(2) : '0.00'}</h2>
+            <p className="muted">Latest Charge</p>
+          </section>
 
-          <p>
-            <strong>Rate:</strong> ${reading.rate_per_kwh} per kWh
-          </p>
-
-          <h2>Total Electric Charge: ${reading.electric_total}</h2>
+          <section className="card">
+            <h2>${totalDue.toFixed(2)}</h2>
+            <p className="muted">Total Electric History</p>
+          </section>
         </div>
-      ))}
+
+        {readings.length === 0 && (
+          <section className="card">
+            <h2>No electric readings yet</h2>
+            <p className="muted">No electric usage has been posted to your account yet.</p>
+          </section>
+        )}
+
+        <div className="grid">
+          {readings.map((reading) => (
+            <section className="card" key={reading.id}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  gap: '20px',
+                  alignItems: 'center',
+                }}
+              >
+                <div>
+                  <p className="muted" style={{ margin: 0 }}>
+                    Reading Date
+                  </p>
+                  <h2>{reading.reading_date}</h2>
+
+                  <p>
+                    Previous: <strong>{reading.previous_reading}</strong>
+                  </p>
+
+                  <p>
+                    Current: <strong>{reading.current_reading}</strong>
+                  </p>
+
+                  <p>
+                    Rate: <strong>${reading.rate_per_kwh}</strong> per kWh
+                  </p>
+                </div>
+
+                <div style={{ textAlign: 'right' }}>
+                  <h2>{reading.kwh_used} kWh</h2>
+                  <h2 style={{ color: '#2f5d3a' }}>
+                    ${Number(reading.amount_due || 0).toFixed(2)}
+                  </h2>
+                </div>
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
     </main>
   )
 }
