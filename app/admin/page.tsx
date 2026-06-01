@@ -70,6 +70,7 @@ export default function AdminPage() {
           <a className="card admin-link" href="/admin/gatecards"><h2>Gate Cards</h2><p>Assign and manage camper gate access cards.</p></a>
           <a className="card admin-link" href="/admin/waitlist"><h2>Waitlist</h2><p>Track people waiting for seasonal sites.</p></a>
           <a className="card admin-link" href="/admin/lots"><h2>Lots</h2><p>Manage lot numbers, meters, rent amounts, and assigned campers.</p></a>
+          <a className="card admin-link" href="/admin/maintenance"><h2>Maintenance</h2><p>Track repairs, campground issues, and work orders.</p></a>
         </div>
       </div>
     </main>
