@@ -1,44 +1,17 @@
 export default function Nav() {
   return (
-    <nav
-      style={{
-        background: '#2f5d3a',
-        color: 'white',
-        padding: '14px 28px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '22px',
-        flexWrap: 'wrap',
-        boxShadow: '0 4px 14px rgba(0,0,0,0.12)',
-        fontFamily: 'Arial',
-      }}
-    >
-      <a
-        href="/"
-        style={{
-          color: 'white',
-          textDecoration: 'none',
-          fontWeight: 'bold',
-          fontSize: '18px',
-          marginRight: '18px',
-        }}
-      >
-        🌳 Bur Oaks Portal
-      </a>
+    <nav className="nav">
+      <a href="/" className="nav-brand">🌳 Bur Oaks Portal</a>
 
-      <a href="/" style={link}>Home</a>
-      <a href="/invoices" style={link}>Invoices</a>
-      <a href="/electric" style={link}>Electric</a>
-      <a href="/documents" style={link}>Documents</a>
-      <a href="/calendar" style={link}>Events</a>
-      <a href="/admin" style={link}>Admin</a>
+      <a href="/" className="nav-link">Home</a>
+      <a href="/invoices" className="nav-link">Invoices</a>
+      <a href="/electric" className="nav-link">Electric</a>
+      <a href="/documents" className="nav-link">Documents</a>
+      <a href="/calendar" className="nav-link">Events</a>
+      <a href="/admin" className="nav-link">Admin</a>
+      <a href="/admin/announcements" className="nav-link">Announcements</a>
+      <a href="/admin/events" className="nav-link">Manage Events</a>
+      <a href="/admin/rsvps" className="nav-link">RSVPs</a>
     </nav>
   )
 }
-
-const link = {
-  color: 'white',
-  textDecoration: 'none',
-  fontWeight: 'bold',
-  fontSize: '15px',
-} as React.CSSProperties

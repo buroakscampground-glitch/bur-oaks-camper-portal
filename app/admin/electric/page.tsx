@@ -9,87 +9,124 @@ export default function AdminElectricPage() {
   const [previousReading, setPreviousReading] = useState('')
   const [currentReading, setCurrentReading] = useState('')
   const [rate, setRate] = useState('0.23')
+  const [readingDate, setReadingDate] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    async function loadCampers() {
-      const { data } = await supabase.from('campers').select('*').order('lot_number')
-      setCampers(data || [])
-    }
-
     loadCampers()
   }, [])
 
-  async function saveReading() {
-    if (!camperId) {
-      setMessage('Please select a camper.')
+  async function loadCampers() {
+    const { data } = await supabase.from('campers').select('*').order('lot_number')
+    setCampers(data || [])
+  }
+
+  async function saveElectricAndCreateInvoice() {
+    if (!camperId || !previousReading || !currentReading || !rate || !readingDate) {
+      setMessage('Please fill out all fields.')
       return
     }
 
-    const prev = Number(previousReading)
+    const previous = Number(previousReading)
     const current = Number(currentReading)
-    const rateNum = Number(rate)
+    const rateNumber = Number(rate)
+    const kwhUsed = current - previous
+    const amountDue = Number((kwhUsed * rateNumber).toFixed(2))
 
-    if (isNaN(prev) || isNaN(current) || isNaN(rateNum)) {
-      setMessage('Please enter valid numeric values for readings and rate.')
+    if (kwhUsed < 0) {
+      setMessage('Current reading must be higher than previous reading.')
       return
     }
 
-    if (current <= prev) {
-      setMessage('Current reading must be greater than previous reading.')
+    const selectedCamper = campers.find((c) => c.id === camperId)
+    const invoiceNumber = `ELECTRIC-${selectedCamper?.lot_number}-${Date.now()}`
+
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert({
+        camper_id: camperId,
+        invoice_number: invoiceNumber,
+        invoice_type: 'Electric',
+        subtotal: amountDue,
+        late_fee: 0,
+        total_due: amountDue,
+        due_date: readingDate,
+        status: 'sent',
+      })
+      .select()
+      .single()
+
+    if (invoiceError) {
+      setMessage(invoiceError.message)
       return
     }
 
-    const kwhUsed = current - prev
-    const total = Number((kwhUsed * rateNum).toFixed(2))
-
-    const { error } = await supabase.from('electric_readings').insert({
-      camper_id: camperId,
-      previous_reading: prev,
-      current_reading: current,
-      kwh_used: kwhUsed,
-      rate_per_kwh: rateNum,
-      electric_total: total,
-      reading_date: new Date().toISOString().split('T')[0],
+    const { error: itemError } = await supabase.from('invoice_items').insert({
+      invoice_id: invoice.id,
+      description: `Electric Usage - ${kwhUsed} kWh`,
+      quantity: kwhUsed,
+      unit_price: rateNumber,
+      total: amountDue,
     })
 
-    if (error) {
-      setMessage(error.message)
-    } else {
-      setMessage(`Electric reading saved. Total electric charge: $${total}`)
-      setPreviousReading('')
-      setCurrentReading('')
+    if (itemError) {
+      setMessage(itemError.message)
+      return
     }
+
+    const { error: readingError } = await supabase.from('electric_readings').insert({
+      camper_id: camperId,
+      reading_date: readingDate,
+      previous_reading: previous,
+      current_reading: current,
+      kwh_used: kwhUsed,
+      rate_per_kwh: rateNumber,
+      amount_due: amountDue,
+      invoice_id: invoice.id,
+    })
+
+    if (readingError) {
+      setMessage(readingError.message)
+      return
+    }
+
+    setMessage(`Electric invoice created: ${kwhUsed} kWh × $${rateNumber} = $${amountDue}`)
+    setPreviousReading('')
+    setCurrentReading('')
   }
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'Arial', maxWidth: '700px' }}>
-      <h1>Admin - Electric Readings</h1>
+    <main className="page">
+      <div className="container">
+        <section className="card">
+          <p className="muted">BUR OAKS CAMPGROUND</p>
+          <h1>Electric Billing</h1>
+          <p className="muted">Enter meter readings and automatically create an electric invoice.</p>
 
-      <label>Camper</label>
-      <select value={camperId} onChange={(e) => setCamperId(e.target.value)} style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }}>
-        <option value="">Select Camper</option>
-        {campers.map((camper) => (
-          <option key={camper.id} value={camper.id}>
-            Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
-          </option>
-        ))}
-      </select>
+          <select value={camperId} onChange={(e) => setCamperId(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }}>
+            <option value="">Select Camper</option>
+            {campers.map((camper) => (
+              <option key={camper.id} value={camper.id}>
+                Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
+              </option>
+            ))}
+          </select>
 
-      <label>Previous Meter Reading</label>
-      <input value={previousReading} onChange={(e) => setPreviousReading(e.target.value)} style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }} />
+          <input type="date" value={readingDate} onChange={(e) => setReadingDate(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
 
-      <label>Current Meter Reading</label>
-      <input value={currentReading} onChange={(e) => setCurrentReading(e.target.value)} style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }} />
+          <input placeholder="Previous Reading" value={previousReading} onChange={(e) => setPreviousReading(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
 
-      <label>Rate Per kWh</label>
-      <input value={rate} onChange={(e) => setRate(e.target.value)} style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }} />
+          <input placeholder="Current Reading" value={currentReading} onChange={(e) => setCurrentReading(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
 
-      <button onClick={saveReading} style={{ padding: '12px 20px', background: 'black', color: 'white', border: 'none', borderRadius: '6px' }}>
-        Save Electric Reading
-      </button>
+          <input placeholder="Rate per kWh" value={rate} onChange={(e) => setRate(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
 
-      {message && <p style={{ marginTop: '20px' }}>{message}</p>}
+          <button onClick={saveElectricAndCreateInvoice}>
+            Save Reading + Create Invoice
+          </button>
+
+          {message && <p>{message}</p>}
+        </section>
+      </div>
     </main>
   )
 }
