@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { checkoutItems } from '../../lib/stripe'
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<any[]>([])
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const [checkoutLoading, setCheckoutLoading] = useState(false)
 
   useEffect(() => {
     async function loadInvoices() {
@@ -70,6 +72,42 @@ export default function InvoicesPage() {
     setSelectedInvoices([])
   }
 
+  function buildCheckoutItems(invoiceList: any[]) {
+    return invoiceList.map((invoice) => ({
+      name: `Invoice ${invoice.invoice_number}`,
+      amount: Math.round(Number(invoice.total_due || 0) * 100),
+      currency: 'usd',
+      quantity: 1,
+    }))
+  }
+
+  async function handlePayment(invoicesToPay: any[]) {
+    setCheckoutLoading(true)
+
+    try {
+      await checkoutItems(
+        buildCheckoutItems(invoicesToPay),
+        `${window.location.origin}/success`,
+        `${window.location.origin}/invoices`,
+        invoicesToPay.map((invoice) => invoice.id)
+      )
+    } catch (error: any) {
+      alert(error.message || 'Unable to start Stripe checkout.')
+    } finally {
+      setCheckoutLoading(false)
+    }
+  }
+
+  async function handlePaySelected() {
+    const itemsToPay = invoices.filter((invoice) => selectedInvoices.includes(invoice.id))
+    if (itemsToPay.length === 0) return
+    await handlePayment(itemsToPay)
+  }
+
+  async function handlePayInvoice(invoice: any) {
+    await handlePayment([invoice])
+  }
+
   return (
     <main className="page">
       <div className="container">
@@ -104,11 +142,11 @@ export default function InvoicesPage() {
               <button onClick={clearSelected}>Clear Selection</button>
 
               <button
-                onClick={() => alert(`Stripe payment for selected invoices coming next. Total: $${selectedTotal.toFixed(2)}`)}
-                disabled={selectedInvoices.length === 0}
+                onClick={handlePaySelected}
+                disabled={selectedInvoices.length === 0 || checkoutLoading}
                 style={{ opacity: selectedInvoices.length === 0 ? 0.5 : 1 }}
               >
-                Pay Selected Invoices
+                {checkoutLoading ? 'Processing…' : 'Pay Selected Invoices'}
               </button>
             </div>
           </section>
@@ -177,9 +215,11 @@ export default function InvoicesPage() {
 
                     {!isPaid && (
                       <button
-                        onClick={() => alert(`Stripe payment for invoice ${invoice.invoice_number} coming next.`)}
+                        onClick={() => handlePayInvoice(invoice)}
+                        disabled={checkoutLoading}
+                        style={{ opacity: checkoutLoading ? 0.5 : 1 }}
                       >
-                        Pay This Invoice
+                        {checkoutLoading ? 'Processing…' : 'Pay This Invoice'}
                       </button>
                     )}
 

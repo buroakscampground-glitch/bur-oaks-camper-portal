@@ -6,13 +6,15 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@stripe/stripe-js": "^9.7.0",
     "@supabase/auth-helpers-nextjs": "^0.15.0",
     "@supabase/supabase-js": "latest",
     "@tailwindcss/postcss": "^4.3.0",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "stripe": "^22.2.0"
   },
   "devDependencies": {
     "@types/node": "latest",
