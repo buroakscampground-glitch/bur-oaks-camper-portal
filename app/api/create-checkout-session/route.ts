@@ -7,22 +7,28 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
+    const items = Array.isArray(body.items) ? body.items : []
+    const invoiceIds = Array.isArray(body.invoiceIds) ? body.invoiceIds : []
+
+    const lineItems = items.map((item: any) => ({
+      price_data: {
+        currency: item.currency || 'usd',
+        product_data: {
+          name: item.name || 'Invoice Payment',
+        },
+        unit_amount: Math.round(Number(item.amount || 0) * 100),
+      },
+      quantity: item.quantity || 1,
+    }))
+
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: body.description || 'Invoice Payment',
-            },
-            unit_amount: Math.round(body.amount * 100),
-          },
-          quantity: 1,
-        },
-      ],
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/invoices?success=true`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/invoices?canceled=true`,
+      line_items: lineItems,
+      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/cancel`,
+      metadata: {
+        invoice_ids: JSON.stringify(invoiceIds),
+      },
     });
 
     return NextResponse.json({

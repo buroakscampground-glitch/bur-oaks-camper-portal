@@ -56,9 +56,18 @@ export async function POST(request: Request) {
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session
     const metadata = session.metadata || {}
-    const invoiceIds = metadata.invoice_ids
-      ? JSON.parse(metadata.invoice_ids as string)
-      : []
+    const invoiceIdsRaw = metadata.invoice_ids
+    let invoiceIds: any = []
+
+    if (typeof invoiceIdsRaw === 'string') {
+      try {
+        invoiceIds = JSON.parse(invoiceIdsRaw)
+      } catch {
+        invoiceIds = []
+      }
+    } else if (Array.isArray(invoiceIdsRaw)) {
+      invoiceIds = invoiceIdsRaw
+    }
 
     console.log('checkout.session.completed invoice IDs:', invoiceIds)
 
