@@ -14,7 +14,9 @@ export default function HomePage() {
 
   useEffect(() => {
     async function loadDashboard() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
       if (!user) {
         window.location.href = '/login'
@@ -107,12 +109,24 @@ export default function HomePage() {
           </div>
 
           <p className="muted">BUR OAKS CAMPGROUND</p>
-          <h1>Welcome Back {camper?.first_name || ''}</h1>
-          <h2 style={{ color: '#2f5d3a' }}>A Site to Remember</h2>
-          <p className="muted">CAMP. RELAX. EXPLORE.</p>
+
+          <h1>
+            Welcome Back {camper?.first_name || ''}
+          </h1>
+
+          <h2 style={{ color: '#2f5d3a' }}>
+            A Site to Remember
+          </h2>
+
+          <p className="muted">
+            CAMP. RELAX. EXPLORE.
+          </p>
         </section>
 
-        <div className="grid grid-3" style={{ marginBottom: '25px' }}>
+        <div
+          className="grid grid-3"
+          style={{ marginBottom: '25px' }}
+        >
           <a className="card admin-link" href="/invoices">
             <h2>${openBalance.toFixed(2)}</h2>
             <p className="muted">Open Balance</p>
@@ -127,13 +141,23 @@ export default function HomePage() {
             <h2>{events.length}</h2>
             <p className="muted">Upcoming Events</p>
           </a>
+
+          <a className="card admin-link" href="/maintenance">
+            <h2>🔧</h2>
+            <p className="muted">Maintenance Request</p>
+          </a>
         </div>
 
-        <section className="card" style={{ marginBottom: '25px' }}>
+        <section
+          className="card"
+          style={{ marginBottom: '25px' }}
+        >
           <h2>📢 Campground Announcements</h2>
 
           {announcements.length === 0 && (
-            <p className="muted">No announcements at this time.</p>
+            <p className="muted">
+              No announcements at this time.
+            </p>
           )}
 
           {announcements.map((announcement) => (
@@ -151,11 +175,16 @@ export default function HomePage() {
           ))}
         </section>
 
-        <section className="card" style={{ marginBottom: '25px' }}>
+        <section
+          className="card"
+          style={{ marginBottom: '25px' }}
+        >
           <h2>📱 Recent Alerts</h2>
 
           {alerts.length === 0 && (
-            <p className="muted">No alerts at this time.</p>
+            <p className="muted">
+              No alerts at this time.
+            </p>
           )}
 
           {alerts.map((alert) => (
@@ -177,7 +206,9 @@ export default function HomePage() {
           <h2>📅 Upcoming Events</h2>
 
           {events.length === 0 && (
-            <p className="muted">No events scheduled.</p>
+            <p className="muted">
+              No events scheduled.
+            </p>
           )}
 
           {events.map((event) => (
