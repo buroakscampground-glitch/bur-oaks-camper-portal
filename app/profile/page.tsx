@@ -5,10 +5,9 @@ import { supabase } from '../../lib/supabase'
 
 export default function ProfilePage() {
   const [camper, setCamper] = useState<any>(null)
-  const [invoiceCount, setInvoiceCount] = useState(0)
+  const [invoices, setInvoices] = useState<any[]>([])
   const [documentCount, setDocumentCount] = useState(0)
   const [rsvpCount, setRsvpCount] = useState(0)
-  const [openBalance, setOpenBalance] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -16,9 +15,7 @@ export default function ProfilePage() {
   }, [])
 
   async function loadProfile() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
       window.location.href = '/login'
@@ -38,7 +35,7 @@ export default function ProfilePage() {
 
     setCamper(camperData)
 
-    const { data: invoices } = await supabase
+    const { data: invoiceData } = await supabase
       .from('invoices')
       .select('*')
       .eq('camper_id', camperData.id)
@@ -52,22 +49,19 @@ export default function ProfilePage() {
       .select('*')
       .eq('camper_id', camperData.id)
 
-    const balance =
-      invoices
-        ?.filter((i) => i.status !== 'paid')
-        .reduce((sum, i) => sum + Number(i.total_due || 0), 0) || 0
-
-    setInvoiceCount(invoices?.length || 0)
+    setInvoices(invoiceData || [])
     setDocumentCount(documents?.length || 0)
     setRsvpCount(rsvps?.length || 0)
-    setOpenBalance(balance)
-
     setLoading(false)
   }
 
   if (loading) {
     return <div style={{ padding: '40px' }}>Loading Profile...</div>
   }
+
+  const openBalance = invoices
+    .filter((invoice) => invoice.status !== 'paid')
+    .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
 
   return (
     <main className="page">
@@ -105,7 +99,7 @@ export default function ProfilePage() {
           </section>
 
           <section className="card">
-            <h2>{invoiceCount}</h2>
+            <h2>{invoices.length}</h2>
             <p className="muted">Invoices</p>
           </section>
 
@@ -118,30 +112,18 @@ export default function ProfilePage() {
         <section className="card">
           <h2>Camper Information</h2>
 
-          <p>
-            <strong>Name:</strong>{' '}
-            {camper?.first_name} {camper?.last_name}
-          </p>
+          <p><strong>Name:</strong> {camper?.first_name} {camper?.last_name}</p>
+          <p><strong>Email:</strong> {camper?.email}</p>
+          <p><strong>Lot Number:</strong> {camper?.lot_number || 'Not Assigned'}</p>
+          <p><strong>Phone:</strong> {camper?.phone || 'Not Provided'}</p>
+          <p><strong>Documents Available:</strong> {documentCount}</p>
 
-          <p>
-            <strong>Email:</strong>{' '}
-            {camper?.email}
-          </p>
-
-          <p>
-            <strong>Lot Number:</strong>{' '}
-            {camper?.lot_number || 'Not Assigned'}
-          </p>
-
-          <p>
-            <strong>Phone:</strong>{' '}
-            {camper?.phone || 'Not Provided'}
-          </p>
-
-          <p>
-            <strong>Documents Available:</strong>{' '}
-            {documentCount}
-          </p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '25px' }}>
+            <a href="/invoices"><button>View Invoices</button></a>
+            <a href="/electric"><button>Electric History</button></a>
+            <a href="/documents"><button>My Documents</button></a>
+            <a href="/calendar"><button>Events</button></a>
+          </div>
         </section>
       </div>
     </main>

@@ -9,13 +9,12 @@ export default function HomePage() {
   const [documents, setDocuments] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
+  const [alerts, setAlerts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function loadDashboard() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      const { data: { user } } = await supabase.auth.getUser()
 
       if (!user) {
         window.location.href = '/login'
@@ -61,6 +60,14 @@ export default function HomePage() {
 
       setAnnouncements(announcementData || [])
 
+      const { data: alertData } = await supabase
+        .from('text_reminders')
+        .select('*')
+        .order('sent_at', { ascending: false })
+        .limit(5)
+
+      setAlerts(alertData || [])
+
       setLoading(false)
     }
 
@@ -100,24 +107,12 @@ export default function HomePage() {
           </div>
 
           <p className="muted">BUR OAKS CAMPGROUND</p>
-
-          <h1>
-            Welcome Back {camper?.first_name || ''}
-          </h1>
-
-          <h2 style={{ color: '#2f5d3a' }}>
-            A Site to Remember
-          </h2>
-
-          <p className="muted">
-            CAMP. RELAX. EXPLORE.
-          </p>
+          <h1>Welcome Back {camper?.first_name || ''}</h1>
+          <h2 style={{ color: '#2f5d3a' }}>A Site to Remember</h2>
+          <p className="muted">CAMP. RELAX. EXPLORE.</p>
         </section>
 
-        <div
-          className="grid grid-3"
-          style={{ marginBottom: '25px' }}
-        >
+        <div className="grid grid-3" style={{ marginBottom: '25px' }}>
           <a className="card admin-link" href="/invoices">
             <h2>${openBalance.toFixed(2)}</h2>
             <p className="muted">Open Balance</p>
@@ -134,16 +129,11 @@ export default function HomePage() {
           </a>
         </div>
 
-        <section
-          className="card"
-          style={{ marginBottom: '25px' }}
-        >
+        <section className="card" style={{ marginBottom: '25px' }}>
           <h2>📢 Campground Announcements</h2>
 
           {announcements.length === 0 && (
-            <p className="muted">
-              No announcements at this time.
-            </p>
+            <p className="muted">No announcements at this time.</p>
           )}
 
           {announcements.map((announcement) => (
@@ -161,13 +151,33 @@ export default function HomePage() {
           ))}
         </section>
 
+        <section className="card" style={{ marginBottom: '25px' }}>
+          <h2>📱 Recent Alerts</h2>
+
+          {alerts.length === 0 && (
+            <p className="muted">No alerts at this time.</p>
+          )}
+
+          {alerts.map((alert) => (
+            <div
+              key={alert.id}
+              style={{
+                borderTop: '1px solid #e3ded2',
+                paddingTop: '15px',
+                marginTop: '15px',
+              }}
+            >
+              <h3>{alert.reminder_type}</h3>
+              <p>{alert.message}</p>
+            </div>
+          ))}
+        </section>
+
         <section className="card">
           <h2>📅 Upcoming Events</h2>
 
           {events.length === 0 && (
-            <p className="muted">
-              No events scheduled.
-            </p>
+            <p className="muted">No events scheduled.</p>
           )}
 
           {events.map((event) => (
