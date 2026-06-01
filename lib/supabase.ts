@@ -1,12 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 
+console.log('SUPABASE CONFIG', {
+  url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  keyLength: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length,
+})
+
 const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mzywctpxnpejglnspyqi.supabase.co'
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  'https://mzywctpxnpejglnspyqi.supabase.co'
+
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   'sb_publishable_ksynp497bY8X4MJ-NlRtgg_qYnwMAGv'
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export const supabase = createClient(
+  supabaseUrl,
+  supabaseAnonKey
+)
 
 export type UserRole = 'admin' | 'camper'
 
@@ -32,7 +42,10 @@ export async function getCurrentUserRole(): Promise<UserRole> {
   }
 
   const role = String((camper as any).role).toLowerCase()
-  return role === 'admin' ? 'admin' : DEFAULT_ROLE
+
+  return role === 'admin'
+    ? 'admin'
+    : DEFAULT_ROLE
 }
 
 export async function isAdmin(): Promise<boolean> {

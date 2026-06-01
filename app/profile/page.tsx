@@ -55,6 +55,24 @@ export default function ProfilePage() {
     setLoading(false)
   }
 
+  async function handleSignOut() {
+    // client sign out
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error('client signOut error', err)
+    }
+
+    // clear server cookies
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } catch (err) {
+      console.error('server logout error', err)
+    }
+
+    window.location.href = '/login'
+  }
+
   if (loading) {
     return <div style={{ padding: '40px' }}>Loading Profile...</div>
   }
@@ -123,6 +141,7 @@ export default function ProfilePage() {
             <a href="/electric"><button>Electric History</button></a>
             <a href="/documents"><button>My Documents</button></a>
             <a href="/calendar"><button>Events</button></a>
+            <button onClick={handleSignOut}>Sign Out</button>
           </div>
         </section>
       </div>

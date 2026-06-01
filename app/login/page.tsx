@@ -6,30 +6,51 @@ import { supabase } from '../../lib/supabase'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   async function handleLogin() {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    setError(null)
 
-    if (error) {
-      alert(error.message)
-    } else {
-      const { data: { user } } = await supabase.auth.getUser()
-      console.log('Logged in user:', user?.email)
+    if (!email || !password) {
+      setError('Please enter both email and password.')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) {
+        setError(error.message)
+        setLoading(false)
+        return
+      }
+
       window.location.href = '/'
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Login failed'
+      )
+    } finally {
+      setLoading(false)
     }
   }
 
   return (
     <main style={{ padding: '40px', fontFamily: 'Arial' }}>
-      <h1>Camper Login</h1>
+      <h1>Bur Oaks Login</h1>
 
       <div style={{ marginBottom: '10px' }}>
         <input
-          type='email'
-          placeholder='Email'
+          type="email"
+          placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           style={{ padding: '10px', width: '300px' }}
@@ -38,25 +59,33 @@ export default function LoginPage() {
 
       <div style={{ marginBottom: '10px' }}>
         <input
-          type='password'
-          placeholder='Password'
+          type="password"
+          placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           style={{ padding: '10px', width: '300px' }}
         />
       </div>
 
+      {error && (
+        <p style={{ color: 'red', marginBottom: '15px' }}>
+          {error}
+        </p>
+      )}
+
       <button
         onClick={handleLogin}
+        disabled={loading}
         style={{
           padding: '10px 20px',
-          background: 'black',
+          background: loading ? '#999' : 'black',
           color: 'white',
           border: 'none',
           borderRadius: '6px',
+          cursor: loading ? 'not-allowed' : 'pointer',
         }}
       >
-        Login
+        {loading ? 'Signing In...' : 'Login'}
       </button>
     </main>
   )

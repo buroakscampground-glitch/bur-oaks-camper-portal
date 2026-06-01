@@ -4,6 +4,7 @@ export default function Nav() {
       <a href="/" className="nav-brand">🌳 Bur Oaks Portal</a>
 
       <a href="/" className="nav-link">Home</a>
+      <a href="/login" className="nav-link">Login</a>
       <a href="/invoices" className="nav-link">Invoices</a>
       <a href="/electric" className="nav-link">Electric</a>
       <a href="/documents" className="nav-link">Documents</a>
