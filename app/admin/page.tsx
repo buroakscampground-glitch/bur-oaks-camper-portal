@@ -8,11 +8,15 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState({
     campers: 0,
+    archivedCampers: 0,
     balance: 0,
     events: 0,
     announcements: 0,
     rsvps: 0,
     electric: 0,
+    maintenance: 0,
+    waitlist: 0,
+    unpaidInvoices: 0,
   })
 
   useEffect(() => {
@@ -23,7 +27,7 @@ export default function AdminPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-console.log("CURRENT USER:", user?.email)
+
     if (!user) {
       window.location.href = '/login'
       return
@@ -35,10 +39,7 @@ console.log("CURRENT USER:", user?.email)
       .eq('email', user.email?.toLowerCase())
       .single()
 
-    if (
-      !camper ||
-      camper.role?.toLowerCase() !== 'admin'
-    ) {
+    if (!camper || camper.role?.toLowerCase() !== 'admin') {
       window.location.href = '/portal'
       return
     }
@@ -48,9 +49,24 @@ console.log("CURRENT USER:", user?.email)
   }
 
   async function loadStats() {
-    const { data: campers } = await supabase.from('campers').select('id')
-    const { data: invoices } = await supabase.from('invoices').select('*')
-    const { data: events } = await supabase.from('events').select('id')
+    const { data: campers } = await supabase
+      .from('campers')
+      .select('id')
+      .eq('active', true)
+
+    const { data: archivedCampers } = await supabase
+      .from('campers')
+      .select('id')
+      .eq('active', false)
+
+    const { data: invoices } = await supabase
+      .from('invoices')
+      .select('*')
+
+    const { data: events } = await supabase
+      .from('events')
+      .select('id')
+
     const { data: announcements } = await supabase
       .from('announcements')
       .select('id')
@@ -64,21 +80,34 @@ console.log("CURRENT USER:", user?.email)
       .from('electric_readings')
       .select('id')
 
+    const { data: maintenance } = await supabase
+      .from('maintenance_tickets')
+      .select('id')
+      .eq('status', 'Open')
+
+    const { data: waitlist } = await supabase
+      .from('waitlist')
+      .select('id')
+
     const openBalance =
       invoices
         ?.filter((i) => i.status !== 'paid')
-        .reduce(
-          (sum, i) => sum + Number(i.total_due || 0),
-          0
-        ) || 0
+        .reduce((sum, i) => sum + Number(i.total_due || 0), 0) || 0
+
+    const unpaidInvoices =
+      invoices?.filter((i) => i.status !== 'paid').length || 0
 
     setStats({
       campers: campers?.length || 0,
+      archivedCampers: archivedCampers?.length || 0,
       balance: openBalance,
       events: events?.length || 0,
       announcements: announcements?.length || 0,
       rsvps: rsvps?.length || 0,
       electric: electric?.length || 0,
+      maintenance: maintenance?.length || 0,
+      waitlist: waitlist?.length || 0,
+      unpaidInvoices,
     })
   }
 
@@ -97,43 +126,37 @@ console.log("CURRENT USER:", user?.email)
   return (
     <main className="page">
       <div className="container">
-        <section
-          className="card"
-          style={{ marginBottom: '25px' }}
-        >
-          <p className="muted">
-            BUR OAKS CAMPGROUND
-          </p>
+        <section className="card" style={{ marginBottom: '25px' }}>
+          <p className="muted">BUR OAKS CAMPGROUND</p>
           <h1>Admin Command Center</h1>
           <p className="muted">
-            Manage campground operations from one
-            location.
+            Manage campground operations from one location.
           </p>
         </section>
-<button
-  onClick={async () => {
-    await supabase.auth.signOut()
-    window.location.href = "/login"
-  }}
->
-  Logout
-</button>
-        <div
-          className="grid grid-3"
-          style={{ marginBottom: '25px' }}
+
+        <button
+          onClick={async () => {
+            await supabase.auth.signOut()
+            window.location.href = '/login'
+          }}
         >
+          Logout
+        </button>
+
+        <div className="grid grid-3" style={{ marginBottom: '25px' }}>
           <section className="card">
             <h2>👥 {stats.campers}</h2>
-            <p className="muted">Campers</p>
+            <p className="muted">Active Campers</p>
           </section>
 
           <section className="card">
-            <h2>
-              💰 ${stats.balance.toFixed(2)}
-            </h2>
-            <p className="muted">
-              Open Balance
-            </p>
+            <h2>📦 {stats.archivedCampers}</h2>
+            <p className="muted">Archived Campers</p>
+          </section>
+
+          <section className="card">
+            <h2>💰 ${stats.balance.toFixed(2)}</h2>
+            <p className="muted">Open Balance</p>
           </section>
 
           <section className="card">
@@ -142,12 +165,8 @@ console.log("CURRENT USER:", user?.email)
           </section>
 
           <section className="card">
-            <h2>
-              📢 {stats.announcements}
-            </h2>
-            <p className="muted">
-              Announcements
-            </p>
+            <h2>📢 {stats.announcements}</h2>
+            <p className="muted">Announcements</p>
           </section>
 
           <section className="card">
@@ -157,141 +176,89 @@ console.log("CURRENT USER:", user?.email)
 
           <section className="card">
             <h2>⚡ {stats.electric}</h2>
-            <p className="muted">
-              Electric Readings
-            </p>
+            <p className="muted">Electric Readings</p>
+          </section>
+
+          <section className="card">
+            <h2>🔧 {stats.maintenance}</h2>
+            <p className="muted">Open Maintenance</p>
+          </section>
+
+          <section className="card">
+            <h2>📝 {stats.waitlist}</h2>
+            <p className="muted">Waitlist</p>
+          </section>
+
+          <section className="card">
+            <h2>💵 {stats.unpaidInvoices}</h2>
+            <p className="muted">Unpaid Invoices</p>
           </section>
         </div>
 
         <div className="grid grid-3">
-          <a
-            className="card admin-link"
-            href="/admin/campers"
-          >
+          <a className="card admin-link" href="/admin/campers">
             <h2>Campers</h2>
-            <p>
-              Add, edit, and manage camper
-              accounts.
-            </p>
+            <p>Add, edit, and manage camper accounts.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/invoices"
-          >
+          <a className="card admin-link" href="/admin/archived-campers">
+            <h2>Archived Campers</h2>
+            <p>View and restore archived camper records.</p>
+          </a>
+
+          <a className="card admin-link" href="/admin/invoices">
             <h2>Invoices</h2>
-            <p>
-              Create individual camper invoices.
-            </p>
+            <p>Create individual camper invoices.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/electric"
-          >
+          <a className="card admin-link" href="/admin/electric">
             <h2>Electric</h2>
-            <p>
-              Enter meter readings and create
-              invoices.
-            </p>
+            <p>Enter meter readings and create invoices.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/documents"
-          >
+          <a className="card admin-link" href="/admin/documents">
             <h2>Documents</h2>
-            <p>
-              Upload leases, rules, and camper
-              files.
-            </p>
+            <p>Upload leases, rules, and camper files.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/events"
-          >
+          <a className="card admin-link" href="/admin/events">
             <h2>Events</h2>
-            <p>
-              Create and manage campground
-              events.
-            </p>
+            <p>Create and manage campground events.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/rsvps"
-          >
+          <a className="card admin-link" href="/admin/rsvps">
             <h2>RSVPs</h2>
-            <p>
-              See who is attending each event.
-            </p>
+            <p>See who is attending each event.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/announcements"
-          >
+          <a className="card admin-link" href="/admin/announcements">
             <h2>Announcements</h2>
-            <p>
-              Post updates and alerts to all
-              campers.
-            </p>
+            <p>Post updates and alerts to all campers.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/texts"
-          >
+          <a className="card admin-link" href="/admin/texts">
             <h2>Text Alerts</h2>
-            <p>
-              Save campground text alerts and
-              reminders.
-            </p>
+            <p>Save campground text alerts and reminders.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/gatecards"
-          >
+          <a className="card admin-link" href="/admin/gatecards">
             <h2>Gate Cards</h2>
-            <p>
-              Assign and manage camper gate
-              access cards.
-            </p>
+            <p>Assign and manage camper gate access cards.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/waitlist"
-          >
+          <a className="card admin-link" href="/admin/waitlist">
             <h2>Waitlist</h2>
-            <p>
-              Track people waiting for seasonal
-              sites.
-            </p>
+            <p>Track people waiting for seasonal sites.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/lots"
-          >
+          <a className="card admin-link" href="/admin/lots">
             <h2>Lots</h2>
-            <p>
-              Manage lot numbers, meters, rent
-              amounts, and assigned campers.
-            </p>
+            <p>Manage lot numbers, meters, rent amounts, and assigned campers.</p>
           </a>
 
-          <a
-            className="card admin-link"
-            href="/admin/maintenance"
-          >
+          <a className="card admin-link" href="/admin/maintenance">
             <h2>Maintenance</h2>
-            <p>
-              Track repairs, campground issues,
-              and work orders.
-            </p>
+            <p>Track repairs, campground issues, and work orders.</p>
           </a>
         </div>
       </div>

@@ -12,11 +12,12 @@ export default function AdminCampersPage() {
   const [phone, setPhone] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
-
+const [search, setSearch] = useState('')
   async function loadCampers() {
     const { data } = await supabase
       .from('campers')
       .select('*')
+      .eq('active', true)
       .order('lot_number', { ascending: true })
 
     setCampers(data || [])
@@ -55,13 +56,16 @@ export default function AdminCampersPage() {
 
       setMessage('Camper updated!')
     } else {
-      const { error } = await supabase.from('campers').insert({
-        lot_number: lotNumber,
-        first_name: firstName,
-        last_name: lastName,
-        email,
-        phone,
-      })
+      const { error } = await supabase
+        .from('campers')
+        .insert({
+          lot_number: lotNumber,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone,
+          active: true,
+        })
 
       if (error) {
         setMessage(error.message)
@@ -85,46 +89,27 @@ export default function AdminCampersPage() {
     setMessage('Editing camper...')
   }
 
-  async function deleteCamper(id: string) {
-  alert('DELETE CLICKED')
+  async function archiveCamper(id: string) {
+    const confirmArchive = confirm(
+      'Are you sure you want to archive this camper?'
+    )
 
-  const confirmDelete = confirm(
-    'Are you sure you want to delete this camper?'
-  )
+    if (!confirmArchive) return
 
-  if (!confirmDelete) {
-    return
-  }
-
-  try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('campers')
-      .delete()
+      .update({ active: false })
       .eq('id', id)
-      .select()
 
     if (error) {
-      alert('DELETE ERROR: ' + JSON.stringify(error))
-      console.error(error)
+      alert(error.message)
       return
     }
 
-    alert('DELETE SUCCESSFUL')
-
-    console.log(data)
-
-    setMessage('Camper deleted!')
-
-const updated = campers.filter(
-  (camper) => camper.id !== id
-)
-
-setCampers(updated)
-  } catch (err) {
-    alert('CATCH ERROR: ' + JSON.stringify(err))
-    console.error(err)
+    setMessage('Camper archived!')
+    loadCampers()
   }
-}
+
   async function createPortalAccount(email: string) {
     const response = await fetch(
       '/api/create-camper-account',
@@ -216,8 +201,37 @@ setCampers(updated)
       {message && <p>{message}</p>}
 
       <h2>Current Campers</h2>
+<input
+  placeholder="Search by lot, name, or email..."
+  value={search}
+  onChange={(e) => setSearch(e.target.value)}
+  style={{
+    marginBottom: '15px',
+    padding: '8px',
+    width: '300px',
+  }}
+/>
+      {campers
+  .filter((camper) => {
+    const searchText = search.toLowerCase()
 
-      {campers.map((camper) => (
+    return (
+      camper.lot_number
+        ?.toString()
+        .toLowerCase()
+        .includes(searchText) ||
+      camper.first_name
+        ?.toLowerCase()
+        .includes(searchText) ||
+      camper.last_name
+        ?.toLowerCase()
+        .includes(searchText) ||
+      camper.email
+        ?.toLowerCase()
+        .includes(searchText)
+    )
+  })
+  .map((camper) => (
         <div
           key={camper.id}
           style={{ marginBottom: '12px' }}
@@ -239,10 +253,10 @@ setCampers(updated)
 
           <button
             onClick={() =>
-              deleteCamper(camper.id)
+              archiveCamper(camper.id)
             }
           >
-            Delete
+            Archive
           </button>
 
           <button
