@@ -68,8 +68,13 @@ export default function CalendarPage() {
       <div className="container">
         <section className="card" style={{ marginBottom: '25px' }}>
           <p className="muted">BUR OAKS CAMPGROUND</p>
-          <h1>Events Calendar</h1>
-          <p className="muted">RSVP for upcoming campground events.</p>
+          <h1>📅 Events Calendar</h1>
+<h2 style={{ color: '#2f5d3a' }}>
+  {events.length} Upcoming Events
+</h2>
+<p className="muted">
+  RSVP for upcoming campground events.
+</p>
         </section>
 
         <div className="grid">
@@ -82,17 +87,39 @@ export default function CalendarPage() {
 
             return (
               <section className="card" key={event.id}>
-                <p className="muted">{event.event_date}</p>
+                <p
+  className="muted"
+  style={{
+    fontWeight: 'bold',
+    color: '#2f5d3a',
+  }}
+>
+  📅 {event.event_date}
+</p>
                 <h2>{event.title}</h2>
                 <p>{event.description}</p>
 
+{event.location && (
+  <p className="muted">
+    📍 {event.location}
+  </p>
+)}
+
                 <p className="muted">
-                  Going: {goingCount} • Maybe: {maybeCount}
+                ✅ Going: {goingCount}
+&nbsp;&nbsp;•&nbsp;&nbsp;
+🤔 Maybe: {maybeCount}
                 </p>
 
                 {myRsvp && (
                   <p>
-                    Your RSVP: <strong>{myRsvp.response}</strong>
+                 Your RSVP: <strong>
+  {myRsvp.response === 'Going'
+    ? '✅ Going'
+    : myRsvp.response === 'Maybe'
+    ? '🤔 Maybe'
+    : '❌ Not Going'}
+</strong>
                   </p>
                 )}
 

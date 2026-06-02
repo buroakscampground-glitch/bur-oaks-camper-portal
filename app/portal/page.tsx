@@ -19,8 +19,8 @@ export default function HomePage() {
   const [events, setEvents] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [alerts, setAlerts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
+const [latestElectric, setLatestElectric] = useState<any>(null)
+const [loading, setLoading] = useState(true)
   useEffect(() => {
     async function loadDashboard() {
       try {
@@ -85,7 +85,15 @@ export default function HomePage() {
 
           setInvoices(invoiceData || [])
         }
+const { data: electricData } = await supabase
+  .from('electric_readings')
+  .select('*')
+  .eq('camper_id', camperData.id)
+  .order('reading_date', { ascending: false })
+  .limit(1)
+  .single()
 
+setLatestElectric(electricData)
         const {
           data: documentData,
           error: documentError,
@@ -98,12 +106,14 @@ export default function HomePage() {
         setDocuments(documentData || [])
 
         const {
-          data: eventData,
-          error: eventError,
-        } = await supabase
-          .from('events')
-          .select('*')
-          .limit(5)
+  data: eventData,
+  error: eventError,
+} = await supabase
+  .from('events')
+  .select('*')
+  .gte('event_date', new Date().toISOString().split('T')[0])
+  .order('event_date', { ascending: true })
+  .limit(5)
 
         console.log('EVENT ERROR:', eventError)
 
@@ -205,8 +215,8 @@ export default function HomePage() {
   style={{
     background: "#cc0000",
     color: "white",
-    padding: "20px",
-    fontSize: "24px",
+    padding: "10px 20px",
+fontSize: "16px",
     marginTop: "20px",
     marginBottom: "20px",
     cursor: "pointer",
@@ -230,15 +240,31 @@ export default function HomePage() {
             <p className="muted">Open Balance</p>
           </a>
 
-          <a className="card admin-link" href="/documents">
-            <h2>{documents.length}</h2>
-            <p className="muted">Documents</p>
-          </a>
+          <section className="card">
+  <h2>
+    $
+    {Number(
+      latestElectric?.amount_due || 0
+    ).toFixed(2)}
+  </h2>
+
+  <p className="muted">
+    Latest Electric Bill
+  </p>
+
+  <small>
+    {latestElectric?.kwh_used || 0} kWh Used
+  </small>
+</section>
 
           <a className="card admin-link" href="/calendar">
-            <h2>{events.length}</h2>
-            <p className="muted">Upcoming Events</p>
-          </a>
+  <h2>
+    {events.length > 0
+      ? events[0].title
+      : 'No Events'}
+  </h2>
+  <p className="muted">Next Event</p>
+</a>
 
           <a className="card admin-link" href="/maintenance">
             <h2>🔧</h2>

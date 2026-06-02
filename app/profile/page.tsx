@@ -23,17 +23,11 @@ export default function ProfilePage() {
       return
     }
 
-    const { data: camperData, error } = await supabase
+    const { data: camperData } = await supabase
       .from('campers')
       .select('*')
       .eq('email', user.email)
       .single()
-
-    if (error) {
-      console.error(error)
-      setLoading(false)
-      return
-    }
 
     setCamper(camperData)
     setLoading(false)
@@ -57,22 +51,14 @@ export default function ProfilePage() {
     if (error) {
       setMessage(error.message)
     } else {
-      setMessage('Profile updated successfully.')
+      setMessage('✅ Profile Updated Successfully')
     }
 
     setSaving(false)
   }
 
   async function handleSignOut() {
-    try {
-      await supabase.auth.signOut()
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-      })
-    } catch (err) {
-      console.error(err)
-    }
-
+    await supabase.auth.signOut()
     window.location.href = '/login'
   }
 
@@ -87,7 +73,7 @@ export default function ProfilePage() {
   if (!camper) {
     return (
       <div style={{ padding: '40px' }}>
-        Unable to load camper profile.
+        Unable to load profile.
       </div>
     )
   }
@@ -95,21 +81,39 @@ export default function ProfilePage() {
   return (
     <main className="page">
       <div className="container">
-        <section className="card">
-          <h1>My Profile</h1>
+
+        <section
+          className="card"
+          style={{
+            marginBottom: '25px',
+            background:
+              'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
+          }}
+        >
+          <p className="muted">BUR OAKS CAMPGROUND</p>
+
+          <h1>
+            👤 {camper.first_name} {camper.last_name}
+          </h1>
+
+          <h2 style={{ color: '#2f5d3a' }}>
+            Lot {camper.lot_number}
+          </h2>
+
           <p className="muted">
-            Update your camper information below.
+            Manage your camper account information.
           </p>
         </section>
 
         <section
           className="card"
-          style={{ marginTop: '20px' }}
+          style={{ marginBottom: '25px' }}
         >
           <h2>Profile Information</h2>
 
           <div style={{ marginBottom: '15px' }}>
             <label>First Name</label>
+
             <input
               type="text"
               value={camper.first_name || ''}
@@ -128,6 +132,7 @@ export default function ProfilePage() {
 
           <div style={{ marginBottom: '15px' }}>
             <label>Last Name</label>
+
             <input
               type="text"
               value={camper.last_name || ''}
@@ -146,6 +151,7 @@ export default function ProfilePage() {
 
           <div style={{ marginBottom: '15px' }}>
             <label>Phone Number</label>
+
             <input
               type="text"
               value={camper.phone || ''}
@@ -164,6 +170,7 @@ export default function ProfilePage() {
 
           <div style={{ marginBottom: '15px' }}>
             <label>Email Address</label>
+
             <input
               type="text"
               value={camper.email || ''}
@@ -171,13 +178,14 @@ export default function ProfilePage() {
               style={{
                 width: '100%',
                 padding: '10px',
-                backgroundColor: '#f3f3f3',
+                background: '#f3f4f6',
               }}
             />
           </div>
 
           <div style={{ marginBottom: '15px' }}>
             <label>Lot Number</label>
+
             <input
               type="text"
               value={camper.lot_number || ''}
@@ -185,7 +193,7 @@ export default function ProfilePage() {
               style={{
                 width: '100%',
                 padding: '10px',
-                backgroundColor: '#f3f3f3',
+                background: '#f3f4f6',
               }}
             />
           </div>
@@ -206,11 +214,16 @@ export default function ProfilePage() {
           )}
         </section>
 
-        <section
-          className="card"
-          style={{ marginTop: '20px' }}
-        >
-          <button onClick={handleSignOut}>
+        <section className="card">
+          <h2>Account Actions</h2>
+
+          <button
+            onClick={handleSignOut}
+            style={{
+              background: '#cc0000',
+              color: 'white',
+            }}
+          >
             Sign Out
           </button>
         </section>

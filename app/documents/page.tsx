@@ -51,35 +51,78 @@ export default function DocumentsPage() {
   }
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'Arial' }}>
-      <h1>My Documents</h1>
-
-      {documents.length === 0 && (
-        <p>No documents found yet.</p>
-      )}
-
-      {documents.map((doc) => (
-        <div
-          key={doc.id}
+    <main className="page">
+      <div className="container">
+        <section
+          className="card"
           style={{
-            border: '1px solid #ccc',
-            padding: '20px',
-            borderRadius: '10px',
-            marginBottom: '20px',
-            maxWidth: '700px',
+            marginBottom: '25px',
+            background:
+              'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
           }}
         >
-          <h2>{doc.document_name}</h2>
+          <p className="muted">BUR OAKS CAMPGROUND</p>
 
-          <p>
-            <strong>Type:</strong> {doc.document_type}
-          </p>
+          <h1>📄 My Documents</h1>
 
-          <p>
-            <strong>Status:</strong> {doc.signature_status}
+          <h2 style={{ color: '#2f5d3a' }}>
+            {documents.length} Document
+            {documents.length !== 1 ? 's' : ''}
+          </h2>
+
+          <p className="muted">
+            View campground documents assigned to your account.
           </p>
+        </section>
+
+        {documents.length === 0 && (
+          <section className="card">
+            <h2>No Documents Found</h2>
+
+            <p className="muted">
+              No documents have been assigned to your account yet.
+            </p>
+          </section>
+        )}
+
+        <div className="grid">
+          {documents.map((doc) => (
+            <section
+              key={doc.id}
+              className="card"
+              style={{
+                borderLeft: '7px solid #2f5d3a',
+              }}
+            >
+              <h2>{doc.document_name}</h2>
+
+              <p>
+                <strong>Type:</strong>{' '}
+                {doc.document_type || 'General'}
+              </p>
+
+              <p>
+                <strong>Status:</strong>{' '}
+                {doc.signature_status === 'signed'
+                  ? '🟢 Signed'
+                  : '🟡 Pending'}
+              </p>
+
+              {doc.file_url && (
+                <a
+                  href={doc.file_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <button>
+                    View Document
+                  </button>
+                </a>
+              )}
+            </section>
+          ))}
         </div>
-      ))}
+      </div>
     </main>
   )
 }

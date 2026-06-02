@@ -12,7 +12,9 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     async function loadInvoices() {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
       if (!user) {
         window.location.href = '/login'
@@ -43,9 +45,13 @@ export default function InvoicesPage() {
     loadInvoices()
   }, [])
 
-  if (loading) return <p style={{ padding: '40px' }}>Loading invoices...</p>
+  if (loading) {
+    return <p style={{ padding: '40px' }}>Loading invoices...</p>
+  }
 
-  const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
+  const openInvoices = invoices.filter(
+    (invoice) => invoice.status !== 'paid'
+  )
 
   const openTotal = openInvoices.reduce(
     (sum, invoice) => sum + Number(invoice.total_due || 0),
@@ -53,19 +59,29 @@ export default function InvoicesPage() {
   )
 
   const selectedTotal = invoices
-    .filter((invoice) => selectedInvoices.includes(invoice.id))
-    .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+    .filter((invoice) =>
+      selectedInvoices.includes(invoice.id)
+    )
+    .reduce(
+      (sum, invoice) =>
+        sum + Number(invoice.total_due || 0),
+      0
+    )
 
   function toggleInvoice(id: string) {
     setSelectedInvoices((current) =>
       current.includes(id)
-        ? current.filter((invoiceId) => invoiceId !== id)
+        ? current.filter(
+            (invoiceId) => invoiceId !== id
+          )
         : [...current, id]
     )
   }
 
   function selectAllOpen() {
-    setSelectedInvoices(openInvoices.map((invoice) => invoice.id))
+    setSelectedInvoices(
+      openInvoices.map((invoice) => invoice.id)
+    )
   }
 
   function clearSelected() {
@@ -75,7 +91,9 @@ export default function InvoicesPage() {
   function buildCheckoutItems(invoiceList: any[]) {
     return invoiceList.map((invoice) => ({
       name: `Invoice ${invoice.invoice_number}`,
-      amount: Math.round(Number(invoice.total_due || 0) * 100),
+      amount: Math.round(
+        Number(invoice.total_due || 0) * 100
+      ),
       currency: 'usd',
       quantity: 1,
     }))
@@ -89,18 +107,28 @@ export default function InvoicesPage() {
         buildCheckoutItems(invoicesToPay),
         `${window.location.origin}/success`,
         `${window.location.origin}/invoices`,
-        invoicesToPay.map((invoice) => invoice.id)
+        invoicesToPay.map(
+          (invoice) => invoice.id
+        )
       )
     } catch (error: any) {
-      alert(error.message || 'Unable to start Stripe checkout.')
+      alert(
+        error.message ||
+          'Unable to start Stripe checkout.'
+      )
     } finally {
       setCheckoutLoading(false)
     }
   }
 
   async function handlePaySelected() {
-    const itemsToPay = invoices.filter((invoice) => selectedInvoices.includes(invoice.id))
+    const itemsToPay = invoices.filter(
+      (invoice) =>
+        selectedInvoices.includes(invoice.id)
+    )
+
     if (itemsToPay.length === 0) return
+
     await handlePayment(itemsToPay)
   }
 
@@ -115,38 +143,90 @@ export default function InvoicesPage() {
           className="card"
           style={{
             marginBottom: '25px',
-            background: 'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
+            background:
+              'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
             position: 'relative',
             overflow: 'hidden',
           }}
         >
-          <div style={{ position: 'absolute', right: 25, top: 20, fontSize: 80, opacity: 0.15 }}>
+          <div
+            style={{
+              position: 'absolute',
+              right: 25,
+              top: 20,
+              fontSize: 80,
+              opacity: 0.15,
+            }}
+          >
             🌳
           </div>
 
-          <p className="muted">BUR OAKS CAMPGROUND</p>
-          <h1>My Invoices</h1>
-          <h2 style={{ color: '#2f5d3a' }}>${openTotal.toFixed(2)} Open Balance</h2>
-          <p className="muted">Pay one invoice at a time or select multiple invoices to pay together.</p>
+          <p className="muted">
+            BUR OAKS CAMPGROUND
+          </p>
+
+          <h1>💰 My Invoices</h1>
+
+          <h2 style={{ color: '#2f5d3a' }}>
+            ${openTotal.toFixed(2)} Open Balance
+          </h2>
+
+          <h3 style={{ color: '#b45309' }}>
+            {openInvoices.length} Open Invoice
+            {openInvoices.length !== 1 ? 's' : ''}
+          </h3>
+
+          <p className="muted">
+            Pay one invoice at a time or
+            select multiple invoices together.
+          </p>
         </section>
 
         {openInvoices.length > 0 && (
-          <section className="card" style={{ marginBottom: '25px' }}>
+          <section
+            className="card"
+            style={{ marginBottom: '25px' }}
+          >
             <h2>Payment Selection</h2>
+
             <p className="muted">
-              Selected Total: <strong>${selectedTotal.toFixed(2)}</strong>
+              Selected Total:{' '}
+              <strong>
+                ${selectedTotal.toFixed(2)}
+              </strong>
             </p>
 
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-              <button onClick={selectAllOpen}>Select All Open Invoices</button>
-              <button onClick={clearSelected}>Clear Selection</button>
+            <div
+              style={{
+                display: 'flex',
+                gap: '10px',
+                flexWrap: 'wrap',
+              }}
+            >
+              <button onClick={selectAllOpen}>
+                Select All Open Invoices
+              </button>
+
+              <button onClick={clearSelected}>
+                Clear Selection
+              </button>
 
               <button
                 onClick={handlePaySelected}
-                disabled={selectedInvoices.length === 0 || checkoutLoading}
-                style={{ opacity: selectedInvoices.length === 0 ? 0.5 : 1 }}
+                disabled={
+                  selectedInvoices.length === 0 ||
+                  checkoutLoading
+                }
+                style={{
+                  opacity:
+                    selectedInvoices.length === 0
+                      ? 0.5
+                      : 1,
+                }}
               >
-                {checkoutLoading ? 'Processing…' : 'Pay Selected Invoices'}
+                {checkoutLoading
+                  ? 'Processing…'
+                  : 'Pay Selected Invoices'}
               </button>
             </div>
           </section>
@@ -155,28 +235,45 @@ export default function InvoicesPage() {
         {invoices.length === 0 && (
           <section className="card">
             <h2>No invoices found</h2>
-            <p className="muted">You do not currently have any invoices assigned to your account.</p>
+
+            <p className="muted">
+              You do not currently have any
+              invoices assigned to your
+              account.
+            </p>
           </section>
         )}
 
         <div className="grid">
           {invoices.map((invoice) => {
-            const isPaid = invoice.status === 'paid'
-            const isSelected = selectedInvoices.includes(invoice.id)
+            const isPaid =
+              invoice.status === 'paid'
+
+            const isSelected =
+              selectedInvoices.includes(
+                invoice.id
+              )
 
             return (
               <section
                 className="card"
                 key={invoice.id}
                 style={{
-                  borderLeft: `7px solid ${isPaid ? '#2f5d3a' : '#b45309'}`,
-                  background: isSelected ? '#f3f7ef' : 'white',
+                  borderLeft: `7px solid ${
+                    isPaid
+                      ? '#2f5d3a'
+                      : '#b45309'
+                  }`,
+                  background: isSelected
+                    ? '#f3f7ef'
+                    : 'white',
                 }}
               >
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'auto 1fr auto',
+                    gridTemplateColumns:
+                      'auto 1fr auto',
                     gap: '20px',
                     alignItems: 'center',
                   }}
@@ -186,45 +283,97 @@ export default function InvoicesPage() {
                       <input
                         type="checkbox"
                         checked={isSelected}
-                        onChange={() => toggleInvoice(invoice.id)}
-                        style={{ width: '22px', height: '22px' }}
+                        onChange={() =>
+                          toggleInvoice(
+                            invoice.id
+                          )
+                        }
+                        style={{
+                          width: '22px',
+                          height: '22px',
+                        }}
                       />
                     )}
                   </div>
 
                   <div>
-                    <p className="muted" style={{ margin: 0 }}>Invoice</p>
-                    <h2 style={{ marginTop: '5px' }}>{invoice.invoice_number}</h2>
-                    <p>{invoice.invoice_type}</p>
-                    <p className="muted">Due Date: {invoice.due_date}</p>
+                    <p
+                      className="muted"
+                      style={{ margin: 0 }}
+                    >
+                      Invoice
+                    </p>
+
+                    <h2
+                      style={{
+                        marginTop: '5px',
+                      }}
+                    >
+                      {invoice.invoice_number}
+                    </h2>
+
+                    <p>
+                      {invoice.invoice_type}
+                    </p>
+
+                    <p className="muted">
+                      Due Date:{' '}
+                      {invoice.due_date}
+                    </p>
                   </div>
 
-                  <div style={{ textAlign: 'right' }}>
-                    <h2 style={{ fontSize: '32px', margin: 0 }}>
-                      ${Number(invoice.total_due || 0).toFixed(2)}
+                  <div
+                    style={{
+                      textAlign: 'right',
+                    }}
+                  >
+                    <h2
+                      style={{
+                        fontSize: '32px',
+                        margin: 0,
+                      }}
+                    >
+                      $
+                      {Number(
+                        invoice.total_due || 0
+                      ).toFixed(2)}
                     </h2>
 
                     <p
                       style={{
-                        color: isPaid ? '#2f5d3a' : '#b45309',
+                        color: isPaid
+                          ? '#2f5d3a'
+                          : '#b45309',
                         fontWeight: 'bold',
                       }}
                     >
-                      {isPaid ? 'Paid' : 'Open'}
+                      {isPaid
+                        ? '🟢 Paid'
+                        : '🔴 Open'}
                     </p>
 
-                    {!isPaid && (
+                    {!isPaid ? (
                       <button
-                        onClick={() => handlePayInvoice(invoice)}
-                        disabled={checkoutLoading}
-                        style={{ opacity: checkoutLoading ? 0.5 : 1 }}
+                        onClick={() =>
+                          handlePayInvoice(
+                            invoice
+                          )
+                        }
+                        disabled={
+                          checkoutLoading
+                        }
                       >
-                        {checkoutLoading ? 'Processing…' : 'Pay This Invoice'}
+                        {checkoutLoading
+                          ? 'Processing…'
+                          : 'Pay This Invoice'}
                       </button>
-                    )}
-
-                    {isPaid && (
-                      <button disabled style={{ opacity: 0.6 }}>
+                    ) : (
+                      <button
+                        disabled
+                        style={{
+                          opacity: 0.6,
+                        }}
+                      >
                         Paid
                       </button>
                     )}

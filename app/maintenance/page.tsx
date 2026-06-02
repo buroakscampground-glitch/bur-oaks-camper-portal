@@ -17,7 +17,9 @@ export default function MaintenanceRequestPage() {
   }, [])
 
   async function loadPage() {
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
     if (!user) {
       window.location.href = '/login'
@@ -51,14 +53,16 @@ export default function MaintenanceRequestPage() {
       return
     }
 
-    const { error } = await supabase.from('maintenance_tickets').insert({
-      title,
-      description,
-      category,
-      status: 'Open',
-      reported_by: `${camper?.first_name || ''} ${camper?.last_name || ''}`,
-      lot_number: camper?.lot_number || '',
-    })
+    const { error } = await supabase
+      .from('maintenance_tickets')
+      .insert({
+        title,
+        description,
+        category,
+        status: 'Open',
+        reported_by: `${camper?.first_name || ''} ${camper?.last_name || ''}`,
+        lot_number: camper?.lot_number || '',
+      })
 
     if (error) {
       setMessage(error.message)
@@ -68,7 +72,7 @@ export default function MaintenanceRequestPage() {
     setTitle('')
     setDescription('')
     setCategory('General')
-    setMessage('Maintenance request submitted!')
+    setMessage('✅ Maintenance request submitted!')
     loadPage()
   }
 
@@ -83,46 +87,54 @@ export default function MaintenanceRequestPage() {
           className="card"
           style={{
             marginBottom: '25px',
-            background: 'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
-            position: 'relative',
-            overflow: 'hidden',
+            background:
+              'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
           }}
         >
-          <div
-            style={{
-              position: 'absolute',
-              right: 25,
-              top: 20,
-              fontSize: 90,
-              opacity: 0.15,
-            }}
-          >
-            🌳
-          </div>
-
           <p className="muted">BUR OAKS CAMPGROUND</p>
-          <h1>Maintenance Request</h1>
-          <p className="muted">Report a campground issue or check request status.</p>
+
+          <h1>🔧 Maintenance Requests</h1>
+
+          <h2 style={{ color: '#2f5d3a' }}>
+            {tickets.length} Request
+            {tickets.length !== 1 ? 's' : ''}
+          </h2>
+
+          <p className="muted">
+            Report campground issues and track request status.
+          </p>
         </section>
 
-        <section className="card" style={{ marginBottom: '25px' }}>
+        <section
+          className="card"
+          style={{ marginBottom: '25px' }}
+        >
           <h2>Submit a Request</h2>
 
           <p className="muted">
-            Lot {camper?.lot_number || 'N/A'} — {camper?.first_name} {camper?.last_name}
+            Lot {camper?.lot_number || 'N/A'} —{' '}
+            {camper?.first_name} {camper?.last_name}
           </p>
 
           <input
             placeholder="Issue Title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            style={{ display: 'block', width: '100%', marginBottom: '12px' }}
+            style={{
+              display: 'block',
+              width: '100%',
+              marginBottom: '12px',
+            }}
           />
 
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value)}
-            style={{ display: 'block', width: '100%', marginBottom: '12px' }}
+            style={{
+              display: 'block',
+              width: '100%',
+              marginBottom: '12px',
+            }}
           >
             <option>General</option>
             <option>Electric</option>
@@ -146,32 +158,66 @@ export default function MaintenanceRequestPage() {
             }}
           />
 
-          <button onClick={submitRequest}>Submit Request</button>
+          <button onClick={submitRequest}>
+            Submit Request
+          </button>
 
-          {message && <p>{message}</p>}
+          {message && (
+            <p style={{ marginTop: '10px' }}>
+              {message}
+            </p>
+          )}
         </section>
 
         <section className="card">
           <h2>My Maintenance Requests</h2>
 
           {tickets.length === 0 && (
-            <p className="muted">You have not submitted any maintenance requests yet.</p>
+            <p className="muted">
+              You have not submitted any maintenance
+              requests yet.
+            </p>
           )}
 
           {tickets.map((ticket) => (
-            <div
+            <section
               key={ticket.id}
+              className="card"
               style={{
-                borderTop: '1px solid #e3ded2',
-                padding: '15px 0',
+                marginTop: '15px',
+                borderLeft: `7px solid ${
+                  ticket.status === 'Completed'
+                    ? '#2f5d3a'
+                    : ticket.status === 'In Progress'
+                    ? '#2563eb'
+                    : '#b45309'
+                }`,
               }}
             >
-              <p className="muted">{ticket.created_at}</p>
+              <p className="muted">
+                {new Date(
+                  ticket.created_at
+                ).toLocaleDateString()}
+              </p>
+
               <h3>{ticket.title}</h3>
-              <p><strong>Category:</strong> {ticket.category}</p>
-              <p><strong>Status:</strong> {ticket.status}</p>
+
+              <p>
+                <strong>Category:</strong>{' '}
+                {ticket.category}
+              </p>
+
+              <p>
+                <strong>Status:</strong>{' '}
+                {ticket.status === 'Completed'
+                  ? '🟢 Completed'
+                  : ticket.status === 'In Progress'
+                  ? '🔵 In Progress'
+                  : '🟠 Open'}
+              </p>
+
               <p>{ticket.description}</p>
-            </div>
+            </section>
           ))}
         </section>
       </div>
