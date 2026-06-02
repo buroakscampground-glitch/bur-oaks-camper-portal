@@ -26,30 +26,11 @@ export default function LoginPage() {
         return
       }
 
-      const { data: camper, error: camperError } =
-        await supabase
-          .from("campers")
-          .select("role")
-          .eq("email", email.toLowerCase())
-          .single()
-
-      if (camperError) {
-        console.error(camperError)
-
-        // Default campers to portal
-        const { data: camper } = await supabase
-  .from("campers")
-  .select("role")
-  .eq("email", email.toLowerCase())
-  .single()
-
-if (camper?.role?.toLowerCase() === "admin") {
-  window.location.href = "/admin"
-} else {
-  window.location.href = "/"
-} 
-        return
-      }
+      const { data: camper } = await supabase
+        .from("campers")
+        .select("role")
+        .eq("email", email.toLowerCase())
+        .single()
 
       if (
         camper?.role &&
@@ -59,6 +40,8 @@ if (camper?.role?.toLowerCase() === "admin") {
       } else {
         window.location.href = "/"
       }
+
+      return
     } catch (err) {
       console.error(err)
       setError("Login failed")
@@ -81,7 +64,9 @@ if (camper?.role?.toLowerCase() === "admin") {
           type="email"
           placeholder="Email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) =>
+            setEmail(e.target.value)
+          }
           style={{
             width: "300px",
             padding: "10px",
@@ -94,7 +79,9 @@ if (camper?.role?.toLowerCase() === "admin") {
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) =>
+            setPassword(e.target.value)
+          }
           style={{
             width: "300px",
             padding: "10px",
@@ -120,7 +107,9 @@ if (camper?.role?.toLowerCase() === "admin") {
           cursor: "pointer",
         }}
       >
-        {loading ? "Signing In..." : "Login"}
+        {loading
+          ? "Signing In..."
+          : "Login"}
       </button>
     </main>
   )
