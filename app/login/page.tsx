@@ -14,18 +14,51 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const { error: loginError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        })
 
-      if (error) {
-        setError(error.message)
+      if (loginError) {
+        setError(loginError.message)
         setLoading(false)
         return
       }
 
-      window.location.href = "/admin"
+      const { data: camper, error: camperError } =
+        await supabase
+          .from("campers")
+          .select("role")
+          .eq("email", email.toLowerCase())
+          .single()
+
+      if (camperError) {
+        console.error(camperError)
+
+        // Default campers to portal
+        const { data: camper } = await supabase
+  .from("campers")
+  .select("role")
+  .eq("email", email.toLowerCase())
+  .single()
+
+if (camper?.role?.toLowerCase() === "admin") {
+  window.location.href = "/admin"
+} else {
+  window.location.href = "/"
+} 
+        return
+      }
+
+      if (
+        camper?.role &&
+        camper.role.toLowerCase() === "admin"
+      ) {
+        window.location.href = "/admin"
+      } else {
+        window.location.href = "/"
+      }
     } catch (err) {
       console.error(err)
       setError("Login failed")
@@ -80,10 +113,11 @@ export default function LoginPage() {
         disabled={loading}
         style={{
           padding: "10px 20px",
-          background: "#000",
+          background: "#2f5d3a",
           color: "#fff",
           border: "none",
           borderRadius: "6px",
+          cursor: "pointer",
         }}
       >
         {loading ? "Signing In..." : "Login"}
