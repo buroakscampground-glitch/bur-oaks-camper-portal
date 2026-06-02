@@ -86,26 +86,45 @@ export default function AdminCampersPage() {
   }
 
   async function deleteCamper(id: string) {
-    const confirmDelete = confirm(
-      'Are you sure you want to delete this camper?'
-    )
+  alert('DELETE CLICKED')
 
-    if (!confirmDelete) return
+  const confirmDelete = confirm(
+    'Are you sure you want to delete this camper?'
+  )
 
-    const { error } = await supabase
+  if (!confirmDelete) {
+    return
+  }
+
+  try {
+    const { data, error } = await supabase
       .from('campers')
       .delete()
       .eq('id', id)
+      .select()
 
     if (error) {
-      setMessage(error.message)
+      alert('DELETE ERROR: ' + JSON.stringify(error))
+      console.error(error)
       return
     }
 
-    setMessage('Camper deleted!')
-    loadCampers()
-  }
+    alert('DELETE SUCCESSFUL')
 
+    console.log(data)
+
+    setMessage('Camper deleted!')
+
+const updated = campers.filter(
+  (camper) => camper.id !== id
+)
+
+setCampers(updated)
+  } catch (err) {
+    alert('CATCH ERROR: ' + JSON.stringify(err))
+    console.error(err)
+  }
+}
   async function createPortalAccount(email: string) {
     const response = await fetch(
       '/api/create-camper-account',
