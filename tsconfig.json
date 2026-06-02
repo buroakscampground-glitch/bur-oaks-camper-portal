@@ -34,7 +34,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
-  ],
+, "app/api/stripe-webhook/route.js.disabled"  ],
   "exclude": [
     "node_modules"
   ]
