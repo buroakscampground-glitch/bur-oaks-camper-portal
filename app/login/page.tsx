@@ -1,3 +1,4 @@
+```tsx
 "use client"
 
 import { useState } from "react"
@@ -6,40 +7,36 @@ import { supabase } from "../../lib/supabase"
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
+  const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
   async function handleLogin() {
-    setError("")
+    setError(null)
+
+    if (!email || !password) {
+      setError("Please enter both email and password.")
+      return
+    }
+
     setLoading(true)
 
     try {
-      const { error: loginError } =
+      const { error: authError } =
         await supabase.auth.signInWithPassword({
           email,
           password,
         })
 
-      if (loginError) {
-        setError(loginError.message)
-        setLoading(false)
+      if (authError) {
+        setError(authError.message)
         return
       }
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      console.log("LOGGED IN USER:", user?.email)
-
-      const { data: camper, error } = await supabase
+      const { data: camper } = await supabase
         .from("campers")
-        .select("role,email")
-        .eq("email", user?.email || "")
+        .select("role")
+        .eq("email", email)
         .single()
-
-      console.log("CAMPER RECORD:", camper)
-      console.log("CAMPER ERROR:", error)
 
       if (
         camper?.role &&
@@ -49,14 +46,15 @@ export default function LoginPage() {
       } else {
         window.location.href = "/"
       }
-
-      return
     } catch (err) {
-      console.error(err)
-      setError("Login failed")
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Login failed"
+      )
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   return (
@@ -77,8 +75,8 @@ export default function LoginPage() {
             setEmail(e.target.value)
           }
           style={{
-            width: "300px",
             padding: "10px",
+            width: "300px",
           }}
         />
       </div>
@@ -92,14 +90,19 @@ export default function LoginPage() {
             setPassword(e.target.value)
           }
           style={{
-            width: "300px",
             padding: "10px",
+            width: "300px",
           }}
         />
       </div>
 
       {error && (
-        <p style={{ color: "red" }}>
+        <p
+          style={{
+            color: "red",
+            marginBottom: "15px",
+          }}
+        >
           {error}
         </p>
       )}
@@ -109,11 +112,15 @@ export default function LoginPage() {
         disabled={loading}
         style={{
           padding: "10px 20px",
-          background: "#2f5d3a",
-          color: "#fff",
+          background: loading
+            ? "#999"
+            : "#1f5130",
+          color: "white",
           border: "none",
           borderRadius: "6px",
-          cursor: "pointer",
+          cursor: loading
+            ? "not-allowed"
+            : "pointer",
         }}
       >
         {loading
@@ -123,3 +130,4 @@ export default function LoginPage() {
     </main>
   )
 }
+```
