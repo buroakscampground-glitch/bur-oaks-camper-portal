@@ -14,85 +14,126 @@ export default function HomePage() {
 
   useEffect(() => {
     async function loadDashboard() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+      try {
+        console.log('=== DASHBOARD START ===')
 
-      if (!user) {
-        window.location.href = '/login'
-        return
-      }
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser()
 
-      const { data: camperData } = await supabase
-        .from('campers')
-        .select('*')
-        .eq('email', user.email)
-        .single()
+        console.log('USER:', user)
+        console.log('USER ERROR:', userError)
 
-      console.log('USER EMAIL:', user.email)
-      console.log('CAMPER DATA:', camperData)
-      console.log('ROLE:', camperData?.role)
+        if (userError) {
+          throw userError
+        }
 
-      /*
-      if (
-        camperData?.role &&
-        camperData.role.toLowerCase() === 'admin'
-      ) {
-        window.location.href = '/admin'
-        return
-      }
-      */
+        if (!user) {
+          console.log('NO USER FOUND - REDIRECTING')
+          window.location.href = '/login'
+          return
+        }
 
-      if (camperData) {
+        const {
+          data: camperData,
+          error: camperError,
+        } = await supabase
+          .from('campers')
+          .select('*')
+          .eq('email', user.email)
+          .single()
+
+        console.log('USER EMAIL:', user.email)
+        console.log('CAMPER DATA:', camperData)
+        console.log('CAMPER ERROR:', camperError)
+
+        if (camperError) {
+          console.error('CAMPER QUERY FAILED:', camperError)
+        }
+
         if (
-          camperData.role &&
+          camperData?.role &&
           camperData.role.toLowerCase() === 'admin'
         ) {
+          console.log('ADMIN DETECTED - REDIRECTING')
           window.location.replace('/admin')
           return
         }
 
-        setCamper(camperData)
+        if (camperData) {
+          setCamper(camperData)
 
-        const { data: invoiceData } = await supabase
-          .from('invoices')
+          const {
+            data: invoiceData,
+            error: invoiceError,
+          } = await supabase
+            .from('invoices')
+            .select('*')
+            .eq('camper_id', camperData.id)
+
+          console.log('INVOICE ERROR:', invoiceError)
+
+          setInvoices(invoiceData || [])
+        }
+
+        const {
+          data: documentData,
+          error: documentError,
+        } = await supabase
+          .from('documents')
           .select('*')
-          .eq('camper_id', camperData.id)
 
-        setInvoices(invoiceData || [])
+        console.log('DOCUMENT ERROR:', documentError)
+
+        setDocuments(documentData || [])
+
+        const {
+          data: eventData,
+          error: eventError,
+        } = await supabase
+          .from('events')
+          .select('*')
+          .limit(5)
+
+        console.log('EVENT ERROR:', eventError)
+
+        setEvents(eventData || [])
+
+        const {
+          data: announcementData,
+          error: announcementError,
+        } = await supabase
+          .from('announcements')
+          .select('*')
+          .eq('is_active', true)
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        console.log('ANNOUNCEMENT ERROR:', announcementError)
+
+        setAnnouncements(announcementData || [])
+
+        const {
+          data: alertData,
+          error: alertError,
+        } = await supabase
+          .from('text_reminders')
+          .select('*')
+          .order('sent_at', { ascending: false })
+          .limit(5)
+
+        console.log('TEXT REMINDER ERROR:', alertError)
+
+        setAlerts(alertData || [])
+
+        console.log('=== DASHBOARD COMPLETE ===')
+      } catch (error) {
+        console.error('DASHBOARD FAILED:', error)
+      } finally {
+        console.log('LOADING FALSE')
+        setLoading(false)
       }
-
-      const { data: documentData } = await supabase
-        .from('documents')
-        .select('*')
-
-      setDocuments(documentData || [])
-
-      const { data: eventData } = await supabase
-        .from('events')
-        .select('*')
-        .limit(5)
-
-      setEvents(eventData || [])
-
-      const { data: announcementData } = await supabase
-        .from('announcements')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      setAnnouncements(announcementData || [])
-
-      const { data: alertData } = await supabase
-        .from('text_reminders')
-        .select('*')
-        .order('sent_at', { ascending: false })
-        .limit(5)
-
-      setAlerts(alertData || [])
-
-      setLoading(false)
     }
 
     loadDashboard()
