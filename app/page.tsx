@@ -40,6 +40,14 @@ export default function HomePage() {
       */
 
       if (camperData) {
+        if (
+          camperData.role &&
+          camperData.role.toLowerCase() === 'admin'
+        ) {
+          window.location.replace('/admin')
+          return
+        }
+
         setCamper(camperData)
 
         const { data: invoiceData } = await supabase
