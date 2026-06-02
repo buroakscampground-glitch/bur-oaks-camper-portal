@@ -86,11 +86,16 @@ export default function AdminCampersPage() {
   }
 
   async function deleteCamper(id: string) {
-    const confirmDelete = confirm('Are you sure you want to delete this camper?')
+    const confirmDelete = confirm(
+      'Are you sure you want to delete this camper?'
+    )
 
     if (!confirmDelete) return
 
-    const { error } = await supabase.from('campers').delete().eq('id', id)
+    const { error } = await supabase
+      .from('campers')
+      .delete()
+      .eq('id', id)
 
     if (error) {
       setMessage(error.message)
@@ -101,36 +106,135 @@ export default function AdminCampersPage() {
     loadCampers()
   }
 
+  async function createPortalAccount(email: string) {
+    const response = await fetch(
+      '/api/create-camper-account',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      }
+    )
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      setMessage(
+        result.error || 'Failed to create account'
+      )
+      return
+    }
+
+    setMessage(
+      `Portal invite sent to ${email}`
+    )
+  }
+
   return (
     <main style={{ padding: '40px', fontFamily: 'Arial' }}>
       <h1>Manage Campers</h1>
 
-      <h2>{editingId ? 'Edit Camper' : 'Add Camper'}</h2>
+      <h2>
+        {editingId
+          ? 'Edit Camper'
+          : 'Add Camper'}
+      </h2>
 
-      <input placeholder="Lot Number" value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} />
-      <input placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-      <input placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-      <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      <input
+        placeholder="Lot Number"
+        value={lotNumber}
+        onChange={(e) =>
+          setLotNumber(e.target.value)
+        }
+      />
+
+      <input
+        placeholder="First Name"
+        value={firstName}
+        onChange={(e) =>
+          setFirstName(e.target.value)
+        }
+      />
+
+      <input
+        placeholder="Last Name"
+        value={lastName}
+        onChange={(e) =>
+          setLastName(e.target.value)
+        }
+      />
+
+      <input
+        placeholder="Email"
+        value={email}
+        onChange={(e) =>
+          setEmail(e.target.value)
+        }
+      />
+
+      <input
+        placeholder="Phone"
+        value={phone}
+        onChange={(e) =>
+          setPhone(e.target.value)
+        }
+      />
 
       <button onClick={saveCamper}>
-        {editingId ? 'Update Camper' : 'Add Camper'}
+        {editingId
+          ? 'Update Camper'
+          : 'Add Camper'}
       </button>
 
-      {editingId && <button onClick={clearForm}>Cancel Edit</button>}
+      {editingId && (
+        <button onClick={clearForm}>
+          Cancel Edit
+        </button>
+      )}
 
       {message && <p>{message}</p>}
 
       <h2>Current Campers</h2>
 
       {campers.map((camper) => (
-        <div key={camper.id} style={{ marginBottom: '12px' }}>
-          Lot {camper.lot_number} - {camper.first_name} {camper.last_name} - {camper.email}
+        <div
+          key={camper.id}
+          style={{ marginBottom: '12px' }}
+        >
+          Lot {camper.lot_number} -{' '}
+          {camper.first_name}{' '}
+          {camper.last_name} -{' '}
+          {camper.email}
 
           <br />
 
-          <button onClick={() => editCamper(camper)}>Edit</button>
-          <button onClick={() => deleteCamper(camper.id)}>Delete</button>
+          <button
+            onClick={() =>
+              editCamper(camper)
+            }
+          >
+            Edit
+          </button>
+
+          <button
+            onClick={() =>
+              deleteCamper(camper.id)
+            }
+          >
+            Delete
+          </button>
+
+          <button
+            onClick={() =>
+              createPortalAccount(
+                camper.email
+              )
+            }
+          >
+            Create Portal Account
+          </button>
         </div>
       ))}
     </main>
