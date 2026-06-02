@@ -32,17 +32,16 @@ export default function AdminDocumentsPage() {
     const fileName = `${Date.now()}-${file.name}`
 
     const { error: uploadError } = await supabase.storage
-      .from('documents')
-      .upload(fileName, file)
-
+      .from('Documents')
+.upload(fileName, file)
     if (uploadError) {
       setMessage(uploadError.message)
       return
     }
 
     const { data: publicUrlData } = supabase.storage
-      .from('documents')
-      .getPublicUrl(fileName)
+      .from('Documents')
+.getPublicUrl(fileName)
 
     const fileUrl = publicUrlData.publicUrl
 
