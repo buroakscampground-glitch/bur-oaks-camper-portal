@@ -29,6 +29,10 @@ export default function HomePage() {
         .eq('email', user.email)
         .single()
 
+      console.log('USER EMAIL:', user.email)
+      console.log('CAMPER DATA:', camperData)
+      console.log('ROLE:', camperData?.role)
+
       /*
       if (
         camperData?.role &&
