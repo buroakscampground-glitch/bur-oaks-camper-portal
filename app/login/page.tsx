@@ -4,7 +4,6 @@ import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
-  const [loginType, setLoginType] = useState<"camper" | "admin">("camper");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -12,19 +11,14 @@ export default function LoginPage() {
 
   async function handleLogin() {
     setError("");
-
-    if (!email || !password) {
-      setError("Please enter both email and password.");
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { error: authError } =
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
       if (authError) {
         setError(authError.message);
@@ -37,21 +31,17 @@ export default function LoginPage() {
         .eq("email", email.toLowerCase())
         .single();
 
-      const isAdmin = camper?.role?.toLowerCase() === "admin";
+      const isAdmin =
+        camper?.role?.toLowerCase() === "admin";
 
-      if (loginType === "admin") {
-        if (!isAdmin) {
-          await supabase.auth.signOut();
-          setError("This account does not have admin access.");
-          return;
-        }
-
+      if (isAdmin) {
         window.location.href = "/admin";
       } else {
         window.location.href = "/portal";
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+      console.error(err);
+      setError("Login failed");
     } finally {
       setLoading(false);
     }
@@ -60,60 +50,53 @@ export default function LoginPage() {
   return (
     <main
       style={{
-        padding: "40px",
         maxWidth: "500px",
-        margin: "0 auto",
-        fontFamily: "Arial, sans-serif",
+        margin: "50px auto",
+        padding: "30px",
+        border: "1px solid #ddd",
+        borderRadius: "10px",
       }}
     >
-      <h1 style={{ textAlign: "center" }}>Bur Oaks Campground</h1>
+      <h1>Bur Oaks Campground</h1>
 
-      <div
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
         style={{
-          display: "flex",
-          gap: "10px",
-          marginBottom: "20px",
+          width: "100%",
+          padding: "10px",
+          marginBottom: "10px",
         }}
-      >
-        <button
-          type="button"
-          onClick={() => setLoginType("camper")}
-        >
-          Camper Login
-        </button>
+      />
 
-        <button
-          type="button"
-          onClick={() => setLoginType("admin")}
-        >
-          Admin Login
-        </button>
-      </div>
+      <input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginBottom: "10px",
+        }}
+      />
 
-      <div style={{ marginBottom: "10px" }}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </div>
-
-      <div style={{ marginBottom: "10px" }}>
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </div>
-
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && (
+        <p style={{ color: "red" }}>
+          {error}
+        </p>
+      )}
 
       <button
         type="button"
         onClick={handleLogin}
         disabled={loading}
+        style={{
+          width: "100%",
+          padding: "12px",
+        }}
       >
         {loading ? "Signing In..." : "Login"}
       </button>

@@ -4,9 +4,14 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
 export default function HomePage() {
-    async function handleLogout() {
+  async function handleLogout() {
+  
+
   await supabase.auth.signOut()
-  window.location.href = '/login'
+
+  
+
+  window.location.href = "/login"
 }
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
@@ -184,19 +189,7 @@ export default function HomePage() {
 >
   <p className="muted">BUR OAKS CAMPGROUND</p>
 
-  <button
-    onClick={handleLogout}
-    style={{
-      background: '#cc0000',
-      color: '#ffffff',
-      border: 'none',
-      padding: '8px 14px',
-      borderRadius: '6px',
-      cursor: 'pointer',
-    }}
-  >
-    Logout
-  </button>
+ 
 </div>
 
           <h1>
@@ -206,7 +199,23 @@ export default function HomePage() {
           <h2 style={{ color: '#2f5d3a' }}>
             A Site to Remember
           </h2>
-
+<button
+  type="button"
+  onClick={handleLogout}
+  style={{
+    background: "#cc0000",
+    color: "white",
+    padding: "20px",
+    fontSize: "24px",
+    marginTop: "20px",
+    marginBottom: "20px",
+    cursor: "pointer",
+    border: "none",
+    borderRadius: "8px",
+  }}
+>
+  LOGOUT
+</button>
           <p className="muted">
             CAMP. RELAX. EXPLORE.
           </p>
