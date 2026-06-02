@@ -1,59 +1,63 @@
-```tsx
-"use client"
+"use client";
 
-import { useState } from "react"
-import { supabase } from "../../lib/supabase"
+import { useState } from "react";
+import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-    setError(null)
+    setError(null);
 
     if (!email || !password) {
-      setError("Please enter both email and password.")
-      return
+      setError("Please enter both email and password.");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       const { error: authError } =
         await supabase.auth.signInWithPassword({
           email,
           password,
-        })
+        });
 
       if (authError) {
-        setError(authError.message)
-        return
+        setError(authError.message);
+        return;
       }
 
-      const { data: camper } = await supabase
-        .from("campers")
-        .select("role")
-        .eq("email", email)
-        .single()
+      const { data: camper, error: camperError } =
+        await supabase
+          .from("campers")
+          .select("role")
+          .eq("email", email.toLowerCase())
+          .single();
+
+      if (camperError) {
+        console.error(camperError);
+      }
 
       if (
         camper?.role &&
         camper.role.toLowerCase() === "admin"
       ) {
-        window.location.href = "/admin"
+        window.location.href = "/admin";
       } else {
-        window.location.href = "/"
+        window.location.href = "/";
       }
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : "Login failed"
-      )
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -61,7 +65,9 @@ export default function LoginPage() {
     <main
       style={{
         padding: "40px",
-        fontFamily: "Arial",
+        fontFamily: "Arial, sans-serif",
+        maxWidth: "400px",
+        margin: "0 auto",
       }}
     >
       <h1>Bur Oaks Login</h1>
@@ -71,12 +77,10 @@ export default function LoginPage() {
           type="email"
           placeholder="Email"
           value={email}
-          onChange={(e) =>
-            setEmail(e.target.value)
-          }
+          onChange={(e) => setEmail(e.target.value)}
           style={{
             padding: "10px",
-            width: "300px",
+            width: "100%",
           }}
         />
       </div>
@@ -86,12 +90,10 @@ export default function LoginPage() {
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e) =>
-            setPassword(e.target.value)
-          }
+          onChange={(e) => setPassword(e.target.value)}
           style={{
             padding: "10px",
-            width: "300px",
+            width: "100%",
           }}
         />
       </div>
@@ -123,11 +125,8 @@ export default function LoginPage() {
             : "pointer",
         }}
       >
-        {loading
-          ? "Signing In..."
-          : "Login"}
+        {loading ? "Signing In..." : "Login"}
       </button>
     </main>
-  )
+  );
 }
-```
