@@ -4,13 +4,14 @@ import { useState } from "react";
 import { supabase } from "../../lib/supabase";
 
 export default function LoginPage() {
+  const [loginType, setLoginType] = useState<"camper" | "admin">("camper");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function handleLogin() {
-    setError(null);
+    setError("");
 
     if (!email || !password) {
       setError("Please enter both email and password.");
@@ -20,42 +21,37 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const { error: authError } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
       if (authError) {
         setError(authError.message);
         return;
       }
 
-      const { data: camper, error: camperError } =
-        await supabase
-          .from("campers")
-          .select("role")
-          .eq("email", email.toLowerCase())
-          .single();
+      const { data: camper } = await supabase
+        .from("campers")
+        .select("role")
+        .eq("email", email.toLowerCase())
+        .single();
 
-      if (camperError) {
-        console.error(camperError);
-      }
+      const isAdmin = camper?.role?.toLowerCase() === "admin";
 
-      if (
-        camper?.role &&
-        camper.role.toLowerCase() === "admin"
-      ) {
+      if (loginType === "admin") {
+        if (!isAdmin) {
+          await supabase.auth.signOut();
+          setError("This account does not have admin access.");
+          return;
+        }
+
         window.location.href = "/admin";
       } else {
         window.location.href = "/portal";
       }
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Login failed"
-      );
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -65,12 +61,34 @@ export default function LoginPage() {
     <main
       style={{
         padding: "40px",
-        fontFamily: "Arial, sans-serif",
-        maxWidth: "400px",
+        maxWidth: "500px",
         margin: "0 auto",
+        fontFamily: "Arial, sans-serif",
       }}
     >
-      <h1>Bur Oaks Login</h1>
+      <h1 style={{ textAlign: "center" }}>Bur Oaks Campground</h1>
+
+      <div
+        style={{
+          display: "flex",
+          gap: "10px",
+          marginBottom: "20px",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setLoginType("camper")}
+        >
+          Camper Login
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setLoginType("admin")}
+        >
+          Admin Login
+        </button>
+      </div>
 
       <div style={{ marginBottom: "10px" }}>
         <input
@@ -78,10 +96,6 @@ export default function LoginPage() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{
-            padding: "10px",
-            width: "100%",
-          }}
         />
       </div>
 
@@ -91,39 +105,15 @@ export default function LoginPage() {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          style={{
-            padding: "10px",
-            width: "100%",
-          }}
         />
       </div>
 
-      {error && (
-        <p
-          style={{
-            color: "red",
-            marginBottom: "15px",
-          }}
-        >
-          {error}
-        </p>
-      )}
+      {error && <p style={{ color: "red" }}>{error}</p>}
 
       <button
+        type="button"
         onClick={handleLogin}
         disabled={loading}
-        style={{
-          padding: "10px 20px",
-          background: loading
-            ? "#999"
-            : "#1f5130",
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          cursor: loading
-            ? "not-allowed"
-            : "pointer",
-        }}
       >
         {loading ? "Signing In..." : "Login"}
       </button>

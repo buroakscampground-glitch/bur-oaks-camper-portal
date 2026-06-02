@@ -4,6 +4,10 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
 export default function HomePage() {
+    async function handleLogout() {
+  await supabase.auth.signOut()
+  window.location.href = '/login'
+}
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
@@ -171,7 +175,29 @@ export default function HomePage() {
             🌳
           </div>
 
-          <p className="muted">BUR OAKS CAMPGROUND</p>
+          <div
+  style={{
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  }}
+>
+  <p className="muted">BUR OAKS CAMPGROUND</p>
+
+  <button
+    onClick={handleLogout}
+    style={{
+      background: '#cc0000',
+      color: '#ffffff',
+      border: 'none',
+      padding: '8px 14px',
+      borderRadius: '6px',
+      cursor: 'pointer',
+    }}
+  >
+    Logout
+  </button>
+</div>
 
           <h1>
             Welcome Back {camper?.first_name || ''}

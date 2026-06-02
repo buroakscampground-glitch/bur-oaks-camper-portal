@@ -23,7 +23,7 @@ export default function AdminPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-
+console.log("CURRENT USER:", user?.email)
     if (!user) {
       window.location.href = '/login'
       return
@@ -110,7 +110,14 @@ export default function AdminPage() {
             location.
           </p>
         </section>
-
+<button
+  onClick={async () => {
+    await supabase.auth.signOut()
+    window.location.href = "/login"
+  }}
+>
+  Logout
+</button>
         <div
           className="grid grid-3"
           style={{ marginBottom: '25px' }}
