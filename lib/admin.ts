@@ -11,7 +11,7 @@ export async function requireAdminUser() {
 
   const { data: camper } = await supabase
     .from('campers')
-    .select('role')
+    .select('role,email')
     .eq('email', user.email)
     .single()
 
