@@ -48,7 +48,7 @@ export default function LoginPage() {
       ) {
         window.location.href = "/admin";
       } else {
-        window.location.href = "/";
+        window.location.href = "/portal";
       }
     } catch (err) {
       setError(
