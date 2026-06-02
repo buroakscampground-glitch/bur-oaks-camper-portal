@@ -29,6 +29,14 @@ export default function HomePage() {
         .eq('email', user.email)
         .single()
 
+      if (
+        camperData?.role &&
+        camperData.role.toLowerCase() === 'admin'
+      ) {
+        window.location.href = '/admin'
+        return
+      }
+
       if (camperData) {
         setCamper(camperData)
 

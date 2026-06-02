@@ -26,11 +26,20 @@ export default function LoginPage() {
         return
       }
 
-      const { data: camper } = await supabase
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      console.log("LOGGED IN USER:", user?.email)
+
+      const { data: camper, error } = await supabase
         .from("campers")
-        .select("role")
-        .eq("email", email.toLowerCase())
+        .select("role,email")
+        .eq("email", user?.email || "")
         .single()
+
+      console.log("CAMPER RECORD:", camper)
+      console.log("CAMPER ERROR:", error)
 
       if (
         camper?.role &&
