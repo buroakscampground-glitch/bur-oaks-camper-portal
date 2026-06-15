@@ -13,17 +13,30 @@ export async function GET() {
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string)
 
-const webhookSecret =
-  process.env.STRIPE_WEBHOOK_SECRET || 'TEST'
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  'https://mzywctpxnpejglnspyqi.supabase.co'
-
-const supabaseServiceRole =
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-
 export async function POST(request: Request) {
-  console.log('Webhook Secret:', webhookSecret)
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+  const supabaseServiceRole =
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    'https://mzywctpxnpejglnspyqi.supabase.co'
+
+  console.log(
+    'WEBHOOK SECRET EXISTS:',
+    !!webhookSecret
+  )
+
+  console.log(
+    'SUPABASE KEY EXISTS:',
+    !!supabaseServiceRole
+  )
+
+  if (!webhookSecret) {
+    return NextResponse.json(
+      { error: 'Missing STRIPE_WEBHOOK_SECRET' },
+      { status: 500 }
+    )
+  }
 
   if (!supabaseServiceRole) {
     return NextResponse.json(
@@ -63,23 +76,39 @@ export async function POST(request: Request) {
   }
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
+    const session =
+      event.data.object as Stripe.Checkout.Session
 
     const invoiceIds = JSON.parse(
       session.metadata?.invoice_ids || '[]'
     )
 
-    if (invoiceIds.length > 0) {
+    console.log('Invoice IDs:', invoiceIds)
+
+    if (
+      Array.isArray(invoiceIds) &&
+      invoiceIds.length > 0
+    ) {
       const { error } = await supabaseAdmin
         .from('invoices')
         .update({ status: 'paid' })
         .in('id', invoiceIds)
 
       if (error) {
-        console.error(error)
+        console.error(
+          'SUPABASE UPDATE ERROR:',
+          error
+        )
+
+        return NextResponse.json(
+          { error: error.message },
+          { status: 500 }
+        )
       }
     }
   }
 
-  return NextResponse.json({ received: true })
+  return NextResponse.json({
+    received: true,
+  })
 }
