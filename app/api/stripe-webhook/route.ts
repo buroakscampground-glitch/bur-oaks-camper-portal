@@ -6,9 +6,13 @@ export const runtime = 'nodejs'
 
 export async function GET() {
   return NextResponse.json({
-    webhookSecretExists: !!process.env.STRIPE_WEBHOOK_SECRET,
-    supabaseKeyExists: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-    stripeKeyExists: !!process.env.STRIPE_SECRET_KEY,
+    keys: Object.keys(process.env)
+      .filter(
+        (k) =>
+          k.includes('STRIPE') ||
+          k.includes('SUPABASE')
+      )
+      .sort(),
   })
 }
 
