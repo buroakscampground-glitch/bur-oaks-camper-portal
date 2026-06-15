@@ -6,8 +6,9 @@ export const runtime = 'nodejs'
 
 export async function GET() {
   return NextResponse.json({
-    success: true,
-    message: 'Webhook route is working',
+    webhookSecretExists: !!process.env.STRIPE_WEBHOOK_SECRET,
+    supabaseKeyExists: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+    stripeKeyExists: !!process.env.STRIPE_SECRET_KEY,
   })
 }
 
