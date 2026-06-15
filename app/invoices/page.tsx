@@ -9,7 +9,7 @@ export default function InvoicesPage() {
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
-
+const [processingInvoiceId, setProcessingInvoiceId] = useState('')
   useEffect(() => {
     async function loadInvoices() {
       const {
@@ -104,13 +104,13 @@ export default function InvoicesPage() {
 
     try {
       await checkoutItems(
-        buildCheckoutItems(invoicesToPay),
-        `${window.location.origin}/success`,
-        `${window.location.origin}/invoices`,
-        invoicesToPay.map(
-          (invoice) => invoice.id
-        )
-      )
+  buildCheckoutItems(invoicesToPay),
+  'https://bur-oaks-camper-portal-tace.vercel.app/success',
+  'https://bur-oaks-camper-portal-tace.vercel.app/invoices',
+  invoicesToPay.map(
+    (invoice) => invoice.id
+  )
+)
     } catch (error: any) {
       alert(
         error.message ||
@@ -133,8 +133,14 @@ export default function InvoicesPage() {
   }
 
   async function handlePayInvoice(invoice: any) {
+  setProcessingInvoiceId(invoice.id)
+
+  try {
     await handlePayment([invoice])
+  } finally {
+    setProcessingInvoiceId('')
   }
+}
 
   return (
     <main className="page">
@@ -359,13 +365,11 @@ export default function InvoicesPage() {
                             invoice
                           )
                         }
-                        disabled={
-                          checkoutLoading
-                        }
+                       disabled={processingInvoiceId === invoice.id}
                       >
-                        {checkoutLoading
-                          ? 'Processing…'
-                          : 'Pay This Invoice'}
+                        {processingInvoiceId === invoice.id
+  ? 'Processing...'
+  : 'Pay This Invoice'}
                       </button>
                     ) : (
                       <button

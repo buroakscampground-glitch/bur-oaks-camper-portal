@@ -75,6 +75,17 @@ export default function ArchivedCampersPage() {
 
   return (
     <main style={{ padding: '40px' }}>
+      <a
+  href="/admin"
+  style={{
+    display: 'inline-block',
+    marginBottom: '20px',
+    textDecoration: 'none',
+    fontWeight: 'bold',
+  }}
+>
+  ← Back to Dashboard
+</a>
       <h1>Archived Campers</h1>
 
       {message && <p>{message}</p>}

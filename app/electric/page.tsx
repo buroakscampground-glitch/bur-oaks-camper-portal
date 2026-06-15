@@ -51,39 +51,73 @@ export default function ElectricPage() {
     <main className="page">
       <div className="container">
         <section
-          className="card"
-          style={{
-            marginBottom: '25px',
-            background: 'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          <div style={{ position: 'absolute', right: 25, top: 20, fontSize: 80, opacity: 0.15 }}>
-            🌳
-          </div>
+  className="card"
+  style={{
+    marginBottom: '25px',
+    background: 'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
+    position: 'relative',
+    overflow: 'hidden',
+  }}
+>
+  <div
+    style={{
+      position: 'absolute',
+      right: 25,
+      top: 20,
+      fontSize: 80,
+      opacity: 0.15,
+    }}
+  >
+    🌳
+  </div>
 
-          <p className="muted">BUR OAKS CAMPGROUND</p>
-          <h1>My Electric Usage</h1>
-          <p className="muted">Review your meter readings, kWh usage, and electric charges.</p>
-        </section>
+  <p className="muted">BUR OAKS CAMPGROUND</p>
 
-        <div className="grid grid-3" style={{ marginBottom: '25px' }}>
-          <section className="card">
-            <h2>{latest ? latest.kwh_used : 0} kWh</h2>
-            <p className="muted">Latest Usage</p>
-          </section>
+  <h1>My Electric Usage</h1>
 
-          <section className="card">
-            <h2>${latest ? Number(latest.amount_due || 0).toFixed(2) : '0.00'}</h2>
-            <p className="muted">Latest Charge</p>
-          </section>
+  <p className="muted">
+    Review your meter readings, kWh usage, and electric charges.
+  </p>
+</section>
+      <div
+  style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '15px',
+    marginBottom: '25px',
+  }}
+>
+  <section className="card">
+    <h2>{latest ? latest.kwh_used : 0} kWh</h2>
+    <p className="muted">Latest Usage</p>
+  </section>
 
-          <section className="card">
-            <h2>${totalDue.toFixed(2)}</h2>
-            <p className="muted">Total Electric History</p>
-          </section>
-        </div>
+  <section className="card">
+    <h2>
+      ${latest ? Number(latest.amount_due || 0).toFixed(2) : '0.00'}
+    </h2>
+    <p className="muted">Latest Charge</p>
+  </section>
+
+  <section className="card">
+    <h2>
+      {readings.length > 1
+        ? readings[1].kwh_used
+        : 0}{' '}
+      kWh
+    </h2>
+    <p className="muted">Previous Usage</p>
+  </section>
+
+  <section className="card">
+    <h2>{readings.length}</h2>
+    <p className="muted">Total Readings</p>
+  </section>
+  <section className="card">
+  <h2>${totalDue.toFixed(2)}</h2>
+  <p className="muted">Lifetime Electric Charges</p>
+</section>
+</div>
 
         {readings.length === 0 && (
           <section className="card">

@@ -23,13 +23,13 @@ export default function ProfilePage() {
       return
     }
 
-    const { data: camperData } = await supabase
+    const { data } = await supabase
       .from('campers')
       .select('*')
       .eq('email', user.email)
       .single()
 
-    setCamper(camperData)
+    setCamper(data)
     setLoading(false)
   }
 
@@ -45,6 +45,13 @@ export default function ProfilePage() {
         first_name: camper.first_name,
         last_name: camper.last_name,
         phone: camper.phone,
+        emergency_contact_name: camper.emergency_contact_name,
+        emergency_contact_phone: camper.emergency_contact_phone,
+        vehicle_make: camper.vehicle_make,
+        vehicle_model: camper.vehicle_model,
+        license_plate: camper.license_plate,
+        golf_cart_make: camper.golf_cart_make,
+        golf_cart_color: camper.golf_cart_color,
       })
       .eq('id', camper.id)
 
@@ -87,7 +94,7 @@ export default function ProfilePage() {
           style={{
             marginBottom: '25px',
             background:
-              'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
+              'linear-gradient(135deg,#ffffff 0%,#eef4ea 100%)',
           }}
         >
           <p className="muted">BUR OAKS CAMPGROUND</p>
@@ -101,110 +108,170 @@ export default function ProfilePage() {
           </h2>
 
           <p className="muted">
-            Manage your camper account information.
+            Manage your camper information.
           </p>
         </section>
 
-        <section
-          className="card"
-          style={{ marginBottom: '25px' }}
-        >
+        <section className="card" style={{ marginBottom: '25px' }}>
           <h2>Profile Information</h2>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label>First Name</label>
+          <input
+            placeholder="First Name"
+            value={camper.first_name || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                first_name: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
 
-            <input
-              type="text"
-              value={camper.first_name || ''}
-              onChange={(e) =>
-                setCamper({
-                  ...camper,
-                  first_name: e.target.value,
-                })
-              }
-              style={{
-                width: '100%',
-                padding: '10px',
-              }}
-            />
-          </div>
+          <input
+            placeholder="Last Name"
+            value={camper.last_name || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                last_name: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
 
-          <div style={{ marginBottom: '15px' }}>
-            <label>Last Name</label>
+          <input
+            placeholder="Phone Number"
+            value={camper.phone || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                phone: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
 
-            <input
-              type="text"
-              value={camper.last_name || ''}
-              onChange={(e) =>
-                setCamper({
-                  ...camper,
-                  last_name: e.target.value,
-                })
-              }
-              style={{
-                width: '100%',
-                padding: '10px',
-              }}
-            />
-          </div>
+          <input
+            value={camper.email || ''}
+            disabled
+            style={{
+              width: '100%',
+              marginBottom: '12px',
+              background: '#f3f4f6',
+            }}
+          />
 
-          <div style={{ marginBottom: '15px' }}>
-            <label>Phone Number</label>
+          <input
+            value={camper.lot_number || ''}
+            disabled
+            style={{
+              width: '100%',
+              marginBottom: '12px',
+              background: '#f3f4f6',
+            }}
+          />
+        </section>
 
-            <input
-              type="text"
-              value={camper.phone || ''}
-              onChange={(e) =>
-                setCamper({
-                  ...camper,
-                  phone: e.target.value,
-                })
-              }
-              style={{
-                width: '100%',
-                padding: '10px',
-              }}
-            />
-          </div>
+        <section className="card" style={{ marginBottom: '25px' }}>
+          <h2>Emergency Contact</h2>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label>Email Address</label>
+          <input
+            placeholder="Emergency Contact Name"
+            value={camper.emergency_contact_name || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                emergency_contact_name: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
 
-            <input
-              type="text"
-              value={camper.email || ''}
-              disabled
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: '#f3f4f6',
-              }}
-            />
-          </div>
+          <input
+            placeholder="Emergency Contact Phone"
+            value={camper.emergency_contact_phone || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                emergency_contact_phone: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+        </section>
 
-          <div style={{ marginBottom: '15px' }}>
-            <label>Lot Number</label>
+        <section className="card" style={{ marginBottom: '25px' }}>
+          <h2>Vehicle Information</h2>
 
-            <input
-              type="text"
-              value={camper.lot_number || ''}
-              disabled
-              style={{
-                width: '100%',
-                padding: '10px',
-                background: '#f3f4f6',
-              }}
-            />
-          </div>
+          <input
+            placeholder="Vehicle Make"
+            value={camper.vehicle_make || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                vehicle_make: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="Vehicle Model"
+            value={camper.vehicle_model || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                vehicle_model: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="License Plate"
+            value={camper.license_plate || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                license_plate: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+        </section>
+
+        <section className="card" style={{ marginBottom: '25px' }}>
+          <h2>Golf Cart Information</h2>
+
+          <input
+            placeholder="Golf Cart Make"
+            value={camper.golf_cart_make || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                golf_cart_make: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="Golf Cart Color"
+            value={camper.golf_cart_color || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                golf_cart_color: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
 
           <button
             onClick={saveProfile}
             disabled={saving}
           >
-            {saving
-              ? 'Saving...'
-              : 'Save Profile'}
+            {saving ? 'Saving...' : 'Save Profile'}
           </button>
 
           {message && (
@@ -227,6 +294,7 @@ export default function ProfilePage() {
             Sign Out
           </button>
         </section>
+
       </div>
     </main>
   )

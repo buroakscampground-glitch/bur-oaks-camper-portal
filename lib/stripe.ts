@@ -30,9 +30,11 @@ export async function createCheckoutSession(
     throw new Error(data.error || 'Failed to create checkout session.');
   }
 
-  if (!data.id || !data.url) {
-    throw new Error('Stripe session response is missing required values.');
-  }
+  console.log('Stripe Response:', data);
+
+if (!data.id || !data.url) {
+  throw new Error(JSON.stringify(data, null, 2));
+}
 
   return data;
 }

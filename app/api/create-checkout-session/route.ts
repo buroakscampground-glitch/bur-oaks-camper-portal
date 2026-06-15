@@ -6,7 +6,8 @@ export async function POST(req: Request) {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
     const body = await req.json();
-
+const successUrl = body.success_url
+const cancelUrl = body.cancel_url
     const items = Array.isArray(body.items) ? body.items : []
     const invoiceIds = Array.isArray(body.invoiceIds) ? body.invoiceIds : []
 
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
         product_data: {
           name: item.name || 'Invoice Payment',
         },
-        unit_amount: Math.round(Number(item.amount || 0) * 100),
+  unit_amount: Number(item.amount || 0),
       },
       quantity: item.quantity || 1,
     }))
@@ -24,17 +25,18 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: lineItems,
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/success`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/cancel`,
+      success_url: successUrl,
+cancel_url: cancelUrl,
       metadata: {
         invoice_ids: JSON.stringify(invoiceIds),
       },
     });
 
     return NextResponse.json({
-      success: true,
-      url: session.url,
-    });
+  success: true,
+  id: session.id,
+  url: session.url,
+});
   } catch (error: any) {
     console.error('STRIPE ERROR:', error);
 

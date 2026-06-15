@@ -138,6 +138,17 @@ const [search, setSearch] = useState('')
 
   return (
     <main style={{ padding: '40px', fontFamily: 'Arial' }}>
+      <a
+  href="/admin"
+  style={{
+    display: 'inline-block',
+    marginBottom: '20px',
+    textDecoration: 'none',
+    fontWeight: 'bold',
+  }}
+>
+  ← Back to Dashboard
+</a>
       <h1>Manage Campers</h1>
 
       <h2>

@@ -24,6 +24,10 @@ export default function AdminDocumentsPage() {
   }, [])
 
   async function uploadDocument() {
+    if (!camperId) {
+  setMessage('Please select a camper.')
+  return
+}
     if (!file) {
       setMessage('Please select a file.')
       return
@@ -65,8 +69,21 @@ export default function AdminDocumentsPage() {
   }
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'Arial', maxWidth: '700px' }}>
-      <h1>Admin Documents</h1>
+  <main style={{ padding: '40px', fontFamily: 'Arial', maxWidth: '700px' }}>
+
+    <a
+      href="/admin"
+      style={{
+        display: 'inline-block',
+        marginBottom: '20px',
+        textDecoration: 'none',
+        fontWeight: 'bold',
+      }}
+    >
+      ← Back to Dashboard
+    </a>
+
+    <h1>Admin Documents</h1>
 
       <label>Camper</label>
 

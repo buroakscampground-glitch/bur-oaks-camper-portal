@@ -9,10 +9,16 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
 })
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-const supabaseUrl = process.env.SUPABASE_URL || 'https://mzywctpxnpejglnspyqi.supabase.co'
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseUrl =
+  process.env.SUPABASE_URL ||
+  'https://mzywctpxnpejglnspyqi.supabase.co'
+const supabaseServiceRole =
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRole || '')
+const supabaseAdmin = createClient(
+  supabaseUrl,
+  supabaseServiceRole || ''
+)
 
 export async function POST(request: Request) {
   if (!webhookSecret) {
@@ -42,22 +48,38 @@ export async function POST(request: Request) {
   let event: Stripe.Event
 
   try {
-    event = stripe.webhooks.constructEvent(payload, signature, webhookSecret)
+    event = stripe.webhooks.constructEvent(
+      payload,
+      signature,
+      webhookSecret
+    )
   } catch (error: any) {
-    console.error('Stripe webhook verification failed:', error.message)
+    console.error(
+      'Stripe webhook verification failed:',
+      error.message
+    )
+
     return NextResponse.json(
-      { error: `Webhook verification failed: ${error.message}` },
+      {
+        error: `Webhook verification failed: ${error.message}`,
+      },
       { status: 400 }
     )
   }
 
-  console.log('Received Stripe webhook event:', event.type)
+  console.log(
+    'Received Stripe webhook event:',
+    event.type
+  )
 
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session
+    const session =
+      event.data.object as Stripe.Checkout.Session
+
     const metadata = session.metadata || {}
     const invoiceIdsRaw = metadata.invoice_ids
-    let invoiceIds: any = []
+
+    let invoiceIds: any[] = []
 
     if (typeof invoiceIdsRaw === 'string') {
       try {
@@ -65,21 +87,32 @@ export async function POST(request: Request) {
       } catch {
         invoiceIds = []
       }
-    } else if (Array.isArray(invoiceIdsRaw)) {
-      invoiceIds = invoiceIdsRaw
     }
 
-    console.log('checkout.session.completed invoice IDs:', invoiceIds)
+    console.log(
+      'checkout.session.completed invoice IDs:',
+      invoiceIds
+    )
 
-    if (Array.isArray(invoiceIds) && invoiceIds.length > 0) {
+    if (
+      Array.isArray(invoiceIds) &&
+      invoiceIds.length > 0
+    ) {
       const { error } = await supabaseAdmin
         .from('invoices')
         .update({ status: 'paid' })
         .in('id', invoiceIds)
 
+      console.log(
+        'Invoices marked paid:',
+        invoiceIds
+      )
+
       if (error) {
         return NextResponse.json(
-          { error: `Failed to update invoices: ${error.message}` },
+          {
+            error: `Failed to update invoices: ${error.message}`,
+          },
           { status: 500 }
         )
       }

@@ -11,9 +11,39 @@ export default function AdminInvoicesPage() {
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [message, setMessage] = useState('')
+const [invoices, setInvoices] = useState<any[]>([])
 
-  useEffect(() => {
+async function loadInvoices() {
+  const { data } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      campers (
+        first_name,
+        last_name,
+        lot_number
+      )
+    `)
+    .order('created_at', { ascending: false })
+
+  setInvoices(data || [])
+}
+
+useEffect(() => {
     async function loadCampers() {
+      const { data: invoiceData } = await supabase
+  .from('invoices')
+  .select(`
+    *,
+    campers (
+      first_name,
+      last_name,
+      lot_number
+    )
+  `)
+  .order('created_at', { ascending: false })
+
+setInvoices(invoiceData || [])
       const { data } = await supabase
         .from('campers')
         .select('*')
@@ -26,6 +56,25 @@ export default function AdminInvoicesPage() {
   }, [])
 
   async function createInvoice() {
+    if (!camperId) {
+  setMessage('Please select a camper.')
+  return
+}
+
+if (!invoiceNumber.trim()) {
+  setMessage('Please enter an invoice number.')
+  return
+}
+
+if (!amount || Number(amount) <= 0) {
+  setMessage('Please enter a valid amount.')
+  return
+}
+
+if (!dueDate) {
+  setMessage('Please select a due date.')
+  return
+}
     setMessage('Creating invoice...')
 
     const total = Number(amount)
@@ -64,15 +113,81 @@ export default function AdminInvoicesPage() {
     }
 
     setMessage('Invoice created successfully!')
-    setInvoiceNumber('')
-    setAmount('')
-    setDueDate('')
+setCamperId('')
+setInvoiceNumber('')
+setAmount('')
+setDueDate('')
+
+await loadInvoices()
   }
 
   return (
-    <main style={{ padding: '40px', fontFamily: 'Arial', maxWidth: '700px' }}>
+   <main
+  style={{
+    padding: '40px',
+    fontFamily: 'Arial',
+    maxWidth: '1400px',
+    margin: '0 auto',
+    background: '#f5f7fa',
+    minHeight: '100vh',
+  }}
+>
       <h1>Admin - Create Invoice</h1>
+<h2 style={{ marginTop: '20px' }}>Invoice History</h2>
 
+<table
+  style={{
+    width: '100%',
+    borderCollapse: 'collapse',
+    marginBottom: '30px',
+  }}
+>
+  <thead>
+    <tr>
+      <th style={{ textAlign: 'left', padding: '8px' }}>Lot</th>
+<th style={{ textAlign: 'left', padding: '8px' }}>Camper</th>
+<th style={{ textAlign: 'left', padding: '8px' }}>Invoice #</th>
+<th style={{ textAlign: 'left', padding: '8px' }}>Type</th>
+<th style={{ textAlign: 'left', padding: '8px' }}>Amount</th>
+<th style={{ textAlign: 'left', padding: '8px' }}>Due Date</th>
+<th style={{ textAlign: 'left', padding: '8px' }}>Status</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {invoices.map((invoice) => (
+      <tr key={invoice.id}>
+  <td style={{ padding: '8px' }}>
+    {invoice.campers?.lot_number}
+  </td>
+
+  <td style={{ padding: '8px' }}>
+    {invoice.campers?.first_name} {invoice.campers?.last_name}
+  </td>
+
+  <td style={{ padding: '8px' }}>
+    {invoice.invoice_number}
+  </td>
+
+  <td style={{ padding: '8px' }}>
+    {invoice.invoice_type}
+  </td>
+
+  <td style={{ padding: '8px' }}>
+    ${Number(invoice.total_due).toFixed(2)}
+  </td>
+
+  <td style={{ padding: '8px' }}>
+    {invoice.due_date}
+  </td>
+
+  <td style={{ padding: '8px' }}>
+    {invoice.status === 'paid' ? '🟢 Paid' : '🔴 Unpaid'}
+  </td>
+</tr>
+    ))}
+  </tbody>
+</table>
       <label>Camper</label>
       <select
         value={camperId}

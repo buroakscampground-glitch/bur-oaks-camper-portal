@@ -13,7 +13,8 @@ export default function WaitlistPage() {
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('Waiting')
   const [message, setMessage] = useState('')
-
+const [search, setSearch] = useState('')
+const [statusFilter, setStatusFilter] = useState('All')
   useEffect(() => {
     loadWaitlist()
   }, [])
@@ -75,26 +76,75 @@ export default function WaitlistPage() {
   }
 
   async function deletePerson(id: string) {
-    const ok = confirm('Delete this waitlist entry?')
-    if (!ok) return
+  const ok = confirm('Delete this waitlist entry?')
+  if (!ok) return
 
-    const { error } = await supabase
-      .from('waitlist')
-      .delete()
-      .eq('id', id)
+  const { error } = await supabase
+    .from('waitlist')
+    .delete()
+    .eq('id', id)
 
-    if (error) {
-      setMessage(error.message)
-      return
-    }
-
-    setMessage('Waitlist entry deleted.')
-    loadWaitlist()
+  if (error) {
+    setMessage(error.message)
+    return
   }
 
+  setMessage('Waitlist entry deleted.')
+  loadWaitlist()
+}
+
+async function moveToCamper(person: any) {
+  const { error } = await supabase
+    .from('campers')
+    .insert({
+      first_name: person.first_name,
+      last_name: person.last_name,
+      email: person.email,
+      phone: person.phone,
+      role: 'camper',
+      is_active: true,
+    })
+
+  if (error) {
+    setMessage(error.message)
+    return
+  }
+
+  await supabase
+    .from('waitlist')
+    .update({
+      status: 'Converted',
+    })
+    .eq('id', person.id)
+
+  setMessage('Camper created successfully.')
+  loadWaitlist()
+}
+const waitingCount =
+  people.filter((p) => p.status === 'Waiting').length
+
+const contactedCount =
+  people.filter((p) => p.status === 'Contacted').length
+
+const acceptedCount =
+  people.filter((p) => p.status === 'Accepted').length
+
+const declinedCount =
+  people.filter((p) => p.status === 'Declined').length
   return (
     <main className="page">
       <div className="container">
+        <a
+  href="/admin"
+  style={{
+    display: 'inline-block',
+    marginBottom: '20px',
+    textDecoration: 'none',
+    fontWeight: 'bold',
+  }}
+>
+  ← Back to Dashboard
+</a>
         <section className="card" style={{ marginBottom: '25px' }}>
           <p className="muted">BUR OAKS CAMPGROUND</p>
           <h1>Waitlist Manager</h1>
@@ -111,6 +161,7 @@ export default function WaitlistPage() {
             <option>Contacted</option>
             <option>Accepted</option>
             <option>Declined</option>
+            <option>Converted</option>
           </select>
 
           <textarea
@@ -127,10 +178,82 @@ export default function WaitlistPage() {
 
         <section className="card">
           <h2>Current Waitlist</h2>
+          <div
+  style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '15px',
+    margin: '20px 0',
+  }}
+>
+  <div className="card">
+    <h3>Waiting</h3>
+    <h1>{waitingCount}</h1>
+  </div>
 
+  <div className="card">
+    <h3>Contacted</h3>
+    <h1>{contactedCount}</h1>
+  </div>
+
+  <div className="card">
+    <h3>Accepted</h3>
+    <h1>{acceptedCount}</h1>
+  </div>
+
+  <div className="card">
+    <h3>Declined</h3>
+    <h1>{declinedCount}</h1>
+  </div>
+</div>
+<div
+  style={{
+    display: 'flex',
+    gap: '10px',
+    marginBottom: '20px',
+    flexWrap: 'wrap',
+  }}
+>
+  <input
+    placeholder="Search name, phone, email..."
+    value={search}
+    onChange={(e) => setSearch(e.target.value)}
+    style={{
+      flex: 1,
+    }}
+  />
+
+  <select
+    value={statusFilter}
+    onChange={(e) => setStatusFilter(e.target.value)}
+  >
+    <option>All</option>
+    <option>Waiting</option>
+    <option>Contacted</option>
+    <option>Accepted</option>
+    <option>Declined</option>
+    <option>Converted</option>
+  </select>
+</div>
           {people.length === 0 && <p className="muted">No waitlist entries yet.</p>}
 
-          {people.map((person) => (
+          {people
+  .filter((person) => {
+    const term = search.toLowerCase()
+
+    const matchesSearch =
+      person.first_name?.toLowerCase().includes(term) ||
+      person.last_name?.toLowerCase().includes(term) ||
+      person.phone?.toLowerCase().includes(term) ||
+      person.email?.toLowerCase().includes(term)
+
+    const matchesStatus =
+      statusFilter === 'All' ||
+      person.status === statusFilter
+
+    return matchesSearch && matchesStatus
+  })
+  .map((person) => (
             <div key={person.id} style={{ borderTop: '1px solid #e3ded2', padding: '15px 0' }}>
               <h3>{person.first_name} {person.last_name}</h3>
               <p><strong>Status:</strong> {person.status}</p>
@@ -144,6 +267,11 @@ export default function WaitlistPage() {
                 <button onClick={() => updateStatus(person.id, 'Contacted')}>Contacted</button>
                 <button onClick={() => updateStatus(person.id, 'Accepted')}>Accepted</button>
                 <button onClick={() => updateStatus(person.id, 'Declined')}>Declined</button>
+                {person.status === 'Accepted' && (
+  <button onClick={() => moveToCamper(person)}>
+    Move To Camper
+  </button>
+)}
                 <button onClick={() => deletePerson(person.id)}>Delete</button>
               </div>
             </div>

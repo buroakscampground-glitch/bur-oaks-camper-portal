@@ -190,6 +190,17 @@ export default function AdminElectricPage() {
 
   return (
     <main className="page">
+      <a
+  href="/admin"
+  style={{
+    display: 'inline-block',
+    marginBottom: '20px',
+    textDecoration: 'none',
+    fontWeight: 'bold',
+  }}
+>
+  ← Back to Dashboard
+</a>
       <div className="container">
         <section className="card">
           <p className="muted">BUR OAKS CAMPGROUND</p>
