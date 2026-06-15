@@ -105,8 +105,8 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
     try {
       await checkoutItems(
   buildCheckoutItems(invoicesToPay),
-  'https://bur-oaks-camper-portal-tace.vercel.app/success',
-  'https://bur-oaks-camper-portal-tace.vercel.app/invoices',
+  'https://bur-oaks-camper-portal.vercel.app/success',
+'https://bur-oaks-camper-portal.vercel.app/invoices',
   invoicesToPay.map(
     (invoice) => invoice.id
   )
@@ -168,24 +168,81 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
           </div>
 
           <p className="muted">
-            BUR OAKS CAMPGROUND
-          </p>
+  BUR OAKS CAMPGROUND
+</p>
 
-          <h1>💰 My Invoices</h1>
+<h1 style={{ marginBottom: '25px' }}>
+  💰 My Invoices
+</h1>
 
-          <h2 style={{ color: '#2f5d3a' }}>
-            ${openTotal.toFixed(2)} Open Balance
-          </h2>
+<div
+  style={{
+    display: 'grid',
+    gridTemplateColumns:
+      'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '15px',
+  }}
+>
+  <div
+    className="card"
+    style={{
+      background: '#ffffff',
+      boxShadow:
+        '0 4px 12px rgba(0,0,0,0.08)',
+    }}
+  >
+    <p className="muted">Open Balance</p>
+    <h2 style={{ color: '#b45309' }}>
+      ${openTotal.toFixed(2)}
+    </h2>
+  </div>
 
-          <h3 style={{ color: '#b45309' }}>
-            {openInvoices.length} Open Invoice
-            {openInvoices.length !== 1 ? 's' : ''}
-          </h3>
+  <div
+    className="card"
+    style={{
+      background: '#ffffff',
+      boxShadow:
+        '0 4px 12px rgba(0,0,0,0.08)',
+    }}
+  >
+    <p className="muted">Open Invoices</p>
+    <h2>{openInvoices.length}</h2>
+  </div>
 
-          <p className="muted">
-            Pay one invoice at a time or
-            select multiple invoices together.
-          </p>
+  <div
+    className="card"
+    style={{
+      background: '#ffffff',
+      boxShadow:
+        '0 4px 12px rgba(0,0,0,0.08)',
+    }}
+  >
+    <p className="muted">Total Invoices</p>
+    <h2>{invoices.length}</h2>
+  </div>
+
+  <div
+    className="card"
+    style={{
+      background: '#ffffff',
+      boxShadow:
+        '0 4px 12px rgba(0,0,0,0.08)',
+    }}
+  >
+    <p className="muted">Selected Total</p>
+    <h2 style={{ color: '#2f5d3a' }}>
+      ${selectedTotal.toFixed(2)}
+    </h2>
+  </div>
+</div>
+
+<p
+  className="muted"
+  style={{ marginTop: '20px' }}
+>
+  Pay one invoice at a time or
+  select multiple invoices together.
+</p>
         </section>
 
         {openInvoices.length > 0 && (
