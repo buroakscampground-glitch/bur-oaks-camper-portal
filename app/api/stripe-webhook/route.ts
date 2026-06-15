@@ -6,13 +6,7 @@ export const runtime = 'nodejs'
 
 export async function GET() {
   return NextResponse.json({
-    keys: Object.keys(process.env)
-      .filter(
-        (k) =>
-          k.includes('STRIPE') ||
-          k.includes('SUPABASE')
-      )
-      .sort(),
+    test: process.env.TEST_SECRET || 'missing',
   })
 }
 
