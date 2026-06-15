@@ -1,6 +1,13 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
+export async function GET() {
+  return NextResponse.json({
+    stripeKeyExists: !!process.env.STRIPE_SECRET_KEY,
+    keyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 12),
+  })
+}
+
 export async function POST(req: Request) {
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
