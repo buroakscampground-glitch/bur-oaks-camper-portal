@@ -6,10 +6,8 @@ export const runtime = 'nodejs'
 
 export async function GET() {
   return NextResponse.json({
-    envCount: Object.keys(process.env).length,
-    hasWebhook: 'STRIPE_WEBHOOK_SECRET' in process.env,
-    hasSupabase: 'SUPABASE_SERVICE_ROLE_KEY' in process.env,
-    hasStripe: 'STRIPE_SECRET_KEY' in process.env,
+    success: true,
+    message: 'Webhook route is working',
   })
 }
 
