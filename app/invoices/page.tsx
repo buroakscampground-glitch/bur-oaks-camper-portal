@@ -174,31 +174,88 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
 <h1 style={{ marginBottom: '25px' }}>
   💰 My Invoices
 </h1>
-<div className="stats-grid">
-  <div className="stat-card">
+<div
+  style={{
+    display: 'grid',
+    gridTemplateColumns:
+      'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '20px',
+    marginTop: '20px',
+    marginBottom: '25px',
+  }}
+>
+  <div
+  className="card"
+  style={{
+    padding: '20px',
+    textAlign: 'center',
+  }}
+>
     <div className="stat-label">Open Balance</div>
-    <div className="stat-value">
+    <div
+  style={{
+    fontSize: '32px',
+    fontWeight: 700,
+    color: '#2f5d3a',
+  }}
+>
       ${openTotal.toFixed(2)}
     </div>
   </div>
 
-  <div className="stat-card">
+  <div
+  className="card"
+  style={{
+    padding: '20px',
+    textAlign: 'center',
+  }}
+>
     <div className="stat-label">Open Invoices</div>
-    <div className="stat-value">
+   <div
+  style={{
+    fontSize: '32px',
+    fontWeight: 700,
+    color: '#2f5d3a',
+  }}
+>
       {openInvoices.length}
     </div>
   </div>
 
-  <div className="stat-card">
+ <div
+  className="card"
+  style={{
+    padding: '20px',
+    textAlign: 'center',
+  }}
+>
     <div className="stat-label">Total Invoices</div>
-    <div className="stat-value">
+  <div
+  style={{
+    fontSize: '32px',
+    fontWeight: 700,
+    color: '#2f5d3a',
+  }}
+>
       {invoices.length}
     </div>
   </div>
 
-  <div className="stat-card">
+  <div
+  className="card"
+  style={{
+    padding: '20px',
+    textAlign: 'center',
+  }}
+>
     <div className="stat-label">Selected Total</div>
-    <div className="stat-value">
+   <div
+  style={{
+    fontSize: '32px',
+    fontWeight: 700,
+    color: '#2f5d3a',
+  }}
+>
       ${selectedTotal.toFixed(2)}
     </div>
   </div>
@@ -407,16 +464,7 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
   ? 'Processing...'
   : 'Pay This Invoice'}
                       </button>
-                    ) : (
-                      <button
-                        disabled
-                        style={{
-                          opacity: 0.6,
-                        }}
-                      >
-                        Paid
-                      </button>
-                    )}
+                    ) : null}
                   </div>
                 </div>
               </section>
