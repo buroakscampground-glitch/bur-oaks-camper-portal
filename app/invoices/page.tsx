@@ -174,65 +174,33 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
 <h1 style={{ marginBottom: '25px' }}>
   💰 My Invoices
 </h1>
-
-<div
-  style={{
-    display: 'grid',
-    gridTemplateColumns:
-      'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: '15px',
-  }}
->
-  <div
-    className="card"
-    style={{
-      background: '#ffffff',
-      boxShadow:
-        '0 4px 12px rgba(0,0,0,0.08)',
-    }}
-  >
-    <p className="muted">Open Balance</p>
-    <h2 style={{ color: '#b45309' }}>
+<div className="stats-grid">
+  <div className="stat-card">
+    <div className="stat-label">Open Balance</div>
+    <div className="stat-value">
       ${openTotal.toFixed(2)}
-    </h2>
+    </div>
   </div>
 
-  <div
-    className="card"
-    style={{
-      background: '#ffffff',
-      boxShadow:
-        '0 4px 12px rgba(0,0,0,0.08)',
-    }}
-  >
-    <p className="muted">Open Invoices</p>
-    <h2>{openInvoices.length}</h2>
+  <div className="stat-card">
+    <div className="stat-label">Open Invoices</div>
+    <div className="stat-value">
+      {openInvoices.length}
+    </div>
   </div>
 
-  <div
-    className="card"
-    style={{
-      background: '#ffffff',
-      boxShadow:
-        '0 4px 12px rgba(0,0,0,0.08)',
-    }}
-  >
-    <p className="muted">Total Invoices</p>
-    <h2>{invoices.length}</h2>
+  <div className="stat-card">
+    <div className="stat-label">Total Invoices</div>
+    <div className="stat-value">
+      {invoices.length}
+    </div>
   </div>
 
-  <div
-    className="card"
-    style={{
-      background: '#ffffff',
-      boxShadow:
-        '0 4px 12px rgba(0,0,0,0.08)',
-    }}
-  >
-    <p className="muted">Selected Total</p>
-    <h2 style={{ color: '#2f5d3a' }}>
+  <div className="stat-card">
+    <div className="stat-label">Selected Total</div>
+    <div className="stat-value">
       ${selectedTotal.toFixed(2)}
-    </h2>
+    </div>
   </div>
 </div>
 
@@ -307,7 +275,13 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
           </section>
         )}
 
-        <div className="grid">
+       <div
+  className="grid"
+  style={{
+    gap: '25px',
+    marginTop: '20px',
+  }}
+>
           {invoices.map((invoice) => {
             const isPaid =
               invoice.status === 'paid'
@@ -319,8 +293,8 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
 
             return (
               <section
-                className="card"
-                key={invoice.id}
+  className="card invoice-card"
+  key={invoice.id}
                 style={{
                   borderLeft: `7px solid ${
                     isPaid
@@ -368,16 +342,23 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
                     </p>
 
                     <h2
-                      style={{
-                        marginTop: '5px',
-                      }}
-                    >
-                      {invoice.invoice_number}
-                    </h2>
+  style={{
+    marginTop: '5px',
+    marginBottom: '8px',
+    fontSize: '28px',
+  }}
+>
+  #{invoice.invoice_number}
+</h2>
 
-                    <p>
-                      {invoice.invoice_type}
-                    </p>
+                    <p
+  style={{
+    fontWeight: 600,
+    color: '#2f5d3a',
+  }}
+>
+  {invoice.invoice_type}
+</p>
 
                     <p className="muted">
                       Due Date:{' '}
@@ -391,29 +372,27 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
                     }}
                   >
                     <h2
-                      style={{
-                        fontSize: '32px',
-                        margin: 0,
-                      }}
-                    >
+  style={{
+    fontSize: '36px',
+    margin: 0,
+    color: '#1f2933',
+  }}
+>
                       $
                       {Number(
                         invoice.total_due || 0
                       ).toFixed(2)}
                     </h2>
 
-                    <p
-                      style={{
-                        color: isPaid
-                          ? '#2f5d3a'
-                          : '#b45309',
-                        fontWeight: 'bold',
-                      }}
-                    >
-                      {isPaid
-                        ? '🟢 Paid'
-                        : '🔴 Open'}
-                    </p>
+                    <span
+  className={
+    isPaid
+      ? 'status-paid'
+      : 'status-open'
+  }
+>
+  {isPaid ? 'Paid' : 'Open'}
+</span>
 
                     {!isPaid ? (
                       <button
