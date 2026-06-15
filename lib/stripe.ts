@@ -27,8 +27,9 @@ export async function createCheckoutSession(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || 'Failed to create checkout session.');
-  }
+  console.error('FULL STRIPE ERROR:', data)
+  throw new Error(JSON.stringify(data, null, 2))
+}
 
   console.log('Stripe Response:', data);
 
