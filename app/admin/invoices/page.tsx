@@ -246,53 +246,85 @@ await loadInvoices()
   </thead>
 
   <tbody>
-    {invoices.map((invoice) => (
-      <tr key={invoice.id}>
-  <td style={{ padding: '8px' }}>
-    {invoice.campers?.lot_number}
-  </td>
+  {[...invoices]
+    .sort((a, b) => {
+      const aPaid = a.status === 'paid'
+      const bPaid = b.status === 'paid'
 
-  <td style={{ padding: '8px' }}>
-    {invoice.campers?.first_name} {invoice.campers?.last_name}
-  </td>
+      if (aPaid && !bPaid) return 1
+      if (!aPaid && bPaid) return -1
 
-  <td style={{ padding: '8px' }}>
-    {invoice.invoice_number}
-  </td>
+      return 0
+    })
+    .map((invoice) => (
+      <tr
+        key={invoice.id}
+        style={{
+          background:
+            invoice.status === 'paid'
+              ? '#f0fdf4'
+              : '#fef2f2',
+          borderBottom: '1px solid #e5e7eb',
+        }}
+      >
+        <td style={{ padding: '14px', fontWeight: 'bold' }}>
+          {invoice.campers?.lot_number}
+        </td>
 
-  <td style={{ padding: '8px' }}>
-    {invoice.invoice_type}
-  </td>
+        <td style={{ padding: '14px' }}>
+          {invoice.campers?.first_name}{' '}
+          {invoice.campers?.last_name}
+        </td>
 
-  <td style={{ padding: '8px' }}>
-    ${Number(invoice.total_due).toFixed(2)}
-  </td>
+        <td
+          style={{
+            padding: '14px',
+            fontWeight: 'bold',
+            fontSize: '16px',
+          }}
+        >
+          {invoice.invoice_number}
+        </td>
 
-  <td style={{ padding: '8px' }}>
-    {invoice.due_date}
-  </td>
+        <td style={{ padding: '14px' }}>
+          {invoice.invoice_type}
+        </td>
 
-  <td style={{ padding: '8px' }}>
-  <span
-    style={{
-      padding: '6px 12px',
-      borderRadius: '999px',
-      fontWeight: 'bold',
-      color: 'white',
-      background:
-        invoice.status === 'paid'
-          ? '#16a34a'
-          : '#dc2626',
-    }}
-  >
-    {invoice.status === 'paid'
-      ? 'PAID'
-      : 'UNPAID'}
-  </span>
-</td>
-</tr>
+        <td
+          style={{
+            padding: '14px',
+            fontWeight: 'bold',
+            fontSize: '18px',
+          }}
+        >
+          ${Number(invoice.total_due).toFixed(2)}
+        </td>
+
+        <td style={{ padding: '14px' }}>
+          {invoice.due_date}
+        </td>
+
+        <td style={{ padding: '14px' }}>
+          <span
+            style={{
+              padding: '8px 16px',
+              borderRadius: '999px',
+              fontWeight: 'bold',
+              color: 'white',
+              background:
+                invoice.status === 'paid'
+                  ? '#16a34a'
+                  : '#dc2626',
+            }}
+          >
+            {invoice.status === 'paid'
+              ? 'PAID'
+              : 'UNPAID'}
+          </span>
+        </td>
+      </tr>
     ))}
-  </tbody>
+</tbody>
 </table>
       <label>Camper</label>
       <select
