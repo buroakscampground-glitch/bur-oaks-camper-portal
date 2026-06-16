@@ -47,7 +47,27 @@ export default function ElectricPage() {
   if (loading) return <p style={{ padding: '40px' }}>Loading electric history...</p>
 
   const latest = readings[0]
-  const totalDue = readings.reduce((sum, item) => sum + Number(item.amount_due || 0), 0)
+  const totalDue = readings.reduce(
+  (sum, item) => sum + Number(item.amount_due || 0),
+  0
+)
+
+const lifetimeUsage = readings.reduce(
+  (sum, item) => sum + Number(item.kwh_used || 0),
+  0
+)
+
+const currentYear = new Date().getFullYear()
+
+const yearlyUsage = readings
+  .filter(
+    (item) =>
+      new Date(item.reading_date).getFullYear() === currentYear
+  )
+  .reduce(
+    (sum, item) => sum + Number(item.kwh_used || 0),
+    0
+  )
 
   return (
     <main className="page">
@@ -133,7 +153,15 @@ export default function ElectricPage() {
   <p className="muted">Lifetime Electric Charges</p>
 </section>
 </div>
+<section className="card">
+  <h2>{yearlyUsage.toLocaleString()} kWh</h2>
+  <p className="muted">Year Usage</p>
+</section>
 
+<section className="card">
+  <h2>{lifetimeUsage.toLocaleString()} kWh</h2>
+  <p className="muted">Lifetime Usage</p>
+</section>
         {readings.length === 0 && (
           <section className="card">
             <h2>No electric readings yet</h2>
