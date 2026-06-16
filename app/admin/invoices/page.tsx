@@ -360,19 +360,25 @@ const paidInvoices = filteredInvoices.filter(
           {invoice.campers?.last_name}
         </td>
 
-        <td
-          style={{
-            padding: '14px',
-            fontWeight: 'bold',
-            fontSize: '16px',
-          }}
-        >
-          {invoice.invoice_number}
-        </td>
+        
 
-        <td style={{ padding: '14px' }}>
-          {invoice.invoice_type}
-        </td>
+        <td
+  style={{
+    padding: '14px',
+    fontWeight: 'bold',
+    fontSize: '16px',
+  }}
+>
+  <a
+    href={`/admin/invoices/${invoice.id}`}
+    style={{
+      color: '#2563eb',
+      textDecoration: 'none',
+    }}
+  >
+    {invoice.invoice_number}
+  </a>
+</td>
 
         <td
           style={{
