@@ -34,15 +34,22 @@ export default function InvoiceDetailPage() {
   }
 
   async function markPaid() {
-    await supabase
-      .from('invoices')
-      .update({
-        status: 'paid',
-      })
-      .eq('id', invoice.id)
+  const { error } = await supabase
+    .from('invoices')
+    .update({
+      status: 'paid',
+    })
+    .eq('id', invoice.id)
 
-    loadInvoice()
+  if (error) {
+    alert(error.message)
+    return
   }
+
+  alert('Invoice marked paid')
+
+  loadInvoice()
+}
 
   if (loading) {
     return <div style={{ padding: '20px' }}>Loading...</div>
