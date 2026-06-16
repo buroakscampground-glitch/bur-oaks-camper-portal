@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from 'next/navigation'
 import * as XLSX from "xlsx"
 import { supabase } from "../../../lib/supabase"
 
@@ -8,6 +9,7 @@ export default function OpenBalancePage() {
   const [balances, setBalances] = useState<any[]>([])
   const [totalBalance, setTotalBalance] = useState(0)
 const [search, setSearch] = useState("")
+const router = useRouter()
   useEffect(() => {
     loadBalances()
   }, [])
@@ -127,6 +129,20 @@ function exportToExcel() {
         margin: "0 auto",
       }}
     >
+        <button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
       <h1>💰 Open Balance Dashboard</h1>
       <button
   onClick={exportToExcel}
