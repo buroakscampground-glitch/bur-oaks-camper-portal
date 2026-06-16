@@ -243,10 +243,16 @@ const averageUsage =
       .single()
 
     if (data) {
-      setPreviousReading(
-        String(data.current_reading)
-      )
-    }
+  setPreviousReading(
+    String(data.current_reading)
+  )
+
+  const today = new Date()
+    .toISOString()
+    .split('T')[0]
+
+  setReadingDate(today)
+}
   }} style={{ display: 'block', width: '100%', marginBottom: '12px' }}>
             <option value="">Select Camper</option>
             {campers.map((camper) => (
