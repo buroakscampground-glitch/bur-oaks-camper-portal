@@ -146,6 +146,7 @@ setDueDate('')
 await loadInvoices()
   }
 const filteredInvoices = invoices.filter((invoice) => {
+  
   const search = searchText.toLowerCase()
 
   return (
@@ -155,6 +156,13 @@ const filteredInvoices = invoices.filter((invoice) => {
     invoice.campers?.lot_number?.toString().includes(search)
   )
 })
+const openInvoices = filteredInvoices.filter(
+  (invoice) => invoice.status !== 'paid'
+)
+
+const paidInvoices = filteredInvoices.filter(
+  (invoice) => invoice.status === 'paid'
+)
   return (
    <main
   style={{
@@ -196,6 +204,15 @@ const filteredInvoices = invoices.filter((invoice) => {
     border: '1px solid #d1d5db',
   }}
 />
+<p
+  style={{
+    marginTop: '-10px',
+    marginBottom: '15px',
+    color: '#6b7280',
+  }}
+>
+  Showing {filteredInvoices.length} invoices
+</p>
 <div
   style={{
     display: 'grid',
@@ -204,6 +221,24 @@ const filteredInvoices = invoices.filter((invoice) => {
     marginBottom: '30px',
   }}
 >
+  <div
+  style={{
+    background: '#fff',
+    padding: '20px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+    borderLeft: '6px solid #16a34a',
+  }}
+>
+  <h4>Collected Revenue</h4>
+  <h1>
+    $
+    {invoices
+      .filter(i => i.status === 'paid')
+      .reduce((sum, i) => sum + Number(i.total_due || 0), 0)
+      .toFixed(2)}
+  </h1>
+</div>
   <div
     style={{
       background: '#fff',
@@ -266,6 +301,15 @@ const filteredInvoices = invoices.filter((invoice) => {
     </h1>
   </div>
 </div>
+<h2
+  style={{
+    marginTop: '20px',
+    marginBottom: '15px',
+    color: '#dc2626',
+  }}
+>
+  Open Invoices ({openInvoices.length})
+</h2>
 <table
   style={{
     width: '100%',
