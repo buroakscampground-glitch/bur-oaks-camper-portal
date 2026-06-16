@@ -152,7 +152,6 @@ const yearlyUsage = readings
   <h2>${totalDue.toFixed(2)}</h2>
   <p className="muted">Lifetime Electric Charges</p>
 </section>
-</div>
 <section className="card">
   <h2>{yearlyUsage.toLocaleString()} kWh</h2>
   <p className="muted">Year Usage</p>
@@ -162,6 +161,8 @@ const yearlyUsage = readings
   <h2>{lifetimeUsage.toLocaleString()} kWh</h2>
   <p className="muted">Lifetime Usage</p>
 </section>
+</div>
+
         {readings.length === 0 && (
           <section className="card">
             <h2>No electric readings yet</h2>
