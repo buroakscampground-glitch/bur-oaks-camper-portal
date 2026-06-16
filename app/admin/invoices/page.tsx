@@ -8,6 +8,7 @@ export default function AdminInvoicesPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
   const [invoiceNumber, setInvoiceNumber] = useState('')
+  const [searchText, setSearchText] = useState('')
   const [description, setDescription] = useState('Lot Rent')
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
@@ -144,7 +145,16 @@ setDueDate('')
 
 await loadInvoices()
   }
+const filteredInvoices = invoices.filter((invoice) => {
+  const search = searchText.toLowerCase()
 
+  return (
+    invoice.invoice_number?.toLowerCase().includes(search) ||
+    invoice.campers?.first_name?.toLowerCase().includes(search) ||
+    invoice.campers?.last_name?.toLowerCase().includes(search) ||
+    invoice.campers?.lot_number?.toString().includes(search)
+  )
+})
   return (
    <main
   style={{
@@ -172,6 +182,20 @@ await loadInvoices()
 </button>
       <h1>Admin - Create Invoice</h1>
 <h2 style={{ marginTop: '20px' }}>Invoice History</h2>
+<input
+  value={searchText}
+  onChange={(e) => setSearchText(e.target.value)}
+  placeholder="Search by lot, camper, or invoice number"
+  style={{
+    width: '100%',
+    maxWidth: '400px',
+    padding: '12px',
+    marginTop: '15px',
+    marginBottom: '20px',
+    borderRadius: '8px',
+    border: '1px solid #d1d5db',
+  }}
+/>
 <div
   style={{
     display: 'grid',
@@ -262,7 +286,7 @@ await loadInvoices()
   </thead>
 
   <tbody>
-  {[...invoices]
+  {[...filteredInvoices]
     .sort((a, b) => {
       const aPaid = a.status === 'paid'
       const bPaid = b.status === 'paid'
