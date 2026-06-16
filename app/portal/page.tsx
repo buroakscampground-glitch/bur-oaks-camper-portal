@@ -240,7 +240,7 @@ fontSize: "16px",
             <p className="muted">Open Balance</p>
           </a>
 
-          <section className="card">
+          <a className="card admin-link" href="/electric">
   <h2>
     $
     {Number(
@@ -255,7 +255,7 @@ fontSize: "16px",
   <small>
     {latestElectric?.kwh_used || 0} kWh Used
   </small>
-</section>
+</a>
 
           <a className="card admin-link" href="/calendar">
   <h2>
