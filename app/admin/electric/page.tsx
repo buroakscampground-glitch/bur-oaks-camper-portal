@@ -56,7 +56,10 @@ export default function AdminElectricPage() {
 
   const totalKwh = filteredReadings.reduce((sum, reading) => sum + Number(reading.kwh_used || 0), 0)
   const totalAmountDue = filteredReadings.reduce((sum, reading) => sum + Number(reading.amount_due || 0), 0)
-
+const averageUsage =
+  filteredReadings.length > 0
+    ? Math.round(totalKwh / filteredReadings.length)
+    : 0
   async function saveElectricAndCreateInvoice() {
     setMessage('')
     setSaving(true)
@@ -265,9 +268,25 @@ export default function AdminElectricPage() {
           </div>
 
           <div className="grid grid-3" style={{ marginTop: '20px', gap: '12px' }}>
-            <section className="card"><h2>{filteredReadings.length}</h2><p className="muted">Readings</p></section>
-            <section className="card"><h2>{totalKwh} kWh</h2><p className="muted">Total kWh</p></section>
-            <section className="card"><h2>${totalAmountDue.toFixed(2)}</h2><p className="muted">Total Amount Due</p></section>
+            <section className="card">
+  <h2>{filteredReadings.length}</h2>
+  <p className="muted">Lifetime Readings</p>
+</section>
+
+<section className="card">
+  <h2>{totalKwh.toLocaleString()} kWh</h2>
+  <p className="muted">Lifetime Usage</p>
+</section>
+
+<section className="card">
+  <h2>${totalAmountDue.toFixed(2)}</h2>
+  <p className="muted">Lifetime Revenue</p>
+</section>
+
+<section className="card">
+  <h2>{averageUsage.toLocaleString()} kWh</h2>
+  <p className="muted">Average Usage</p>
+</section>
           </div>
 
           {filteredReadings.length === 0 ? (
