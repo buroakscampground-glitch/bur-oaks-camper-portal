@@ -26,7 +26,18 @@ async function loadInvoices() {
     `)
     .order('created_at', { ascending: false })
 
-  setInvoices(data || [])
+  const sortedInvoices =
+  (data || []).sort((a: any, b: any) => {
+    if (a.status === 'paid' && b.status !== 'paid') return 1
+    if (a.status !== 'paid' && b.status === 'paid') return -1
+
+    return (
+      new Date(b.created_at).getTime() -
+      new Date(a.created_at).getTime()
+    )
+  })
+
+setInvoices(sortedInvoices)
 }
 
 useEffect(() => {
@@ -43,7 +54,18 @@ useEffect(() => {
   `)
   .order('created_at', { ascending: false })
 
-setInvoices(invoiceData || [])
+const sortedInvoices =
+  (invoiceData || []).sort((a: any, b: any) => {
+    if (a.status === 'paid' && b.status !== 'paid') return 1
+    if (a.status !== 'paid' && b.status === 'paid') return -1
+
+    return (
+      new Date(b.created_at).getTime() -
+      new Date(a.created_at).getTime()
+    )
+  })
+
+setInvoices(sortedInvoices)
       const { data } = await supabase
         .from('campers')
         .select('*')
@@ -134,7 +156,76 @@ await loadInvoices()
 >
       <h1>Admin - Create Invoice</h1>
 <h2 style={{ marginTop: '20px' }}>Invoice History</h2>
+<div
+  style={{
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '20px',
+    marginBottom: '30px',
+  }}
+>
+  <div
+    style={{
+      background: '#fff',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+      borderLeft: '6px solid #dc2626',
+    }}
+  >
+    <h4>Open Invoices</h4>
+    <h1>
+      {invoices.filter(i => i.status !== 'paid').length}
+    </h1>
+  </div>
 
+  <div
+    style={{
+      background: '#fff',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+      borderLeft: '6px solid #16a34a',
+    }}
+  >
+    <h4>Paid Invoices</h4>
+    <h1>
+      {invoices.filter(i => i.status === 'paid').length}
+    </h1>
+  </div>
+
+  <div
+    style={{
+      background: '#fff',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+      borderLeft: '6px solid #2563eb',
+    }}
+  >
+    <h4>Total Invoices</h4>
+    <h1>{invoices.length}</h1>
+  </div>
+
+  <div
+    style={{
+      background: '#fff',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+      borderLeft: '6px solid #f59e0b',
+    }}
+  >
+    <h4>Open Balance</h4>
+    <h1>
+      $
+      {invoices
+        .filter(i => i.status !== 'paid')
+        .reduce((sum, i) => sum + Number(i.total_due || 0), 0)
+        .toFixed(2)}
+    </h1>
+  </div>
+</div>
 <table
   style={{
     width: '100%',
@@ -182,8 +273,23 @@ await loadInvoices()
   </td>
 
   <td style={{ padding: '8px' }}>
-    {invoice.status === 'paid' ? '🟢 Paid' : '🔴 Unpaid'}
-  </td>
+  <span
+    style={{
+      padding: '6px 12px',
+      borderRadius: '999px',
+      fontWeight: 'bold',
+      color: 'white',
+      background:
+        invoice.status === 'paid'
+          ? '#16a34a'
+          : '#dc2626',
+    }}
+  >
+    {invoice.status === 'paid'
+      ? 'PAID'
+      : 'UNPAID'}
+  </span>
+</td>
 </tr>
     ))}
   </tbody>
