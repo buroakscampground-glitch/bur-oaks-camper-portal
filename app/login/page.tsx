@@ -56,7 +56,8 @@ export default function LoginPage() {
         justifyContent: "center",
         alignItems: "center",
         padding: "20px",
-       background: "#2f5d3a",
+        background:
+          "linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url('/campground.jpg')",
         backgroundSize: "cover",
         backgroundPosition: "center",
       }}
@@ -70,6 +71,7 @@ export default function LoginPage() {
           borderRadius: "24px",
           padding: "45px",
           boxShadow: "0 20px 50px rgba(0,0,0,.35)",
+          border: "3px solid #2f5d3a",
         }}
       >
         <div
