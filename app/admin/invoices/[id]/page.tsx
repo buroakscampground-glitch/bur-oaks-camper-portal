@@ -34,6 +34,10 @@ export default function InvoiceDetailPage() {
   }
 
   async function markPaid() {
+  if (!confirm('Mark this invoice as paid?')) {
+    return
+  }
+
   const { error } = await supabase
     .from('invoices')
     .update({
@@ -50,7 +54,6 @@ export default function InvoiceDetailPage() {
 
   loadInvoice()
 }
-
   if (loading) {
     return <div style={{ padding: '20px' }}>Loading...</div>
   }
