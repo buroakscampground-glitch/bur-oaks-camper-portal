@@ -70,37 +70,95 @@ export default function InvoiceDetailPage() {
         ← Back to Invoices
       </button>
 
-      <h1>{invoice.invoice_number}</h1>
+      <div
+  style={{
+    background: '#fff',
+    padding: '25px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+    marginBottom: '25px',
+  }}
+>
+  <h1 style={{ marginBottom: '10px' }}>
+    {invoice.invoice_number}
+  </h1>
 
-      <p>
-        <strong>Camper:</strong>{' '}
-        {invoice.campers?.first_name} {invoice.campers?.last_name}
-      </p>
+  <h3 style={{ color: '#6b7280' }}>
+    Lot {invoice.campers?.lot_number} •{' '}
+    {invoice.campers?.first_name}{' '}
+    {invoice.campers?.last_name}
+  </h3>
 
-      <p>
-        <strong>Lot:</strong>{' '}
-        {invoice.campers?.lot_number}
-      </p>
+  <span
+    style={{
+      display: 'inline-block',
+      marginTop: '10px',
+      padding: '8px 16px',
+      borderRadius: '999px',
+      fontWeight: 'bold',
+      color: 'white',
+      background:
+        invoice.status === 'paid'
+          ? '#16a34a'
+          : '#dc2626',
+    }}
+  >
+    {invoice.status === 'paid'
+      ? 'PAID'
+      : 'UNPAID'}
+  </span>
+</div>
 
-      <p>
-        <strong>Invoice Type:</strong>{' '}
-        {invoice.invoice_type}
-      </p>
+<div
+  style={{
+    display: 'grid',
+    gridTemplateColumns:
+      'repeat(auto-fit, minmax(220px, 1fr))',
+    gap: '20px',
+    marginBottom: '25px',
+  }}
+>
+  <div
+    style={{
+      background: '#fff',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+      borderLeft: '6px solid #2563eb',
+    }}
+  >
+    <h4>Amount Due</h4>
+    <h1>
+      ${Number(invoice.total_due).toFixed(2)}
+    </h1>
+  </div>
 
-      <p>
-        <strong>Amount Due:</strong> $
-        {Number(invoice.total_due).toFixed(2)}
-      </p>
+  <div
+    style={{
+      background: '#fff',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+      borderLeft: '6px solid #f59e0b',
+    }}
+  >
+    <h4>Due Date</h4>
+    <h1>{invoice.due_date}</h1>
+  </div>
 
-      <p>
-        <strong>Due Date:</strong>{' '}
-        {invoice.due_date}
-      </p>
-
-      <p>
-        <strong>Status:</strong>{' '}
-        {invoice.status}
-      </p>
+  <div
+    style={{
+      background: '#fff',
+      padding: '20px',
+      borderRadius: '12px',
+      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+      borderLeft: '6px solid #16a34a',
+    }}
+  >
+    <h4>Invoice Type</h4>
+    <h1>{invoice.invoice_type}</h1>
+  </div>
+</div>
 
       <button onClick={markPaid}>
         Mark Paid
