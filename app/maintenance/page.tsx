@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 
 export default function MaintenanceRequestPage() {
@@ -11,6 +12,7 @@ export default function MaintenanceRequestPage() {
   const [category, setCategory] = useState('General')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     loadPage()
@@ -92,7 +94,20 @@ export default function MaintenanceRequestPage() {
           }}
         >
           <p className="muted">BUR OAKS CAMPGROUND</p>
-
+<button
+  onClick={() => router.push('/portal')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Portal
+</button>
           <h1>🔧 Maintenance Requests</h1>
 
           <h2 style={{ color: '#2f5d3a' }}>

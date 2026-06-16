@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     async function loadDocuments() {
@@ -62,7 +64,20 @@ export default function DocumentsPage() {
           }}
         >
           <p className="muted">BUR OAKS CAMPGROUND</p>
-
+<button
+  onClick={() => router.push('/portal')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Portal
+</button>
           <h1>📄 My Documents</h1>
 
           <h2 style={{ color: '#2f5d3a' }}>

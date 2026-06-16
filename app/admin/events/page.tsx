@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 export default function AdminEventsPage() {
@@ -15,6 +16,7 @@ export default function AdminEventsPage() {
   const [rsvpCounts, setRsvpCounts] = useState<any>({})
   const [goingCounts, setGoingCounts] = useState<any>({})
   const [message, setMessage] = useState('')
+  const router = useRouter()
 
   useEffect(() => {
     loadEvents()
@@ -135,7 +137,20 @@ export default function AdminEventsPage() {
           <p className="muted">
             BUR OAKS CAMPGROUND
           </p>
-
+<button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
           <h1>Manage Events</h1>
 
           <p className="muted">

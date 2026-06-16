@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 export default function AdminCampersPage() {
@@ -13,6 +14,7 @@ export default function AdminCampersPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
 const [search, setSearch] = useState('')
+const router = useRouter()
   async function loadCampers() {
     const { data } = await supabase
       .from('campers')
@@ -149,6 +151,20 @@ const [search, setSearch] = useState('')
 >
   ← Back to Dashboard
 </a>
+<button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
       <h1>Manage Campers</h1>
 
       <h2>

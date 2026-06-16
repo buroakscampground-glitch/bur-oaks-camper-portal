@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 export default function ArchivedCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [message, setMessage] = useState('')
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     checkAdmin()
@@ -86,6 +88,20 @@ export default function ArchivedCampersPage() {
 >
   ← Back to Dashboard
 </a>
+<button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
       <h1>Archived Campers</h1>
 
       {message && <p>{message}</p>}

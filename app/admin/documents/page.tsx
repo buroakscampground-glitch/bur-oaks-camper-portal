@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 export default function AdminDocumentsPage() {
@@ -10,6 +11,7 @@ export default function AdminDocumentsPage() {
   const [documentType, setDocumentType] = useState('Lease')
   const [file, setFile] = useState<File | null>(null)
   const [message, setMessage] = useState('')
+  const router = useRouter()
 
   useEffect(() => {
     async function loadCampers() {
@@ -82,7 +84,20 @@ export default function AdminDocumentsPage() {
     >
       ← Back to Dashboard
     </a>
-
+<button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
     <h1>Admin Documents</h1>
 
       <label>Camper</label>

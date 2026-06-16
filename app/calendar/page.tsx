@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 
 export default function CalendarPage() {
@@ -8,6 +9,7 @@ export default function CalendarPage() {
   const [camper, setCamper] = useState<any>(null)
   const [rsvps, setRsvps] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     loadCalendar()
@@ -68,6 +70,20 @@ export default function CalendarPage() {
       <div className="container">
         <section className="card" style={{ marginBottom: '25px' }}>
           <p className="muted">BUR OAKS CAMPGROUND</p>
+          <button
+  onClick={() => router.push('/portal')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Portal
+</button>
           <h1>📅 Events Calendar</h1>
 <h2 style={{ color: '#2f5d3a' }}>
   {events.length} Upcoming Events
