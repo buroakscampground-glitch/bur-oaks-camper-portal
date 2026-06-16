@@ -226,7 +226,28 @@ const averageUsage =
           <h1>Electric Billing</h1>
           <p className="muted">Enter meter readings and automatically create an electric invoice.</p>
 
-          <select value={camperId} onChange={(e) => setCamperId(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }}>
+          <select
+  value={camperId}
+  onChange={async (e) => {
+    const selectedId = e.target.value
+    setCamperId(selectedId)
+
+    if (!selectedId) return
+
+    const { data } = await supabase
+      .from('electric_readings')
+      .select('*')
+      .eq('camper_id', selectedId)
+      .order('reading_date', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (data) {
+      setPreviousReading(
+        String(data.current_reading)
+      )
+    }
+  }} style={{ display: 'block', width: '100%', marginBottom: '12px' }}>
             <option value="">Select Camper</option>
             {campers.map((camper) => (
               <option key={camper.id} value={camper.id}>
