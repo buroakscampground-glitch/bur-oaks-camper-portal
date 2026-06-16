@@ -34,6 +34,25 @@ export default function InvoiceDetailPage() {
   }
 
   async function markPaid() {
+    async function deleteInvoice() {
+  if (!confirm('Delete this invoice permanently?')) {
+    return
+  }
+
+  const { error } = await supabase
+    .from('invoices')
+    .delete()
+    .eq('id', invoice.id)
+
+  if (error) {
+    alert(error.message)
+    return
+  }
+
+  alert('Invoice deleted')
+
+  router.push('/admin/invoices')
+}
   if (!confirm('Mark this invoice as paid?')) {
     return
   }
