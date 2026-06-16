@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
@@ -15,6 +15,7 @@ export default function AdminElectricPage() {
   const [searchText, setSearchText] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const currentReadingRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -59,6 +60,14 @@ export default function AdminElectricPage() {
 const averageUsage =
   filteredReadings.length > 0
     ? Math.round(totalKwh / filteredReadings.length)
+    : 0
+    const liveUsage =
+  Number(currentReading || 0) -
+  Number(previousReading || 0)
+
+const liveAmount =
+  liveUsage > 0
+    ? liveUsage * Number(rate || 0)
     : 0
   async function saveElectricAndCreateInvoice() {
     setMessage('')
@@ -248,10 +257,14 @@ const averageUsage =
   )
 
   const today = new Date()
-    .toISOString()
-    .split('T')[0]
+  .toISOString()
+  .split('T')[0]
 
-  setReadingDate(today)
+setReadingDate(today)
+
+setTimeout(() => {
+  currentReadingRef.current?.focus()
+}, 100)
 }
   }} style={{ display: 'block', width: '100%', marginBottom: '12px' }}>
             <option value="">Select Camper</option>
@@ -266,8 +279,27 @@ const averageUsage =
 
           <input placeholder="Previous Reading" value={previousReading} onChange={(e) => setPreviousReading(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
 
-          <input placeholder="Current Reading" value={currentReading} onChange={(e) => setCurrentReading(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
+          <input
+  ref={currentReadingRef}
+  placeholder="Current Reading" value={currentReading} onChange={(e) => setCurrentReading(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
+{Number(currentReading) > Number(previousReading) && (
+  <section
+  className="card"
+  style={{
+    marginBottom: '12px',
+    background: '#eef4ea',
+    border: '2px solid #2f5d3a',
+  }}
+>
+    <h2>{liveUsage} kWh</h2>
+    <p className="muted">Estimated Usage</p>
 
+    <h2>
+      ${liveAmount.toFixed(2)}
+    </h2>
+    <p className="muted">Estimated Charge</p>
+  </section>
+)}
           <input placeholder="Rate per kWh" value={rate} onChange={(e) => setRate(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
 
           <button onClick={saveElectricAndCreateInvoice} disabled={saving}>
