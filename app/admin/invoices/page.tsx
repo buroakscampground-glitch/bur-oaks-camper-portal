@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 export default function AdminInvoicesPage() {
@@ -12,6 +13,7 @@ export default function AdminInvoicesPage() {
   const [dueDate, setDueDate] = useState('')
   const [message, setMessage] = useState('')
 const [invoices, setInvoices] = useState<any[]>([])
+const router = useRouter()
 
 async function loadInvoices() {
   const { data } = await supabase
@@ -154,6 +156,20 @@ await loadInvoices()
     minHeight: '100vh',
   }}
 >
+  <button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
       <h1>Admin - Create Invoice</h1>
 <h2 style={{ marginTop: '20px' }}>Invoice History</h2>
 <div
