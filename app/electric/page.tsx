@@ -135,19 +135,22 @@ const yearlyUsage = readings
   </section>
 
   <section className="card">
-    <h2>
-      {readings.length > 1
-        ? readings[1].kwh_used
-        : 0}{' '}
-      kWh
-    </h2>
-    <p className="muted">Previous Usage</p>
-  </section>
+  <h2>
+    {latest
+      ? latest.current_reading
+      : 0}
+  </h2>
+  <p className="muted">Current Meter Reading</p>
+</section>
 
   <section className="card">
-    <h2>{readings.length}</h2>
-    <p className="muted">Total Readings</p>
-  </section>
+  <h2>
+    {latest
+      ? latest.previous_reading
+      : 0}
+  </h2>
+  <p className="muted">Previous Meter Reading</p>
+</section>
   <section className="card">
   <h2>${totalDue.toFixed(2)}</h2>
   <p className="muted">Lifetime Electric Charges</p>
