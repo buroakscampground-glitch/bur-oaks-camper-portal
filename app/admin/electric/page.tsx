@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 export default function AdminElectricPage() {
@@ -14,6 +15,7 @@ export default function AdminElectricPage() {
   const [searchText, setSearchText] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     loadCampers()
@@ -204,6 +206,20 @@ export default function AdminElectricPage() {
       <div className="container">
         <section className="card">
           <p className="muted">BUR OAKS CAMPGROUND</p>
+          <button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
           <h1>Electric Billing</h1>
           <p className="muted">Enter meter readings and automatically create an electric invoice.</p>
 
