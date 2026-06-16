@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { checkoutItems } from '../../lib/stripe'
 
@@ -10,6 +11,7 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 const [processingInvoiceId, setProcessingInvoiceId] = useState('')
+const router = useRouter()
   useEffect(() => {
     async function loadInvoices() {
       const {
@@ -170,7 +172,20 @@ const [processingInvoiceId, setProcessingInvoiceId] = useState('')
           <p className="muted">
   BUR OAKS CAMPGROUND
 </p>
-
+<button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
 <h1 style={{ marginBottom: '25px' }}>
   💰 My Invoices
 </h1>
