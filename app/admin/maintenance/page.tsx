@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 export default function MaintenancePage() {
@@ -15,6 +16,7 @@ export default function MaintenancePage() {
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const router = useRouter()
 
   useEffect(() => {
     loadTickets()
@@ -119,6 +121,20 @@ export default function MaintenancePage() {
 
         <section className="card" style={{ marginBottom: '25px' }}>
           <p className="muted">BUR OAKS CAMPGROUND</p>
+          <button
+  onClick={() => router.push('/admin')}
+  style={{
+    marginBottom: '20px',
+    background: '#6b7280',
+    color: 'white',
+    border: 'none',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+>
+  ← Back to Dashboard
+</button>
           <h1>Maintenance Tickets</h1>
           <p className="muted">
             Track campground issues, repairs, and work orders.
