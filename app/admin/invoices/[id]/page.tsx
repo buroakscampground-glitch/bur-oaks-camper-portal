@@ -32,9 +32,7 @@ export default function InvoiceDetailPage() {
     setInvoice(data)
     setLoading(false)
   }
-
-  async function markPaid() {
-    async function deleteInvoice() {
+async function deleteInvoice() {
   if (!confirm('Delete this invoice permanently?')) {
     return
   }
@@ -53,6 +51,10 @@ export default function InvoiceDetailPage() {
 
   router.push('/admin/invoices')
 }
+
+
+  async function markPaid() {
+    
   if (!confirm('Mark this invoice as paid?')) {
     return
   }
@@ -184,8 +186,19 @@ export default function InvoiceDetailPage() {
       </button>
 
       <button onClick={() => window.print()}>
-        Print Invoice
-      </button>
+  Print Invoice
+</button>
+
+<button
+  onClick={deleteInvoice}
+  style={{
+    background: '#dc2626',
+    color: 'white',
+    marginLeft: '10px',
+  }}
+>
+  Delete Invoice
+</button>
     </main>
   )
 }
