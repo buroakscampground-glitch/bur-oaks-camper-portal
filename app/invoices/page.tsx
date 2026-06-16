@@ -172,8 +172,9 @@ const router = useRouter()
           <p className="muted">
   BUR OAKS CAMPGROUND
 </p>
-<button
-  onClick={() => router.push('/admin')}
+
+  <button
+  onClick={() => router.push('/portal')}
   style={{
     marginBottom: '20px',
     background: '#6b7280',
@@ -184,7 +185,7 @@ const router = useRouter()
     cursor: 'pointer',
   }}
 >
-  ← Back to Dashboard
+  ← Back to Portal
 </button>
 <h1 style={{ marginBottom: '25px' }}>
   💰 My Invoices
