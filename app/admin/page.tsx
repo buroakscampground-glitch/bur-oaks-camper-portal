@@ -153,13 +153,24 @@ const emergencyMaintenance =
   return (
     <main className="page">
       <div className="container">
-        <section className="card" style={{ marginBottom: '25px' }}>
-          <p className="muted">BUR OAKS CAMPGROUND</p>
-          <h1>Admin Command Center</h1>
-          <p className="muted">
-            Manage campground operations from one location.
-          </p>
-        </section>
+        <section
+  className="hero-card"
+  style={{ marginBottom: '25px' }}
+>
+  <img
+    src="/bur-oaks-logo.png"
+    alt="Bur Oaks Campground"
+    className="hero-logo"
+  />
+
+  <h1 className="hero-title">
+    Admin Command Center
+  </h1>
+
+  <p className="hero-subtitle">
+    Manage campground operations from one location.
+  </p>
+</section>
 
         <button
           onClick={async () => {

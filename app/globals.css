@@ -168,3 +168,63 @@ button:hover {
   display: inline-block;
   font-weight: 700;
 }
+/* BUR OAKS BRANDING */
+
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  min-height: 220px;
+  padding: 40px;
+  color: white;
+  background-image:
+    linear-gradient(
+      rgba(24, 52, 32, 0.78),
+      rgba(24, 52, 32, 0.78)
+    ),
+    url('/campground.jpg');
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 15px 40px rgba(0,0,0,.18);
+}
+
+.hero-logo {
+  width: 120px;
+  height: auto;
+  margin-bottom: 15px;
+}
+
+.hero-title {
+  font-size: 42px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.hero-subtitle {
+  font-size: 18px;
+  opacity: .95;
+  margin-top: 10px;
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  transition: all .2s ease;
+}
+
+.admin-link:hover {
+  cursor: pointer;
+}
+
+.dashboard-stat {
+  font-size: 38px;
+  font-weight: 800;
+  color: #2f5d3a;
+}
+
+.bur-oaks-divider {
+  height: 4px;
+  width: 80px;
+  background: #2f5d3a;
+  border-radius: 999px;
+  margin-top: 10px;
+}
