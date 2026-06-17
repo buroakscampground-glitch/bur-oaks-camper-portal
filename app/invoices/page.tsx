@@ -163,30 +163,9 @@ const paidInvoices = invoices.filter(
   return (
     <main className="page">
       <div className="container">
-        <div
-  className="grid grid-4"
-  style={{ marginBottom: '25px' }}
->
-  <div className="card dashboard-stat">
-    <h2>{totalInvoices}</h2>
-    <p className="muted">Total Invoices</p>
-  </div>
+        
+  
 
-  <div className="card dashboard-stat">
-    <h2>{unpaidInvoices}</h2>
-    <p className="muted">Open Invoices</p>
-  </div>
-
-  <div className="card dashboard-stat">
-    <h2>{paidInvoices}</h2>
-    <p className="muted">Paid Invoices</p>
-  </div>
-
-  <div className="card dashboard-stat">
-    <h2>${openBalance.toFixed(2)}</h2>
-    <p className="muted">Open Balance</p>
-  </div>
-</div>
         <section
           className="card"
           style={{
