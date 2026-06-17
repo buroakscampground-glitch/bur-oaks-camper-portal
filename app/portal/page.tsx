@@ -170,66 +170,40 @@ setLatestElectric(electricData)
     <main className="page">
       <div className="container">
         <section
-          className="card"
-          style={{
-            marginBottom: '25px',
-            background: 'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              right: 25,
-              top: 20,
-              fontSize: 90,
-              opacity: 0.15,
-            }}
-          >
-            🌳
-          </div>
-
-          <div
-  style={{
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  }}
+  className="hero-card"
+  style={{ marginBottom: '25px' }}
 >
-  <p className="muted">BUR OAKS CAMPGROUND</p>
+  <img
+    src="/bur-oaks-logo.png"
+    alt="Bur Oaks Campground"
+    className="hero-logo"
+  />
 
- 
-</div>
+  <h1 className="hero-title">
+    Welcome Back {camper?.first_name || ''}
+  </h1>
 
-          <h1>
-            Welcome Back {camper?.first_name || ''}
-          </h1>
+  <p className="hero-subtitle">
+    Your Bur Oaks Camper Portal
+  </p>
 
-          <h2 style={{ color: '#2f5d3a' }}>
-            A Site to Remember
-          </h2>
-<button
-  type="button"
-  onClick={handleLogout}
-  style={{
-    background: "#cc0000",
-    color: "white",
-    padding: "10px 20px",
-fontSize: "16px",
-    marginTop: "20px",
-    marginBottom: "20px",
-    cursor: "pointer",
-    border: "none",
-    borderRadius: "8px",
-  }}
->
-  LOGOUT
-</button>
-          <p className="muted">
-            CAMP. RELAX. EXPLORE.
-          </p>
-        </section>
+  <button
+    type="button"
+    onClick={handleLogout}
+    style={{
+      background: "#cc0000",
+      color: "white",
+      padding: "10px 20px",
+      fontSize: "16px",
+      marginTop: "20px",
+      cursor: "pointer",
+      border: "none",
+      borderRadius: "8px",
+    }}
+  >
+    Logout
+  </button>
+</section>
 
         <div
           className="grid grid-3"
