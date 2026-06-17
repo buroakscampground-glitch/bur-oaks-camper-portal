@@ -86,10 +86,19 @@ async function deleteInvoice() {
   return (
     <main style={{ padding: '40px', maxWidth: '900px', margin: '0 auto' }}>
       <button
-        onClick={() => router.push('/admin/invoices')}
-      >
-        ← Back to Invoices
-      </button>
+  onClick={() => router.push('/admin/invoices')}
+  style={{
+    marginBottom: '20px',
+    background: '#2f5d3a',
+    color: 'white',
+    padding: '10px 16px',
+    border: 'none',
+    borderRadius: '8px',
+    fontWeight: 'bold',
+  }}
+>
+  ← Back to Invoices
+</button>
 
       <div
   style={{
@@ -189,16 +198,61 @@ async function deleteInvoice() {
   Print Invoice
 </button>
 
-<button
-  onClick={deleteInvoice}
+<div
   style={{
-    background: '#dc2626',
-    color: 'white',
-    marginLeft: '10px',
+    background: '#fff',
+    padding: '20px',
+    borderRadius: '12px',
+    boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+    display: 'flex',
+    gap: '12px',
+    flexWrap: 'wrap',
   }}
 >
-  Delete Invoice
-</button>
+  {invoice.status !== 'paid' && (
+    <button
+      onClick={markPaid}
+      style={{
+        background: '#16a34a',
+        color: 'white',
+        padding: '12px 18px',
+        border: 'none',
+        borderRadius: '8px',
+        fontWeight: 'bold',
+      }}
+    >
+      ✓ Mark Paid
+    </button>
+  )}
+
+  <button
+    onClick={() => window.print()}
+    style={{
+      background: '#2563eb',
+      color: 'white',
+      padding: '12px 18px',
+      border: 'none',
+      borderRadius: '8px',
+      fontWeight: 'bold',
+    }}
+  >
+      🖨 Print Invoice
+  </button>
+
+  <button
+    onClick={deleteInvoice}
+    style={{
+      background: '#dc2626',
+      color: 'white',
+      padding: '12px 18px',
+      border: 'none',
+      borderRadius: '8px',
+      fontWeight: 'bold',
+    }}
+  >
+      🗑 Delete Invoice
+  </button>
+</div>
     </main>
   )
 }

@@ -19,17 +19,16 @@ export default function AdminPage() {
   maintenance: 0,
   waitlist: 0,
   unpaidInvoices: 0,
+  totalRevenue: 0,
 
   openMaintenance: 0,
   inProgressMaintenance: 0,
   emergencyMaintenance: 0,
   completedMaintenance: 0,
 })
-
-  useEffect(() => {
-    checkAdmin()
-  }, [])
-
+useEffect(() => {
+  checkAdmin()
+}, [])
   async function checkAdmin() {
     const {
       data: { user },
@@ -102,6 +101,13 @@ export default function AdminPage() {
 
     const unpaidInvoices =
       invoices?.filter((i) => i.status !== 'paid').length || 0
+      const totalRevenue =
+  invoices
+    ?.filter((i) => i.status === 'paid')
+    .reduce(
+      (sum, i) => sum + Number(i.total_due || 0),
+      0
+    ) || 0
 const openMaintenance =
   maintenance?.filter((t) => t.status === 'Open').length || 0
 
@@ -114,21 +120,22 @@ const completedMaintenance =
 const emergencyMaintenance =
   maintenance?.filter((t) => t.priority === 'Emergency').length || 0
     setStats({
-      campers: campers?.length || 0,
-      archivedCampers: archivedCampers?.length || 0,
-      balance: openBalance,
-      events: events?.length || 0,
-      announcements: announcements?.length || 0,
-      rsvps: rsvps?.length || 0,
-      electric: electric?.length || 0,
-      maintenance: maintenance?.length || 0,
-      waitlist: waitlist?.length || 0,
-      unpaidInvoices,
-      openMaintenance,
-inProgressMaintenance,
-emergencyMaintenance,
-completedMaintenance,
-    })
+  campers: campers?.length || 0,
+  archivedCampers: archivedCampers?.length || 0,
+  balance: openBalance,
+  events: events?.length || 0,
+  announcements: announcements?.length || 0,
+  rsvps: rsvps?.length || 0,
+  electric: electric?.length || 0,
+  maintenance: maintenance?.length || 0,
+  waitlist: waitlist?.length || 0,
+  unpaidInvoices,
+  totalRevenue,
+  openMaintenance,
+  inProgressMaintenance,
+  emergencyMaintenance,
+  completedMaintenance,
+})
   }
 
   if (checkingAuth) {
@@ -202,7 +209,7 @@ completedMaintenance,
 
           <section
   className="card admin-link"
-  onClick={() => router.push('/admin/rsvps')}
+ onClick={() => router.push('/admin/announcements')}
   style={{ cursor: 'pointer' }}
 >
             <h2>📢 {stats.announcements}</h2>
@@ -256,73 +263,33 @@ completedMaintenance,
             <h2>💵 {stats.unpaidInvoices}</h2>
             <p className="muted">Unpaid Invoices</p>
           </section>
+          <section
+  className="card admin-link"
+  onClick={() => router.push('/admin/invoices')}
+  style={{ cursor: 'pointer' }}
+>
+  <h2>💲 ${stats.totalRevenue.toFixed(2)}</h2>
+  <p className="muted">Revenue Collected</p>
+</section>
         </div>
 
         <div className="grid grid-3">
-          <a className="card admin-link" href="/admin/campers">
-            <h2>Campers</h2>
-            <p>Add, edit, and manage camper accounts.</p>
-          </a>
+          
+            
 
-          <a className="card admin-link" href="/admin/archived-campers">
-            <h2>Archived Campers</h2>
-            <p>View and restore archived camper records.</p>
-          </a>
+          
 
-          <a className="card admin-link" href="/admin/invoices">
-            <h2>Invoices</h2>
-            <p>Create individual camper invoices.</p>
-          </a>
+          
 
-          <a className="card admin-link" href="/admin/electric">
-            <h2>Electric</h2>
-            <p>Enter meter readings and create invoices.</p>
-          </a>
+          
 
-          <a className="card admin-link" href="/admin/documents">
-            <h2>Documents</h2>
-            <p>Upload leases, rules, and camper files.</p>
-          </a>
+          
 
-          <a className="card admin-link" href="/admin/events">
-            <h2>Events</h2>
-            <p>Create and manage campground events.</p>
-          </a>
+         
 
-          <a className="card admin-link" href="/admin/rsvps">
-            <h2>RSVPs</h2>
-            <p>See who is attending each event.</p>
-          </a>
+          
 
-          <a className="card admin-link" href="/admin/announcements">
-            <h2>Announcements</h2>
-            <p>Post updates and alerts to all campers.</p>
-          </a>
-
-          <a className="card admin-link" href="/admin/texts">
-            <h2>Text Alerts</h2>
-            <p>Save campground text alerts and reminders.</p>
-          </a>
-
-          <a className="card admin-link" href="/admin/gatecards">
-            <h2>Gate Cards</h2>
-            <p>Assign and manage camper gate access cards.</p>
-          </a>
-
-          <a className="card admin-link" href="/admin/waitlist">
-            <h2>Waitlist</h2>
-            <p>Track people waiting for seasonal sites.</p>
-          </a>
-
-          <a className="card admin-link" href="/admin/lots">
-            <h2>Lots</h2>
-            <p>Manage lot numbers, meters, rent amounts, and assigned campers.</p>
-          </a>
-
-          <a className="card admin-link" href="/admin/maintenance">
-            <h2>Maintenance</h2>
-            <p>Track repairs, campground issues, and work orders.</p>
-          </a>
+          
         </div>
       </div>
     </main>

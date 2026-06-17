@@ -140,17 +140,7 @@ const router = useRouter()
 
   return (
     <main style={{ padding: '40px', fontFamily: 'Arial' }}>
-      <a
-  href="/admin"
-  style={{
-    display: 'inline-block',
-    marginBottom: '20px',
-    textDecoration: 'none',
-    fontWeight: 'bold',
-  }}
->
-  ← Back to Dashboard
-</a>
+      
 <button
   onClick={() => router.push('/admin')}
   style={{
@@ -260,13 +250,27 @@ const router = useRouter()
   })
   .map((camper) => (
         <div
-          key={camper.id}
-          style={{ marginBottom: '12px' }}
-        >
-          Lot {camper.lot_number} -{' '}
-          {camper.first_name}{' '}
-          {camper.last_name} -{' '}
-          {camper.email}
+  key={camper.id}
+  style={{
+    marginBottom: '12px',
+    padding: '12px',
+    border: '1px solid #ddd',
+    borderRadius: '8px',
+    cursor: 'pointer',
+  }}
+  onClick={() =>
+    router.push(`/admin/campers/${camper.id}`)
+  }
+>
+          <div>
+  <strong>
+    Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
+  </strong>
+
+  <div>{camper.email}</div>
+
+  <div>{camper.phone || 'No phone on file'}</div>
+</div>
 
           <br />
 

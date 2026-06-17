@@ -43,6 +43,22 @@ export default function AdminRsvpsPage() {
         <section className="card" style={{ marginBottom: '25px' }}>
           <p className="muted">BUR OAKS CAMPGROUND</p>
           <h1>Event RSVPs</h1>
+          <button
+  onClick={() => window.history.back()}
+  style={{
+    marginTop: '10px',
+    marginBottom: '15px',
+    padding: '10px 16px',
+    borderRadius: '8px',
+    border: 'none',
+    background: '#2f5d3a',
+    color: 'white',
+    cursor: 'pointer',
+    fontWeight: 'bold',
+  }}
+>
+  ← Back
+</button>
           <p className="muted">See who is attending each campground event.</p>
         </section>
 
