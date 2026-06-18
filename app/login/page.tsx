@@ -37,7 +37,7 @@ export default function LoginPage() {
 if (role === "admin") {
   window.location.href = "/admin";
 } else if (role === "maintenance") {
-  window.location.href = "/maintenance";
+  window.location.href = "/maintenance-dashboard";
 } else {
   window.location.href = "/portal";
 }
