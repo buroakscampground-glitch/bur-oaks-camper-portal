@@ -32,14 +32,15 @@ export default function LoginPage() {
         .eq("email", email.toLowerCase())
         .single();
 
-      const isAdmin =
-        camper?.role?.toLowerCase() === "admin";
+      const role = camper?.role?.toLowerCase();
 
-      if (isAdmin) {
-        window.location.href = "/admin";
-      } else {
-        window.location.href = "/portal";
-      }
+if (role === "admin") {
+  window.location.href = "/admin";
+} else if (role === "maintenance") {
+  window.location.href = "/maintenance";
+} else {
+  window.location.href = "/portal";
+}
     } catch (err) {
       console.error(err);
       setError("Login failed");
