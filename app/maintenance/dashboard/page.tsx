@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '../../../lib/supabase'
 
 export default function MaintenanceDashboard() {
@@ -202,7 +203,26 @@ async function createWorkOrder() {
                 Lot {ticket.lot_number}
               </strong>
 
-              <div>{ticket.title}</div>
+ <Link
+  href={`/maintenance/dashboard/${ticket.id}`}
+  style={{
+    textDecoration: 'none',
+    color: '#2f5d3a',
+    fontWeight: 'bold',
+    fontSize: '18px',
+  }}
+>
+  {ticket.title}
+</Link>
+
+<div
+  style={{
+    marginTop: '8px',
+    color: '#555',
+  }}
+>
+  {ticket.description}
+</div>
 
               <div>
   Status: {ticket.status}
