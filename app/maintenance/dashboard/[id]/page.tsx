@@ -10,6 +10,7 @@ export default function TicketDetailPage() {
 
   const [ticket, setTicket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [status, setStatus] = useState('')
 
   useEffect(() => {
     loadTicket()
@@ -23,7 +24,27 @@ export default function TicketDetailPage() {
       .single()
 
     setTicket(data)
+    setStatus(data?.status || 'Open')
     setLoading(false)
+  }
+
+  async function saveChanges() {
+    const updates: any = {
+      status,
+    }
+
+    if (status === 'Completed') {
+      updates.completed_at = new Date().toISOString()
+    }
+
+    await supabase
+      .from('maintenance_tickets')
+      .update(updates)
+      .eq('id', params.id)
+
+    alert('Changes Saved')
+
+    loadTicket()
   }
 
   if (loading) {
@@ -59,16 +80,43 @@ export default function TicketDetailPage() {
             <strong>Reported By:</strong> {ticket.reported_by}
           </p>
 
+          <div style={{ marginBottom: '20px' }}>
+            <strong>Status</strong>
+
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              style={{
+                display: 'block',
+                marginTop: '8px',
+                padding: '10px',
+                width: '250px',
+              }}
+            >
+              <option>Open</option>
+              <option>In Progress</option>
+              <option>Waiting Parts</option>
+              <option>Completed</option>
+            </select>
+
+            <button
+              onClick={saveChanges}
+              style={{
+                marginTop: '10px',
+              }}
+            >
+              Save Changes
+            </button>
+          </div>
+
           <p>
-            <strong>Status:</strong> {ticket.status}
+            <strong>Priority:</strong>{' '}
+            {ticket.priority || 'Normal'}
           </p>
 
           <p>
-            <strong>Priority:</strong> {ticket.priority || 'Normal'}
-          </p>
-
-          <p>
-            <strong>Assigned To:</strong> {ticket.assigned_to || 'Open'}
+            <strong>Assigned To:</strong>{' '}
+            {ticket.assigned_to || 'Open'}
           </p>
 
           <hr />
