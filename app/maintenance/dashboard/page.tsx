@@ -104,13 +104,85 @@ export default function MaintenanceDashboard() {
               <div>{ticket.title}</div>
 
               <div>
-                Status: {ticket.status}
-              </div>
+  Status: {ticket.status}
+</div>
 
-              <div>
-                Priority:{' '}
-                {ticket.priority || 'Normal'}
-              </div>
+<div>
+  Priority: {ticket.priority || 'Normal'}
+</div>
+
+<div
+  style={{
+    marginTop: '10px',
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap',
+  }}
+>
+  <button
+    onClick={async () => {
+      await supabase
+        .from('maintenance_tickets')
+        .update({
+          assigned_to: 'Maintenance Staff',
+        })
+        .eq('id', ticket.id)
+
+      loadTickets()
+    }}
+  >
+    Assign To Me
+  </button>
+
+  <button
+    onClick={async () => {
+      await supabase
+        .from('maintenance_tickets')
+        .update({
+          status: 'In Progress',
+        })
+        .eq('id', ticket.id)
+
+      loadTickets()
+    }}
+  >
+    Mark In Progress
+  </button>
+
+  <button
+    onClick={async () => {
+      const notes = prompt(
+        'Completion Notes'
+      )
+
+      await supabase
+        .from('maintenance_tickets')
+        .update({
+          status: 'Completed',
+          completion_notes: notes,
+          completed_at:
+            new Date().toISOString(),
+        })
+        .eq('id', ticket.id)
+
+      loadTickets()
+    }}
+  >
+    Mark Completed
+  </button>
+</div>
+
+{ticket.assigned_to && (
+  <div style={{ marginTop: '10px' }}>
+    Assigned To: {ticket.assigned_to}
+  </div>
+)}
+
+{ticket.completion_notes && (
+  <div style={{ marginTop: '10px' }}>
+    Notes: {ticket.completion_notes}
+  </div>
+)}
             </div>
           ))}
         </section>
