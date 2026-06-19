@@ -7,10 +7,13 @@ import { supabase } from '../../../lib/supabase'
 export default function MaintenanceDashboard() {
   const [loading, setLoading] = useState(true)
   const [tickets, setTickets] = useState<any[]>([])
+
   const [newTitle, setNewTitle] = useState('')
-const [newDescription, setNewDescription] = useState('')
-const [newAssignedTo, setNewAssignedTo] = useState('Open')
-const [newPriority, setNewPriority] = useState('Normal')
+  const [newDescription, setNewDescription] = useState('')
+  const [newAssignedTo, setNewAssignedTo] = useState('Open')
+  const [newPriority, setNewPriority] = useState('Normal')
+
+  const [filter, setFilter] = useState('Active')
 
   useEffect(() => {
     loadTickets()
@@ -25,37 +28,39 @@ const [newPriority, setNewPriority] = useState('Normal')
     setTickets(data || [])
     setLoading(false)
   }
-async function createWorkOrder() {
-  if (!newTitle || !newDescription) {
-    alert('Please enter a title and description')
-    return
+
+  async function createWorkOrder() {
+    if (!newTitle || !newDescription) {
+      alert('Please enter a title and description')
+      return
+    }
+
+    const { error } = await supabase
+      .from('maintenance_tickets')
+      .insert({
+        title: newTitle,
+        description: newDescription,
+        status: 'Open',
+        priority: newPriority,
+        assigned_to: newAssignedTo,
+        reported_by: 'Maintenance',
+        lot_number: 'WORK ORDER',
+        work_order: true,
+      })
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    setNewTitle('')
+    setNewDescription('')
+    setNewAssignedTo('Open')
+    setNewPriority('Normal')
+
+    loadTickets()
   }
 
-  const { error } = await supabase
-    .from('maintenance_tickets')
-    .insert({
-      title: newTitle,
-      description: newDescription,
-      status: 'Open',
-      priority: newPriority,
-      assigned_to: newAssignedTo,
-      reported_by: 'Maintenance',
-      lot_number: 'WORK ORDER',
-      work_order: true,
-    })
-
-  if (error) {
-    alert(error.message)
-    return
-  }
-
-  setNewTitle('')
-  setNewDescription('')
-  setNewAssignedTo('Open')
-  setNewPriority('Normal')
-
-  loadTickets()
-}
   const openTickets = tickets.filter(
     (t) => t.status === 'Open'
   ).length
@@ -67,6 +72,18 @@ async function createWorkOrder() {
   const emergencyTickets = tickets.filter(
     (t) => t.priority === 'Emergency'
   ).length
+
+  const filteredTickets = tickets.filter((ticket) => {
+    if (filter === 'Completed') {
+      return ticket.status === 'Completed'
+    }
+
+    if (filter === 'All') {
+      return true
+    }
+
+    return ticket.status !== 'Completed'
+  })
 
   if (loading) {
     return <div style={{ padding: '40px' }}>Loading...</div>
@@ -117,81 +134,102 @@ async function createWorkOrder() {
           </div>
         </div>
 
+        <section
+          className="card"
+          style={{ marginBottom: '25px' }}
+        >
+          <h2>➕ New Work Order</h2>
+
+          <input
+            placeholder="Work Order Title"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            style={{
+              width: '100%',
+              marginBottom: '10px',
+            }}
+          />
+
+          <textarea
+            placeholder="Description"
+            value={newDescription}
+            onChange={(e) =>
+              setNewDescription(e.target.value)
+            }
+            style={{
+              width: '100%',
+              minHeight: '100px',
+              marginBottom: '10px',
+            }}
+          />
+
+          <select
+            value={newAssignedTo}
+            onChange={(e) =>
+              setNewAssignedTo(e.target.value)
+            }
+            style={{
+              width: '100%',
+              marginBottom: '10px',
+            }}
+          >
+            <option>Open</option>
+            <option>Anthony Finley</option>
+            <option>Dawn Finley</option>
+            <option>Charlie Kimball</option>
+            <option>Rachel Finley</option>
+            <option>Joe Johnson</option>
+          </select>
+
+          <select
+            value={newPriority}
+            onChange={(e) =>
+              setNewPriority(e.target.value)
+            }
+            style={{
+              width: '100%',
+              marginBottom: '10px',
+            }}
+          >
+            <option>Low</option>
+            <option>Normal</option>
+            <option>High</option>
+            <option>Emergency</option>
+          </select>
+
+          <button onClick={createWorkOrder}>
+            Create Work Order
+          </button>
+        </section>
+
         <section className="card">
-            <section
-  className="card"
-  style={{ marginBottom: '25px' }}
->
-  <h2>➕ New Work Order</h2>
-
-  <input
-    placeholder="Work Order Title"
-    value={newTitle}
-    onChange={(e) => setNewTitle(e.target.value)}
-    style={{
-      width: '100%',
-      marginBottom: '10px',
-    }}
-  />
-
-  <textarea
-    placeholder="Description"
-    value={newDescription}
-    onChange={(e) =>
-      setNewDescription(e.target.value)
-    }
-    style={{
-      width: '100%',
-      minHeight: '100px',
-      marginBottom: '10px',
-    }}
-  />
-
-  <select
-    value={newAssignedTo}
-    onChange={(e) =>
-      setNewAssignedTo(e.target.value)
-    }
-    style={{
-      width: '100%',
-      marginBottom: '10px',
-    }}
-  >
-    <option>Open</option>
-    <option>Anthony Finley</option>
-    <option>Dawn Finley</option>
-    <option>Charlie Kimball</option>
-    <option>Rachel Finley</option>
-    <option>Joe Johnson</option>
-  </select>
-
-  <select
-    value={newPriority}
-    onChange={(e) =>
-      setNewPriority(e.target.value)
-    }
-    style={{
-      width: '100%',
-      marginBottom: '10px',
-    }}
-  >
-    <option>Low</option>
-    <option>Normal</option>
-    <option>High</option>
-    <option>Emergency</option>
-  </select>
-
-  <button onClick={createWorkOrder}>
-    Create Work Order
-  </button>
-</section>
           <h2>Maintenance Tickets</h2>
 
-          {tickets.length === 0 && (
+          <div
+            style={{
+              display: 'flex',
+              gap: '10px',
+              marginBottom: '20px',
+            }}
+          >
+            <button onClick={() => setFilter('Active')}>
+              Active
+            </button>
+
+            <button onClick={() => setFilter('Completed')}>
+              Completed
+            </button>
+
+            <button onClick={() => setFilter('All')}>
+              All
+            </button>
+          </div>
+
+          {filteredTickets.length === 0 && (
             <p>No maintenance tickets found.</p>
           )}
 
-          {tickets.map((ticket) => (
+          {filteredTickets.map((ticket) => (
             <div
               key={ticket.id}
               style={{
@@ -203,107 +241,110 @@ async function createWorkOrder() {
                 Lot {ticket.lot_number}
               </strong>
 
- <Link
-  href={`/maintenance/dashboard/${ticket.id}`}
-  style={{
-    textDecoration: 'none',
-    color: '#2f5d3a',
-    fontWeight: 'bold',
-    fontSize: '18px',
-  }}
->
-  {ticket.title}
-</Link>
+              <div>
+                <Link
+                  href={`/maintenance/dashboard/${ticket.id}`}
+                  style={{
+                    textDecoration: 'none',
+                    color: '#2f5d3a',
+                    fontWeight: 'bold',
+                    fontSize: '18px',
+                  }}
+                >
+                  {ticket.title}
+                </Link>
+              </div>
 
-<div
-  style={{
-    marginTop: '8px',
-    color: '#555',
-  }}
->
-  {ticket.description}
-</div>
+              <div
+                style={{
+                  marginTop: '8px',
+                  color: '#555',
+                }}
+              >
+                {ticket.description}
+              </div>
 
               <div>
-  Status: {ticket.status}
-</div>
+                Status: {ticket.status}
+              </div>
 
-<div>
-  Priority: {ticket.priority || 'Normal'}
-</div>
+              <div>
+                Priority: {ticket.priority || 'Normal'}
+              </div>
 
-<div
-  style={{
-    marginTop: '10px',
-    display: 'flex',
-    gap: '10px',
-    flexWrap: 'wrap',
-  }}
->
-  <button
-    onClick={async () => {
-      await supabase
-        .from('maintenance_tickets')
-        .update({
-          assigned_to: 'Maintenance Staff',
-        })
-        .eq('id', ticket.id)
+              <div
+                style={{
+                  marginTop: '10px',
+                  display: 'flex',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <button
+                  onClick={async () => {
+                    await supabase
+                      .from('maintenance_tickets')
+                      .update({
+                        assigned_to:
+                          'Maintenance Staff',
+                      })
+                      .eq('id', ticket.id)
 
-      loadTickets()
-    }}
-  >
-    Assign To Me
-  </button>
+                    loadTickets()
+                  }}
+                >
+                  Assign To Me
+                </button>
 
-  <button
-    onClick={async () => {
-      await supabase
-        .from('maintenance_tickets')
-        .update({
-          status: 'In Progress',
-        })
-        .eq('id', ticket.id)
+                <button
+                  onClick={async () => {
+                    await supabase
+                      .from('maintenance_tickets')
+                      .update({
+                        status: 'In Progress',
+                      })
+                      .eq('id', ticket.id)
 
-      loadTickets()
-    }}
-  >
-    Mark In Progress
-  </button>
+                    loadTickets()
+                  }}
+                >
+                  Mark In Progress
+                </button>
 
-  <button
-    onClick={async () => {
-      const notes = prompt(
-        'Completion Notes'
-      )
+                <button
+                  onClick={async () => {
+                    const notes = prompt(
+                      'Completion Notes'
+                    )
 
-      await supabase
-        .from('maintenance_tickets')
-        .update({
-          status: 'Completed',
-          completion_notes: notes,
-          completed_at:
-            new Date().toISOString(),
-        })
-        .eq('id', ticket.id)
+                    await supabase
+                      .from('maintenance_tickets')
+                      .update({
+                        status: 'Completed',
+                        completion_notes: notes,
+                        completed_at:
+                          new Date().toISOString(),
+                      })
+                      .eq('id', ticket.id)
 
-      loadTickets()
-    }}
-  >
-    Mark Completed
-  </button>
-</div>
+                    loadTickets()
+                  }}
+                >
+                  Mark Completed
+                </button>
+              </div>
 
-{ticket.assigned_to && (
-  <div style={{ marginTop: '10px' }}>
-    Assigned To: {ticket.assigned_to}
-  </div>
-)}
+              {ticket.assigned_to && (
+                <div style={{ marginTop: '10px' }}>
+                  Assigned To: {ticket.assigned_to}
+                </div>
+              )}
 
-{ticket.completion_notes && (
-  <div style={{ marginTop: '10px' }}>
-    Notes: {ticket.completion_notes}
-  </div>
-)}
+              {ticket.completion_notes && (
+                <div style={{ marginTop: '10px' }}>
+                  Notes: {ticket.completion_notes}
+                </div>
+              )}
             </div>
           ))}
         </section>
