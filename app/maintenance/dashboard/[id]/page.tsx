@@ -10,7 +10,9 @@ export default function TicketDetailPage() {
 
   const [ticket, setTicket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+
   const [status, setStatus] = useState('')
+  const [assignedTo, setAssignedTo] = useState('')
 
   useEffect(() => {
     loadTicket()
@@ -24,16 +26,20 @@ export default function TicketDetailPage() {
       .single()
 
     setTicket(data)
+
     setStatus(data?.status || 'Open')
+    setAssignedTo(data?.assigned_to || 'Open')
+
     setLoading(false)
   }
 
   async function saveChanges() {
     const updates: any = {
       status,
+      assigned_to: assignedTo,
     }
 
-    if (status === 'Completed') {
+    if (status === 'Completed' && !ticket.completed_at) {
       updates.completed_at = new Date().toISOString()
     }
 
@@ -98,25 +104,42 @@ export default function TicketDetailPage() {
               <option>Waiting Parts</option>
               <option>Completed</option>
             </select>
+          </div>
 
-            <button
-              onClick={saveChanges}
+          <div style={{ marginBottom: '20px' }}>
+            <strong>Assigned To</strong>
+
+            <select
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
               style={{
-                marginTop: '10px',
+                display: 'block',
+                marginTop: '8px',
+                padding: '10px',
+                width: '250px',
               }}
             >
-              Save Changes
-            </button>
+              <option>Open</option>
+              <option>Anthony Finley</option>
+              <option>Dawn Finley</option>
+              <option>Charlie Kimball</option>
+              <option>Rachel Finley</option>
+              <option>Joe Johnson</option>
+            </select>
           </div>
+
+          <button
+            onClick={saveChanges}
+            style={{
+              marginBottom: '20px',
+            }}
+          >
+            Save Changes
+          </button>
 
           <p>
             <strong>Priority:</strong>{' '}
             {ticket.priority || 'Normal'}
-          </p>
-
-          <p>
-            <strong>Assigned To:</strong>{' '}
-            {ticket.assigned_to || 'Open'}
           </p>
 
           <hr />
@@ -134,10 +157,13 @@ export default function TicketDetailPage() {
           )}
 
           {ticket.completed_at && (
-            <p>
-              <strong>Completed:</strong>{' '}
-              {new Date(ticket.completed_at).toLocaleString()}
-            </p>
+            <>
+              <hr />
+              <p>
+                <strong>Completed:</strong>{' '}
+                {new Date(ticket.completed_at).toLocaleString()}
+              </p>
+            </>
           )}
         </section>
       </div>
