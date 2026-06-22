@@ -798,6 +798,68 @@ button:hover {
   }
 }
 
+/* CAMPER ACCOUNT CENTER */
+.camper-account-page { min-height: 100vh; padding: 24px; color: #26352b; background: radial-gradient(circle at 90% 5%, rgba(204,174,105,.14), transparent 24%), linear-gradient(180deg,#edf2ec 0%,#f7f5ef 34%,#f3f1eb 100%); }
+.account-shell { width: min(1280px,100%); margin: 0 auto; }
+.account-header { overflow: hidden; border-radius: 28px; color: #fff; background: radial-gradient(circle at 86% 12%,rgba(216,189,121,.24),transparent 28%),linear-gradient(135deg,#173722,#29523a 58%,#1e422d); box-shadow: 0 24px 60px rgba(29,51,36,.2); }
+.account-nav { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 28px; border-bottom: 1px solid rgba(255,255,255,.13); }
+.account-brand { display: flex; align-items: center; gap: 11px; color: #fff; text-decoration: none; }
+.account-brand img { width: 46px; height: 46px; object-fit: cover; border: 2px solid rgba(255,255,255,.7); border-radius: 50%; }
+.account-brand span,.account-balance-card,.account-invoice-total,.autopay-active-card div,.autopay-card-preview div { display: grid; }
+.account-brand strong { font: 20px Georgia,serif; }
+.account-brand small { color: rgba(255,255,255,.65); font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.account-back { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1px solid rgba(255,255,255,.24); border-radius: 11px; background: rgba(255,255,255,.08); color: #fff; font-size: 13px; font-weight: 800; text-decoration: none; }
+.account-welcome { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 40px; padding: 56px 54px 76px; }
+.account-eyebrow { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px; color: #dec47e; font-size: 11px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.account-welcome h1 { max-width: 700px; margin: 0; font: 500 clamp(38px,5vw,60px)/1.05 Georgia,serif; letter-spacing: -.03em; }
+.account-welcome p { max-width: 650px; margin: 17px 0 0; color: rgba(255,255,255,.72); font-size: 16px; line-height: 1.6; }
+.account-balance-card { min-width: 250px; padding: 23px 25px; border: 1px solid rgba(255,255,255,.18); border-radius: 18px; background: rgba(8,29,16,.35); backdrop-filter: blur(10px); }
+.account-balance-card span { color: rgba(255,255,255,.68); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.account-balance-card strong { margin: 6px 0 2px; color: #f3d98d; font: 500 37px Georgia,serif; }
+.account-balance-card small { color: rgba(255,255,255,.65); }
+.account-summary { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); margin: -34px 28px 26px; overflow: hidden; border: 1px solid #dcd9ce; border-radius: 20px; background: rgba(255,255,255,.97); box-shadow: 0 18px 42px rgba(39,52,43,.12); }
+.account-summary>div { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 19px 21px; border-right: 1px solid #e7e3d9; }
+.account-summary>div:last-child { border-right: 0; }
+.account-summary>div>span:last-child { display: grid; min-width: 0; }
+.account-summary small { color: #7a847d; font-size: 10px; font-weight: 900; letter-spacing: .09em; text-transform: uppercase; }
+.account-summary strong { overflow: hidden; margin-top: 3px; color: #24382b; font: 21px Georgia,serif; text-overflow: ellipsis; white-space: nowrap; }
+.account-summary-icon { display: grid; flex: 0 0 42px; width: 42px; height: 42px; place-items: center; border-radius: 12px; }
+.account-summary-icon.gold { background:#f3ead3;color:#8e6c29 }.account-summary-icon.green{background:#e2eee4;color:#386445}.account-summary-icon.blue{background:#e2ecf1;color:#35677c}.account-summary-icon.plum{background:#eee6ef;color:#765574}
+.account-layout { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(320px,.68fr); align-items: start; gap: 24px; }
+.account-panel { border: 1px solid #dedbd1; border-radius: 22px; background: rgba(255,255,255,.96); box-shadow: 0 12px 32px rgba(39,53,43,.06); }
+.account-ledger { overflow: hidden; }
+.account-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 25px 26px 20px; }
+.account-panel-heading>div:first-child>span,.autopay-heading small { color:#9a7935; font-size:10px; font-weight:900; letter-spacing:.15em }
+.account-panel-heading h2,.autopay-heading h2 { margin:4px 0 0; color:#293d30; font:500 28px Georgia,serif }
+.account-filter { display:flex; padding:4px; border:1px solid #e0ded5; border-radius:11px; background:#f4f3ee }
+.account-filter button { min-height:34px; padding:0 13px; border:0; border-radius:8px; background:transparent; color:#747e77; font-size:12px; box-shadow:none }
+.account-filter button.active { background:#fff; color:#2f5b3b; box-shadow:0 3px 8px rgba(35,49,39,.09) }
+.account-selection-bar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:0 18px 12px; padding:12px 14px; border-radius:13px; background:#eef3eb }
+.account-selection-bar>div { display:flex; align-items:center; gap:8px }.account-selection-bar>div:first-child{display:grid;gap:1px}.account-selection-bar strong{color:#31533a;font-size:13px}.account-selection-bar span{color:#7a857d;font-size:12px}
+.account-text-button { padding:7px 8px; border:0; background:transparent; color:#476a50; font-size:12px; box-shadow:none }
+.account-pay-button,.account-invoice-action button,.autopay-primary { display:inline-flex; align-items:center; justify-content:center; gap:7px; border:0; background:#2f5b3b; color:#fff }
+.account-pay-button { min-height:38px; padding:0 13px; font-size:12px }.account-pay-button:disabled{opacity:.45}
+.account-invoice-list { border-top:1px solid #e9e6dc }
+.account-invoice-row { display:grid; grid-template-columns:34px minmax(0,1fr) 120px 92px; align-items:center; gap:14px; padding:20px 24px; border-bottom:1px solid #e9e6dc; transition:background .18s }
+.account-invoice-row:last-child{border-bottom:0}.account-invoice-row:hover{background:#fafaf6}.account-invoice-row.selected{background:#f0f5ed}
+.account-invoice-check>span,.account-invoice-check label>span { display:grid; width:25px; height:25px; place-items:center; border:1px solid #ccd3cb; border-radius:8px; color:transparent; background:#fff }
+.account-invoice-check>span{border-color:#b9d0bd;color:#3f754b;background:#e9f2e8}.account-invoice-check label{display:block;cursor:pointer}.account-invoice-check input{position:absolute;opacity:0;pointer-events:none}.account-invoice-check input:checked+span{border-color:#3f7149;background:#3f7149;color:#fff}
+.account-invoice-main { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:20px; min-width:0 }
+.account-invoice-main small{color:#879087;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}.account-invoice-main h3{overflow:hidden;margin:4px 0 0;color:#293c30;font-size:15px;text-overflow:ellipsis;white-space:nowrap}
+.account-due-date{display:flex;align-items:center;gap:8px;color:#718078}.account-due-date>span{display:grid}.account-due-date strong{color:#4a5b50;font-size:12px}
+.account-invoice-total{justify-items:end;gap:5px}.account-invoice-total>strong{color:#24372b;font:20px Georgia,serif}.account-invoice-total>span{padding:4px 8px;border-radius:999px;font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase}.account-invoice-total>span.paid{background:#e4f0e5;color:#397046}.account-invoice-total>span.open{background:#f4ead7;color:#8a6025}
+.account-invoice-action{display:flex;justify-content:flex-end}.account-invoice-action button{min-height:36px;padding:0 11px;font-size:11px;white-space:nowrap}.account-paid-mark{display:grid;place-items:center;color:#4d7b57}
+.account-empty{display:grid;min-height:300px;place-content:center;justify-items:center;padding:30px;color:#6c7f71;text-align:center}.account-empty h3{margin:12px 0 2px;color:#304638}.account-empty p{margin:4px 0;font-size:13px}
+.account-autopay{position:sticky;top:20px;padding:25px}.autopay-heading{display:flex;align-items:flex-start;gap:12px}.autopay-heading>span{display:grid;flex:0 0 42px;width:42px;height:42px;place-items:center;border-radius:12px;background:#f3e8cb;color:#8d6928}.autopay-heading h2{font-size:23px;line-height:1.15}.autopay-intro{margin:18px 0;color:#6e7a72;font-size:13px;line-height:1.6}
+.autopay-active-card{display:flex;align-items:center;gap:11px;margin:19px 0;padding:13px;border:1px solid #cbdccb;border-radius:13px;background:#edf5ec}.autopay-active-dot{display:grid;width:27px;height:27px;place-items:center;border-radius:50%;background:#477951;color:#fff}.autopay-active-card strong{color:#31593a;font-size:13px}.autopay-active-card small{margin-top:2px;color:#738276}
+.autopay-card-preview{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;margin-bottom:18px;padding:16px;border-radius:14px;background:linear-gradient(135deg,#253e2d,#3e6549);color:#fff}.autopay-card-preview small{color:rgba(255,255,255,.62);font-size:9px;font-weight:900;letter-spacing:.1em}.autopay-card-preview strong{margin-top:3px;letter-spacing:.08em}.autopay-card-preview>span{color:rgba(255,255,255,.66);font-size:11px}
+.autopay-field{display:grid;gap:7px;margin-top:20px}.autopay-field>span{color:#46594d;font-size:12px;font-weight:800}.autopay-field select{width:100%;min-height:45px;padding:0 11px;border:1px solid #d5d8d1;border-radius:10px;background:#fff}
+.autopay-consent{display:flex;align-items:flex-start;gap:10px;margin:17px 0;cursor:pointer}.autopay-consent input{flex:0 0 auto;width:18px;height:18px;margin-top:2px;accent-color:#386544}.autopay-consent>span{display:grid;gap:3px}.autopay-consent strong{color:#425348;font-size:12px}.autopay-consent small{color:#7d877f;font-size:10px;line-height:1.45}
+.autopay-primary{width:100%;min-height:44px}.autopay-disable{width:100%;margin-top:8px;border:1px solid #d9ddd7;background:transparent;color:#68766d;box-shadow:none}.autopay-message{margin:12px 0 0;padding:10px;border-radius:9px;background:#f2f3ed;color:#56655b;font-size:11px;line-height:1.45}.autopay-security{display:flex;align-items:flex-start;gap:8px;margin-top:18px;padding-top:16px;border-top:1px solid #e7e4db;color:#899188;font-size:10px;line-height:1.45}.autopay-security svg{flex:0 0 auto}
+.account-footer{display:flex;justify-content:space-between;gap:20px;padding:24px 5px 8px;color:#77817a;font-size:12px}.account-footer a{color:inherit}
+@media(max-width:1050px){.account-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.account-summary>div:nth-child(2){border-right:0}.account-summary>div:nth-child(-n+2){border-bottom:1px solid #e7e3d9}.account-layout{grid-template-columns:1fr}.account-autopay{position:static}}
+@media(max-width:760px){.camper-account-page{padding:12px}.account-header{border-radius:22px}.account-nav{padding:17px}.account-brand img{width:42px;height:42px}.account-back{padding:9px;font-size:0}.account-welcome{grid-template-columns:1fr;gap:24px;padding:44px 22px 66px}.account-welcome h1{font-size:41px}.account-balance-card{min-width:0}.account-summary{grid-template-columns:1fr;margin:-34px 13px 22px}.account-summary>div{border-right:0;border-bottom:1px solid #e7e3d9}.account-summary>div:last-child{border-bottom:0}.account-panel-heading{align-items:flex-start;flex-direction:column}.account-selection-bar{align-items:stretch;flex-direction:column}.account-selection-bar>div:last-child{flex-wrap:wrap}.account-pay-button{flex:1}.account-invoice-row{grid-template-columns:28px minmax(0,1fr) auto;gap:10px;padding:18px}.account-invoice-main{grid-template-columns:1fr;gap:10px}.account-invoice-total{align-self:start}.account-invoice-action{grid-column:2/-1}.account-invoice-action button{width:100%}.account-autopay{padding:21px}.account-footer{flex-direction:column;gap:5px}}
+
 @media (max-width: 760px) {
   .camper-portal-page {
     padding: 12px;

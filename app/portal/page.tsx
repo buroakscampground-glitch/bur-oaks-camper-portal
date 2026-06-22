@@ -240,7 +240,7 @@ export default function CamperPortalPage() {
 
             <div className="portal-hero-actions">
               <a className="portal-primary-action" href="/invoices">
-                View my account <ArrowRight size={18} />
+                Billing & payments <ArrowRight size={18} />
               </a>
               <a className="portal-secondary-action" href="/maintenance">
                 Request maintenance
