@@ -80,6 +80,14 @@ export default function TicketDetailPage() {
         <section className="card">
           <h1>{ticket.title}</h1>
 
+          <div className="maintenance-approved-work-notice">
+            <strong>✓ Admin Approved Work Order</strong>
+            <span>
+              Approved{ticket.approved_by ? ` by ${ticket.approved_by}` : ''}
+              {ticket.approved_at ? ` on ${new Date(ticket.approved_at).toLocaleDateString()}` : ''}.
+            </span>
+          </div>
+
           <p>
             <MaintenanceBadge kind="status" value={ticket.status} />{' '}
             <MaintenanceBadge kind="priority" value={ticket.priority} />

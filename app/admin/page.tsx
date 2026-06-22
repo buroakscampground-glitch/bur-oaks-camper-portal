@@ -40,6 +40,7 @@ type AdminStats = {
   inProgressMaintenance: number
   emergencyMaintenance: number
   completedMaintenance: number
+  pendingMaintenance: number
 }
 
 const emptyStats: AdminStats = {
@@ -57,6 +58,7 @@ const emptyStats: AdminStats = {
   inProgressMaintenance: 0,
   emergencyMaintenance: 0,
   completedMaintenance: 0,
+  pendingMaintenance: 0,
 }
 
 export default function AdminPage() {
@@ -133,9 +135,11 @@ export default function AdminPage() {
       totalRevenue: invoices
         .filter((invoice) => invoice.status === 'paid')
         .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
-      openMaintenance: maintenance.filter((ticket) => ticket.status === 'Open').length,
+      openMaintenance: maintenance.filter(
+        (ticket) => ticket.status === 'Open' && ticket.admin_approved === true
+      ).length,
       inProgressMaintenance: maintenance.filter(
-        (ticket) => ticket.status === 'In Progress'
+        (ticket) => ticket.status === 'In Progress' && ticket.admin_approved === true
       ).length,
       emergencyMaintenance: maintenance.filter(
         (ticket) => ticket.priority === 'Emergency'
@@ -143,6 +147,7 @@ export default function AdminPage() {
       completedMaintenance: maintenance.filter(
         (ticket) => ticket.status === 'Completed'
       ).length,
+      pendingMaintenance: maintenance.filter((ticket) => ticket.admin_approved !== true).length,
     })
   }
 
@@ -191,7 +196,7 @@ export default function AdminPage() {
       href: '/admin/maintenance',
       title: 'Maintenance',
       description: 'Manage repairs, assignments, and work orders.',
-      detail: `${stats.openMaintenance + stats.inProgressMaintenance} active`,
+      detail: `${stats.openMaintenance + stats.inProgressMaintenance} active · ${stats.pendingMaintenance} pending`,
       icon: Wrench,
       tone: stats.emergencyMaintenance > 0 ? 'red' : 'orange',
     },
@@ -288,7 +293,7 @@ export default function AdminPage() {
           </a>
           <a href="/admin/maintenance" className="admin-kpi-card">
             <span className="admin-kpi-icon orange"><Wrench size={23} /></span>
-            <span><small>Active maintenance</small><strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong><em>{stats.emergencyMaintenance} emergency</em></span>
+            <span><small>Approved maintenance</small><strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong><em>{stats.pendingMaintenance} awaiting approval</em></span>
           </a>
         </section>
 

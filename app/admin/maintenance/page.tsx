@@ -49,6 +49,9 @@ export default function MaintenancePage() {
         lot_number: lotNumber,
         reported_by: reportedBy,
         status: 'Open',
+        admin_approved: true,
+        approved_at: new Date().toISOString(),
+        approved_by: 'Admin',
       })
 
     if (error) {
@@ -81,6 +84,25 @@ export default function MaintenancePage() {
 
     setMessage('Ticket updated.')
     loadTickets()
+  }
+
+  async function setApproval(id: string, approved: boolean) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const { error } = await supabase
+      .from('maintenance_tickets')
+      .update({
+        admin_approved: approved,
+        approved_at: approved ? new Date().toISOString() : null,
+        approved_by: approved ? user?.email || 'Admin' : null,
+        ...(approved ? {} : { status: 'Open', assigned_to: 'Open' }),
+      })
+      .eq('id', id)
+
+    setMessage(error ? error.message : approved ? 'Work order approved.' : 'Approval removed.')
+    if (!error) loadTickets()
   }
 
   async function deleteTicket(id: string) {
@@ -255,7 +277,7 @@ export default function MaintenancePage() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
             gap: '15px',
             marginBottom: '20px',
           }}
@@ -278,6 +300,11 @@ export default function MaintenancePage() {
           <div className="card">
             <h3>Emergency</h3>
             <h1>{emergencyCount}</h1>
+          </div>
+
+          <div className="card">
+            <h3>Pending Approval</h3>
+            <h1>{tickets.filter(t => !t.admin_approved).length}</h1>
           </div>
 
           <div className="card">
@@ -312,6 +339,8 @@ export default function MaintenancePage() {
               <option>Open</option>
               <option>In Progress</option>
               <option>Completed</option>
+              <option>Pending Approval</option>
+              <option>Approved</option>
             </select>
           </div>
 
@@ -324,7 +353,11 @@ export default function MaintenancePage() {
 
               const matchesStatus =
                 statusFilter === 'All' ||
-                ticket.status === statusFilter
+                (statusFilter === 'Pending Approval'
+                  ? !ticket.admin_approved
+                  : statusFilter === 'Approved'
+                    ? ticket.admin_approved
+                    : ticket.status === statusFilter)
 
               return matchesSearch && matchesStatus
             })
@@ -348,6 +381,12 @@ export default function MaintenancePage() {
                 </p>
 
                 <p>
+                  <strong>Approval:</strong>{' '}
+                  <span className={ticket.admin_approved ? 'maintenance-approval-badge approved' : 'maintenance-approval-badge pending'}>
+                    {ticket.admin_approved ? 'Approved for Work' : 'Pending Admin Approval'}
+                  </span>
+                </p>
+                <p>
                   <strong>Assigned To:</strong>{' '}
                   {ticket.assigned_to || 'Unassigned'}
                 </p>
@@ -367,6 +406,16 @@ export default function MaintenancePage() {
                     flexWrap: 'wrap',
                   }}
                 >
+                  {!ticket.admin_approved ? (
+                    <button className="maintenance-approve-button" onClick={() => setApproval(ticket.id, true)}>
+                      Approve Work
+                    </button>
+                  ) : (
+                    <button onClick={() => setApproval(ticket.id, false)}>
+                      Remove Approval
+                    </button>
+                  )}
+
                   <button onClick={() => updateStatus(ticket.id, 'Open')}>
                     Open
                   </button>

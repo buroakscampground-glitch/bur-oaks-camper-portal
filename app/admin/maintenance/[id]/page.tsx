@@ -78,6 +78,30 @@ export default function MaintenanceTicketPage() {
     loadTicket()
   }
 
+  async function setApproval(approved: boolean) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const { error } = await supabase
+      .from('maintenance_tickets')
+      .update({
+        admin_approved: approved,
+        approved_at: approved ? new Date().toISOString() : null,
+        approved_by: approved ? user?.email || 'Admin' : null,
+        ...(approved ? {} : { status: 'Open', assigned_to: 'Open' }),
+      })
+      .eq('id', ticket.id)
+
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    alert(approved ? 'Work Order Approved' : 'Approval Removed')
+    loadTicket()
+  }
+
   function printWorkOrder() {
     window.print()
   }
@@ -119,6 +143,20 @@ export default function MaintenanceTicketPage() {
 
         <section className="card">
           <h1>{ticket.title}</h1>
+
+          <div className={`maintenance-admin-approval ${ticket.admin_approved ? 'approved' : 'pending'}`}>
+            <div>
+              <strong>{ticket.admin_approved ? 'Approved for Maintenance Work' : 'Admin Approval Required'}</strong>
+              <span>
+                {ticket.admin_approved
+                  ? `Approved${ticket.approved_by ? ` by ${ticket.approved_by}` : ''}. Maintenance may now update this work order.`
+                  : 'Maintenance can see and act on this request only after approval.'}
+              </span>
+            </div>
+            <button type="button" onClick={() => setApproval(!ticket.admin_approved)}>
+              {ticket.admin_approved ? 'Remove Approval' : 'Approve Work'}
+            </button>
+          </div>
 
           <p>
             <MaintenanceBadge kind="status" value={ticket.status} />{' '}

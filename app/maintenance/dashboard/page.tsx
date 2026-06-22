@@ -11,8 +11,8 @@ export default function MaintenanceDashboard() {
 
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
-  const [newAssignedTo, setNewAssignedTo] = useState('Open')
   const [newPriority, setNewPriority] = useState('Normal')
+  const [submitMessage, setSubmitMessage] = useState('')
 
   const [filter, setFilter] = useState('Active')
 
@@ -24,6 +24,7 @@ export default function MaintenanceDashboard() {
     const { data } = await supabase
       .from('maintenance_tickets')
       .select('*')
+      .eq('admin_approved', true)
       .order('created_at', { ascending: false })
 
     setTickets(data || [])
@@ -43,10 +44,11 @@ export default function MaintenanceDashboard() {
         description: newDescription,
         status: 'Open',
         priority: newPriority,
-        assigned_to: newAssignedTo,
+        assigned_to: 'Open',
         reported_by: 'Maintenance',
         lot_number: 'WORK ORDER',
         work_order: true,
+        admin_approved: false,
       })
 
     if (error) {
@@ -56,8 +58,8 @@ export default function MaintenanceDashboard() {
 
     setNewTitle('')
     setNewDescription('')
-    setNewAssignedTo('Open')
     setNewPriority('Normal')
+    setSubmitMessage('Submitted for admin approval. It will appear in the work queue after approval.')
 
     loadTickets()
   }
@@ -106,8 +108,13 @@ export default function MaintenanceDashboard() {
           <h1>🔧 Maintenance Dashboard</h1>
 
           <p className="muted">
-            Maintenance Staff Access
+            Submit issues for review, then work only from the admin-approved queue.
           </p>
+
+          <div className="maintenance-approval-notice">
+            <strong>Admin approval required</strong>
+            <span>New requests cannot be assigned, started, or completed until an administrator approves the work.</span>
+          </div>
 
           <Link href="/maintenance/history">
             View Maintenance History →
@@ -143,7 +150,7 @@ export default function MaintenanceDashboard() {
           className="card"
           style={{ marginBottom: '25px' }}
         >
-          <h2>➕ New Work Order</h2>
+          <h2>➕ Submit Work Request</h2>
 
           <input
             placeholder="Work Order Title"
@@ -169,24 +176,6 @@ export default function MaintenanceDashboard() {
           />
 
           <select
-            value={newAssignedTo}
-            onChange={(e) =>
-              setNewAssignedTo(e.target.value)
-            }
-            style={{
-              width: '100%',
-              marginBottom: '10px',
-            }}
-          >
-            <option>Open</option>
-            <option>Anthony Finley</option>
-            <option>Dawn Finley</option>
-            <option>Charlie Kimball</option>
-            <option>Rachel Finley</option>
-            <option>Joe Johnson</option>
-          </select>
-
-          <select
             value={newPriority}
             onChange={(e) =>
               setNewPriority(e.target.value)
@@ -203,12 +192,14 @@ export default function MaintenanceDashboard() {
           </select>
 
           <button onClick={createWorkOrder}>
-            Create Work Order
+            Submit for Admin Approval
           </button>
+
+          {submitMessage && <p className="maintenance-submit-message">{submitMessage}</p>}
         </section>
 
         <section className="card">
-          <h2>Maintenance Tickets</h2>
+          <h2>Approved Work Orders</h2>
 
           <div
             style={{
