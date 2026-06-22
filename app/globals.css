@@ -1095,12 +1095,364 @@ button:hover {
   font-size: 18px;
 }
 
+.portal-weather {
+  position: relative;
+  z-index: 4;
+  margin: -62px 28px 24px;
+  overflow: hidden;
+  border: 1px solid rgba(210, 216, 207, 0.95);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 92% 5%, rgba(201, 168, 89, 0.18), transparent 28%),
+    linear-gradient(145deg, #ffffff 0%, #f5f8f2 100%);
+  box-shadow: 0 22px 55px rgba(33, 51, 39, 0.16);
+}
+
+.portal-weather-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 23px 25px 18px;
+  border-bottom: 1px solid #e5e9e1;
+}
+
+.portal-weather-kicker {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #94722d;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+}
+
+.portal-weather-heading h2 {
+  margin: 6px 0 0;
+  color: #263c2d;
+  font: 500 29px/1.1 Georgia, 'Times New Roman', serif;
+}
+
+.portal-weather-heading p {
+  margin: 6px 0 0;
+  color: #7b867e;
+  font-size: 11px;
+}
+
+.portal-weather-refresh,
+.portal-weather-error button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #d7ddd5;
+  border-radius: 10px;
+  background: #fff;
+  color: #42614b;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: none;
+}
+
+.portal-weather-layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.72fr) minmax(0, 1.55fr);
+  min-width: 0;
+}
+
+.portal-current-weather {
+  display: grid;
+  gap: 18px;
+  padding: 24px 25px;
+  border-right: 1px solid #e5e9e1;
+  background: linear-gradient(135deg, rgba(42, 87, 57, 0.98), rgba(31, 67, 43, 0.98));
+  color: #fff;
+}
+
+.portal-current-main {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.portal-current-icon {
+  display: grid;
+  width: 67px;
+  height: 67px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.19);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.11);
+  color: #f2d889;
+}
+
+.portal-current-main > div {
+  display: grid;
+}
+
+.portal-current-main strong {
+  font: 500 50px/0.92 Georgia, serif;
+}
+
+.portal-current-main > div span {
+  margin-top: 7px;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.portal-current-details {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px 14px;
+}
+
+.portal-current-details span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.portal-current-details svg {
+  color: #d8bf76;
+}
+
+.portal-hourly-weather {
+  min-width: 0;
+  padding: 22px 23px;
+}
+
+.portal-weather-subheading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 13px;
+}
+
+.portal-weather-subheading strong {
+  color: #34493b;
+  font-size: 12px;
+}
+
+.portal-weather-subheading span {
+  color: #8b958e;
+  font-size: 9px;
+}
+
+.portal-hourly-scroll {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(68px, 1fr));
+  gap: 7px;
+  min-width: 0;
+}
+
+.portal-hourly-scroll article {
+  display: grid;
+  min-width: 0;
+  padding: 11px 5px 10px;
+  justify-items: center;
+  border: 1px solid #e3e7df;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #45604e;
+}
+
+.portal-hourly-scroll article:first-child {
+  border-color: #bfd0bf;
+  background: #eaf2e7;
+}
+
+.portal-hourly-scroll small {
+  margin-bottom: 8px;
+  color: #7b877e;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.portal-hourly-scroll strong {
+  margin-top: 5px;
+  color: #2c4333;
+  font: 17px Georgia, serif;
+}
+
+.portal-hourly-scroll span {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 4px;
+  color: #5f8290;
+  font-size: 8px;
+}
+
+.portal-weekend-row {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.85fr) minmax(0, 1.4fr);
+  gap: 12px;
+  padding: 0 23px 23px;
+}
+
+.portal-camping-outlook {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 17px;
+  border: 1px solid #d4dfd1;
+  border-radius: 15px;
+  background: #eef5eb;
+}
+
+.portal-camping-outlook > span {
+  display: grid;
+  flex: 0 0 45px;
+  width: 45px;
+  height: 45px;
+  place-items: center;
+  border-radius: 13px;
+  background: #d9ead7;
+  color: #3c6746;
+}
+
+.portal-camping-outlook.rain { border-color: #c9dbe2; background: #edf5f8; }
+.portal-camping-outlook.rain > span { background: #dbeaf0; color: #35687c; }
+.portal-camping-outlook.wind,
+.portal-camping-outlook.mixed { border-color: #ded3b5; background: #f8f3e5; }
+.portal-camping-outlook.wind > span,
+.portal-camping-outlook.mixed > span { background: #eee2c0; color: #846525; }
+.portal-camping-outlook.heat { border-color: #ead0bd; background: #fbf0e8; }
+.portal-camping-outlook.heat > span { background: #f1dece; color: #9b5834; }
+
+.portal-camping-outlook > div {
+  display: grid;
+}
+
+.portal-camping-outlook small {
+  color: #8d7135;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.11em;
+}
+
+.portal-camping-outlook strong {
+  margin-top: 3px;
+  color: #304638;
+  font: 18px Georgia, serif;
+}
+
+.portal-camping-outlook p {
+  margin: 4px 0 0;
+  color: #718077;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.portal-weekend-days {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.portal-weekend-days article {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid #e0e4dc;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.87);
+  color: #45604e;
+}
+
+.portal-weekend-days article > div:first-child {
+  display: grid;
+  min-width: 0;
+}
+
+.portal-weekend-days small {
+  color: #8a948d;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.portal-weekend-days article > div:first-child strong {
+  overflow: hidden;
+  margin-top: 4px;
+  color: #334b3b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-weekend-temps {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.portal-weekend-temps strong {
+  color: #283f30;
+  font: 22px Georgia, serif;
+}
+
+.portal-weekend-temps span {
+  color: #8a958d;
+  font-size: 11px;
+}
+
+.portal-weekend-rain {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: -5px;
+  color: #66818c;
+  font-size: 8px;
+}
+
+.portal-weather-loading,
+.portal-weather-error {
+  display: flex;
+  min-height: 150px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px;
+  color: #50665a;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.portal-weather-error > div {
+  display: grid;
+  gap: 3px;
+}
+
+.portal-weather-error span {
+  color: #7d8981;
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.portal-weather-spin {
+  animation: portal-weather-spin 1s linear infinite;
+}
+
+@keyframes portal-weather-spin {
+  to { transform: rotate(360deg); }
+}
+
 .portal-snapshot {
   position: relative;
   z-index: 3;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  margin: -48px 28px 30px;
+  margin: 0 28px 30px;
   overflow: hidden;
   border: 1px solid rgba(213, 209, 195, 0.9);
   border-radius: 22px;
@@ -1438,6 +1790,21 @@ button:hover {
 }
 
 @media (max-width: 1000px) {
+  .portal-weather-layout,
+  .portal-weekend-row {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-current-weather {
+    border-right: 0;
+  }
+
+  .portal-hourly-scroll {
+    overflow-x: auto;
+    grid-template-columns: repeat(8, minmax(76px, 1fr));
+    padding-bottom: 5px;
+  }
+
   .portal-snapshot {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1642,9 +2009,47 @@ button:hover {
     margin-bottom: 18px;
   }
 
+  .portal-weather {
+    margin: -52px 14px 20px;
+    border-radius: 19px;
+  }
+
+  .portal-weather-heading {
+    align-items: center;
+    padding: 18px;
+  }
+
+  .portal-weather-heading h2 {
+    font-size: 23px;
+  }
+
+  .portal-weather-heading p {
+    max-width: 220px;
+  }
+
+  .portal-weather-refresh {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+    font-size: 0;
+  }
+
+  .portal-current-weather,
+  .portal-hourly-weather {
+    padding: 19px;
+  }
+
+  .portal-weekend-row {
+    padding: 0 18px 18px;
+  }
+
+  .portal-weekend-days {
+    grid-template-columns: 1fr;
+  }
+
   .portal-snapshot {
     grid-template-columns: 1fr;
-    margin: -48px 14px 24px;
+    margin: 0 14px 24px;
   }
 
   .portal-snapshot-item,

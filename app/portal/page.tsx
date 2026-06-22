@@ -20,6 +20,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import PortalWeather from '../../components/PortalWeather'
 
 const serviceLinks = [
   {
@@ -254,6 +255,8 @@ export default function CamperPortalPage() {
           </div>
 
         </section>
+
+        <PortalWeather />
 
         <section className="portal-snapshot" aria-label="Account overview">
           <a href="/invoices" className="portal-snapshot-item">
