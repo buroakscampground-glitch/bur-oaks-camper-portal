@@ -244,6 +244,19 @@ export default function AdminPage() {
             </a>
 
             <div className="admin-command-actions">
+              <span className="admin-command-date">
+                <CalendarDays size={16} />
+                <span>
+                  <small>Today</small>
+                  <strong>
+                    {new Date().toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </strong>
+                </span>
+              </span>
               <span className="admin-live-status">
                 <i /> Systems online
               </span>
@@ -262,20 +275,6 @@ export default function AdminPage() {
               Your command center for campers, billing, maintenance, and the
               day-to-day details that keep Bur Oaks running beautifully.
             </p>
-          </div>
-
-          <div className="admin-command-date">
-            <CalendarDays size={19} />
-            <span>
-              <small>Today</small>
-              <strong>
-                {new Date().toLocaleDateString('en-US', {
-                  weekday: 'long',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </strong>
-            </span>
           </div>
         </section>
 

@@ -3003,16 +3003,13 @@ tbody tr:hover {
 }
 
 .admin-command-date {
-  position: absolute;
-  right: 27px;
-  bottom: 27px;
   display: flex;
   align-items: center;
-  gap: 11px;
-  padding: 13px 16px;
+  gap: 9px;
+  padding: 9px 12px;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 15px;
-  background: rgba(10, 31, 17, 0.68);
+  border-radius: 999px;
+  background: rgba(10, 31, 17, 0.48);
   backdrop-filter: blur(12px);
 }
 
@@ -3021,15 +3018,17 @@ tbody tr:hover {
 }
 
 .admin-command-date small {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 9px;
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 8px;
   font-weight: 900;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .admin-command-date strong {
-  font-size: 13px;
+  color: #fff;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .admin-kpi-grid {
@@ -3598,7 +3597,10 @@ tbody tr:hover {
   .admin-command-intro { padding: 62px 24px 150px; }
   .admin-command-intro h1 { font-size: 44px; }
   .admin-command-intro p { font-size: 15px; }
-  .admin-command-date { right: 18px; bottom: 72px; }
+  .admin-command-date { padding: 8px 10px; }
+  .admin-command-date strong { font-size: 0; }
+  .admin-command-date strong::after { content: "Today"; font-size: 11px; }
+  .admin-command-date small { display: none; }
   .admin-kpi-grid { grid-template-columns: 1fr; margin: -43px 14px 24px; }
   .admin-kpi-card,
   .admin-kpi-card:nth-child(2) { border-right: 0; border-bottom: 1px solid #e6e3d9; }
