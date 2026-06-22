@@ -104,19 +104,7 @@ export default function AdminCampersPage() {
   }
 
   function editCamper(camper: any) {
-    setEditingId(camper.id)
-    setLotNumber(camper.lot_number || '')
-    setFirstName(camper.first_name || '')
-    setLastName(camper.last_name || '')
-    setEmail(camper.email || '')
-    setPhone(camper.phone || '')
-    setMessage('Editing camper...')
-    window.requestAnimationFrame(() => {
-      document.getElementById('camper-editor')?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      })
-    })
+    router.push(`/admin/campers/${camper.id}`)
   }
 
   async function archiveCamper(id: string) {
