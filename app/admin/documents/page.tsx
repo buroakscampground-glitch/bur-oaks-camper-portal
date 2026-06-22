@@ -35,6 +35,7 @@ export default function AdminDocumentsPage() {
   const [assigningCamperId, setAssigningCamperId] = useState('')
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
   const [draggedTemplateId, setDraggedTemplateId] = useState('')
+  const [libraryDropActive, setLibraryDropActive] = useState(false)
   const [camperSearch, setCamperSearch] = useState('')
 
   async function loadData() {
@@ -125,6 +126,26 @@ export default function AdminDocumentsPage() {
       setMessage(error.message || 'Unable to replace the document library.')
     } finally {
       setWorking(false)
+    }
+  }
+
+  function setLaunchTemplateFiles(files: File[]) {
+    const wordFiles = files.filter(
+      (file) =>
+        /\.docx$/i.test(file.name) ||
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
+
+    if (wordFiles.length !== files.length) {
+      setMessage('Only Word .docx files can be added to the lease library.')
+    } else {
+      setMessage('')
+    }
+
+    setTemplateFiles(wordFiles.slice(0, 2))
+
+    if (wordFiles.length > 2) {
+      setMessage('Select exactly two lease files. I kept the first two Word documents.')
     }
   }
 
@@ -299,11 +320,35 @@ export default function AdminDocumentsPage() {
             <div><small>GO-LIVE FILES</small><h2>Replace library</h2></div>
           </div>
           <p>This removes every old assigned document and stored file, then installs exactly two private unassigned templates.</p>
-          <label className="admin-document-dropzone">
+          <label
+            className={`admin-document-dropzone ${libraryDropActive ? 'drag-active' : ''}`}
+            onDragEnter={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              setLibraryDropActive(true)
+            }}
+            onDragOver={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              event.dataTransfer.dropEffect = 'copy'
+              setLibraryDropActive(true)
+            }}
+            onDragLeave={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              if (event.currentTarget === event.target) setLibraryDropActive(false)
+            }}
+            onDrop={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              setLibraryDropActive(false)
+              setLaunchTemplateFiles(Array.from(event.dataTransfer.files || []))
+            }}
+          >
             <FileUp size={26} />
-            <strong>Select both Word documents</strong>
-            <small>{templateFiles.length ? `${templateFiles.length} file${templateFiles.length === 1 ? '' : 's'} selected` : '.docx files · exactly two required'}</small>
-            <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple onChange={(event) => setTemplateFiles(Array.from(event.target.files || []))} />
+            <strong>Drop both Word documents here</strong>
+            <small>{templateFiles.length ? `${templateFiles.length} file${templateFiles.length === 1 ? '' : 's'} ready` : 'or click to select · .docx files · exactly two required'}</small>
+            <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple onChange={(event) => setLaunchTemplateFiles(Array.from(event.target.files || []))} />
           </label>
           {templateFiles.map((file) => <div className="admin-selected-file" key={file.name}><CheckCircle2 size={15} /> {file.name}</div>)}
           <button className="admin-replace-library-button" type="button" onClick={replaceTemplateLibrary} disabled={working || templateFiles.length !== 2}>
