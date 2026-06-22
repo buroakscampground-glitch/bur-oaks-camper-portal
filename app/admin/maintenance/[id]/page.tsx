@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
+import MaintenancePhotos from '../../../../components/MaintenancePhotos'
 
 export default function MaintenanceTicketPage() {
   const params = useParams()
@@ -191,6 +192,8 @@ export default function MaintenanceTicketPage() {
           <h3>Description</h3>
 
           <p>{ticket.description}</p>
+
+          <MaintenancePhotos paths={ticket.photo_urls} />
 
           <hr style={{ margin: '20px 0' }} />
 

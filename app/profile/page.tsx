@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { ShieldCheck, UsersRound } from 'lucide-react'
 
 export default function ProfilePage() {
   const [camper, setCamper] = useState<any>(null)
@@ -39,23 +40,42 @@ export default function ProfilePage() {
     setSaving(true)
     setMessage('')
 
+    const profileUpdates = {
+      first_name: camper.first_name,
+      last_name: camper.last_name,
+      phone: camper.phone,
+      emergency_contact_name: camper.emergency_contact_name,
+      emergency_contact_phone: camper.emergency_contact_phone,
+      vehicle_make: camper.vehicle_make,
+      vehicle_model: camper.vehicle_model,
+      license_plate: camper.license_plate,
+      golf_cart_make: camper.golf_cart_make,
+      golf_cart_color: camper.golf_cart_color,
+    }
+
     const { error } = await supabase
       .from('campers')
       .update({
-        first_name: camper.first_name,
-        last_name: camper.last_name,
-        phone: camper.phone,
-        emergency_contact_name: camper.emergency_contact_name,
-        emergency_contact_phone: camper.emergency_contact_phone,
-        vehicle_make: camper.vehicle_make,
-        vehicle_model: camper.vehicle_model,
-        license_plate: camper.license_plate,
-        golf_cart_make: camper.golf_cart_make,
-        golf_cart_color: camper.golf_cart_color,
+        ...profileUpdates,
+        directory_opt_in: Boolean(camper.directory_opt_in),
+        directory_show_phone: Boolean(
+          camper.directory_opt_in && camper.directory_show_phone
+        ),
       })
       .eq('id', camper.id)
 
-    if (error) {
+    if (error && /directory_(opt_in|show_phone)/i.test(error.message)) {
+      const { error: fallbackError } = await supabase
+        .from('campers')
+        .update(profileUpdates)
+        .eq('id', camper.id)
+
+      setMessage(
+        fallbackError
+          ? fallbackError.message
+          : 'Profile saved. Directory preferences will be available after setup is complete.'
+      )
+    } else if (error) {
       setMessage(error.message)
     } else {
       setMessage('✅ Profile Updated Successfully')
@@ -110,6 +130,64 @@ export default function ProfilePage() {
           <p className="muted">
             Manage your camper information.
           </p>
+        </section>
+
+        <section className="card directory-preferences" style={{ marginBottom: '25px' }}>
+          <div className="directory-preferences-heading">
+            <span><UsersRound size={22} /></span>
+            <div>
+              <h2>Camper Directory</h2>
+              <p className="muted">
+                You are private by default. Choose whether other signed-in campers can find you.
+              </p>
+            </div>
+          </div>
+
+          <label className="privacy-toggle">
+            <input
+              type="checkbox"
+              checked={Boolean(camper.directory_opt_in)}
+              onChange={(event) =>
+                setCamper({
+                  ...camper,
+                  directory_opt_in: event.target.checked,
+                  directory_show_phone: event.target.checked
+                    ? Boolean(camper.directory_show_phone)
+                    : false,
+                })
+              }
+            />
+            <span>
+              <strong>List me in the camper directory</strong>
+              <small>Shares your name and lot number with signed-in campers.</small>
+            </span>
+          </label>
+
+          <label className={`privacy-toggle secondary ${!camper.directory_opt_in ? 'disabled' : ''}`}>
+            <input
+              type="checkbox"
+              checked={Boolean(camper.directory_show_phone)}
+              disabled={!camper.directory_opt_in}
+              onChange={(event) =>
+                setCamper({ ...camper, directory_show_phone: event.target.checked })
+              }
+            />
+            <span>
+              <strong>Also share my phone number</strong>
+              <small>Your email, vehicles, and emergency contacts are never shown.</small>
+            </span>
+          </label>
+
+          <div className="directory-safety-note">
+            <ShieldCheck size={16} /> You can change these choices at any time.
+          </div>
+
+          <div style={{ marginTop: '16px' }}>
+            <button onClick={saveProfile} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Directory Preferences'}
+            </button>
+            {message && <p style={{ marginBottom: 0 }}>{message}</p>}
+          </div>
         </section>
 
         <section className="card" style={{ marginBottom: '25px' }}>

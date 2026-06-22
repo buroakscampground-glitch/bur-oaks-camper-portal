@@ -15,6 +15,7 @@ import {
   ReceiptText,
   TentTree,
   UserRound,
+  UsersRound,
   Wrench,
   Zap,
 } from 'lucide-react'
@@ -62,6 +63,13 @@ const serviceLinks = [
     description: 'Keep contact, vehicle, and emergency details current.',
     icon: UserRound,
     accent: 'slate',
+  },
+  {
+    href: '/directory',
+    title: 'Camper Directory',
+    description: 'Find campground neighbors who have chosen to be listed.',
+    icon: UsersRound,
+    accent: 'green',
   },
 ]
 
@@ -217,6 +225,13 @@ export default function CamperPortalPage() {
             <div className="portal-eyebrow">
               <TentTree size={16} /> Your campground home base
             </div>
+            <div className="portal-site-badge">
+              <MapPin size={18} />
+              <div>
+                <small>Your site</small>
+                <strong>Lot {camper?.lot_number || '—'}</strong>
+              </div>
+            </div>
             <h1>Welcome back, {camper?.first_name || 'Camper'}.</h1>
             <p>
               Everything for your stay at Bur Oaks—from account details to
@@ -233,13 +248,6 @@ export default function CamperPortalPage() {
             </div>
           </div>
 
-          <div className="portal-site-badge">
-            <MapPin size={20} />
-            <div>
-              <small>Your site</small>
-              <strong>Lot {camper?.lot_number || '—'}</strong>
-            </div>
-          </div>
         </section>
 
         <section className="portal-snapshot" aria-label="Account overview">

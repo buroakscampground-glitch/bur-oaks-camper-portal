@@ -407,14 +407,14 @@ button:hover {
 }
 
 .portal-site-badge {
-  position: absolute;
-  right: 28px;
-  bottom: 28px;
+  position: static;
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 175px;
-  padding: 14px 17px;
+  width: fit-content;
+  min-width: 158px;
+  margin-bottom: 20px;
+  padding: 10px 14px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 16px;
   background: rgba(11, 33, 19, 0.7);
@@ -840,8 +840,7 @@ button:hover {
   }
 
   .portal-site-badge {
-    right: 18px;
-    bottom: 72px;
+    margin-bottom: 18px;
   }
 
   .portal-snapshot {
@@ -1986,4 +1985,345 @@ tbody tr:hover {
   .signin-story { min-height: 430px; }
   .signin-story-copy h1 { font-size: 45px; }
   .signin-form-card h2 { font-size: 34px; }
+}
+
+/* CAMPER DIRECTORY & MAINTENANCE PHOTOS */
+
+.directory-loading {
+  min-height: 70vh;
+  display: grid;
+  place-content: center;
+  color: var(--oak-800);
+  font-weight: 800;
+}
+
+.directory-hero-icon {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  float: right;
+  border-radius: 15px;
+  background: var(--oak-100);
+  color: var(--oak-700);
+}
+
+.directory-privacy-note,
+.directory-safety-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  background: #e8f1e8;
+  color: #41644a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.directory-search {
+  position: relative;
+  margin-bottom: 24px;
+}
+
+.directory-search > svg {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  z-index: 1;
+  color: #78867c;
+  transform: translateY(-50%);
+}
+
+.directory-search input {
+  width: 100%;
+  min-height: 50px;
+  padding-left: 44px;
+}
+
+.directory-message {
+  padding: 14px;
+  border-radius: 11px;
+  background: var(--sand-100);
+  color: #795d28;
+}
+
+.directory-empty {
+  min-height: 210px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  color: #7b877e;
+  text-align: center;
+}
+
+.directory-empty h3 {
+  margin: 10px 0 0;
+}
+
+.directory-empty p {
+  margin: 5px 0 0;
+  font-size: 13px;
+}
+
+.camper-directory-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.camper-directory-card {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 18px;
+  border: 1px solid #dfe3dc;
+  border-radius: 16px;
+  background: #fff;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.camper-directory-card:hover {
+  transform: translateY(-2px);
+  border-color: #b8c7b9;
+  box-shadow: 0 10px 24px rgba(35, 51, 40, 0.08);
+}
+
+.camper-directory-avatar {
+  width: 50px;
+  height: 50px;
+  display: grid;
+  flex: 0 0 50px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #315c3c, #1d3d28);
+  color: #fff;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  text-transform: uppercase;
+}
+
+.camper-directory-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.camper-directory-copy h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.camper-directory-copy span,
+.camper-directory-copy a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #6b776e;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.camper-directory-copy a {
+  color: var(--oak-700);
+  font-weight: 800;
+}
+
+.directory-preferences-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  margin-bottom: 18px;
+}
+
+.directory-preferences-heading > span {
+  width: 43px;
+  height: 43px;
+  display: grid;
+  flex: 0 0 43px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--oak-100);
+  color: var(--oak-700);
+}
+
+.directory-preferences-heading h2,
+.directory-preferences-heading p {
+  margin: 0;
+}
+
+.directory-preferences-heading p {
+  margin-top: 4px;
+  font-size: 13px;
+}
+
+.privacy-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px;
+  border: 1px solid #dce2da;
+  border-radius: 13px;
+  background: #f9faf7;
+  cursor: pointer;
+}
+
+.privacy-toggle.secondary {
+  margin-top: 10px;
+}
+
+.privacy-toggle.disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.privacy-toggle input {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-top: 2px;
+  accent-color: var(--oak-700);
+}
+
+.privacy-toggle > span {
+  display: grid;
+  gap: 3px;
+}
+
+.privacy-toggle strong {
+  color: #304538;
+  font-size: 14px;
+}
+
+.privacy-toggle small {
+  color: #758078;
+  line-height: 1.45;
+}
+
+.maintenance-upload-box {
+  margin: 4px 0 18px;
+  padding: 17px;
+  border: 1px dashed #aebdaf;
+  border-radius: 15px;
+  background: #f7faf6;
+}
+
+.maintenance-upload-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 13px;
+}
+
+.maintenance-upload-heading > span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  background: var(--oak-100);
+  color: var(--oak-700);
+}
+
+.maintenance-upload-heading > div {
+  display: grid;
+}
+
+.maintenance-upload-heading strong {
+  color: #304538;
+  font-size: 14px;
+}
+
+.maintenance-upload-heading small {
+  color: #78837b;
+  font-size: 11px;
+}
+
+.maintenance-file-picker {
+  min-height: 43px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--oak-800);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.maintenance-file-picker input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.maintenance-preview-grid,
+.maintenance-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.maintenance-preview {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: 11px;
+  background: #e7ebe5;
+}
+
+.maintenance-preview img,
+.maintenance-photo-grid img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.maintenance-preview button {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 30px;
+  min-height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(21, 35, 26, 0.82);
+}
+
+.maintenance-photo-section {
+  margin: 18px 0;
+}
+
+.maintenance-photo-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #435849;
+  font-size: 13px;
+}
+
+.maintenance-photo-grid a {
+  overflow: hidden;
+  aspect-ratio: 4 / 3;
+  border-radius: 11px;
+  background: #e7ebe5;
+}
+
+@media (max-width: 700px) {
+  .camper-directory-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .maintenance-preview-grid,
+  .maintenance-photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

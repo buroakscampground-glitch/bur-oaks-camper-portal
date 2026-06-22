@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
+import MaintenancePhotos from '../../../../components/MaintenancePhotos'
 
 export default function TicketDetailPage() {
   const params = useParams()
@@ -153,6 +154,8 @@ export default function TicketDetailPage() {
           <h3>Description</h3>
 
           <p>{ticket.description}</p>
+
+          <MaintenancePhotos paths={ticket.photo_urls} />
 
           {ticket.completion_notes && (
             <>
