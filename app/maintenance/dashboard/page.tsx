@@ -108,6 +108,10 @@ export default function MaintenanceDashboard() {
           <p className="muted">
             Maintenance Staff Access
           </p>
+
+          <Link href="/maintenance/history">
+            View Maintenance History →
+          </Link>
         </section>
 
         <div

@@ -141,6 +141,13 @@ export default function MaintenancePage() {
             Track campground issues, repairs, and work orders.
           </p>
 
+          <a
+            href="/maintenance/history"
+            style={{ display: 'inline-block', marginBottom: '20px' }}
+          >
+            View Maintenance History →
+          </a>
+
           <input
             placeholder="Ticket Title"
             value={title}
