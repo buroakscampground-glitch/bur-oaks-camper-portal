@@ -1,6 +1,7 @@
 import React from 'react'
 import './globals.css'
 import GlobalBackButton from '../components/GlobalBackButton'
+import CamperChrome from '../components/CamperChrome'
 
 export const metadata = {
   title: 'Bur Oaks Camper Portal',
@@ -15,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {children}
+        <CamperChrome>{children}</CamperChrome>
         <GlobalBackButton />
       </body>
     </html>
