@@ -4,8 +4,8 @@ import GlobalBackButton from '../components/GlobalBackButton'
 import CamperChrome from '../components/CamperChrome'
 
 export const metadata = {
-  title: 'Bur Oaks Camper Portal',
-  description: 'Camper Portal for Bur Oaks Campground',
+  title: 'Bur Oaks Campground | A Site to Remember',
+  description: 'A private seasonal campground and members-only community in Alhambra, Illinois.',
 }
 
 export default function RootLayout({

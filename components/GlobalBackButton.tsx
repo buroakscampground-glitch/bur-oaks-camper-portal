@@ -4,6 +4,16 @@ import { ArrowLeft } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 
 function fallbackFor(pathname: string) {
+  const publicPages = [
+    '/about', '/amenities', '/events', '/event-list', '/calander', '/gallery',
+    '/faq', '/contact', '/contact-4', '/availability', '/check-availability',
+    '/shop', '/blog',
+  ]
+
+  if (publicPages.includes(pathname)) {
+    return '/'
+  }
+
   if (pathname.startsWith('/admin/') && pathname !== '/admin') {
     return '/admin'
   }
