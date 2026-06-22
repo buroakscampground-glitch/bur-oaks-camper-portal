@@ -3815,8 +3815,8 @@ tbody tr:hover {
   padding: 30px 42px;
   overflow: hidden;
   background-image:
-    linear-gradient(90deg, rgba(14, 37, 22, 0.86), rgba(18, 45, 27, 0.54)),
-    linear-gradient(180deg, transparent, rgba(5, 22, 10, 0.5)),
+    linear-gradient(90deg, rgba(4, 18, 9, 0.96), rgba(12, 35, 19, 0.86) 52%, rgba(9, 28, 16, 0.72)),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(3, 16, 8, 0.72)),
     url('/campground.jpg');
   background-size: cover;
   background-position: center;
@@ -3825,7 +3825,13 @@ tbody tr:hover {
 
 .signin-story-copy {
   max-width: 650px;
-  padding: 50px 2vw;
+  margin: 44px 0;
+  padding: 28px 30px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 26px;
+  background: rgba(4, 18, 9, 0.44);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(9px);
 }
 
 .signin-story-copy > span {
@@ -3847,6 +3853,7 @@ tbody tr:hover {
   font-weight: 500;
   line-height: 1.01;
   letter-spacing: -0.04em;
+  text-shadow: 0 3px 24px rgba(0, 0, 0, 0.68);
 }
 
 .signin-story-copy p {
@@ -3868,6 +3875,9 @@ tbody tr:hover {
   display: grid;
   place-items: center;
   padding: 45px;
+  background:
+    radial-gradient(circle at top right, rgba(213, 183, 102, 0.18), transparent 34%),
+    linear-gradient(180deg, #fbfaf6 0%, #efede6 100%);
 }
 
 .signin-form-card {
@@ -3891,7 +3901,7 @@ tbody tr:hover {
 
 .signin-form-card > p {
   margin: 9px 0 28px;
-  color: #737e76;
+  color: #425247;
   font-size: 14px;
   line-height: 1.55;
 }
@@ -3913,7 +3923,7 @@ tbody tr:hover {
   left: 15px;
   top: 50%;
   z-index: 1;
-  color: #75837a;
+  color: #435a49;
   transform: translateY(-50%);
 }
 
@@ -3948,7 +3958,7 @@ tbody tr:hover {
 .signin-help {
   display: block;
   margin-top: 20px;
-  color: #89928c;
+  color: #4f5f54;
   font-size: 11px;
   text-align: center;
 }
@@ -3972,10 +3982,10 @@ tbody tr:hover {
 
 .signin-form-card {
   padding: 34px;
-  border: 1px solid #ded8ca;
+  border: 1px solid #cfc6b4;
   border-radius: 26px;
-  background: rgba(255,255,255,.96);
-  box-shadow: 0 24px 65px rgba(38,59,45,.13);
+  background: rgba(255,255,255,.985);
+  box-shadow: 0 24px 65px rgba(38,59,45,.18);
 }
 
 .signin-input-wrap input {
@@ -3989,13 +3999,42 @@ tbody tr:hover {
 
 .signin-story-copy p,
 .signin-est {
-  color: rgba(255,255,255,.9);
-  text-shadow: 0 1px 12px rgba(0,0,0,.35);
+  color: #ffffff;
+  text-shadow: 0 2px 14px rgba(0,0,0,.72);
 }
 
 .signin-story-copy > span {
-  color: #ffe7a7;
+  color: #ffe39a;
   text-shadow: 0 1px 10px rgba(0,0,0,.45);
+}
+
+.signin-brand {
+  display: inline-flex;
+  width: fit-content;
+  padding: 9px 12px 9px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  background: rgba(4, 18, 9, 0.46);
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(8px);
+}
+
+.signin-brand small {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.signin-est {
+  width: fit-content;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(4, 18, 9, 0.46);
+}
+
+.signin-form-kicker,
+.signin-form-card > label,
+.signin-forgot-link,
+.signin-help a {
+  color: #263f2d;
 }
 
 .welcome-legal-links {
