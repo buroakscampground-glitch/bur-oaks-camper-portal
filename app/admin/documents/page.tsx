@@ -19,6 +19,8 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
+const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024
+
 export default function AdminDocumentsPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
@@ -60,6 +62,17 @@ export default function AdminDocumentsPage() {
     if (/lease|renewal/i.test(file.name)) return 'Lease / Renewal Template'
     if (/rule|policy|agreement/i.test(file.name)) return 'Campground Form Template'
     return 'Reusable Document Template'
+  }
+
+  function isAllowedDocument(file: File) {
+    return (
+      /\.(docx|doc|pdf)$/i.test(file.name) ||
+      [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ].includes(file.type)
+    )
   }
 
   function displayNameForFile(file: File) {
@@ -113,18 +126,15 @@ export default function AdminDocumentsPage() {
   }
 
   function setLibraryTemplateFiles(files: File[]) {
-    const allowedFiles = files.filter(
-      (file) =>
-        /\.(docx|doc|pdf)$/i.test(file.name) ||
-        [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ].includes(file.type)
-    )
+    const allowedFiles = files.filter(isAllowedDocument)
+    const oversizedFile = allowedFiles.find((file) => file.size > MAX_DOCUMENT_SIZE)
 
     if (allowedFiles.length !== files.length) {
       setMessage('Only PDF or Word documents can be added to the library.')
+    } else if (oversizedFile) {
+      setMessage('Documents must be 20 MB or smaller.')
+      setTemplateFiles([])
+      return
     } else {
       setMessage('')
     }
@@ -135,6 +145,8 @@ export default function AdminDocumentsPage() {
   async function uploadAssignedDocument() {
     if (!camperId) return setMessage('Please select a camper.')
     if (!assignedFile) return setMessage('Please select a file.')
+    if (!isAllowedDocument(assignedFile)) return setMessage('Assigned documents must be PDF or Word files.')
+    if (assignedFile.size > MAX_DOCUMENT_SIZE) return setMessage('Assigned documents must be 20 MB or smaller.')
     if (!documentName.trim()) return setMessage('Please enter a document name.')
 
     setWorking(true)
