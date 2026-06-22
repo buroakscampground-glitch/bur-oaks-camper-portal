@@ -1,4 +1,5 @@
--- GO-LIVE RESET: preserve only Rachel and Anthony, clear test operations,
+-- GO-LIVE RESET: preserve Rachel and Anthony, add Dawn as an admin,
+-- clear test operations,
 -- and add a private unassigned document-template library.
 
 BEGIN;
@@ -49,19 +50,46 @@ DELETE FROM public.stripe_webhook_events;
 DELETE FROM public.campers
 WHERE LOWER(email) NOT IN (
   'signatureflooring2023@gmail.com',
-  'buroakscampground@gmail.com'
+  'buroakscampground@gmail.com',
+  'dlfinlee@gmail.com'
+);
+
+INSERT INTO public.campers (
+  email,
+  first_name,
+  last_name,
+  lot_number,
+  role,
+  active
+)
+SELECT
+  'dlfinlee@gmail.com',
+  'Dawn',
+  'Finley',
+  '1003',
+  'admin',
+  true
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.campers
+  WHERE LOWER(email) = 'dlfinlee@gmail.com'
 );
 
 UPDATE public.campers
 SET lot_number = CASE
   WHEN LOWER(email) = 'signatureflooring2023@gmail.com' THEN '1001'
   WHEN LOWER(email) = 'buroakscampground@gmail.com' THEN '1002'
+  WHEN LOWER(email) = 'dlfinlee@gmail.com' THEN '1003'
   ELSE lot_number::text
+END,
+role = CASE
+  WHEN LOWER(email) = 'dlfinlee@gmail.com' THEN 'admin'
+  ELSE role
 END,
 active = true
 WHERE LOWER(email) IN (
   'signatureflooring2023@gmail.com',
-  'buroakscampground@gmail.com'
+  'buroakscampground@gmail.com',
+  'dlfinlee@gmail.com'
 );
 
 COMMIT;
