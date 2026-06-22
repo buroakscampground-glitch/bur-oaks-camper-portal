@@ -1,6 +1,39 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import {
+  portalInviteEmailConfigured,
+  sendPortalInviteEmail,
+} from '../../../lib/portal-invite-email'
+
+async function generateSetupUrl(context: any, email: string, origin: string) {
+  let linkResult = await context.admin.auth.admin.generateLink({
+    type: 'invite',
+    email,
+    options: { redirectTo: `${origin}/set-password` },
+  })
+
+  if (linkResult.error) {
+    linkResult = await context.admin.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+      options: { redirectTo: `${origin}/set-password` },
+    })
+  }
+
+  const properties = linkResult.data?.properties
+  const tokenHash = properties?.hashed_token
+  const verificationType = properties?.verification_type
+  const setupUrl = tokenHash && verificationType
+    ? `${origin}/set-password?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(verificationType)}`
+    : ''
+
+  if (linkResult.error || !setupUrl) {
+    throw new Error(linkResult.error?.message || 'Unable to create setup link.')
+  }
+
+  return setupUrl
+}
 
 export async function POST(request: Request) {
   const rateLimit = checkRateLimit(request, 'camper-invite', 10, 10 * 60_000)
@@ -26,7 +59,7 @@ export async function POST(request: Request) {
     if (typeof camperId === 'string' && camperId) {
       const { data } = await context.admin
         .from('campers')
-        .select('id,email,secondary_email,active')
+        .select('id,first_name,last_name,email,secondary_email,active')
         .eq('id', camperId)
         .single()
 
@@ -43,7 +76,7 @@ export async function POST(request: Request) {
     if (!camper) {
       const { data } = await context.admin
         .from('campers')
-        .select('id,email,secondary_email,active')
+        .select('id,first_name,last_name,email,secondary_email,active')
         .or(`email.ilike.${email},secondary_email.ilike.${email}`)
         .single()
 
@@ -65,6 +98,26 @@ export async function POST(request: Request) {
     }
 
     const origin = new URL(request.url).origin
+
+    if (portalInviteEmailConfigured()) {
+      const setupUrl = await generateSetupUrl(context, email, origin)
+      await sendPortalInviteEmail({
+        to: email,
+        camperName: `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper',
+        setupUrl,
+      })
+
+      await context.admin.from('portal_invite_log').insert({
+        camper_id: camper.id,
+        email,
+        delivery_status: 'sent',
+        delivery_provider: 'resend',
+        sent_by: context.user.email,
+      })
+
+      return NextResponse.json({ success: true, delivery: 'email-service' })
+    }
+
     const { error } = await context.admin.auth.admin.inviteUserByEmail(email, {
       redirectTo: `${origin}/set-password`,
     })
@@ -76,28 +129,10 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
 
-      let linkResult = await context.admin.auth.admin.generateLink({
-        type: 'recovery',
-        email,
-        options: { redirectTo: `${origin}/set-password` },
-      })
-
-      if (linkResult.error) {
-        linkResult = await context.admin.auth.admin.generateLink({
-          type: 'invite',
-          email,
-          options: { redirectTo: `${origin}/set-password` },
-        })
-      }
-
-      const properties = linkResult.data?.properties
-      const tokenHash = properties?.hashed_token
-      const verificationType = properties?.verification_type
-      const setupUrl = tokenHash && verificationType
-        ? `${origin}/set-password?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(verificationType)}`
-        : ''
-
-      if (linkResult.error || !setupUrl) {
+      let setupUrl = ''
+      try {
+        setupUrl = await generateSetupUrl(context, email, origin)
+      } catch {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
 

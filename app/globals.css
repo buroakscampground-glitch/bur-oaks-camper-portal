@@ -2119,6 +2119,54 @@ button:hover {
   box-shadow: 0 8px 24px rgba(38, 67, 45, 0.12);
 }
 
+.admin-camper-bulk-invites {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  max-width: 940px;
+  margin: 18px 0 24px;
+  padding: 18px;
+  border: 1px solid #d9e4d4;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #f7fbf4, #edf5eb);
+  box-shadow: 0 12px 32px rgba(38, 61, 43, 0.08);
+}
+
+.admin-camper-bulk-invites div {
+  display: grid;
+  gap: 5px;
+}
+
+.admin-camper-bulk-invites strong {
+  color: #263f2d;
+  font-size: 18px;
+}
+
+.admin-camper-bulk-invites span {
+  color: #65756a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-camper-bulk-invites button {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #2f5b3b;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.admin-camper-bulk-invites button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 .admin-camper-setup-link {
   display: flex;
   align-items: center;

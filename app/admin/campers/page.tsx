@@ -17,6 +17,7 @@ export default function AdminCampersPage() {
   const [invitingEmail, setInvitingEmail] = useState<string | null>(null)
   const [setupLink, setSetupLink] = useState('')
   const [portalStatuses, setPortalStatuses] = useState<Record<string, 'pending' | 'accepted'>>({})
+  const [bulkSending, setBulkSending] = useState(false)
   const [search, setSearch] = useState('')
   const router = useRouter()
   async function loadCampers() {
@@ -175,6 +176,8 @@ export default function AdminCampersPage() {
       if (result.delivery === 'manual' && result.setupUrl) {
         setSetupLink(result.setupUrl)
         setMessage(`Email sending is temporarily limited. A secure one-time setup link is ready for ${email}.`)
+      } else if (result.delivery === 'email-service') {
+        setMessage(`Portal invite sent from Bur Oaks to ${email}.`)
       } else {
         setMessage(`Portal invite sent to ${email}. Ask them to check their inbox and spam folder.`)
       }
@@ -183,6 +186,60 @@ export default function AdminCampersPage() {
       setMessage('The invitation could not be sent. Please try again.')
     } finally {
       setInvitingEmail(null)
+    }
+  }
+
+  async function sendBulkPortalInvites() {
+    const confirmed = window.confirm(
+      'Send the next batch of portal invite emails to campers who have not accepted and were not emailed recently?'
+    )
+
+    if (!confirmed) return
+
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+
+    if (!token) {
+      setMessage('Please sign in again before sending bulk invites.')
+      return
+    }
+
+    setBulkSending(true)
+    setSetupLink('')
+    setMessage('Sending the next batch of portal invite emails…')
+
+    try {
+      const response = await fetch('/api/bulk-portal-invites', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ batchSize: 25 }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setMessage(result.error || 'Unable to send bulk portal invites.')
+        return
+      }
+
+      const sentCount = result.sent?.length || 0
+      const failedCount = result.failed?.length || 0
+      const remaining = result.remaining || 0
+
+      if (sentCount === 0 && failedCount === 0) {
+        setMessage('No unsent portal invites are waiting right now. Accepted accounts and recently emailed campers were skipped.')
+      } else {
+        setMessage(`Sent ${sentCount} portal invite${sentCount === 1 ? '' : 's'}. ${failedCount ? `${failedCount} failed. ` : ''}${remaining} still waiting for a future batch.`)
+      }
+
+      loadPortalStatuses()
+    } catch {
+      setMessage('Bulk invites could not be sent. Please try again.')
+    } finally {
+      setBulkSending(false)
     }
   }
 
@@ -204,6 +261,16 @@ export default function AdminCampersPage() {
   ← Back to Dashboard
 </button>
       <h1>Manage Campers</h1>
+
+      <section className="admin-camper-bulk-invites">
+        <div>
+          <strong>Bulk portal invitations</strong>
+          <span>Send password setup emails in batches of 25. Accepted accounts and campers emailed recently are skipped automatically.</span>
+        </div>
+        <button type="button" onClick={sendBulkPortalInvites} disabled={bulkSending}>
+          {bulkSending ? 'Sending Batch…' : 'Send Next Batch of Portal Invites'}
+        </button>
+      </section>
 
       <h2 id="camper-editor">
         {editingId
