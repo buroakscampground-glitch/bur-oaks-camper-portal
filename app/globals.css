@@ -860,6 +860,38 @@ button:hover {
 @media(max-width:1050px){.account-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.account-summary>div:nth-child(2){border-right:0}.account-summary>div:nth-child(-n+2){border-bottom:1px solid #e7e3d9}.account-layout{grid-template-columns:1fr}.account-autopay{position:static}}
 @media(max-width:760px){.camper-account-page{padding:12px}.account-header{border-radius:22px}.account-nav{padding:17px}.account-brand img{width:42px;height:42px}.account-back{padding:9px;font-size:0}.account-welcome{grid-template-columns:1fr;gap:24px;padding:44px 22px 66px}.account-welcome h1{font-size:41px}.account-balance-card{min-width:0}.account-summary{grid-template-columns:1fr;margin:-34px 13px 22px}.account-summary>div{border-right:0;border-bottom:1px solid #e7e3d9}.account-summary>div:last-child{border-bottom:0}.account-panel-heading{align-items:flex-start;flex-direction:column}.account-selection-bar{align-items:stretch;flex-direction:column}.account-selection-bar>div:last-child{flex-wrap:wrap}.account-pay-button{flex:1}.account-invoice-row{grid-template-columns:28px minmax(0,1fr) auto;gap:10px;padding:18px}.account-invoice-main{grid-template-columns:1fr;gap:10px}.account-invoice-total{align-self:start}.account-invoice-action{grid-column:2/-1}.account-invoice-action button{width:100%}.account-autopay{padding:21px}.account-footer{flex-direction:column;gap:5px}}
 
+/* SHARED ADMIN WORKSPACE */
+.admin-workspace-page {
+  min-height: 100vh;
+  padding: 24px;
+  color: #27362c;
+  background: radial-gradient(circle at 8% 4%,rgba(203,174,105,.14),transparent 23%),linear-gradient(180deg,#eaf0e9 0%,#f6f4ee 34%,#f1efe9 100%);
+}
+.admin-workspace-header { width: min(1400px,100%); margin: 0 auto 24px; overflow: hidden; border-radius: 26px; color:#fff; background: radial-gradient(circle at 88% 12%,rgba(212,184,111,.22),transparent 28%),linear-gradient(135deg,#173722,#2b553b 60%,#1d412c); box-shadow:0 22px 55px rgba(27,48,34,.18); }
+.admin-workspace-header nav { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:20px 26px; border-bottom:1px solid rgba(255,255,255,.13); }
+.admin-workspace-brand { display:flex; align-items:center; gap:11px; color:#fff; text-decoration:none; }
+.admin-workspace-brand img { width:45px; height:45px; object-fit:cover; border:2px solid rgba(255,255,255,.72); border-radius:50%; }
+.admin-workspace-brand span { display:grid; }.admin-workspace-brand strong{font:20px Georgia,serif}.admin-workspace-brand small{color:rgba(255,255,255,.65);font-size:9px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
+.admin-workspace-nav-actions { display:flex; align-items:center; gap:10px; }
+.admin-workspace-nav-actions>span,.admin-workspace-nav-actions>a { display:inline-flex; align-items:center; gap:7px; min-height:38px; padding:0 12px; border:1px solid rgba(255,255,255,.2); border-radius:10px; color:#fff; font-size:11px; font-weight:800; text-decoration:none; }
+.admin-workspace-nav-actions>span { border:0; color:#d9c686; }
+.admin-workspace-title { display:flex; align-items:flex-end; justify-content:space-between; gap:30px; padding:38px 44px 44px; }
+.admin-workspace-title>div>span { display:inline-flex; align-items:center; gap:7px; color:#d9c17b; font-size:10px; font-weight:900; letter-spacing:.15em; }
+.admin-workspace-title h1 { margin:9px 0 0; color:#fff; font:500 clamp(34px,4vw,50px)/1.05 Georgia,serif; letter-spacing:-.025em; }
+.admin-workspace-title p { margin:11px 0 0; color:rgba(255,255,255,.68); font-size:13px; }
+.admin-workspace-title>a { display:inline-flex; align-items:center; gap:8px; min-height:42px; padding:0 14px; border:1px solid rgba(255,255,255,.25); border-radius:11px; background:rgba(255,255,255,.08); color:#fff; font-size:12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+.admin-workspace-content { width:min(1400px,100%); margin:0 auto; }
+.admin-workspace-content>main { max-width:none!important; min-height:auto!important; margin:0!important; padding:28px!important; border:1px solid #ddd9ce; border-radius:22px; background:rgba(255,255,255,.96)!important; font-family:inherit!important; box-shadow:0 12px 34px rgba(39,52,43,.06); }
+.admin-workspace-content>main>button:first-child { display:none; }
+.admin-workspace-content>main>h1:first-of-type { margin-top:0; color:#263d2e; font:500 31px Georgia,serif; }
+.admin-workspace-content h2 { color:#304637; font-family:Georgia,'Times New Roman',serif; font-weight:500; }
+.admin-workspace-content input,.admin-workspace-content select,.admin-workspace-content textarea { border:1px solid #d6d9d2!important; border-radius:10px!important; background:#fff!important; box-shadow:0 1px 2px rgba(30,45,34,.03); }
+.admin-workspace-content input:focus,.admin-workspace-content select:focus,.admin-workspace-content textarea:focus { outline:3px solid rgba(65,112,76,.14); border-color:#698b70!important; }
+.admin-workspace-content button { border-radius:9px; box-shadow:none; }
+.admin-workspace-content a { text-decoration-color:rgba(48,91,59,.35); }
+.admin-workspace-footer { display:flex; justify-content:space-between; width:min(1400px,100%); margin:0 auto; padding:22px 5px 4px; color:#778079; font-size:11px; }
+@media(max-width:760px){.admin-workspace-page{padding:12px}.admin-workspace-header{border-radius:21px}.admin-workspace-header nav{padding:16px}.admin-workspace-brand img{width:41px;height:41px}.admin-workspace-nav-actions>span{display:none}.admin-workspace-nav-actions>a{padding:0 10px;font-size:0}.admin-workspace-title{align-items:flex-start;flex-direction:column;padding:32px 21px 38px}.admin-workspace-title h1{font-size:38px}.admin-workspace-content>main{padding:19px!important;border-radius:18px}.admin-workspace-footer{flex-direction:column;gap:4px}}
+
 @media (max-width: 760px) {
   .camper-portal-page {
     padding: 12px;
