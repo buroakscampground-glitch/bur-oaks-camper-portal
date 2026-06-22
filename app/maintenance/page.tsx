@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import { MaintenanceBadge } from '../../components/MaintenanceBadge'
 
 export default function MaintenanceRequestPage() {
   const [camper, setCamper] = useState<any>(null)
@@ -202,10 +203,12 @@ export default function MaintenanceRequestPage() {
                 marginTop: '15px',
                 borderLeft: `7px solid ${
                   ticket.status === 'Completed'
-                    ? '#2f5d3a'
+                    ? '#16a34a'
                     : ticket.status === 'In Progress'
                     ? '#2563eb'
-                    : '#b45309'
+                    : ticket.status === 'Waiting Parts'
+                    ? '#f97316'
+                    : '#6b7280'
                 }`,
               }}
             >
@@ -224,11 +227,7 @@ export default function MaintenanceRequestPage() {
 
               <p>
                 <strong>Status:</strong>{' '}
-                {ticket.status === 'Completed'
-                  ? '🟢 Completed'
-                  : ticket.status === 'In Progress'
-                  ? '🔵 In Progress'
-                  : '🟠 Open'}
+                <MaintenanceBadge kind="status" value={ticket.status} />
               </p>
 
               <p>{ticket.description}</p>

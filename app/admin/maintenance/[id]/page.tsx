@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
+import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 
 export default function MaintenanceTicketPage() {
   const params = useParams()
@@ -118,6 +119,11 @@ export default function MaintenanceTicketPage() {
         <section className="card">
           <h1>{ticket.title}</h1>
 
+          <p>
+            <MaintenanceBadge kind="status" value={ticket.status} />{' '}
+            <MaintenanceBadge kind="priority" value={ticket.priority} />
+          </p>
+
           <div style={{ marginBottom: '15px' }}>
             <strong>Status</strong>
 
@@ -162,7 +168,7 @@ export default function MaintenanceTicketPage() {
 
           <p>
             <strong>Priority:</strong>{' '}
-            {ticket.priority}
+            <MaintenanceBadge kind="priority" value={ticket.priority} />
           </p>
 
           <p>

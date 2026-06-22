@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<any[]>([])
@@ -336,25 +337,7 @@ export default function MaintenancePage() {
 
                 <p>
                   <strong>Priority:</strong>{' '}
-                  <span
-                    style={{
-                      background:
-                        ticket.priority === 'Emergency'
-                          ? '#dc2626'
-                          : ticket.priority === 'High'
-                          ? '#f97316'
-                          : ticket.priority === 'Low'
-                          ? '#16a34a'
-                          : '#2563eb',
-                      color: 'white',
-                      padding: '4px 10px',
-                      borderRadius: '999px',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    {ticket.priority || 'Normal'}
-                  </span>
+                  <MaintenanceBadge kind="priority" value={ticket.priority} />
                 </p>
 
                 <p>
@@ -362,7 +345,10 @@ export default function MaintenancePage() {
                   {ticket.assigned_to || 'Unassigned'}
                 </p>
 
-                <p><strong>Status:</strong> {ticket.status}</p>
+                <p>
+                  <strong>Status:</strong>{' '}
+                  <MaintenanceBadge kind="status" value={ticket.status} />
+                </p>
                 <p><strong>Lot:</strong> {ticket.lot_number || 'N/A'}</p>
                 <p><strong>Reported By:</strong> {ticket.reported_by || 'N/A'}</p>
                 <p>{ticket.description}</p>

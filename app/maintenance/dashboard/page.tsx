@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '../../../lib/supabase'
+import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 
 export default function MaintenanceDashboard() {
   const [loading, setLoading] = useState(true)
@@ -265,11 +266,13 @@ export default function MaintenanceDashboard() {
               </div>
 
               <div>
-                Status: {ticket.status}
+                Status:{' '}
+                <MaintenanceBadge kind="status" value={ticket.status} />
               </div>
 
               <div>
-                Priority: {ticket.priority || 'Normal'}
+                Priority:{' '}
+                <MaintenanceBadge kind="priority" value={ticket.priority} />
               </div>
 
               <div
