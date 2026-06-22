@@ -15,7 +15,27 @@ export default function SetPasswordPage() {
     async function prepareSecureSession() {
       const params = new URLSearchParams(window.location.search)
       const code = params.get('code')
+      const tokenHash = params.get('token_hash')
+      const requestedType = params.get('type')
       let { data } = await supabase.auth.getSession()
+
+      if (
+        !data.session &&
+        tokenHash &&
+        (requestedType === 'invite' || requestedType === 'recovery')
+      ) {
+        const verification = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: requestedType,
+        })
+
+        if (verification.error) {
+          setMessage('This setup link is invalid or expired. Please generate a new setup link.')
+          return
+        }
+
+        data = { session: verification.data.session }
+      }
 
       if (!data.session && code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)

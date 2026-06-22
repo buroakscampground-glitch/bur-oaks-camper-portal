@@ -64,7 +64,12 @@ export async function POST(request: Request) {
         })
       }
 
-      const setupUrl = linkResult.data?.properties?.action_link
+      const properties = linkResult.data?.properties
+      const tokenHash = properties?.hashed_token
+      const verificationType = properties?.verification_type
+      const setupUrl = tokenHash && verificationType
+        ? `${origin}/set-password?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(verificationType)}`
+        : ''
 
       if (linkResult.error || !setupUrl) {
         return NextResponse.json({ error: error.message }, { status: 500 })
