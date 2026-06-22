@@ -1,181 +1,115 @@
+'use client'
 
-"use client";
-
-import { useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { useState } from 'react'
+import { ArrowRight, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   async function handleLogin() {
-    setError("");
-    setLoading(true);
+    setError('')
+    setLoading(true)
 
     try {
-      const { error: authError } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
       if (authError) {
-        setError(authError.message);
-        return;
+        setError(authError.message)
+        return
       }
 
       const { data: camper } = await supabase
-        .from("campers")
-        .select("role")
-        .eq("email", email.toLowerCase())
-        .single();
+        .from('campers')
+        .select('role')
+        .eq('email', email.toLowerCase())
+        .single()
 
-      const role = camper?.role?.toLowerCase();
+      const role = camper?.role?.toLowerCase()
 
-if (role === "admin") {
-  window.location.href = "/admin";
-} else if (role === "maintenance") {
-  window.location.href = "/maintenance/dashboard";
-} else {
-  window.location.href = "/portal";
-}
+      if (role === 'admin') {
+        window.location.href = '/admin'
+      } else if (role === 'maintenance') {
+        window.location.href = '/maintenance/dashboard'
+      } else {
+        window.location.href = '/portal'
+      }
     } catch (err) {
-      console.error(err);
-      setError("Login failed");
+      console.error(err)
+      setError('Login failed')
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        padding: "20px",
-        background:
-          "linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)), url('/campground.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth: "520px",
-          background: "rgba(255,255,255,0.94)",
-          backdropFilter: "blur(12px)",
-          borderRadius: "24px",
-          padding: "45px",
-          boxShadow: "0 20px 50px rgba(0,0,0,.35)",
-          border: "3px solid #2f5d3a",
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            marginBottom: "30px",
-          }}
-        >
-          <img
-            src="/bur-oaks-logo.png"
-            alt="Bur Oaks Campground"
-            style={{
-              width: "100%",
-              maxWidth: "320px",
-              marginBottom: "10px",
-            }}
-          />
+    <main className="signin-page">
+      <section className="signin-story">
+        <a className="signin-brand" href="/">
+          <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
+          <span><strong>Bur Oaks</strong><small>Campground</small></span>
+        </a>
 
-          <p
-            style={{
-              color: "#666",
-              margin: 0,
-              fontSize: "15px",
-              letterSpacing: "1px",
-            }}
-          >
-            CAMPER PORTAL
-          </p>
+        <div className="signin-story-copy">
+          <span><ShieldCheck size={16} /> Secure member access</span>
+          <h1>Welcome back to your place in the oaks.</h1>
+          <p>Your account, your site, and your campground community—together in one portal.</p>
         </div>
 
-        <input
-          type="email"
-          placeholder="Email Address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "16px",
-            borderRadius: "12px",
-            border: "1px solid #d1d5db",
-            marginBottom: "15px",
-            fontSize: "15px",
-          }}
-        />
+        <small className="signin-est">A site to remember · Est. 1972</small>
+      </section>
 
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "16px",
-            borderRadius: "12px",
-            border: "1px solid #d1d5db",
-            marginBottom: "15px",
-            fontSize: "15px",
-          }}
-        />
+      <section className="signin-form-side">
+        <div className="signin-form-card">
+          <span className="signin-form-kicker">BUR OAKS CAMPER PORTAL</span>
+          <h2>Sign in to continue</h2>
+          <p>Use the email and password connected to your camper account.</p>
 
-        {error && (
-          <div
-            style={{
-              background: "#fee2e2",
-              color: "#b91c1c",
-              padding: "12px",
-              borderRadius: "10px",
-              marginBottom: "15px",
-            }}
-          >
-            {error}
+          <label htmlFor="signin-email">Email address</label>
+          <div className="signin-input-wrap">
+            <Mail size={18} />
+            <input
+              id="signin-email"
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+            />
           </div>
-        )}
 
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          style={{
-            width: "100%",
-            padding: "16px",
-            border: "none",
-            borderRadius: "12px",
-            background: "#2f5d3a",
-            color: "white",
-            fontWeight: "bold",
-            fontSize: "16px",
-          }}
-        >
-          {loading ? "Signing In..." : "Sign In"}
-        </button>
+          <label htmlFor="signin-password">Password</label>
+          <div className="signin-input-wrap">
+            <LockKeyhole size={18} />
+            <input
+              id="signin-password"
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !loading) handleLogin()
+              }}
+              autoComplete="current-password"
+            />
+          </div>
 
-        <div
-          style={{
-            textAlign: "center",
-            marginTop: "25px",
-            color: "#777",
-            fontSize: "13px",
-          }}
-        >
-          A Site To Remember • Est. 1972
+          {error && <div className="signin-error">{error}</div>}
+
+          <button className="signin-submit" onClick={handleLogin} disabled={loading}>
+            {loading ? 'Signing in…' : 'Sign in'}
+            {!loading && <ArrowRight size={18} />}
+          </button>
+
+          <small className="signin-help">Need account help? Contact the campground office.</small>
         </div>
-      </div>
+      </section>
     </main>
-  );
+  )
 }
-``
