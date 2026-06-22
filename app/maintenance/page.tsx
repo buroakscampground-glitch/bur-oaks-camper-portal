@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, ImagePlus, X } from 'lucide-react'
+import { Camera, CheckCircle2, ClipboardList, ImagePlus, Wrench, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { MaintenanceBadge } from '../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../components/MaintenancePhotos'
@@ -130,7 +130,7 @@ export default function MaintenanceRequestPage() {
     setDescription('')
     setCategory('General')
     setPhotoFiles([])
-    setMessage('✅ Maintenance request submitted!')
+    setMessage('✅ Maintenance request submitted. The office will review it before work is assigned.')
     setSubmitting(false)
     loadPage()
   }
@@ -161,95 +161,53 @@ export default function MaintenanceRequestPage() {
   }
 
   return (
-    <main className="page">
-      <div className="container">
-        <section
-          className="card"
-          style={{
-            marginBottom: '25px',
-            background:
-              'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
-          }}
-        >
-          <p className="muted">BUR OAKS CAMPGROUND</p>
-<button
-  onClick={() => router.push('/portal')}
-  style={{
-    marginBottom: '20px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  }}
->
-  ← Back to Portal
-</button>
-          <h1>🔧 Maintenance Requests</h1>
+    <main className="camper-maintenance-page">
+      <section className="camper-maintenance-hero">
+        <button type="button" onClick={() => router.push('/portal')}>← Back to Portal</button>
+        <span><Wrench size={17} /> Maintenance requests</span>
+        <h1>Tell us what needs attention at your site.</h1>
+        <p>Submit the issue, attach photos if helpful, and track the status once the office reviews and approves the work.</p>
+        <div className="camper-maintenance-stats">
+          <article><small>Your lot</small><strong>{camper?.lot_number || 'N/A'}</strong></article>
+          <article><small>Open requests</small><strong>{tickets.filter((ticket) => ticket.status !== 'Completed').length}</strong></article>
+          <article><small>Completed</small><strong>{tickets.filter((ticket) => ticket.status === 'Completed').length}</strong></article>
+        </div>
+      </section>
 
-          <h2 style={{ color: '#2f5d3a' }}>
-            {tickets.length} Request
-            {tickets.length !== 1 ? 's' : ''}
-          </h2>
+      <div className="camper-maintenance-layout">
+        <section className="camper-maintenance-form-card">
+          <div className="camper-maintenance-card-heading">
+            <span><ClipboardList size={20} /></span>
+            <div>
+              <small>NEW REQUEST</small>
+              <h2>Submit a Request</h2>
+              <p>Lot {camper?.lot_number || 'N/A'} — {camper?.first_name} {camper?.last_name}</p>
+            </div>
+          </div>
 
-          <p className="muted">
-            Report campground issues and track request status.
-          </p>
-        </section>
+          <label>
+            <span>Issue title</span>
+            <input placeholder="Example: Water leak behind camper" value={title} onChange={(event) => setTitle(event.target.value)} />
+          </label>
 
-        <section
-          className="card"
-          style={{ marginBottom: '25px' }}
-        >
-          <h2>Submit a Request</h2>
+          <label>
+            <span>Category</span>
+            <select value={category} onChange={(event) => setCategory(event.target.value)}>
+              <option>General</option>
+              <option>Electric</option>
+              <option>Water</option>
+              <option>Gate</option>
+              <option>Roads</option>
+              <option>Rec Hall</option>
+              <option>Bathroom</option>
+              <option>Tree / Grounds</option>
+            </select>
+          </label>
 
-          <p className="muted">
-            Lot {camper?.lot_number || 'N/A'} —{' '}
-            {camper?.first_name} {camper?.last_name}
-          </p>
-
-          <input
-            placeholder="Issue Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              marginBottom: '12px',
-            }}
-          />
-
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              marginBottom: '12px',
-            }}
-          >
-            <option>General</option>
-            <option>Electric</option>
-            <option>Water</option>
-            <option>Gate</option>
-            <option>Roads</option>
-            <option>Rec Hall</option>
-            <option>Bathroom</option>
-            <option>Tree / Grounds</option>
-          </select>
-
-          <textarea
-            placeholder="Describe the issue..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              minHeight: '130px',
-              marginBottom: '12px',
-            }}
-          />
+          <label>
+            <span>Description</span>
+            <textarea placeholder="Describe what is happening and where we should look..." value={description} onChange={(event) => setDescription(event.target.value)} />
+          </label>
 
           <div className="maintenance-upload-box">
             <div className="maintenance-upload-heading">
@@ -263,12 +221,7 @@ export default function MaintenanceRequestPage() {
             <label className="maintenance-file-picker">
               <ImagePlus size={19} />
               <span>{photoFiles.length ? 'Choose different photos' : 'Choose photos'}</span>
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-                multiple
-                onChange={(event) => selectPhotos(event.target.files)}
-              />
+              <input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple onChange={(event) => selectPhotos(event.target.files)} />
             </label>
 
             {photoPreviews.length > 0 && (
@@ -276,15 +229,7 @@ export default function MaintenanceRequestPage() {
                 {photoPreviews.map((url, index) => (
                   <div className="maintenance-preview" key={url}>
                     <img src={url} alt={`Selected maintenance photo ${index + 1}`} />
-                    <button
-                      type="button"
-                      aria-label={`Remove photo ${index + 1}`}
-                      onClick={() =>
-                        setPhotoFiles((current) =>
-                          current.filter((_, fileIndex) => fileIndex !== index)
-                        )
-                      }
-                    >
+                    <button type="button" aria-label={`Remove photo ${index + 1}`} onClick={() => setPhotoFiles((current) => current.filter((_, fileIndex) => fileIndex !== index))}>
                       <X size={15} />
                     </button>
                   </div>
@@ -293,67 +238,44 @@ export default function MaintenanceRequestPage() {
             )}
           </div>
 
-          <button onClick={submitRequest} disabled={submitting}>
+          <button className="camper-maintenance-submit" onClick={submitRequest} disabled={submitting}>
             {submitting ? 'Submitting…' : 'Submit Request'}
           </button>
 
-          {message && (
-            <p style={{ marginTop: '10px' }}>
-              {message}
-            </p>
-          )}
+          {message && <p className="camper-maintenance-message">{message}</p>}
         </section>
 
-        <section className="card">
-          <h2>My Maintenance Requests</h2>
+        <section className="camper-maintenance-list-card">
+          <div className="camper-maintenance-card-heading">
+            <span><CheckCircle2 size={20} /></span>
+            <div>
+              <small>REQUEST HISTORY</small>
+              <h2>My Maintenance Requests</h2>
+              <p>Approved work will be updated by the maintenance team.</p>
+            </div>
+          </div>
 
           {tickets.length === 0 && (
-            <p className="muted">
-              You have not submitted any maintenance
-              requests yet.
-            </p>
+            <div className="camper-maintenance-empty">
+              <Wrench size={30} />
+              <h3>No requests yet</h3>
+              <p>When you submit a request, it will show up here.</p>
+            </div>
           )}
 
-          {tickets.map((ticket) => (
-            <section
-              key={ticket.id}
-              className="card"
-              style={{
-                marginTop: '15px',
-                borderLeft: `7px solid ${
-                  ticket.status === 'Completed'
-                    ? '#16a34a'
-                    : ticket.status === 'In Progress'
-                    ? '#2563eb'
-                    : ticket.status === 'Waiting Parts'
-                    ? '#f97316'
-                    : '#6b7280'
-                }`,
-              }}
-            >
-              <p className="muted">
-                {new Date(
-                  ticket.created_at
-                ).toLocaleDateString()}
-              </p>
-
-              <h3>{ticket.title}</h3>
-
-              <p>
-                <strong>Category:</strong>{' '}
-                {ticket.category}
-              </p>
-
-              <p>
-                <strong>Status:</strong>{' '}
+          <div className="camper-maintenance-ticket-list">
+            {tickets.map((ticket) => (
+              <article key={ticket.id} className={`camper-maintenance-ticket ${String(ticket.status || 'open').toLowerCase().replace(/\s+/g, '-')}`}>
+                <div>
+                  <small>{new Date(ticket.created_at).toLocaleDateString()} · {ticket.category}</small>
+                  <h3>{ticket.title}</h3>
+                </div>
                 <MaintenanceBadge kind="status" value={ticket.status} />
-              </p>
-
-              <p>{ticket.description}</p>
-
-              <MaintenancePhotos paths={ticket.photo_urls} />
-            </section>
-          ))}
+                <p>{ticket.description}</p>
+                <MaintenancePhotos paths={ticket.photo_urls} />
+              </article>
+            ))}
+          </div>
         </section>
       </div>
     </main>

@@ -3683,6 +3683,34 @@ tbody tr:hover {
   font-weight: 800;
 }
 
+.signin-form-card {
+  padding: 34px;
+  border: 1px solid #ded8ca;
+  border-radius: 26px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 24px 65px rgba(38,59,45,.13);
+}
+
+.signin-input-wrap input {
+  color: #17281d !important;
+  border-color: #cfd7ce !important;
+}
+
+.signin-input-wrap input::placeholder {
+  color: #6f7b72 !important;
+}
+
+.signin-story-copy p,
+.signin-est {
+  color: rgba(255,255,255,.9);
+  text-shadow: 0 1px 12px rgba(0,0,0,.35);
+}
+
+.signin-story-copy > span {
+  color: #ffe7a7;
+  text-shadow: 0 1px 10px rgba(0,0,0,.45);
+}
+
 .welcome-legal-links {
   position: absolute;
   left: 32px;
@@ -4203,6 +4231,699 @@ tbody tr:hover {
   .maintenance-preview-grid,
   .maintenance-photo-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.camper-documents-page,
+.camper-maintenance-page,
+.admin-open-balance-page {
+  min-height: 100vh;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(225, 206, 143, .24), transparent 34%),
+    linear-gradient(135deg, #eef3eb 0%, #f8f5ef 100%);
+}
+
+.camper-documents-hero,
+.camper-maintenance-hero,
+.admin-open-balance-hero {
+  position: relative;
+  overflow: hidden;
+  max-width: 1220px;
+  margin: 0 auto 22px;
+  padding: 34px;
+  border: 1px solid rgba(255,255,255,.34);
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgba(22,54,32,.92), rgba(42,83,52,.82)),
+    url('/campground.jpg') center/cover;
+  color: #fff;
+  box-shadow: 0 22px 60px rgba(35,60,42,.18);
+}
+
+.camper-documents-hero > button,
+.camper-maintenance-hero > button,
+.admin-open-balance-hero > button:first-child {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  margin-bottom: 28px;
+  border: 1px solid rgba(255,255,255,.24) !important;
+  background: rgba(255,255,255,.12) !important;
+  color: #fff !important;
+  backdrop-filter: blur(10px);
+}
+
+.camper-documents-hero > span,
+.camper-maintenance-hero > span,
+.admin-open-balance-hero span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #f3d88e;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.camper-documents-hero h1,
+.camper-maintenance-hero h1,
+.admin-open-balance-hero h1 {
+  max-width: 760px;
+  margin: 12px 0 0;
+  color: #fff;
+  font: 500 clamp(38px,5vw,66px)/1.02 Georgia,serif;
+  letter-spacing: -.04em;
+}
+
+.camper-documents-hero p,
+.camper-maintenance-hero p,
+.admin-open-balance-hero p {
+  max-width: 680px;
+  margin: 15px 0 0;
+  color: rgba(255,255,255,.86);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.camper-documents-grid {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 18px;
+  max-width: 1220px;
+  margin: 0 auto;
+}
+
+.camper-document-card,
+.camper-documents-empty,
+.camper-maintenance-form-card,
+.camper-maintenance-list-card,
+.admin-open-balance-panel {
+  border: 1px solid #ddd8ca;
+  border-radius: 24px;
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 14px 40px rgba(38,59,45,.08);
+}
+
+.camper-document-card {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 24px;
+}
+
+.camper-document-card.signed {
+  border-color: #bdd7c0;
+  background: linear-gradient(180deg,#fff,#f2f8f0);
+}
+
+.camper-document-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 15px;
+  background: #e4efe4;
+  color: #386845;
+}
+
+.camper-document-card > small,
+.signature-modal > small {
+  color: #9b7833;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.camper-document-card h2,
+.camper-documents-empty h2 {
+  margin: 2px 0 0;
+  color: #263d2e;
+  font: 500 25px Georgia,serif;
+}
+
+.camper-document-status,
+.camper-document-signed-name,
+.camper-documents-empty p {
+  margin: 0;
+  color: #67736b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.camper-document-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 11px;
+}
+
+.camper-document-actions button,
+.signature-modal-actions button,
+.camper-maintenance-submit,
+.admin-open-export {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 40px;
+}
+
+.camper-document-actions button.primary,
+.signature-modal-actions button.primary,
+.camper-maintenance-submit {
+  border: 0 !important;
+  background: #315f3d !important;
+  color: #fff !important;
+}
+
+.camper-documents-empty {
+  display: grid;
+  justify-items: center;
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 50px 24px;
+  color: #5f7565;
+  text-align: center;
+}
+
+.camper-document-message {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 1300;
+  max-width: 430px;
+  padding: 13px 16px;
+  border-radius: 13px;
+  background: #213c2b;
+  color: #fff;
+  box-shadow: 0 18px 45px rgba(20,40,28,.25);
+}
+
+.signature-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(12,25,16,.58);
+  backdrop-filter: blur(8px);
+}
+
+.signature-modal {
+  width: min(560px,100%);
+  padding: 28px;
+  border: 1px solid #d9d4c8;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(0,0,0,.28);
+}
+
+.signature-modal-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 14px;
+  place-items: center;
+  border-radius: 15px;
+  background: #e5efe5;
+  color: #386845;
+}
+
+.signature-modal h2 {
+  margin: 8px 0;
+  color: #24392b;
+  font: 500 30px Georgia,serif;
+}
+
+.signature-modal p,
+.signature-consent span {
+  color: #5f6d65;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.signature-consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 18px 0;
+  padding: 13px;
+  border: 1px solid #d9e2d7;
+  border-radius: 13px;
+  background: #f5f8f3;
+}
+
+.signature-consent input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.signature-name-field {
+  display: grid;
+  gap: 7px;
+}
+
+.signature-name-field span {
+  color: #3d5044;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.signature-name-field input {
+  min-height: 46px;
+}
+
+.signature-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 20px;
+}
+
+.camper-maintenance-stats,
+.admin-open-balance-stats {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 12px;
+  max-width: 760px;
+  margin-top: 24px;
+}
+
+.camper-maintenance-stats article,
+.admin-open-balance-stats article {
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 16px;
+  background: rgba(255,255,255,.12);
+  backdrop-filter: blur(10px);
+}
+
+.camper-maintenance-stats small,
+.admin-open-balance-stats small {
+  color: rgba(255,255,255,.68);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.camper-maintenance-stats strong,
+.admin-open-balance-stats strong {
+  display: block;
+  margin-top: 5px;
+  color: #f4db92;
+  font: 500 28px Georgia,serif;
+}
+
+.camper-maintenance-layout {
+  display: grid;
+  grid-template-columns: minmax(0,.9fr) minmax(0,1.1fr);
+  gap: 22px;
+  max-width: 1220px;
+  margin: 0 auto;
+}
+
+.camper-maintenance-form-card,
+.camper-maintenance-list-card {
+  padding: 24px;
+}
+
+.camper-maintenance-card-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.camper-maintenance-card-heading > span {
+  display: grid;
+  flex: 0 0 43px;
+  width: 43px;
+  height: 43px;
+  place-items: center;
+  border-radius: 13px;
+  background: #e5efe5;
+  color: #386845;
+}
+
+.camper-maintenance-card-heading small {
+  color: #9b7833;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.camper-maintenance-card-heading h2 {
+  margin: 3px 0 0;
+  color: #263d2e;
+  font: 500 28px Georgia,serif;
+}
+
+.camper-maintenance-card-heading p {
+  margin: 5px 0 0;
+  color: #6d786f;
+  font-size: 12px;
+}
+
+.camper-maintenance-form-card label {
+  display: grid;
+  gap: 7px;
+  margin-bottom: 13px;
+}
+
+.camper-maintenance-form-card label > span {
+  color: #3d5044;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.camper-maintenance-form-card input,
+.camper-maintenance-form-card select,
+.camper-maintenance-form-card textarea {
+  width: 100%;
+}
+
+.camper-maintenance-form-card textarea {
+  min-height: 130px;
+}
+
+.camper-maintenance-submit {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.camper-maintenance-message {
+  margin: 12px 0 0;
+  padding: 12px 13px;
+  border-radius: 11px;
+  background: #edf5eb;
+  color: #3f6849;
+  font-size: 12px;
+}
+
+.camper-maintenance-empty {
+  display: grid;
+  justify-items: center;
+  padding: 36px 18px;
+  border-radius: 16px;
+  background: #f3f6f1;
+  color: #6c7a70;
+  text-align: center;
+}
+
+.camper-maintenance-empty h3 {
+  margin: 9px 0 0;
+  color: #2d4435;
+}
+
+.camper-maintenance-empty p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+
+.camper-maintenance-ticket-list {
+  display: grid;
+  gap: 12px;
+}
+
+.camper-maintenance-ticket {
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid #e0e3dc;
+  border-left: 6px solid #7b8580;
+  border-radius: 15px;
+  background: #fbfcfa;
+}
+
+.camper-maintenance-ticket.completed { border-left-color: #2e8b49; }
+.camper-maintenance-ticket.in-progress { border-left-color: #2f6fad; }
+.camper-maintenance-ticket.waiting-parts { border-left-color: #d9822b; }
+
+.camper-maintenance-ticket small {
+  color: #879088;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.camper-maintenance-ticket h3 {
+  margin: 3px 0 0;
+  color: #273d2f;
+}
+
+.camper-maintenance-ticket p {
+  margin: 0;
+  color: #5f6d65;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.admin-open-balance-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  align-items: start;
+  gap: 18px;
+}
+
+.admin-open-balance-hero > button:first-child {
+  margin-bottom: 0;
+}
+
+.admin-open-export {
+  border: 0 !important;
+  background: #f1d58c !important;
+  color: #263d2e !important;
+}
+
+.admin-open-balance-stats {
+  grid-template-columns: repeat(4,minmax(0,1fr));
+  max-width: 1220px;
+  margin: 0 auto 22px;
+}
+
+.admin-open-balance-stats article {
+  border-color: #ddd8ca;
+  background: rgba(255,255,255,.97);
+}
+
+.admin-open-balance-stats small,
+.admin-open-balance-stats em {
+  color: #79847c;
+}
+
+.admin-open-balance-stats strong {
+  color: #253d2e;
+}
+
+.admin-open-balance-stats em {
+  display: block;
+  margin-top: 3px;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.admin-open-balance-panel {
+  max-width: 1220px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.admin-open-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px;
+  border-bottom: 1px solid #e7e3d9;
+}
+
+.admin-open-toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  max-width: 520px;
+  padding: 0 12px;
+  border: 1px solid #d9dfd7;
+  border-radius: 12px;
+  background: #f7faf6;
+  color: #718078;
+}
+
+.admin-open-toolbar input {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.admin-open-toolbar > span {
+  color: #7a847d;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.admin-open-balance-list {
+  display: grid;
+}
+
+.admin-open-row {
+  display: grid;
+  grid-template-columns: 1.2fr repeat(4,.65fr) auto auto;
+  align-items: center;
+  gap: 13px;
+  padding: 16px 18px;
+  border-bottom: 1px solid #e9e6dc;
+}
+
+.admin-open-row:last-child {
+  border-bottom: 0;
+}
+
+.admin-open-row > div {
+  display: grid;
+  gap: 3px;
+}
+
+.admin-open-row small,
+.admin-open-camper span {
+  color: #869087;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.admin-open-row strong {
+  color: #273f30;
+  font-size: 13px;
+}
+
+.admin-open-camper strong {
+  font-size: 15px;
+}
+
+.admin-open-status {
+  justify-self: start;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.admin-open-status.late {
+  background: #fbe3df;
+  color: #a44337;
+}
+
+.admin-open-status.due {
+  background: #f7ead0;
+  color: #886025;
+}
+
+.admin-open-status.current {
+  background: #e1f0e2;
+  color: #397047;
+}
+
+.admin-open-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 37px;
+  white-space: nowrap;
+}
+
+.admin-open-empty {
+  display: grid;
+  justify-items: center;
+  padding: 48px 18px;
+  color: #708078;
+  text-align: center;
+}
+
+.admin-open-empty h2 {
+  margin: 10px 0 0;
+  color: #283f30;
+  font: 500 27px Georgia,serif;
+}
+
+.admin-open-empty p {
+  margin: 5px 0 0;
+  font-size: 12px;
+}
+
+@media(max-width: 980px) {
+  .camper-documents-grid,
+  .camper-maintenance-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-open-balance-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-open-balance-stats {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+
+  .admin-open-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-open-row button {
+    justify-content: center;
+    grid-column: 1 / -1;
+  }
+}
+
+@media(max-width: 640px) {
+  .camper-documents-page,
+  .camper-maintenance-page,
+  .admin-open-balance-page {
+    padding: 12px;
+  }
+
+  .camper-documents-hero,
+  .camper-maintenance-hero,
+  .admin-open-balance-hero {
+    padding: 24px;
+    border-radius: 22px;
+  }
+
+  .camper-documents-hero h1,
+  .camper-maintenance-hero h1,
+  .admin-open-balance-hero h1 {
+    font-size: 39px;
+  }
+
+  .camper-maintenance-stats,
+  .admin-open-balance-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .signature-modal-actions,
+  .admin-open-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .signature-modal-actions button,
+  .admin-open-toolbar label {
+    width: 100%;
+    max-width: none;
   }
 }
 
