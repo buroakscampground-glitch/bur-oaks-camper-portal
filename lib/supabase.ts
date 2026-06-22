@@ -1,10 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
 
-console.log('SUPABASE CONFIG', {
-  url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  keyLength: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.length,
-})
-
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   'https://mzywctpxnpejglnspyqi.supabase.co'

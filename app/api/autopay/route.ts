@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -31,6 +32,14 @@ async function findCustomer(
 }
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(request, 'autopay', 20, 60_000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many AutoPay requests. Please wait a moment.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
+  }
+
   try {
     const context = await getAuthenticatedContext(request)
 

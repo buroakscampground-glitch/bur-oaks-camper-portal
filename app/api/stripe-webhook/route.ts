@@ -4,159 +4,149 @@ import { createClient } from '@supabase/supabase-js'
 
 export const runtime = 'nodejs'
 
-export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: 'Webhook route is working',
-  })
-}
-
 export async function POST(request: Request) {
-  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+  const stripeKey = process.env.STRIPE_SECRET_KEY
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
-  const supabaseServiceRole =
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ||
-    'https://mzywctpxnpejglnspyqi.supabase.co'
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 
-  console.log(
-    'WEBHOOK SECRET EXISTS:',
-    !!webhookSecret
-  )
-
-  console.log(
-    'SUPABASE KEY EXISTS:',
-    !!supabaseServiceRole
-  )
-
-  if (!stripeSecretKey || !webhookSecret) {
-    return NextResponse.json(
-      { error: 'Missing Stripe configuration' },
-      { status: 500 }
-    )
+  if (!stripeKey || !webhookSecret || !serviceRoleKey || !supabaseUrl) {
+    return NextResponse.json({ error: 'Missing server configuration' }, { status: 500 })
   }
 
-  if (!supabaseServiceRole) {
-    return NextResponse.json(
-      { error: 'Missing SUPABASE_SERVICE_ROLE_KEY' },
-      { status: 500 }
-    )
-  }
-
-  const supabaseAdmin = createClient(
-    supabaseUrl,
-    supabaseServiceRole
-  )
-
-  const payload = await request.text()
   const signature = request.headers.get('stripe-signature')
 
   if (!signature) {
-    return NextResponse.json(
-      { error: 'Missing Stripe signature' },
-      { status: 400 }
-    )
+    return NextResponse.json({ error: 'Missing Stripe signature' }, { status: 400 })
   }
 
+  const stripe = new Stripe(stripeKey)
+  const payload = await request.text()
   let event: Stripe.Event
-  const stripe = new Stripe(stripeSecretKey)
 
   try {
-    event = stripe.webhooks.constructEvent(
-      payload,
-      signature,
-      webhookSecret
-    )
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 400 }
-    )
+    event = stripe.webhooks.constructEvent(payload, signature, webhookSecret)
+  } catch {
+    return NextResponse.json({ error: 'Invalid Stripe signature' }, { status: 400 })
   }
 
-  if (event.type === 'checkout.session.completed') {
-    const session =
-      event.data.object as Stripe.Checkout.Session
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey)
+  const { error: ledgerError } = await supabaseAdmin
+    .from('stripe_webhook_events')
+    .insert({ event_id: event.id, event_type: event.type })
 
-    if (
-      session.mode === 'setup' &&
-      session.metadata?.purpose === 'autopay_enrollment' &&
-      typeof session.customer === 'string' &&
-      typeof session.setup_intent === 'string'
-    ) {
-      const setupIntent = await stripe.setupIntents.retrieve(
-        session.setup_intent
-      )
-      const paymentMethod = setupIntent.payment_method
+  if (ledgerError?.code === '23505') {
+    return NextResponse.json({ received: true, duplicate: true })
+  }
 
-      if (typeof paymentMethod === 'string') {
-        const customer = await stripe.customers.retrieve(session.customer)
+  const ledgerMissing = ledgerError?.code === '42P01' || ledgerError?.code === 'PGRST205'
 
-        if (!customer.deleted) {
-          await stripe.customers.update(session.customer, {
-            invoice_settings: {
-              default_payment_method: paymentMethod,
-            },
-            metadata: {
-              ...customer.metadata,
-              autopay_enabled: 'true',
-              autopay_preference:
-                session.metadata.autopay_preference || 'both',
-            },
-          })
+  if (ledgerError && !ledgerMissing) {
+    console.error('Unable to record Stripe webhook event:', ledgerError)
+    return NextResponse.json({ error: 'Webhook processing unavailable' }, { status: 500 })
+  }
+
+  // During migration rollout, continue only when the ledger table is not present yet.
+  const ledgerActive = !ledgerError
+
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session
+
+      if (
+        session.mode === 'setup' &&
+        session.metadata?.purpose === 'autopay_enrollment' &&
+        typeof session.customer === 'string' &&
+        typeof session.setup_intent === 'string'
+      ) {
+        const setupIntent = await stripe.setupIntents.retrieve(session.setup_intent)
+        const paymentMethod = setupIntent.payment_method
+
+        if (setupIntent.status === 'succeeded' && typeof paymentMethod === 'string') {
+          const customer = await stripe.customers.retrieve(session.customer)
+
+          if (!customer.deleted) {
+            await stripe.customers.update(session.customer, {
+              invoice_settings: { default_payment_method: paymentMethod },
+              metadata: {
+                ...customer.metadata,
+                autopay_enabled: 'true',
+                autopay_preference: session.metadata.autopay_preference || 'both',
+              },
+            })
+          }
         }
       }
 
-      return NextResponse.json({ received: true })
-    }
+      if (session.mode === 'payment' && session.payment_status === 'paid') {
+        let invoiceIds: string[] = []
 
-    let invoiceIds: string[] = []
+        try {
+          const parsed = JSON.parse(session.metadata?.invoice_ids || '[]')
+          invoiceIds = Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : []
+        } catch {
+          invoiceIds = []
+        }
 
-    try {
-      invoiceIds = JSON.parse(session.metadata?.invoice_ids || '[]')
-    } catch {
-      invoiceIds = []
-    }
+        if (invoiceIds.length > 0) {
+          const { data: invoices, error: invoiceError } = await supabaseAdmin
+            .from('invoices')
+            .select('id,total_due,camper_id')
+            .in('id', invoiceIds)
 
-    console.log('Invoice IDs:', invoiceIds)
+          if (invoiceError || !invoices || invoices.length !== invoiceIds.length) {
+            throw new Error('Unable to verify paid invoices.')
+          }
 
-    if (
-      Array.isArray(invoiceIds) &&
-      invoiceIds.length > 0
-    ) {
-      const { error } = await supabaseAdmin
-        .from('invoices')
-        .update({ status: 'paid' })
-        .in('id', invoiceIds)
+          const expectedAmount = invoices.reduce(
+            (sum, invoice) => sum + Math.round(Number(invoice.total_due || 0) * 100),
+            0
+          )
+          const camperIds = new Set(invoices.map((invoice) => String(invoice.camper_id)))
 
-      if (error) {
-        console.error(
-          'SUPABASE UPDATE ERROR:',
-          error
-        )
+          if (
+            expectedAmount !== session.amount_total ||
+            camperIds.size !== 1 ||
+            (session.metadata?.camper_id && !camperIds.has(session.metadata.camper_id))
+          ) {
+            throw new Error('Stripe payment verification failed.')
+          }
 
-        return NextResponse.json(
-          { error: error.message },
-          { status: 500 }
-        )
+          const { error: updateError } = await supabaseAdmin
+            .from('invoices')
+            .update({ status: 'paid' })
+            .in('id', invoiceIds)
+
+          if (updateError) throw updateError
+        }
       }
     }
-  }
 
-  if (event.type === 'payment_intent.succeeded') {
-    const intent = event.data.object as Stripe.PaymentIntent
-    const invoiceId = intent.metadata.invoice_id
+    if (event.type === 'payment_intent.succeeded') {
+      const intent = event.data.object as Stripe.PaymentIntent
+      const invoiceId = intent.metadata.invoice_id
 
-    if (intent.metadata.purpose === 'autopay_invoice' && invoiceId) {
-      await supabaseAdmin
-        .from('invoices')
-        .update({ status: 'paid' })
-        .eq('id', invoiceId)
+      if (intent.metadata.purpose === 'autopay_invoice' && invoiceId) {
+        const { error } = await supabaseAdmin
+          .from('invoices')
+          .update({ status: 'paid' })
+          .eq('id', invoiceId)
+
+        if (error) throw error
+      }
     }
-  }
 
-  return NextResponse.json({
-    received: true,
-  })
+    return NextResponse.json({ received: true })
+  } catch (error) {
+    console.error('Stripe webhook processing failed:', error)
+
+    if (ledgerActive) {
+      await supabaseAdmin
+        .from('stripe_webhook_events')
+        .delete()
+        .eq('event_id', event.id)
+    }
+
+    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
+  }
 }

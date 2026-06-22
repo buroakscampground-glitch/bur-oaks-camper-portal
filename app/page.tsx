@@ -34,6 +34,11 @@ export default function HomePage() {
           <TentTree size={22} />
           <span><small>One convenient place</small><strong>For your whole stay</strong></span>
         </div>
+
+        <div className="welcome-legal-links">
+          <a href="/privacy">Privacy</a>
+          <a href="/terms">Terms</a>
+        </div>
       </section>
     </main>
   )

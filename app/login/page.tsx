@@ -107,7 +107,14 @@ export default function LoginPage() {
             {!loading && <ArrowRight size={18} />}
           </button>
 
-          <small className="signin-help">Need account help? Contact the campground office.</small>
+          <a className="signin-forgot-link" href="/forgot-password">
+            Forgot your password?
+          </a>
+
+          <small className="signin-help">
+            Need account help? Contact the campground office.<br />
+            <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+          </small>
         </div>
       </section>
     </main>

@@ -113,12 +113,21 @@ const router = useRouter()
   }
 
   async function createPortalAccount(email: string) {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+
+    if (!token) {
+      setMessage('Please sign in again before sending an invitation.')
+      return
+    }
+
     const response = await fetch(
       '/api/create-camper-account',
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ email }),
       }

@@ -333,7 +333,7 @@ export default function AdminPage() {
 
         <footer className="admin-command-footer">
           <span>Bur Oaks Campground</span>
-          <span>Admin Operations Center</span>
+          <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · Admin Operations Center</span>
         </footer>
       </div>
     </main>

@@ -24,10 +24,10 @@ export async function getAuthenticatedContext(request: Request) {
   const { data: camper } = await admin
     .from('campers')
     .select('*')
-    .eq('email', data.user.email)
+    .ilike('email', data.user.email)
     .single()
 
-  if (!camper) {
+  if (!camper || camper.active === false) {
     return null
   }
 

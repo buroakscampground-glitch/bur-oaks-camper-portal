@@ -1962,6 +1962,180 @@ tbody tr:hover {
   text-align: center;
 }
 
+.signin-forgot-link {
+  display: block;
+  margin-top: 14px;
+  color: var(--oak-700);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  text-decoration: none;
+}
+
+.signin-help a,
+.portal-footer a,
+.admin-command-footer a {
+  color: inherit;
+  font-weight: 800;
+}
+
+.welcome-legal-links {
+  position: absolute;
+  left: 32px;
+  bottom: 25px;
+  display: flex;
+  gap: 15px;
+}
+
+.welcome-legal-links a {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 11px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.account-recovery-page,
+.system-state-page,
+.legal-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px 20px 88px;
+  background:
+    radial-gradient(circle at 8% 6%, rgba(200, 165, 87, 0.14), transparent 25%),
+    linear-gradient(180deg, #eaf0e8, #f5f3ed);
+}
+
+.account-recovery-card,
+.system-state-page > section,
+.legal-card {
+  width: min(520px, 100%);
+  padding: clamp(26px, 5vw, 42px);
+  border: 1px solid var(--line);
+  border-radius: 23px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 18px 50px rgba(35, 51, 40, 0.12);
+}
+
+.account-recovery-card > img {
+  width: 68px;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.account-recovery-card > span,
+.legal-kicker {
+  display: block;
+  margin-top: 20px;
+  color: #987631;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.account-recovery-card h1,
+.system-state-page h1,
+.legal-card h1 {
+  margin: 8px 0 0;
+  color: #263b2d;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(34px, 6vw, 45px);
+  font-weight: 500;
+  line-height: 1.08;
+}
+
+.account-recovery-card > p,
+.system-state-page p {
+  color: #717d74;
+  line-height: 1.6;
+}
+
+.account-recovery-card > label {
+  display: block;
+  margin: 16px 0 7px;
+  color: #43564a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.account-recovery-card button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.account-recovery-card > a {
+  display: block;
+  margin-top: 18px;
+  color: var(--oak-700);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.account-recovery-message {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--oak-50);
+  font-size: 12px;
+}
+
+.legal-card {
+  width: min(820px, 100%);
+}
+
+.legal-card h2 {
+  margin: 28px 0 5px;
+  color: #304a37;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 500;
+}
+
+.legal-card p {
+  color: #626f66;
+  line-height: 1.7;
+}
+
+.system-state-page > section {
+  text-align: center;
+}
+
+.system-state-page svg {
+  color: var(--oak-700);
+}
+
+.system-state-page button,
+.system-state-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 12px 5px 0;
+}
+
+.system-state-page > section > a:not(.system-state-action) {
+  display: block;
+  margin-top: 14px;
+  color: var(--oak-700);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.system-state-action {
+  min-height: 42px;
+  padding: 0 17px;
+  border-radius: 11px;
+  background: var(--oak-800);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
 @media (max-width: 900px) {
   .signin-page { grid-template-columns: 1fr; }
   .signin-story { min-height: 390px; padding: 24px; }

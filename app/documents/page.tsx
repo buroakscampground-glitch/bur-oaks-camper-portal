@@ -9,6 +9,24 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
+  async function openDocument(fileReference: string) {
+    if (/^https?:\/\//i.test(fileReference)) {
+      window.open(fileReference, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    const { data, error } = await supabase.storage
+      .from('camper-documents')
+      .createSignedUrl(fileReference, 60)
+
+    if (error || !data?.signedUrl) {
+      window.alert('This document could not be opened. Please contact the campground office.')
+      return
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+  }
+
   useEffect(() => {
     async function loadDocuments() {
       const {
@@ -124,15 +142,9 @@ export default function DocumentsPage() {
               </p>
 
               {doc.file_url && (
-                <a
-                  href={doc.file_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <button>
+                  <button type="button" onClick={() => openDocument(doc.file_url)}>
                     View Document
                   </button>
-                </a>
               )}
             </section>
           ))}

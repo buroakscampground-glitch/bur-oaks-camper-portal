@@ -32,9 +32,6 @@ export default function CamperBalancePage() {
       .eq("camper_id", camperId)
       .neq("status", "paid")
       .order("due_date")
-      console.log("Camper ID:", camperId)
-console.log("Invoices:", invoiceData)
-
     setInvoices(invoiceData || [])
 
     setTotalDue(

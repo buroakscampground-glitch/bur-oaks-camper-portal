@@ -35,21 +35,16 @@ export default function AdminDocumentsPage() {
       return
     }
 
-    const fileName = `${Date.now()}-${file.name}`
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+    const filePath = `${camperId}/${crypto.randomUUID()}-${safeName}`
 
     const { error: uploadError } = await supabase.storage
-      .from('Documents')
-.upload(fileName, file)
+      .from('camper-documents')
+      .upload(filePath, file)
     if (uploadError) {
       setMessage(uploadError.message)
       return
     }
-
-    const { data: publicUrlData } = supabase.storage
-      .from('Documents')
-.getPublicUrl(fileName)
-
-    const fileUrl = publicUrlData.publicUrl
 
     const { error } = await supabase
       .from('documents')
@@ -57,11 +52,12 @@ export default function AdminDocumentsPage() {
         camper_id: camperId,
         document_name: documentName,
         document_type: documentType,
-        file_url: fileUrl,
+        file_url: filePath,
         signature_status: 'pending',
       })
 
     if (error) {
+      await supabase.storage.from('camper-documents').remove([filePath])
       setMessage(error.message)
     } else {
       setMessage('Document uploaded successfully!')

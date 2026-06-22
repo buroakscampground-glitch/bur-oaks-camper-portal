@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -13,6 +14,14 @@ function invoiceCategory(invoiceType: string) {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = checkRateLimit(request, 'process-autopay', 60, 60_000)
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: 'Too many AutoPay processing requests.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
+    )
+  }
+
   try {
     const context = await getAuthenticatedContext(request)
 
