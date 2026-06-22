@@ -6,12 +6,16 @@ import {
   ArrowUpRight,
   CheckCircle2,
   FileCheck2,
+  FilePlus2,
   FileStack,
   FileUp,
+  GripVertical,
   Loader2,
   LockKeyhole,
+  Search,
   Trash2,
   UserRoundCheck,
+  UsersRound,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
@@ -20,6 +24,7 @@ type StorageItem = { id?: string | null; name: string }
 export default function AdminDocumentsPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
+  const [documents, setDocuments] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
   const [documentName, setDocumentName] = useState('')
   const [documentType, setDocumentType] = useState('Lease')
@@ -27,15 +32,21 @@ export default function AdminDocumentsPage() {
   const [templateFiles, setTemplateFiles] = useState<File[]>([])
   const [message, setMessage] = useState('')
   const [working, setWorking] = useState(false)
+  const [assigningCamperId, setAssigningCamperId] = useState('')
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [draggedTemplateId, setDraggedTemplateId] = useState('')
+  const [camperSearch, setCamperSearch] = useState('')
 
   async function loadData() {
-    const [camperResult, templateResult] = await Promise.all([
+    const [camperResult, templateResult, documentResult] = await Promise.all([
       supabase.from('campers').select('*').eq('active', true).order('lot_number'),
       supabase.from('document_templates').select('*').order('created_at', { ascending: false }),
+      supabase.from('documents').select('*').order('created_at', { ascending: false }),
     ])
 
     setCampers(camperResult.data || [])
     setTemplates(templateResult.data || [])
+    setDocuments(documentResult.data || [])
 
     if (templateResult.error && /document_templates/i.test(templateResult.error.message)) {
       setMessage('Run migration 009 before adding the launch templates.')
@@ -169,6 +180,76 @@ export default function AdminDocumentsPage() {
     if (!error) await loadData()
   }
 
+  async function assignTemplateToCamper(templateId: string, targetCamperId: string) {
+    if (working || !templateId || !targetCamperId) return
+
+    const template = templates.find((item) => String(item.id) === String(templateId))
+    const camper = campers.find((item) => String(item.id) === String(targetCamperId))
+    if (!template || !camper) return setMessage('Please select a lease and camper.')
+
+    const alreadyAssigned = documents.some(
+      (document) =>
+        String(document.camper_id) === String(targetCamperId) &&
+        String(document.document_name).trim().toLowerCase() ===
+          String(template.document_name).trim().toLowerCase()
+    )
+
+    if (alreadyAssigned) {
+      setMessage(`${template.document_name} is already assigned to ${camper.first_name} ${camper.last_name}.`)
+      return
+    }
+
+    setWorking(true)
+    setAssigningCamperId(targetCamperId)
+    setMessage(`Assigning ${template.document_name} to ${camper.first_name}…`)
+
+    const originalName = String(template.storage_path).split('/').pop() || 'seasonal-lease.docx'
+    const cleanName = originalName.replace(/^[0-9a-f-]{36}-/i, '')
+    const destinationPath = `${targetCamperId}/${crypto.randomUUID()}-${cleanName}`
+
+    try {
+      const { error: copyError } = await supabase.storage
+        .from('camper-documents')
+        .copy(template.storage_path, destinationPath)
+      if (copyError) throw copyError
+
+      const { error: insertError } = await supabase.from('documents').insert({
+        camper_id: targetCamperId,
+        document_name: template.document_name,
+        document_type: template.document_type || 'Seasonal Lease',
+        file_url: destinationPath,
+        signature_status: 'pending',
+      })
+
+      if (insertError) {
+        await supabase.storage.from('camper-documents').remove([destinationPath])
+        throw insertError
+      }
+
+      setSelectedTemplateId('')
+      setMessage(`${template.document_name} was assigned to Lot ${camper.lot_number} — ${camper.first_name} ${camper.last_name}.`)
+      await loadData()
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to assign this lease.')
+    } finally {
+      setWorking(false)
+      setAssigningCamperId('')
+      setDraggedTemplateId('')
+    }
+  }
+
+  const filteredCampers = campers.filter((camper) => {
+    const search = camperSearch.trim().toLowerCase()
+    if (!search) return true
+    return `${camper.first_name} ${camper.last_name} ${camper.lot_number || ''} ${camper.email || ''}`
+      .toLowerCase()
+      .includes(search)
+  })
+
+  const selectedTemplate = templates.find(
+    (template) => String(template.id) === String(selectedTemplateId)
+  )
+
   return (
     <main className="admin-document-center">
       <section className="admin-document-overview">
@@ -188,11 +269,25 @@ export default function AdminDocumentsPage() {
             {templates.length === 0 ? (
               <div className="admin-document-empty"><FileStack size={31} /><h3>No approved templates</h3><p>Select the two launch files in the replacement panel.</p></div>
             ) : templates.map((template) => (
-              <article key={template.id}>
+              <article
+                key={template.id}
+                className={selectedTemplateId === template.id ? 'selected' : ''}
+                draggable
+                onDragStart={(event) => {
+                  setDraggedTemplateId(String(template.id))
+                  event.dataTransfer.effectAllowed = 'copy'
+                  event.dataTransfer.setData('text/plain', String(template.id))
+                }}
+                onDragEnd={() => setDraggedTemplateId('')}
+                onClick={() => setSelectedTemplateId(
+                  selectedTemplateId === template.id ? '' : String(template.id)
+                )}
+              >
+                <span className="admin-template-grip"><GripVertical size={17} /></span>
                 <span className="admin-template-file"><FileCheck2 size={21} /></span>
-                <div><small>{template.document_type}</small><strong>{template.document_name}</strong><em>Not assigned to a camper</em></div>
-                <button type="button" onClick={() => openTemplate(template)} aria-label={`Open ${template.document_name}`}><ArrowUpRight size={17} /></button>
-                <button className="danger" type="button" onClick={() => deleteTemplate(template)} aria-label={`Delete ${template.document_name}`}><Trash2 size={16} /></button>
+                <div><small>{template.document_type}</small><strong>{template.document_name}</strong><em>Drag onto a camper or select to assign</em></div>
+                <button type="button" onClick={(event) => { event.stopPropagation(); openTemplate(template) }} aria-label={`Open ${template.document_name}`}><ArrowUpRight size={17} /></button>
+                <button className="danger" type="button" onClick={(event) => { event.stopPropagation(); deleteTemplate(template) }} aria-label={`Delete ${template.document_name}`}><Trash2 size={16} /></button>
               </article>
             ))}
           </div>
@@ -217,6 +312,96 @@ export default function AdminDocumentsPage() {
           </button>
         </aside>
       </div>
+
+      <section className="admin-document-panel lease-assignment-board">
+        <div className="admin-document-heading lease-board-heading">
+          <span><UsersRound size={22} /></span>
+          <div>
+            <small>LEASE ASSIGNMENT BOARD</small>
+            <h2>Drag a lease to a camper</h2>
+            <p>Each camper receives a private copy. The approved master leases remain unchanged.</p>
+          </div>
+          <label className="admin-camper-document-search">
+            <Search size={16} />
+            <input
+              value={camperSearch}
+              onChange={(event) => setCamperSearch(event.target.value)}
+              placeholder="Search camper or lot"
+            />
+          </label>
+        </div>
+
+        {selectedTemplate && (
+          <div className="admin-selected-template-banner">
+            <FileCheck2 size={18} />
+            <span><small>Selected lease</small><strong>{selectedTemplate.document_name}</strong></span>
+            <em>Choose “Assign selected lease” on a camper below.</em>
+          </div>
+        )}
+
+        <div className="admin-camper-document-grid">
+          {filteredCampers.map((camper) => {
+            const camperDocuments = documents.filter(
+              (document) => String(document.camper_id) === String(camper.id)
+            )
+            const activeTemplateId = draggedTemplateId || selectedTemplateId
+            const isAssigning = assigningCamperId === camper.id
+
+            return (
+              <article
+                key={camper.id}
+                className={`admin-camper-document-card ${draggedTemplateId ? 'drag-ready' : ''}`}
+                onDragOver={(event) => {
+                  event.preventDefault()
+                  event.dataTransfer.dropEffect = 'copy'
+                }}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  const templateId = event.dataTransfer.getData('text/plain') || draggedTemplateId
+                  assignTemplateToCamper(templateId, camper.id)
+                }}
+              >
+                <div className="admin-camper-document-person">
+                  <span>{String(camper.first_name || '?').charAt(0)}{String(camper.last_name || '').charAt(0)}</span>
+                  <div>
+                    <small>LOT {camper.lot_number || 'UNASSIGNED'}</small>
+                    <strong>{camper.first_name} {camper.last_name}</strong>
+                    <em>{camper.email || 'No email entered'}</em>
+                  </div>
+                </div>
+
+                <div className="admin-camper-document-files">
+                  {camperDocuments.length === 0 ? (
+                    <p><FilePlus2 size={15} /> No documents assigned</p>
+                  ) : (
+                    camperDocuments.slice(0, 3).map((document) => (
+                      <p key={document.id}><FileCheck2 size={15} /> {document.document_name}</p>
+                    ))
+                  )}
+                  {camperDocuments.length > 3 && <small>+{camperDocuments.length - 3} more documents</small>}
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!activeTemplateId || working}
+                  onClick={() => assignTemplateToCamper(activeTemplateId, camper.id)}
+                >
+                  {isAssigning ? <Loader2 className="admin-spin" size={16} /> : <FilePlus2 size={16} />}
+                  {isAssigning ? 'Assigning…' : activeTemplateId ? 'Assign selected lease' : 'Drag a lease here'}
+                </button>
+              </article>
+            )
+          })}
+        </div>
+
+        {filteredCampers.length === 0 && (
+          <div className="admin-document-empty">
+            <UsersRound size={31} />
+            <h3>No campers found</h3>
+            <p>Try a different name, email, or lot number.</p>
+          </div>
+        )}
+      </section>
 
       <section className="admin-document-panel assign-document-panel">
         <div className="admin-document-heading compact">
