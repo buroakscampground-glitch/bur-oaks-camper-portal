@@ -6,6 +6,7 @@ INSERT INTO public.campers (
   lot_number,
   first_name,
   last_name,
+  email,
   role,
   active
 )
@@ -13,6 +14,8 @@ SELECT
   roster.lot_number,
   roster.first_name,
   roster.last_name,
+  LOWER(REGEXP_REPLACE(roster.lot_number, '[^a-zA-Z0-9]+', '-', 'g'))
+    || '@no-email.buroaks.local',
   'camper',
   true
 FROM (

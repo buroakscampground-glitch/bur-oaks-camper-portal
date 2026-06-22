@@ -113,6 +113,11 @@ const router = useRouter()
   }
 
   async function createPortalAccount(email: string) {
+    if (!email || email.endsWith('@no-email.buroaks.local')) {
+      setMessage('Add the camper’s real email before creating a portal account.')
+      return
+    }
+
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
 
@@ -276,7 +281,11 @@ const router = useRouter()
     Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
   </strong>
 
-  <div>{camper.email}</div>
+  <div>
+    {camper.email?.endsWith('@no-email.buroaks.local')
+      ? 'Email not added'
+      : camper.email}
+  </div>
 
   <div>{camper.phone || 'No phone on file'}</div>
 </div>
@@ -299,15 +308,17 @@ const router = useRouter()
             Archive
           </button>
 
-          <button
-            onClick={() =>
-              createPortalAccount(
-                camper.email
-              )
-            }
-          >
-            Create Portal Account
-          </button>
+          {!camper.email?.endsWith('@no-email.buroaks.local') && (
+            <button
+              onClick={() =>
+                createPortalAccount(
+                  camper.email
+                )
+              }
+            >
+              Create Portal Account
+            </button>
+          )}
         </div>
       ))}
     </main>
