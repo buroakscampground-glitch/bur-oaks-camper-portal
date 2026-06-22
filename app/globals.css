@@ -2470,6 +2470,102 @@ button:hover {
   padding-left: 35px !important;
 }
 
+.admin-camper-insurance-box {
+  display: grid;
+  gap: 13px;
+  margin-top: 18px;
+  padding: 16px;
+  border: 1px solid #dce5d9;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #f6faf2, #eef5eb);
+}
+
+.admin-camper-insurance-box > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-camper-insurance-box > div:first-child span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #2f5639;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-camper-insurance-box p {
+  margin: 0;
+  color: #68766c;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-camper-insurance-upload {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px dashed #9db69e;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  color: #425f49;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.admin-camper-insurance-upload input {
+  display: none;
+}
+
+.admin-camper-insurance-box > button,
+.admin-camper-insurance-list button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 11px;
+  background: #2f5b3b;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.admin-camper-insurance-box > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-camper-insurance-list {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-camper-insurance-list small {
+  color: #7c877f;
+  font-size: 10px;
+}
+
+.admin-camper-insurance-list button {
+  justify-content: flex-start;
+  padding: 0 11px;
+  background: #ffffff;
+  color: #304a38;
+  border: 1px solid #d9e2d6;
+}
+
+.admin-camper-insurance-list button em {
+  margin-left: auto;
+  color: #879087;
+  font-size: 9px;
+  font-style: normal;
+}
+
 .admin-camper-directory-options {
   display: grid;
   gap: 10px;

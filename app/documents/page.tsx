@@ -173,6 +173,8 @@ export default function DocumentsPage() {
               <p className="camper-document-status">
                 {doc.signature_status === 'signed'
                   ? `Signed${doc.signed_at ? ` on ${new Date(doc.signed_at).toLocaleDateString()}` : ''}`
+                  : doc.signature_status === 'not_required'
+                    ? 'No signature required'
                   : 'Signature pending'}
               </p>
               {doc.signed_name && <p className="camper-document-signed-name">Signed by {doc.signed_name}</p>}
@@ -183,7 +185,7 @@ export default function DocumentsPage() {
                     View Document
                   </button>
                 )}
-                {doc.signature_status !== 'signed' && (
+                {doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && (
                   <button type="button" className="primary" onClick={() => { setSigningDocument(doc); setMessage('') }}>
                     Sign Lease
                   </button>

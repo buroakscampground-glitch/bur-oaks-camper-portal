@@ -8,7 +8,9 @@ import {
   CheckCircle2,
   CircleDollarSign,
   ContactRound,
+  Eye,
   FileText,
+  FileUp,
   Gauge,
   LoaderCircle,
   Mail,
@@ -20,6 +22,8 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
+
+const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 
 type Camper = {
   id: string
@@ -70,6 +74,9 @@ export default function CamperDetailPage() {
 
   const [camper, setCamper] = useState<Camper>(emptyCamper)
   const [invoices, setInvoices] = useState<any[]>([])
+  const [insuranceDocuments, setInsuranceDocuments] = useState<any[]>([])
+  const [insuranceFile, setInsuranceFile] = useState<File | null>(null)
+  const [uploadingInsurance, setUploadingInsurance] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -83,9 +90,15 @@ export default function CamperDetailPage() {
     setLoading(true)
     setMessage('')
 
-    const [camperResult, invoiceResult] = await Promise.all([
+    const [camperResult, invoiceResult, insuranceResult] = await Promise.all([
       supabase.from('campers').select('*').eq('id', camperId).single(),
       supabase.from('invoices').select('*').eq('camper_id', camperId),
+      supabase
+        .from('documents')
+        .select('*')
+        .eq('camper_id', camperId)
+        .eq('document_type', 'Golf Cart Insurance')
+        .order('created_at', { ascending: false }),
     ])
 
     if (camperResult.error || !camperResult.data) {
@@ -96,6 +109,7 @@ export default function CamperDetailPage() {
 
     setCamper({ ...emptyCamper, ...camperResult.data })
     setInvoices(invoiceResult.data || [])
+    setInsuranceDocuments(insuranceResult.data || [])
     setLoading(false)
   }
 
@@ -153,6 +167,89 @@ export default function CamperDetailPage() {
     setCamper({ ...emptyCamper, ...data })
     setMessage('Camper profile saved successfully.')
     setSaving(false)
+  }
+
+  function isAllowedInsuranceFile(file: File) {
+    return (
+      /\.(pdf|docx|doc|png|jpe?g|webp|heic)$/i.test(file.name) ||
+      [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'image/png',
+        'image/jpeg',
+        'image/webp',
+        'image/heic',
+      ].includes(file.type)
+    )
+  }
+
+  async function uploadGolfCartInsurance() {
+    if (!insuranceFile) {
+      setMessage('Choose a golf cart insurance file first.')
+      return
+    }
+
+    if (!isAllowedInsuranceFile(insuranceFile)) {
+      setMessage('Golf cart insurance must be a PDF, Word document, or image.')
+      return
+    }
+
+    if (insuranceFile.size > MAX_INSURANCE_SIZE) {
+      setMessage('Golf cart insurance files must be 20 MB or smaller.')
+      return
+    }
+
+    setUploadingInsurance(true)
+    setMessage('Uploading golf cart insurance…')
+
+    const safeName = insuranceFile.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+    const filePath = `${camperId}/golf-cart-insurance/${crypto.randomUUID()}-${safeName}`
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('camper-documents')
+        .upload(filePath, insuranceFile, {
+          contentType: insuranceFile.type || undefined,
+          upsert: false,
+        })
+
+      if (uploadError) throw uploadError
+
+      const { error: rowError } = await supabase.from('documents').insert({
+        camper_id: camperId,
+        document_name: `Golf Cart Insurance - ${camper.first_name || ''} ${camper.last_name || ''}`.trim(),
+        document_type: 'Golf Cart Insurance',
+        file_url: filePath,
+        signature_status: 'not_required',
+      })
+
+      if (rowError) {
+        await supabase.storage.from('camper-documents').remove([filePath])
+        throw rowError
+      }
+
+      setInsuranceFile(null)
+      setMessage('Golf cart insurance uploaded successfully.')
+      await loadCamper()
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to upload golf cart insurance.')
+    } finally {
+      setUploadingInsurance(false)
+    }
+  }
+
+  async function openInsuranceDocument(document: any) {
+    const { data, error } = await supabase.storage
+      .from('camper-documents')
+      .createSignedUrl(document.file_url, 60)
+
+    if (error || !data?.signedUrl) {
+      setMessage('Unable to open this insurance file.')
+      return
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
   }
 
   if (loading) {
@@ -269,6 +366,41 @@ export default function CamperDetailPage() {
             <Field label="License plate" value={camper.license_plate} onChange={(value) => updateField('license_plate', value)} />
             <Field label="Golf cart make" value={camper.golf_cart_make} onChange={(value) => updateField('golf_cart_make', value)} />
             <Field label="Golf cart color" value={camper.golf_cart_color} onChange={(value) => updateField('golf_cart_color', value)} />
+          </div>
+          <div className="admin-camper-insurance-box">
+            <div>
+              <span><ShieldCheck size={18} /> Golf cart insurance</span>
+              <p>Upload proof of insurance for this camper’s golf cart. PDF, Word, or image files are accepted.</p>
+            </div>
+
+            <label className="admin-camper-insurance-upload">
+              <FileUp size={18} />
+              <span>{insuranceFile ? insuranceFile.name : 'Choose insurance file'}</span>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.heic,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
+                onChange={(event) => setInsuranceFile(event.target.files?.[0] || null)}
+              />
+            </label>
+
+            <button type="button" onClick={uploadGolfCartInsurance} disabled={uploadingInsurance || !insuranceFile}>
+              {uploadingInsurance ? <LoaderCircle className="admin-spin" size={16} /> : <FileUp size={16} />}
+              {uploadingInsurance ? 'Uploading…' : 'Upload Insurance'}
+            </button>
+
+            <div className="admin-camper-insurance-list">
+              {insuranceDocuments.length === 0 ? (
+                <small>No golf cart insurance uploaded yet.</small>
+              ) : (
+                insuranceDocuments.map((document) => (
+                  <button key={document.id} type="button" onClick={() => openInsuranceDocument(document)}>
+                    <Eye size={15} />
+                    <span>{document.document_name}</span>
+                    <em>{document.created_at ? new Date(document.created_at).toLocaleDateString() : 'Saved'}</em>
+                  </button>
+                ))
+              )}
+            </div>
           </div>
         </ProfileSection>
 
