@@ -2100,6 +2100,22 @@ button:hover {
 
 /* GLOBAL PAGE NAVIGATION */
 
+.admin-camper-message {
+  position: sticky;
+  top: 12px;
+  z-index: 30;
+  max-width: 720px;
+  margin: 16px 0;
+  padding: 13px 15px;
+  border: 1px solid #bdd3bf;
+  border-radius: 11px;
+  background: #eaf4e9;
+  color: #356241;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 8px 24px rgba(38, 67, 45, 0.12);
+}
+
 .global-back-button {
   position: fixed;
   left: max(18px, env(safe-area-inset-left));

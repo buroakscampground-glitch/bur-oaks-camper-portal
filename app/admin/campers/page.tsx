@@ -13,6 +13,7 @@ export default function AdminCampersPage() {
   const [phone, setPhone] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
+  const [invitingEmail, setInvitingEmail] = useState<string | null>(null)
 const [search, setSearch] = useState('')
 const router = useRouter()
   async function loadCampers() {
@@ -126,30 +127,35 @@ const router = useRouter()
       return
     }
 
-    const response = await fetch(
-      '/api/create-camper-account',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ email }),
-      }
-    )
+    setInvitingEmail(email)
+    setMessage(`Sending portal invitation to ${email}…`)
 
-    const result = await response.json()
-
-    if (!response.ok) {
-      setMessage(
-        result.error || 'Failed to create account'
+    try {
+      const response = await fetch(
+        '/api/create-camper-account',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ email }),
+        }
       )
-      return
-    }
 
-    setMessage(
-      `Portal invite sent to ${email}`
-    )
+      const result = await response.json()
+
+      if (!response.ok) {
+        setMessage(result.error || 'Failed to create account')
+        return
+      }
+
+      setMessage(`Portal invite sent to ${email}. Ask them to check their inbox and spam folder.`)
+    } catch {
+      setMessage('The invitation could not be sent. Please try again.')
+    } finally {
+      setInvitingEmail(null)
+    }
   }
 
   return (
@@ -229,7 +235,7 @@ const router = useRouter()
         </button>
       )}
 
-      {message && <p>{message}</p>}
+      {message && <p className="admin-camper-message" role="status" aria-live="polite">{message}</p>}
 
       <h2>Current Campers</h2>
 <input
@@ -293,30 +299,35 @@ const router = useRouter()
           <br />
 
           <button
-            onClick={() =>
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
               editCamper(camper)
-            }
+            }}
           >
             Edit
           </button>
 
           <button
-            onClick={() =>
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation()
               archiveCamper(camper.id)
-            }
+            }}
           >
             Archive
           </button>
 
           {!camper.email?.endsWith('@no-email.buroaks.local') && (
             <button
-              onClick={() =>
-                createPortalAccount(
-                  camper.email
-                )
-              }
+              type="button"
+              disabled={invitingEmail === camper.email}
+              onClick={(event) => {
+                event.stopPropagation()
+                createPortalAccount(camper.email)
+              }}
             >
-              Create Portal Account
+              {invitingEmail === camper.email ? 'Sending Invite…' : 'Create Portal Account'}
             </button>
           )}
         </div>
