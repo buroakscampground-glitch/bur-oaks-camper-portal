@@ -1,5 +1,6 @@
 import React from 'react'
 import './globals.css'
+import GlobalBackButton from '../components/GlobalBackButton'
 
 export const metadata = {
   title: 'Bur Oaks Camper Portal',
@@ -13,7 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <GlobalBackButton />
+      </body>
     </html>
   )
 }
