@@ -15,8 +15,9 @@ export default function AdminCampersPage() {
   const [message, setMessage] = useState('')
   const [invitingEmail, setInvitingEmail] = useState<string | null>(null)
   const [setupLink, setSetupLink] = useState('')
-const [search, setSearch] = useState('')
-const router = useRouter()
+  const [portalStatuses, setPortalStatuses] = useState<Record<string, 'pending' | 'accepted'>>({})
+  const [search, setSearch] = useState('')
+  const router = useRouter()
   async function loadCampers() {
     const { data } = await supabase
       .from('campers')
@@ -27,8 +28,27 @@ const router = useRouter()
     setCampers(data || [])
   }
 
+  async function loadPortalStatuses() {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) return
+
+    const response = await fetch('/api/portal-account-status', {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+    })
+
+    if (!response.ok) return
+    const result = await response.json()
+    setPortalStatuses(result.statuses || {})
+  }
+
   useEffect(() => {
     loadCampers()
+    loadPortalStatuses()
+
+    const statusTimer = window.setInterval(loadPortalStatuses, 30_000)
+    return () => window.clearInterval(statusTimer)
   }, [])
 
   function clearForm() {
@@ -91,6 +111,12 @@ const router = useRouter()
     setEmail(camper.email || '')
     setPhone(camper.phone || '')
     setMessage('Editing camper...')
+    window.requestAnimationFrame(() => {
+      document.getElementById('camper-editor')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      })
+    })
   }
 
   async function archiveCamper(id: string) {
@@ -158,6 +184,7 @@ const router = useRouter()
       } else {
         setMessage(`Portal invite sent to ${email}. Ask them to check their inbox and spam folder.`)
       }
+      loadPortalStatuses()
     } catch {
       setMessage('The invitation could not be sent. Please try again.')
     } finally {
@@ -184,7 +211,7 @@ const router = useRouter()
 </button>
       <h1>Manage Campers</h1>
 
-      <h2>
+      <h2 id="camper-editor">
         {editingId
           ? 'Edit Camper'
           : 'Add Camper'}
@@ -307,9 +334,20 @@ const router = useRouter()
   }
 >
           <div>
-  <strong>
-    Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
-  </strong>
+  <div className="admin-camper-name-row">
+    <strong>
+      Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
+    </strong>
+    {camper.email?.endsWith('@no-email.buroaks.local') ? (
+      <span className="portal-account-status none">Not Set Up</span>
+    ) : portalStatuses[camper.email?.toLowerCase()] === 'accepted' ? (
+      <span className="portal-account-status accepted">Accepted</span>
+    ) : portalStatuses[camper.email?.toLowerCase()] === 'pending' ? (
+      <span className="portal-account-status pending">Invite Pending</span>
+    ) : (
+      <span className="portal-account-status none">Not Set Up</span>
+    )}
+  </div>
 
   <div>
     {camper.email?.endsWith('@no-email.buroaks.local')

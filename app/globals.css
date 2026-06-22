@@ -2152,6 +2152,41 @@ button:hover {
   color: #fff;
 }
 
+.admin-camper-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.portal-account-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-height: 25px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.portal-account-status.accepted {
+  background: #e2f0e3;
+  color: #397047;
+}
+
+.portal-account-status.pending {
+  background: #f7ead0;
+  color: #8b6222;
+}
+
+.portal-account-status.none {
+  background: #e9ecea;
+  color: #67736b;
+}
+
 @media (max-width: 650px) {
   .admin-camper-setup-link {
     align-items: stretch;

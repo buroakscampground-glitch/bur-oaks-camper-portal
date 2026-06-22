@@ -70,7 +70,10 @@ export default function SetPasswordPage() {
     }
 
     setSaving(true)
-    const { error } = await supabase.auth.updateUser({ password })
+    const { error } = await supabase.auth.updateUser({
+      password,
+      data: { portal_setup_complete: true },
+    })
 
     if (error) {
       setMessage(
