@@ -23,6 +23,7 @@ import {
   Wrench,
   Zap,
 } from 'lucide-react'
+import AdminWeather from '../../components/AdminWeather'
 import { supabase } from '../../lib/supabase'
 
 type AdminStats = {
@@ -296,6 +297,8 @@ export default function AdminPage() {
             <span><small>Approved maintenance</small><strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong><em>{stats.pendingMaintenance} awaiting approval</em></span>
           </a>
         </section>
+
+        <AdminWeather />
 
         <section className="admin-command-panel">
           <div className="admin-command-heading">
