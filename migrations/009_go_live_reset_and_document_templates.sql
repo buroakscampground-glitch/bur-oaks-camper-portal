@@ -76,16 +76,28 @@ WHERE NOT EXISTS (
 
 UPDATE public.campers
 SET lot_number = CASE
-  WHEN LOWER(email) = 'signatureflooring2023@gmail.com' THEN '11'
+  WHEN LOWER(email) = 'signatureflooring2023@gmail.com' THEN '1001'
   WHEN LOWER(email) = 'buroakscampground@gmail.com' THEN '1002'
   WHEN LOWER(email) = 'dlfinlee@gmail.com' THEN '1003'
   ELSE lot_number::text
 END,
 role = CASE
+  WHEN LOWER(email) = 'signatureflooring2023@gmail.com' THEN 'camper'
+  WHEN LOWER(email) = 'buroakscampground@gmail.com' THEN 'admin'
   WHEN LOWER(email) = 'dlfinlee@gmail.com' THEN 'admin'
   ELSE role
 END,
-active = true
+active = true,
+phone = NULL,
+emergency_contact_name = NULL,
+emergency_contact_phone = NULL,
+vehicle_make = NULL,
+vehicle_model = NULL,
+license_plate = NULL,
+golf_cart_make = NULL,
+golf_cart_color = NULL,
+directory_opt_in = false,
+directory_show_phone = false
 WHERE LOWER(email) IN (
   'signatureflooring2023@gmail.com',
   'buroakscampground@gmail.com',
