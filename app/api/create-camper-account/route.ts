@@ -44,10 +44,40 @@ export async function POST(request: Request) {
     })
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
+      const canUseManualLink = /rate limit|already registered|already exists/i.test(error.message)
+
+      if (!canUseManualLink) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      let linkResult = await context.admin.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: { redirectTo: `${origin}/set-password` },
+      })
+
+      if (linkResult.error) {
+        linkResult = await context.admin.auth.admin.generateLink({
+          type: 'invite',
+          email,
+          options: { redirectTo: `${origin}/set-password` },
+        })
+      }
+
+      const setupUrl = linkResult.data?.properties?.action_link
+
+      if (linkResult.error || !setupUrl) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+
+      return NextResponse.json({
+        success: true,
+        delivery: 'manual',
+        setupUrl,
+      })
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, delivery: 'email' })
   } catch (error) {
     console.error('Unable to create camper account:', error)
     return NextResponse.json(

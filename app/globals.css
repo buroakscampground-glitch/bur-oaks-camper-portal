@@ -2116,6 +2116,49 @@ button:hover {
   box-shadow: 0 8px 24px rgba(38, 67, 45, 0.12);
 }
 
+.admin-camper-setup-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 720px;
+  margin: 0 0 18px;
+  padding: 15px;
+  border: 1px solid #dfca94;
+  border-radius: 12px;
+  background: #fbf3dd;
+  color: #775820;
+}
+
+.admin-camper-setup-link > div {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-camper-setup-link strong {
+  font-size: 13px;
+}
+
+.admin-camper-setup-link span {
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.admin-camper-setup-link button {
+  flex: 0 0 auto;
+  min-height: 40px;
+  border: 0;
+  background: #2f5b3b;
+  color: #fff;
+}
+
+@media (max-width: 650px) {
+  .admin-camper-setup-link {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 .global-back-button {
   position: fixed;
   left: max(18px, env(safe-area-inset-left));

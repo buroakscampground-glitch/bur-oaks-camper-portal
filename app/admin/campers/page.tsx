@@ -14,6 +14,7 @@ export default function AdminCampersPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
   const [invitingEmail, setInvitingEmail] = useState<string | null>(null)
+  const [setupLink, setSetupLink] = useState('')
 const [search, setSearch] = useState('')
 const router = useRouter()
   async function loadCampers() {
@@ -128,6 +129,7 @@ const router = useRouter()
     }
 
     setInvitingEmail(email)
+    setSetupLink('')
     setMessage(`Sending portal invitation to ${email}…`)
 
     try {
@@ -150,7 +152,12 @@ const router = useRouter()
         return
       }
 
-      setMessage(`Portal invite sent to ${email}. Ask them to check their inbox and spam folder.`)
+      if (result.delivery === 'manual' && result.setupUrl) {
+        setSetupLink(result.setupUrl)
+        setMessage(`Email sending is temporarily limited. A secure one-time setup link is ready for ${email}.`)
+      } else {
+        setMessage(`Portal invite sent to ${email}. Ask them to check their inbox and spam folder.`)
+      }
     } catch {
       setMessage('The invitation could not be sent. Please try again.')
     } finally {
@@ -236,6 +243,23 @@ const router = useRouter()
       )}
 
       {message && <p className="admin-camper-message" role="status" aria-live="polite">{message}</p>}
+      {setupLink && (
+        <div className="admin-camper-setup-link">
+          <div>
+            <strong>One-time portal setup link</strong>
+            <span>Copy this link and send it privately to Dawn. Do not open it from your admin account.</span>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              await navigator.clipboard.writeText(setupLink)
+              setMessage('Secure setup link copied. Send it privately to Dawn Finley.')
+            }}
+          >
+            Copy Setup Link
+          </button>
+        </div>
+      )}
 
       <h2>Current Campers</h2>
 <input
