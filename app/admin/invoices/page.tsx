@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { attemptAutoPay } from '../../../lib/autopay'
 
 export default function AdminInvoicesPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -137,7 +138,19 @@ if (!dueDate) {
       return
     }
 
-    setMessage('Invoice created successfully!')
+    let resultMessage = 'Invoice created successfully!'
+
+    try {
+      const autoPay = await attemptAutoPay(invoice.id)
+
+      if (autoPay.charged) {
+        resultMessage = 'Invoice created and paid automatically.'
+      }
+    } catch (error: any) {
+      resultMessage = `Invoice created. AutoPay was not completed: ${error.message}`
+    }
+
+    setMessage(resultMessage)
 setCamperId('')
 setInvoiceNumber('')
 setAmount('')

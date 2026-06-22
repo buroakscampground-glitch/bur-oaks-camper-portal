@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { attemptAutoPay } from '../../../lib/autopay'
 
 export default function BulkInvoicesPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -34,6 +35,7 @@ export default function BulkInvoicesPage() {
 
     const total = Number(amount)
     let created = 0
+    let autoPaid = 0
 
     for (const camper of campers) {
       const invoiceNumber = `${invoiceType.replace(/\s+/g, '-').toUpperCase()}-${camper.lot_number}-${Date.now()}`
@@ -71,10 +73,19 @@ export default function BulkInvoicesPage() {
         return
       }
 
+      try {
+        const autoPay = await attemptAutoPay(invoice.id)
+        if (autoPay.charged) autoPaid++
+      } catch (error) {
+        console.error('AutoPay attempt failed:', error)
+      }
+
       created++
     }
 
-    setMessage(`Created ${created} invoices successfully.`)
+    setMessage(
+      `Created ${created} invoices successfully. ${autoPaid} paid automatically.`
+    )
   }
 
   return (

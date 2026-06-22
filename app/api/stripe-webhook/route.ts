@@ -11,9 +11,8 @@ export async function GET() {
   })
 }
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string)
-
 export async function POST(request: Request) {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
   const supabaseServiceRole =
     process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -31,9 +30,9 @@ export async function POST(request: Request) {
     !!supabaseServiceRole
   )
 
-  if (!webhookSecret) {
+  if (!stripeSecretKey || !webhookSecret) {
     return NextResponse.json(
-      { error: 'Missing STRIPE_WEBHOOK_SECRET' },
+      { error: 'Missing Stripe configuration' },
       { status: 500 }
     )
   }
@@ -61,6 +60,7 @@ export async function POST(request: Request) {
   }
 
   let event: Stripe.Event
+  const stripe = new Stripe(stripeSecretKey)
 
   try {
     event = stripe.webhooks.constructEvent(
@@ -79,9 +79,45 @@ export async function POST(request: Request) {
     const session =
       event.data.object as Stripe.Checkout.Session
 
-    const invoiceIds = JSON.parse(
-      session.metadata?.invoice_ids || '[]'
-    )
+    if (
+      session.mode === 'setup' &&
+      session.metadata?.purpose === 'autopay_enrollment' &&
+      typeof session.customer === 'string' &&
+      typeof session.setup_intent === 'string'
+    ) {
+      const setupIntent = await stripe.setupIntents.retrieve(
+        session.setup_intent
+      )
+      const paymentMethod = setupIntent.payment_method
+
+      if (typeof paymentMethod === 'string') {
+        const customer = await stripe.customers.retrieve(session.customer)
+
+        if (!customer.deleted) {
+          await stripe.customers.update(session.customer, {
+            invoice_settings: {
+              default_payment_method: paymentMethod,
+            },
+            metadata: {
+              ...customer.metadata,
+              autopay_enabled: 'true',
+              autopay_preference:
+                session.metadata.autopay_preference || 'both',
+            },
+          })
+        }
+      }
+
+      return NextResponse.json({ received: true })
+    }
+
+    let invoiceIds: string[] = []
+
+    try {
+      invoiceIds = JSON.parse(session.metadata?.invoice_ids || '[]')
+    } catch {
+      invoiceIds = []
+    }
 
     console.log('Invoice IDs:', invoiceIds)
 
@@ -105,6 +141,18 @@ export async function POST(request: Request) {
           { status: 500 }
         )
       }
+    }
+  }
+
+  if (event.type === 'payment_intent.succeeded') {
+    const intent = event.data.object as Stripe.PaymentIntent
+    const invoiceId = intent.metadata.invoice_id
+
+    if (intent.metadata.purpose === 'autopay_invoice' && invoiceId) {
+      await supabaseAdmin
+        .from('invoices')
+        .update({ status: 'paid' })
+        .eq('id', invoiceId)
     }
   }
 

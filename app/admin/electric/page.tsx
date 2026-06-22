@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { attemptAutoPay } from '../../../lib/autopay'
 
 export default function AdminElectricPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -193,7 +194,19 @@ const liveAmount =
       return
     }
 
-    setMessage(`Electric invoice created: ${kwhUsed} kWh × $${rateNumber} = $${amountDue}`)
+    let resultMessage = `Electric invoice created: ${kwhUsed} kWh × $${rateNumber} = $${amountDue}`
+
+    try {
+      const autoPay = await attemptAutoPay(invoice.id)
+
+      if (autoPay.charged) {
+        resultMessage += ' — paid automatically.'
+      }
+    } catch (error: any) {
+      resultMessage += ` — AutoPay was not completed: ${error.message}`
+    }
+
+    setMessage(resultMessage)
     setPreviousReading('')
     setCurrentReading('')
     setReadingDate('')

@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { checkoutItems } from '../../lib/stripe'
+import {
+  createAutoPayEnrollment,
+  disableAutoPay,
+  getAutoPayStatus,
+  type AutoPayPreference,
+} from '../../lib/autopay'
 
 export default function InvoicesPage() {
   const [invoices, setInvoices] = useState<any[]>([])
@@ -11,6 +17,11 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
 const [processingInvoiceId, setProcessingInvoiceId] = useState('')
+const [autoPayStatus, setAutoPayStatus] = useState<any>({ enabled: false })
+const [autoPayPreference, setAutoPayPreference] = useState<AutoPayPreference>('both')
+const [autoPayConsent, setAutoPayConsent] = useState(false)
+const [autoPayLoading, setAutoPayLoading] = useState(false)
+const [autoPayMessage, setAutoPayMessage] = useState('')
 const router = useRouter()
   useEffect(() => {
     async function loadInvoices() {
@@ -41,11 +52,70 @@ const router = useRouter()
         .order('due_date', { ascending: false })
 
       setInvoices(data || [])
+      await refreshAutoPayStatus()
+
+      if (new URLSearchParams(window.location.search).get('autopay') === 'success') {
+        setAutoPayMessage('Your card was saved. AutoPay will be active shortly.')
+        window.setTimeout(refreshAutoPayStatus, 1500)
+      }
+
       setLoading(false)
     }
 
     loadInvoices()
   }, [])
+
+  async function refreshAutoPayStatus() {
+    try {
+      const status = await getAutoPayStatus()
+      setAutoPayStatus(status)
+
+      if (status.preference) {
+        setAutoPayPreference(status.preference)
+      }
+    } catch (error: any) {
+      setAutoPayMessage(error.message)
+    }
+  }
+
+  async function enrollInAutoPay() {
+    if (!autoPayConsent) {
+      setAutoPayMessage('Please authorize recurring charges before continuing.')
+      return
+    }
+
+    setAutoPayLoading(true)
+    setAutoPayMessage('')
+
+    try {
+      const result = await createAutoPayEnrollment(autoPayPreference)
+
+      if (!result.url) {
+        throw new Error('Stripe enrollment link is unavailable.')
+      }
+
+      window.location.href = result.url
+    } catch (error: any) {
+      setAutoPayMessage(error.message)
+      setAutoPayLoading(false)
+    }
+  }
+
+  async function turnOffAutoPay() {
+    if (!confirm('Turn off AutoPay for future invoices?')) return
+
+    setAutoPayLoading(true)
+
+    try {
+      await disableAutoPay()
+      await refreshAutoPayStatus()
+      setAutoPayMessage('AutoPay has been turned off.')
+    } catch (error: any) {
+      setAutoPayMessage(error.message)
+    } finally {
+      setAutoPayLoading(false)
+    }
+  }
 
   if (loading) {
     return <p style={{ padding: '40px' }}>Loading invoices...</p>
@@ -303,6 +373,125 @@ const paidInvoices = invoices.filter(
   Pay one invoice at a time or
   select multiple invoices together.
 </p>
+        </section>
+
+        <section className="card" style={{ marginBottom: '25px' }}>
+          <h2>🔁 AutoPay</h2>
+
+          {autoPayStatus.enabled ? (
+            <>
+              <p>
+                <strong>AutoPay is active</strong> for{' '}
+                {autoPayStatus.preference === 'electric'
+                  ? 'electric bills'
+                  : autoPayStatus.preference === 'rent'
+                  ? 'quarterly lot rent'
+                  : 'electric bills and quarterly lot rent'}.
+              </p>
+
+              {autoPayStatus.card && (
+                <p className="muted">
+                  {String(autoPayStatus.card.brand).toUpperCase()} ending in{' '}
+                  {autoPayStatus.card.last4} · Expires{' '}
+                  {autoPayStatus.card.expMonth}/{autoPayStatus.card.expYear}
+                </p>
+              )}
+
+              <label htmlFor="active-autopay-preference">AutoPay plan</label>
+              <select
+                id="active-autopay-preference"
+                value={autoPayPreference}
+                onChange={(event) => {
+                  setAutoPayPreference(event.target.value as AutoPayPreference)
+                  setAutoPayConsent(false)
+                }}
+                style={{ display: 'block', width: '100%', margin: '8px 0 15px' }}
+              >
+                <option value="electric">Electric Bills</option>
+                <option value="rent">Quarterly Lot Rent</option>
+                <option value="both">Electric Bills and Quarterly Lot Rent</option>
+              </select>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  marginBottom: '15px',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={autoPayConsent}
+                  onChange={(event) => setAutoPayConsent(event.target.checked)}
+                  style={{ width: '20px', height: '20px', marginTop: '2px' }}
+                />
+                <span>
+                  I authorize future charges under the AutoPay plan selected
+                  above, including variable electric usage or quarterly lot rent
+                  at my current rate.
+                </span>
+              </label>
+
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button onClick={enrollInAutoPay} disabled={autoPayLoading}>
+                  Update AutoPay
+                </button>
+                <button onClick={turnOffAutoPay} disabled={autoPayLoading}>
+                  Turn Off AutoPay
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="muted">
+                Save a card securely with Stripe and automatically pay eligible
+                invoices when they are issued.
+              </p>
+
+              <label htmlFor="autopay-preference">Enroll for</label>
+              <select
+                id="autopay-preference"
+                value={autoPayPreference}
+                onChange={(event) =>
+                  setAutoPayPreference(event.target.value as AutoPayPreference)
+                }
+                style={{ display: 'block', width: '100%', margin: '8px 0 15px' }}
+              >
+                <option value="electric">Electric Bills</option>
+                <option value="rent">Quarterly Lot Rent</option>
+                <option value="both">Electric Bills and Quarterly Lot Rent</option>
+              </select>
+
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '10px',
+                  marginBottom: '15px',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={autoPayConsent}
+                  onChange={(event) => setAutoPayConsent(event.target.checked)}
+                  style={{ width: '20px', height: '20px', marginTop: '2px' }}
+                />
+                <span>
+                  I authorize Bur Oaks Campground to charge my saved card when
+                  selected invoices are issued. Electric charges vary by meter
+                  usage; lot rent is charged quarterly at my current lot rate. I
+                  can turn off AutoPay here before future invoices are issued.
+                </span>
+              </label>
+
+              <button onClick={enrollInAutoPay} disabled={autoPayLoading}>
+                {autoPayLoading ? 'Opening Stripe…' : 'Enroll in AutoPay'}
+              </button>
+            </>
+          )}
+
+          {autoPayMessage && <p style={{ marginTop: '12px' }}>{autoPayMessage}</p>}
         </section>
 
         {openInvoices.length > 0 && (

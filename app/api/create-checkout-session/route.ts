@@ -3,8 +3,8 @@ import Stripe from 'stripe';
 
 export async function GET() {
   return NextResponse.json({
-    stripeKeyExists: !!process.env.STRIPE_SECRET_KEY,
-    keyPrefix: process.env.STRIPE_SECRET_KEY?.substring(0, 12),
+    success: true,
+    message: 'Checkout route is ready.',
   })
 }
 
