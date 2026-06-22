@@ -9,22 +9,31 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  async function openDocument(fileReference: string) {
-    if (/^https?:\/\//i.test(fileReference)) {
-      window.open(fileReference, '_blank', 'noopener,noreferrer')
+  async function openDocument(documentId: string) {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+
+    if (!token) {
+      window.location.href = '/login'
       return
     }
 
-    const { data, error } = await supabase.storage
-      .from('camper-documents')
-      .createSignedUrl(fileReference, 60)
+    const response = await fetch('/api/document-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ documentId }),
+    })
+    const result = await response.json()
 
-    if (error || !data?.signedUrl) {
+    if (!response.ok || !result.url) {
       window.alert('This document could not be opened. Please contact the campground office.')
       return
     }
 
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    window.open(result.url, '_blank', 'noopener,noreferrer')
   }
 
   useEffect(() => {
@@ -142,7 +151,7 @@ export default function DocumentsPage() {
               </p>
 
               {doc.file_url && (
-                  <button type="button" onClick={() => openDocument(doc.file_url)}>
+                  <button type="button" onClick={() => openDocument(String(doc.id))}>
                     View Document
                   </button>
               )}

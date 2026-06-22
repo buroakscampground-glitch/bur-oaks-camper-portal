@@ -299,6 +299,12 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('camper-documents', 'camper-documents', false)
 ON CONFLICT (id) DO UPDATE SET public = false;
 
+-- Lock the original upload bucket too. Existing public URLs are translated into
+-- authenticated signed links by /api/document-url.
+UPDATE storage.buckets
+SET public = false
+WHERE id = 'Documents';
+
 DROP POLICY IF EXISTS camper_documents_admin_insert ON storage.objects;
 DROP POLICY IF EXISTS camper_documents_admin_select ON storage.objects;
 DROP POLICY IF EXISTS camper_documents_admin_update ON storage.objects;
