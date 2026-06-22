@@ -3815,8 +3815,8 @@ tbody tr:hover {
   padding: 30px 42px;
   overflow: hidden;
   background-image:
-    linear-gradient(90deg, rgba(4, 18, 9, 0.96), rgba(12, 35, 19, 0.86) 52%, rgba(9, 28, 16, 0.72)),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(3, 16, 8, 0.72)),
+    linear-gradient(90deg, rgba(246, 240, 225, 0.92), rgba(246, 240, 225, 0.72) 48%, rgba(31, 67, 42, 0.36)),
+    linear-gradient(180deg, rgba(255, 248, 232, 0.25), rgba(23, 52, 32, 0.18)),
     url('/campground.jpg');
   background-size: cover;
   background-position: center;
@@ -3827,18 +3827,18 @@ tbody tr:hover {
   max-width: 650px;
   margin: 44px 0;
   padding: 28px 30px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(199, 185, 151, 0.52);
   border-radius: 26px;
-  background: rgba(4, 18, 9, 0.44);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
-  backdrop-filter: blur(9px);
+  background: rgba(255, 252, 244, 0.82);
+  box-shadow: 0 22px 55px rgba(52, 69, 48, 0.16);
+  backdrop-filter: blur(7px);
 }
 
 .signin-story-copy > span {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: #e2c98d;
+  color: #8a6726;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.14em;
@@ -3847,24 +3847,24 @@ tbody tr:hover {
 
 .signin-story-copy h1 {
   margin: 20px 0 0;
-  color: #fff;
+  color: #223c2b;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(48px, 6vw, 78px);
   font-weight: 500;
   line-height: 1.01;
   letter-spacing: -0.04em;
-  text-shadow: 0 3px 24px rgba(0, 0, 0, 0.68);
+  text-shadow: none;
 }
 
 .signin-story-copy p {
   max-width: 560px;
-  color: rgba(255, 255, 255, 0.76);
+  color: #435548;
   font-size: 17px;
   line-height: 1.65;
 }
 
 .signin-est {
-  color: rgba(255, 255, 255, 0.57);
+  color: #f9f2df;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.12em;
@@ -3999,35 +3999,38 @@ tbody tr:hover {
 
 .signin-story-copy p,
 .signin-est {
-  color: #ffffff;
-  text-shadow: 0 2px 14px rgba(0,0,0,.72);
+  text-shadow: none;
 }
 
 .signin-story-copy > span {
-  color: #ffe39a;
-  text-shadow: 0 1px 10px rgba(0,0,0,.45);
+  color: #8a6726;
+  text-shadow: none;
 }
 
 .signin-brand {
   display: inline-flex;
   width: fit-content;
   padding: 9px 12px 9px 9px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(199, 185, 151, 0.56);
   border-radius: 999px;
-  background: rgba(4, 18, 9, 0.46);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.18);
+  background: rgba(255, 252, 244, 0.86);
+  box-shadow: 0 12px 28px rgba(52, 69, 48, 0.16);
   backdrop-filter: blur(8px);
 }
 
 .signin-brand small {
-  color: rgba(255, 255, 255, 0.9);
+  color: #526457;
+}
+
+.signin-brand strong {
+  color: #243d2c;
 }
 
 .signin-est {
   width: fit-content;
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(4, 18, 9, 0.46);
+  background: rgba(35, 65, 44, 0.78);
 }
 
 .signin-form-kicker,
