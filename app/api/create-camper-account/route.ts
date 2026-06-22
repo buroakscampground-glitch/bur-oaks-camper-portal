@@ -18,22 +18,46 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { email: rawEmail } = await request.json()
-    const email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
+    const { email: rawEmail, camperId } = await request.json()
+    let email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
+
+    let camper = null
+
+    if (typeof camperId === 'string' && camperId) {
+      const { data } = await context.admin
+        .from('campers')
+        .select('id,email,active')
+        .eq('id', camperId)
+        .single()
+
+      camper = data
+      email = String(data?.email || '').trim().toLowerCase()
+    }
 
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
       return NextResponse.json({ error: 'A valid email is required.' }, { status: 400 })
     }
 
-    const { data: camper } = await context.admin
-      .from('campers')
-      .select('id,email,active')
-      .ilike('email', email)
-      .single()
+    if (!camper) {
+      const { data } = await context.admin
+        .from('campers')
+        .select('id,email,active')
+        .ilike('email', email)
+        .single()
+
+      camper = data
+    }
 
     if (!camper) {
       return NextResponse.json(
-        { error: 'Create the camper record before sending a portal invite.' },
+        { error: 'Save this camper with a real email before sending a portal invite.' },
+        { status: 400 }
+      )
+    }
+
+    if (camper.active === false) {
+      return NextResponse.json(
+        { error: 'This camper is archived. Restore the camper before sending a portal invite.' },
         { status: 400 }
       )
     }

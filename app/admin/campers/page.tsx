@@ -128,7 +128,9 @@ export default function AdminCampersPage() {
     loadCampers()
   }
 
-  async function createPortalAccount(email: string) {
+  async function createPortalAccount(camper: any) {
+    const email = String(camper.email || '').trim().toLowerCase()
+
     if (!email || email.endsWith('@no-email.buroaks.local')) {
       setMessage('Add the camper’s real email before creating a portal account.')
       return
@@ -155,7 +157,7 @@ export default function AdminCampersPage() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ camperId: camper.id, email }),
         }
       )
 
@@ -373,8 +375,8 @@ export default function AdminCampersPage() {
               type="button"
               disabled={invitingEmail === camper.email}
               onClick={(event) => {
-                event.stopPropagation()
-                createPortalAccount(camper.email)
+              event.stopPropagation()
+                createPortalAccount(camper)
               }}
             >
               {invitingEmail === camper.email ? 'Sending Invite…' : 'Create Portal Account'}
