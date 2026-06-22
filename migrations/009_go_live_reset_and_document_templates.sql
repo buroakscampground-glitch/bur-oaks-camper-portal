@@ -76,7 +76,7 @@ WHERE NOT EXISTS (
 
 UPDATE public.campers
 SET lot_number = CASE
-  WHEN LOWER(email) = 'signatureflooring2023@gmail.com' THEN '1001'
+  WHEN LOWER(email) = 'signatureflooring2023@gmail.com' THEN '11'
   WHEN LOWER(email) = 'buroakscampground@gmail.com' THEN '1002'
   WHEN LOWER(email) = 'dlfinlee@gmail.com' THEN '1003'
   ELSE lot_number::text
