@@ -149,7 +149,10 @@ export default function CamperPortalPage() {
               .order('reading_date', { ascending: false })
               .limit(1)
               .maybeSingle(),
-            supabase.from('documents').select('*'),
+            supabase
+              .from('documents')
+              .select('*')
+              .eq('camper_id', camperData.id),
             supabase
               .from('events')
               .select('*')

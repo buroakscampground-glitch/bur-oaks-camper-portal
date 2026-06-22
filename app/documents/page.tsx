@@ -39,7 +39,7 @@ export default function DocumentsPage() {
       return
     }
 
-    window.open(result.url, '_blank', 'noopener,noreferrer')
+    window.location.href = result.url
   }
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export default function DocumentsPage() {
       const { data: camper } = await supabase
         .from('campers')
         .select('*')
-        .eq('email', user.email)
+        .ilike('email', user.email || '')
         .single()
 
       if (!camper) {
