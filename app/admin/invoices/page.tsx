@@ -1,493 +1,294 @@
-"use client"
+'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  CircleDollarSign,
+  FilePlus2,
+  FileText,
+  Loader2,
+  MapPin,
+  ReceiptText,
+  Search,
+  Sparkles,
+  UserRound,
+  WalletCards,
+} from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 
+type InvoiceFilter = 'all' | 'open' | 'paid'
+
+function formatMoney(value: unknown) {
+  return Number(value || 0).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  })
+}
+
+function formatDate(value?: string) {
+  if (!value) return 'No due date'
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export default function AdminInvoicesPage() {
   const [campers, setCampers] = useState<any[]>([])
+  const [invoices, setInvoices] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
   const [invoiceNumber, setInvoiceNumber] = useState('')
-  const [searchText, setSearchText] = useState('')
   const [description, setDescription] = useState('Lot Rent')
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [filter, setFilter] = useState<InvoiceFilter>('all')
   const [message, setMessage] = useState('')
-const [invoices, setInvoices] = useState<any[]>([])
-const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
 
-async function loadInvoices() {
-  const { data } = await supabase
-    .from('invoices')
-    .select(`
-      *,
-      campers (
-        first_name,
-        last_name,
-        lot_number
-      )
-    `)
-    .order('created_at', { ascending: false })
+  async function loadInvoices() {
+    const { data } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        campers (first_name, last_name, lot_number)
+      `)
+      .order('created_at', { ascending: false })
 
-  const sortedInvoices =
-  (data || []).sort((a: any, b: any) => {
-    if (a.status === 'paid' && b.status !== 'paid') return 1
-    if (a.status !== 'paid' && b.status === 'paid') return -1
-
-    return (
-      new Date(b.created_at).getTime() -
-      new Date(a.created_at).getTime()
+    setInvoices(
+      (data || []).sort((a: any, b: any) => {
+        if (a.status === 'paid' && b.status !== 'paid') return 1
+        if (a.status !== 'paid' && b.status === 'paid') return -1
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      })
     )
-  })
+  }
 
-setInvoices(sortedInvoices)
-}
+  useEffect(() => {
+    async function loadWorkspace() {
+      const [, camperResult] = await Promise.all([
+        loadInvoices(),
+        supabase.from('campers').select('*').eq('active', true).order('lot_number'),
+      ])
 
-useEffect(() => {
-    async function loadCampers() {
-      const { data: invoiceData } = await supabase
-  .from('invoices')
-  .select(`
-    *,
-    campers (
-      first_name,
-      last_name,
-      lot_number
-    )
-  `)
-  .order('created_at', { ascending: false })
-
-const sortedInvoices =
-  (invoiceData || []).sort((a: any, b: any) => {
-    if (a.status === 'paid' && b.status !== 'paid') return 1
-    if (a.status !== 'paid' && b.status === 'paid') return -1
-
-    return (
-      new Date(b.created_at).getTime() -
-      new Date(a.created_at).getTime()
-    )
-  })
-
-setInvoices(sortedInvoices)
-      const { data } = await supabase
-        .from('campers')
-        .select('*')
-        .order('lot_number')
-
-      setCampers(data || [])
+      setCampers(camperResult.data || [])
+      setLoading(false)
     }
 
-    loadCampers()
+    loadWorkspace()
   }, [])
 
   async function createInvoice() {
-    if (!camperId) {
-  setMessage('Please select a camper.')
-  return
-}
+    setMessage('')
 
-if (!invoiceNumber.trim()) {
-  setMessage('Please enter an invoice number.')
-  return
-}
+    if (!camperId) return setMessage('Please select a camper.')
+    if (!invoiceNumber.trim()) return setMessage('Please enter an invoice number.')
+    if (!amount || Number(amount) <= 0) return setMessage('Please enter a valid amount.')
+    if (!dueDate) return setMessage('Please select a due date.')
 
-if (!amount || Number(amount) <= 0) {
-  setMessage('Please enter a valid amount.')
-  return
-}
-
-if (!dueDate) {
-  setMessage('Please select a due date.')
-  return
-}
-    setMessage('Creating invoice...')
-
+    setCreating(true)
+    setMessage('Creating invoice…')
     const total = Number(amount)
 
-    const { data: invoice, error: invoiceError } = await supabase
-      .from('invoices')
-      .insert({
-        camper_id: camperId,
-        invoice_number: invoiceNumber,
-        invoice_type: description,
-        subtotal: total,
-        late_fee: 0,
-        total_due: total,
-        due_date: dueDate,
-        status: 'sent',
-      })
-      .select()
-      .single()
-
-    if (invoiceError) {
-      setMessage(invoiceError.message)
-      return
-    }
-
-    const { error: itemError } = await supabase.from('invoice_items').insert({
-      invoice_id: invoice.id,
-      description,
-      quantity: 1,
-      unit_price: total,
-      total,
-    })
-
-    if (itemError) {
-      setMessage(itemError.message)
-      return
-    }
-
-    let resultMessage = 'Invoice created successfully!'
-
     try {
-      const autoPay = await attemptAutoPay(invoice.id)
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert({
+          camper_id: camperId,
+          invoice_number: invoiceNumber.trim(),
+          invoice_type: description.trim() || 'Campground Charge',
+          subtotal: total,
+          late_fee: 0,
+          total_due: total,
+          due_date: dueDate,
+          status: 'sent',
+        })
+        .select()
+        .single()
 
-      if (autoPay.charged) {
-        resultMessage = 'Invoice created and paid automatically.'
+      if (invoiceError) throw invoiceError
+
+      const { error: itemError } = await supabase.from('invoice_items').insert({
+        invoice_id: invoice.id,
+        description: description.trim() || 'Campground Charge',
+        quantity: 1,
+        unit_price: total,
+        total,
+      })
+
+      if (itemError) throw itemError
+
+      let resultMessage = 'Invoice created successfully.'
+
+      try {
+        const autoPay = await attemptAutoPay(invoice.id)
+        if (autoPay.charged) resultMessage = 'Invoice created and paid automatically.'
+      } catch (error: any) {
+        resultMessage = `Invoice created. AutoPay was not completed: ${error.message}`
       }
+
+      setMessage(resultMessage)
+      setCamperId('')
+      setInvoiceNumber('')
+      setAmount('')
+      setDueDate('')
+      await loadInvoices()
     } catch (error: any) {
-      resultMessage = `Invoice created. AutoPay was not completed: ${error.message}`
+      setMessage(error.message || 'Unable to create invoice.')
+    } finally {
+      setCreating(false)
     }
-
-    setMessage(resultMessage)
-setCamperId('')
-setInvoiceNumber('')
-setAmount('')
-setDueDate('')
-
-await loadInvoices()
   }
-const filteredInvoices = invoices.filter((invoice) => {
-  
-  const search = searchText.toLowerCase()
+
+  const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
+  const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid')
+  const openBalance = openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const collectedRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const normalizedSearch = searchText.trim().toLowerCase()
+  const visibleInvoices = invoices.filter((invoice) => {
+    const matchesStatus =
+      filter === 'all' ||
+      (filter === 'paid' && invoice.status === 'paid') ||
+      (filter === 'open' && invoice.status !== 'paid')
+    const matchesSearch =
+      !normalizedSearch ||
+      String(invoice.invoice_number || '').toLowerCase().includes(normalizedSearch) ||
+      String(invoice.invoice_type || '').toLowerCase().includes(normalizedSearch) ||
+      String(invoice.campers?.first_name || '').toLowerCase().includes(normalizedSearch) ||
+      String(invoice.campers?.last_name || '').toLowerCase().includes(normalizedSearch) ||
+      String(invoice.campers?.lot_number || '').toLowerCase().includes(normalizedSearch)
+
+    return matchesStatus && matchesSearch
+  })
+  const selectedCamper = campers.find((camper) => camper.id === camperId)
 
   return (
-    invoice.invoice_number?.toLowerCase().includes(search) ||
-    invoice.campers?.first_name?.toLowerCase().includes(search) ||
-    invoice.campers?.last_name?.toLowerCase().includes(search) ||
-    invoice.campers?.lot_number?.toString().includes(search)
-  )
-})
-const openInvoices = filteredInvoices.filter(
-  (invoice) => invoice.status !== 'paid'
-)
+    <main className="admin-billing-page">
+      <section className="admin-billing-summary" aria-label="Billing summary">
+        <article>
+          <span className="green"><CircleDollarSign size={22} /></span>
+          <div><small>Collected revenue</small><strong>{formatMoney(collectedRevenue)}</strong><em>{paidInvoices.length} paid invoices</em></div>
+        </article>
+        <article>
+          <span className="gold"><WalletCards size={22} /></span>
+          <div><small>Open balance</small><strong>{formatMoney(openBalance)}</strong><em>{openInvoices.length} awaiting payment</em></div>
+        </article>
+        <article>
+          <span className="blue"><ReceiptText size={22} /></span>
+          <div><small>Total invoices</small><strong>{invoices.length}</strong><em>Complete billing history</em></div>
+        </article>
+        <article>
+          <span className="plum"><Sparkles size={22} /></span>
+          <div><small>AutoPay ready</small><strong>Enabled</strong><em>Checked when invoices are issued</em></div>
+        </article>
+      </section>
 
-const paidInvoices = filteredInvoices.filter(
-  (invoice) => invoice.status === 'paid'
-)
-  return (
-   <main
-  style={{
-    padding: '40px',
-    fontFamily: 'Arial',
-    maxWidth: '1400px',
-    margin: '0 auto',
-    background: '#f5f7fa',
-    minHeight: '100vh',
-  }}
->
-  <button
-  onClick={() => router.push('/admin')}
-  style={{
-    marginBottom: '20px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  }}
->
-  ← Back to Dashboard
-</button>
-      <h1>Admin - Create Invoice</h1>
-<h2 style={{ marginTop: '20px' }}>Invoice History</h2>
-<input
-  value={searchText}
-  onChange={(e) => setSearchText(e.target.value)}
-  placeholder="Search by lot, camper, or invoice number"
-  style={{
-    width: '100%',
-    maxWidth: '400px',
-    padding: '12px',
-    marginTop: '15px',
-    marginBottom: '20px',
-    borderRadius: '8px',
-    border: '1px solid #d1d5db',
-  }}
-/>
-<p
-  style={{
-    marginTop: '-10px',
-    marginBottom: '15px',
-    color: '#6b7280',
-  }}
->
-  Showing {filteredInvoices.length} invoices
-</p>
-<div
-  style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px',
-  }}
->
-  <div
-  style={{
-    background: '#fff',
-    padding: '20px',
-    borderRadius: '12px',
-    boxShadow: '0 2px 8px rgba(0,0,0,.08)',
-    borderLeft: '6px solid #16a34a',
-  }}
->
-  <h4>Collected Revenue</h4>
-  <h1>
-    $
-    {invoices
-      .filter(i => i.status === 'paid')
-      .reduce((sum, i) => sum + Number(i.total_due || 0), 0)
-      .toFixed(2)}
-  </h1>
-</div>
-  <div
-    style={{
-      background: '#fff',
-      padding: '20px',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
-      borderLeft: '6px solid #dc2626',
-    }}
-  >
-    <h4>Open Invoices</h4>
-    <h1>
-      {invoices.filter(i => i.status !== 'paid').length}
-    </h1>
-  </div>
+      <div className="admin-billing-layout">
+        <aside className="admin-invoice-create-panel">
+          <div className="admin-billing-section-heading">
+            <span className="admin-billing-heading-icon"><FilePlus2 size={22} /></span>
+            <div><small>NEW CHARGE</small><h2>Create an invoice</h2><p>Issue a charge to one active camper account.</p></div>
+          </div>
 
-  <div
-    style={{
-      background: '#fff',
-      padding: '20px',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
-      borderLeft: '6px solid #16a34a',
-    }}
-  >
-    <h4>Paid Invoices</h4>
-    <h1>
-      {invoices.filter(i => i.status === 'paid').length}
-    </h1>
-  </div>
+          <div className="admin-invoice-form">
+            <label>
+              <span>Camper account</span>
+              <select value={camperId} onChange={(event) => setCamperId(event.target.value)}>
+                <option value="">Select a camper</option>
+                {campers.map((camper) => (
+                  <option key={camper.id} value={camper.id}>
+                    Lot {camper.lot_number} — {camper.first_name} {camper.last_name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-  <div
-    style={{
-      background: '#fff',
-      padding: '20px',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
-      borderLeft: '6px solid #2563eb',
-    }}
-  >
-    <h4>Total Invoices</h4>
-    <h1>{invoices.length}</h1>
-  </div>
+            {selectedCamper && (
+              <div className="admin-selected-camper">
+                <span><UserRound size={18} /></span>
+                <div><strong>{selectedCamper.first_name} {selectedCamper.last_name}</strong><small><MapPin size={12} /> Lot {selectedCamper.lot_number}</small></div>
+              </div>
+            )}
 
-  <div
-    style={{
-      background: '#fff',
-      padding: '20px',
-      borderRadius: '12px',
-      boxShadow: '0 2px 8px rgba(0,0,0,.08)',
-      borderLeft: '6px solid #f59e0b',
-    }}
-  >
-    <h4>Open Balance</h4>
-    <h1>
-      $
-      {invoices
-        .filter(i => i.status !== 'paid')
-        .reduce((sum, i) => sum + Number(i.total_due || 0), 0)
-        .toFixed(2)}
-    </h1>
-  </div>
-</div>
-<h2
-  style={{
-    marginTop: '20px',
-    marginBottom: '15px',
-    color: '#dc2626',
-  }}
->
-  Open Invoices ({openInvoices.length})
-</h2>
-<table
-  style={{
-    width: '100%',
-    borderCollapse: 'collapse',
-    marginBottom: '30px',
-  }}
->
-  <thead>
-    <tr>
-      <th style={{ textAlign: 'left', padding: '8px' }}>Lot</th>
-<th style={{ textAlign: 'left', padding: '8px' }}>Camper</th>
-<th style={{ textAlign: 'left', padding: '8px' }}>Invoice #</th>
-<th style={{ textAlign: 'left', padding: '8px' }}>Type</th>
-<th style={{ textAlign: 'left', padding: '8px' }}>Amount</th>
-<th style={{ textAlign: 'left', padding: '8px' }}>Due Date</th>
-<th style={{ textAlign: 'left', padding: '8px' }}>Status</th>
-    </tr>
-  </thead>
+            <div className="admin-invoice-form-row">
+              <label><span>Invoice number</span><input value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} placeholder="INV-1002" /></label>
+              <label><span>Due date</span><input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></label>
+            </div>
 
-  <tbody>
-  {[...filteredInvoices]
-    .sort((a, b) => {
-      const aPaid = a.status === 'paid'
-      const bPaid = b.status === 'paid'
+            <label>
+              <span>Description</span>
+              <input list="invoice-types" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Lot Rent" />
+              <datalist id="invoice-types">
+                <option value="Lot Rent" />
+                <option value="Electric Bill" />
+                <option value="Late Fee" />
+                <option value="Gate Card" />
+                <option value="Maintenance Charge" />
+              </datalist>
+            </label>
 
-      if (aPaid && !bPaid) return 1
-      if (!aPaid && bPaid) return -1
+            <label><span>Amount</span><div className="admin-money-input"><i>$</i><input type="number" min="0.50" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
 
-      return 0
-    })
-    .map((invoice) => (
-      <tr
-        key={invoice.id}
-        style={{
-          background:
-            invoice.status === 'paid'
-              ? '#f0fdf4'
-              : '#fef2f2',
-          borderBottom: '1px solid #e5e7eb',
-        }}
-      >
-        <td style={{ padding: '14px', fontWeight: 'bold' }}>
-          {invoice.campers?.lot_number}
-        </td>
+            <div className="admin-invoice-preview">
+              <span>Invoice total</span><strong>{formatMoney(amount)}</strong>
+            </div>
 
-        <td style={{ padding: '14px' }}>
-          {invoice.campers?.first_name}{' '}
-          {invoice.campers?.last_name}
-        </td>
+            <button className="admin-create-invoice-button" type="button" onClick={createInvoice} disabled={creating}>
+              {creating ? <Loader2 className="admin-spin" size={17} /> : <FilePlus2 size={17} />}
+              {creating ? 'Creating invoice…' : 'Create invoice'}
+            </button>
+            {message && <p className={`admin-invoice-message ${message.toLowerCase().includes('success') || message.toLowerCase().includes('paid automatically') ? 'success' : ''}`}>{message}</p>}
+          </div>
+        </aside>
 
-        
+        <section className="admin-invoice-history-panel">
+          <div className="admin-history-heading">
+            <div><small>BILLING RECORDS</small><h2>Invoice history</h2><p>{visibleInvoices.length} of {invoices.length} invoices shown</p></div>
+            <div className="admin-invoice-filters" role="group" aria-label="Filter invoices">
+              {(['all', 'open', 'paid'] as InvoiceFilter[]).map((option) => (
+                <button key={option} type="button" className={filter === option ? 'active' : ''} onClick={() => setFilter(option)}>
+                  {option === 'all' ? 'All' : option === 'open' ? 'Open' : 'Paid'}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        <td
-  style={{
-    padding: '14px',
-    fontWeight: 'bold',
-    fontSize: '16px',
-  }}
->
-  <a
-    href={`/admin/invoices/${invoice.id}`}
-    style={{
-      color: '#2563eb',
-      textDecoration: 'none',
-    }}
-  >
-    {invoice.invoice_number}
-  </a>
-</td>
+          <label className="admin-invoice-search">
+            <Search size={18} />
+            <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search camper, lot, invoice, or type…" />
+          </label>
 
-        <td
-          style={{
-            padding: '14px',
-            fontWeight: 'bold',
-            fontSize: '18px',
-          }}
-        >
-          ${Number(invoice.total_due).toFixed(2)}
-        </td>
-
-        <td style={{ padding: '14px' }}>
-          {invoice.due_date}
-        </td>
-
-        <td style={{ padding: '14px' }}>
-          <span
-            style={{
-              padding: '8px 16px',
-              borderRadius: '999px',
-              fontWeight: 'bold',
-              color: 'white',
-              background:
-                invoice.status === 'paid'
-                  ? '#16a34a'
-                  : '#dc2626',
-            }}
-          >
-            {invoice.status === 'paid'
-              ? 'PAID'
-              : 'UNPAID'}
-          </span>
-        </td>
-      </tr>
-    ))}
-</tbody>
-</table>
-      <label>Camper</label>
-      <select
-        value={camperId}
-        onChange={(e) => setCamperId(e.target.value)}
-        style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }}
-      >
-        <option value="">Select Camper</option>
-        {campers.map((camper) => (
-          <option key={camper.id} value={camper.id}>
-            Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
-          </option>
-        ))}
-      </select>
-
-      <label>Invoice Number</label>
-      <input
-        value={invoiceNumber}
-        onChange={(e) => setInvoiceNumber(e.target.value)}
-        placeholder="INV-1002"
-        style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }}
-      />
-
-      <label>Description</label>
-      <input
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }}
-      />
-
-      <label>Amount</label>
-      <input
-        value={amount}
-        onChange={(e) => setAmount(e.target.value)}
-        placeholder="500"
-        style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }}
-      />
-
-      <label>Due Date</label>
-      <input
-        type="date"
-        value={dueDate}
-        onChange={(e) => setDueDate(e.target.value)}
-        style={{ display: 'block', padding: '10px', width: '100%', marginBottom: '15px' }}
-      />
-
-      <button
-        onClick={createInvoice}
-        style={{
-          padding: '12px 20px',
-          background: 'black',
-          color: 'white',
-          border: 'none',
-          borderRadius: '6px',
-        }}
-      >
-        Create Invoice
-      </button>
-
-      {message && <p style={{ marginTop: '20px' }}>{message}</p>}
+          {loading ? (
+            <div className="admin-invoice-empty"><Loader2 className="admin-spin" size={28} /><p>Loading billing records…</p></div>
+          ) : visibleInvoices.length === 0 ? (
+            <div className="admin-invoice-empty"><FileText size={32} /><h3>No invoices found</h3><p>Try another search or status filter.</p></div>
+          ) : (
+            <div className="admin-invoice-records">
+              {visibleInvoices.map((invoice) => {
+                const isPaid = invoice.status === 'paid'
+                return (
+                  <a className="admin-invoice-record" href={`/admin/invoices/${invoice.id}`} key={invoice.id}>
+                    <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : 'open'}`}>
+                      {isPaid ? <CheckCircle2 size={20} /> : <ReceiptText size={20} />}
+                    </span>
+                    <span className="admin-invoice-record-camper">
+                      <small>Lot {invoice.campers?.lot_number || '—'} · Invoice #{invoice.invoice_number}</small>
+                      <strong>{invoice.campers?.first_name} {invoice.campers?.last_name}</strong>
+                      <em>{invoice.invoice_type || 'Campground charge'}</em>
+                    </span>
+                    <span className="admin-invoice-record-date"><CalendarDays size={14} /><span><small>Due</small><strong>{formatDate(invoice.due_date)}</strong></span></span>
+                    <span className="admin-invoice-record-total"><strong>{formatMoney(invoice.total_due)}</strong><em className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</em></span>
+                    <ArrowRight className="admin-invoice-record-arrow" size={18} />
+                  </a>
+                )
+              })}
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   )
 }
