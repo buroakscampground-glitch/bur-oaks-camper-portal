@@ -19,8 +19,6 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
-type StorageItem = { id?: string | null; name: string }
-
 export default function AdminDocumentsPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
@@ -58,95 +56,80 @@ export default function AdminDocumentsPage() {
     loadData()
   }, [])
 
-  async function collectStoragePaths(bucket: string, prefix = ''): Promise<string[]> {
-    const { data, error } = await supabase.storage.from(bucket).list(prefix, { limit: 1000 })
-    if (error) {
-      if (/not found/i.test(error.message)) return []
-      throw error
-    }
-
-    const paths: string[] = []
-    for (const item of (data || []) as StorageItem[]) {
-      const path = prefix ? `${prefix}/${item.name}` : item.name
-      if (item.id) paths.push(path)
-      else paths.push(...(await collectStoragePaths(bucket, path)))
-    }
-    return paths
+  function documentTypeForFile(file: File) {
+    if (/lease|renewal/i.test(file.name)) return 'Lease / Renewal Template'
+    if (/rule|policy|agreement/i.test(file.name)) return 'Campground Form Template'
+    return 'Reusable Document Template'
   }
 
-  async function clearBucket(bucket: string) {
-    const paths = await collectStoragePaths(bucket)
-    for (let index = 0; index < paths.length; index += 100) {
-      const { error } = await supabase.storage.from(bucket).remove(paths.slice(index, index + 100))
-      if (error) throw error
-    }
+  function displayNameForFile(file: File) {
+    return file.name
+      .replace(/\.(docx|doc|pdf)$/i, '')
+      .replace('$1500', '$1,500')
+      .replace(/[-_]+/g, ' ')
+      .trim()
   }
 
-  async function replaceTemplateLibrary() {
-    if (templateFiles.length !== 2) {
-      setMessage('Select exactly the two approved Bur Oaks Word documents.')
+  async function addTemplatesToLibrary() {
+    if (templateFiles.length === 0) {
+      setMessage('Drop or select at least one document to add to the library.')
       return
     }
 
-    if (!window.confirm('Replace the entire document library with these two unassigned templates?')) return
-
     setWorking(true)
-    setMessage('Clearing the old document library…')
+    setMessage(`Adding ${templateFiles.length} document${templateFiles.length === 1 ? '' : 's'} to the library…`)
 
     try {
-      await clearBucket('camper-documents')
-      await clearBucket('Documents')
-      const { error: documentDeleteError } = await supabase.from('documents').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-      if (documentDeleteError) throw documentDeleteError
-      const { error: templateDeleteError } = await supabase.from('document_templates').delete().neq('id', '00000000-0000-0000-0000-000000000000')
-      if (templateDeleteError) throw templateDeleteError
-
       for (const file of templateFiles) {
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
         const storagePath = `templates/${crypto.randomUUID()}-${safeName}`
-        const { error: uploadError } = await supabase.storage.from('camper-documents').upload(storagePath, file)
+        const { error: uploadError } = await supabase.storage
+          .from('camper-documents')
+          .upload(storagePath, file, {
+            contentType: file.type || undefined,
+            upsert: false,
+          })
         if (uploadError) throw uploadError
 
-        const displayName = file.name
-          .replace(/\.docx$/i, '')
-          .replace('$1500', '$1,500')
-
         const { error: rowError } = await supabase.from('document_templates').insert({
-          document_name: displayName,
-          document_type: 'Seasonal Lease Template',
+          document_name: displayNameForFile(file),
+          document_type: documentTypeForFile(file),
           storage_path: storagePath,
         })
-        if (rowError) throw rowError
+        if (rowError) {
+          await supabase.storage.from('camper-documents').remove([storagePath])
+          throw rowError
+        }
       }
 
       setTemplateFiles([])
-      setMessage('The document library now contains only the two approved unassigned templates.')
+      setMessage('Documents added to the library. You can drag them onto campers whenever needed.')
       await loadData()
     } catch (error: any) {
-      setMessage(error.message || 'Unable to replace the document library.')
+      setMessage(error.message || 'Unable to add documents to the library.')
     } finally {
       setWorking(false)
     }
   }
 
-  function setLaunchTemplateFiles(files: File[]) {
-    const wordFiles = files.filter(
+  function setLibraryTemplateFiles(files: File[]) {
+    const allowedFiles = files.filter(
       (file) =>
-        /\.docx$/i.test(file.name) ||
-        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        /\.(docx|doc|pdf)$/i.test(file.name) ||
+        [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ].includes(file.type)
     )
 
-    if (wordFiles.length !== files.length) {
-      setMessage('Only Word .docx files can be added to the lease library.')
+    if (allowedFiles.length !== files.length) {
+      setMessage('Only PDF or Word documents can be added to the library.')
     } else {
       setMessage('')
     }
 
-    setTemplateFiles(wordFiles.slice(0, 2))
-
-    if (wordFiles.length > 2) {
-      setMessage('Select exactly two lease files. I kept the first two Word documents.')
-    }
+    setTemplateFiles(allowedFiles)
   }
 
   async function uploadAssignedDocument() {
@@ -288,7 +271,7 @@ export default function AdminDocumentsPage() {
 
           <div className="admin-template-list">
             {templates.length === 0 ? (
-              <div className="admin-document-empty"><FileStack size={31} /><h3>No approved templates</h3><p>Select the two launch files in the replacement panel.</p></div>
+              <div className="admin-document-empty"><FileStack size={31} /><h3>No library documents yet</h3><p>Add leases, renewals, forms, and notices in the library panel.</p></div>
             ) : templates.map((template) => (
               <article
                 key={template.id}
@@ -317,9 +300,9 @@ export default function AdminDocumentsPage() {
         <aside className="admin-document-panel replace-library">
           <div className="admin-document-heading compact">
             <span><FileUp size={21} /></span>
-            <div><small>GO-LIVE FILES</small><h2>Replace library</h2></div>
+            <div><small>DOCUMENT LIBRARY</small><h2>Add reusable documents</h2></div>
           </div>
-          <p>This removes every old assigned document and stored file, then installs exactly two private unassigned templates.</p>
+          <p>Add leases, renewals, forms, rules, and notices here. Existing library documents stay saved until you delete them.</p>
           <label
             className={`admin-document-dropzone ${libraryDropActive ? 'drag-active' : ''}`}
             onDragEnter={(event) => {
@@ -342,18 +325,18 @@ export default function AdminDocumentsPage() {
               event.preventDefault()
               event.stopPropagation()
               setLibraryDropActive(false)
-              setLaunchTemplateFiles(Array.from(event.dataTransfer.files || []))
+              setLibraryTemplateFiles(Array.from(event.dataTransfer.files || []))
             }}
           >
             <FileUp size={26} />
-            <strong>Drop both Word documents here</strong>
-            <small>{templateFiles.length ? `${templateFiles.length} file${templateFiles.length === 1 ? '' : 's'} ready` : 'or click to select · .docx files · exactly two required'}</small>
-            <input type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple onChange={(event) => setLaunchTemplateFiles(Array.from(event.target.files || []))} />
+            <strong>Drop documents here</strong>
+            <small>{templateFiles.length ? `${templateFiles.length} file${templateFiles.length === 1 ? '' : 's'} ready` : 'or click to select · PDF or Word files'}</small>
+            <input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple onChange={(event) => setLibraryTemplateFiles(Array.from(event.target.files || []))} />
           </label>
           {templateFiles.map((file) => <div className="admin-selected-file" key={file.name}><CheckCircle2 size={15} /> {file.name}</div>)}
-          <button className="admin-replace-library-button" type="button" onClick={replaceTemplateLibrary} disabled={working || templateFiles.length !== 2}>
-            {working ? <Loader2 className="admin-spin" size={17} /> : <ArchiveRestore size={17} />}
-            {working ? 'Updating library…' : 'Replace with selected files'}
+          <button className="admin-replace-library-button" type="button" onClick={addTemplatesToLibrary} disabled={working || templateFiles.length === 0}>
+            {working ? <Loader2 className="admin-spin" size={17} /> : <FilePlus2 size={17} />}
+            {working ? 'Adding documents…' : `Add ${templateFiles.length || ''} to library`}
           </button>
         </aside>
       </div>
@@ -364,7 +347,7 @@ export default function AdminDocumentsPage() {
           <div>
             <small>LEASE ASSIGNMENT BOARD</small>
             <h2>Drag a lease to a camper</h2>
-            <p>Each camper receives a private copy. The approved master leases remain unchanged.</p>
+            <p>Each camper receives a private copy. Your saved library documents remain available for future use.</p>
           </div>
           <label className="admin-camper-document-search">
             <Search size={16} />
