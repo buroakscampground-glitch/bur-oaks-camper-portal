@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     })
 
     if (error) {
-      const canUseManualLink = /rate limit|already registered|already exists/i.test(error.message)
+      const canUseManualLink = /rate limit|already.*registered|already.*exists|user.*registered/i.test(error.message)
 
       if (!canUseManualLink) {
         return NextResponse.json({ error: error.message }, { status: 500 })
