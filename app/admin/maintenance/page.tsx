@@ -2,6 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import {
+  ArrowRight,
+  CheckCircle2,
+  ClipboardList,
+  Hammer,
+  Search,
+  ShieldCheck,
+  Trash2,
+  Wrench,
+} from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 
@@ -21,6 +31,15 @@ export default function MaintenancePage() {
 
   useEffect(() => {
     loadTickets()
+
+    const reload = () => loadTickets()
+    window.addEventListener('focus', reload)
+    window.addEventListener('pageshow', reload)
+
+    return () => {
+      window.removeEventListener('focus', reload)
+      window.removeEventListener('pageshow', reload)
+    }
   }, [])
 
   async function loadTickets() {
@@ -125,319 +144,162 @@ export default function MaintenancePage() {
 
   const emergencyCount =
     tickets.filter((t) => t.priority === 'Emergency').length
+  const pendingCount = tickets.filter((t) => !t.admin_approved).length
+  const filteredTickets = tickets.filter((ticket) => {
+    const matchesSearch =
+      ticket.title?.toLowerCase().includes(search.toLowerCase()) ||
+      ticket.lot_number?.toString().includes(search) ||
+      ticket.reported_by?.toLowerCase().includes(search.toLowerCase())
+
+    const matchesStatus =
+      statusFilter === 'All' ||
+      (statusFilter === 'Pending Approval'
+        ? !ticket.admin_approved
+        : statusFilter === 'Approved'
+          ? ticket.admin_approved
+          : ticket.status === statusFilter)
+
+    return matchesSearch && matchesStatus
+  })
 
   return (
-    <main className="page">
-      <div className="container">
+    <main className="admin-maintenance-page">
+      <section className="admin-maintenance-hero">
+        <button type="button" onClick={() => router.push('/admin')}>← Back to Dashboard</button>
+        <span><Wrench size={17} /> Maintenance operations</span>
+        <h1>Work orders that are clear, approved, and easy to track.</h1>
+        <p>Review camper-submitted requests, approve work for the maintenance crew, and keep every repair moving.</p>
+        <a href="/maintenance/history">View completed maintenance history <ArrowRight size={16} /></a>
+      </section>
 
-        <a
-          href="/admin"
-          style={{
-            display: 'inline-block',
-            marginBottom: '20px',
-            textDecoration: 'none',
-            fontWeight: 'bold',
-          }}
-        >
-          ← Back to Dashboard
-        </a>
+      <section className="admin-maintenance-stats">
+        <article><span className="slate"><ClipboardList size={19} /></span><div><small>Open</small><strong>{tickets.filter(t => t.status === 'Open').length}</strong></div></article>
+        <article><span className="blue"><Hammer size={19} /></span><div><small>In progress</small><strong>{tickets.filter(t => t.status === 'In Progress').length}</strong></div></article>
+        <article><span className="green"><CheckCircle2 size={19} /></span><div><small>Completed</small><strong>{tickets.filter(t => t.status === 'Completed').length}</strong></div></article>
+        <article><span className="red"><Wrench size={19} /></span><div><small>Emergency</small><strong>{emergencyCount}</strong></div></article>
+        <article><span className="gold"><ShieldCheck size={19} /></span><div><small>Pending approval</small><strong>{pendingCount}</strong></div></article>
+      </section>
 
-        <section className="card" style={{ marginBottom: '25px' }}>
-          <p className="muted">BUR OAKS CAMPGROUND</p>
-          <button
-  onClick={() => router.push('/admin')}
-  style={{
-    marginBottom: '20px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  }}
->
-  ← Back to Dashboard
-</button>
-          <h1>Maintenance Tickets</h1>
-          <p className="muted">
-            Track campground issues, repairs, and work orders.
-          </p>
+      <div className="admin-maintenance-layout">
+        <section className="admin-maintenance-create">
+          <div className="admin-maintenance-heading">
+            <span>NEW WORK ORDER</span>
+            <h2>Create maintenance ticket</h2>
+            <p>Admin-created work orders are approved immediately.</p>
+          </div>
 
-          <a
-            href="/maintenance/history"
-            style={{ display: 'inline-block', marginBottom: '20px' }}
-          >
-            View Maintenance History →
-          </a>
+          <input placeholder="Ticket title" value={title} onChange={(e) => setTitle(e.target.value)} />
 
-          <input
-            placeholder="Ticket Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              marginBottom: '12px',
-            }}
-          />
+          <div className="admin-maintenance-form-grid">
+            <select value={category} onChange={(e) => setCategory(e.target.value)}>
+              <option>General</option>
+              <option>Electric</option>
+              <option>Water</option>
+              <option>Gate</option>
+              <option>Roads</option>
+              <option>Rec Hall</option>
+              <option>Bathroom</option>
+              <option>Tree / Grounds</option>
+            </select>
 
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              marginBottom: '12px',
-            }}
-          >
-            <option>General</option>
-            <option>Electric</option>
-            <option>Water</option>
-            <option>Gate</option>
-            <option>Roads</option>
-            <option>Rec Hall</option>
-            <option>Bathroom</option>
-            <option>Tree / Grounds</option>
-          </select>
+            <select value={priority} onChange={(e) => setPriority(e.target.value)}>
+              <option>Low</option>
+              <option>Normal</option>
+              <option>High</option>
+              <option>Emergency</option>
+            </select>
+          </div>
 
-          <select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              marginBottom: '12px',
-            }}
-          >
-            <option>Low</option>
-            <option>Normal</option>
-            <option>High</option>
-            <option>Emergency</option>
-          </select>
-
-          <select
-            value={assignedTo}
-            onChange={(e) => setAssignedTo(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              marginBottom: '12px',
-            }}
-          >
+          <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
             <option value="">Assign To</option>
-            <option>Anthony</option>
-            <option>Rachel</option>
+            <option>Anthony Finley</option>
+            <option>Dawn Finley</option>
+            <option>Charlie Kimball</option>
+            <option>Rachel Finley</option>
             <option>Joe Johnson</option>
             <option>Vendor</option>
             <option>Electrician</option>
             <option>Plumber</option>
           </select>
 
-          <input
-            placeholder="Lot Number"
-            value={lotNumber}
-            onChange={(e) => setLotNumber(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              marginBottom: '12px',
-            }}
-          />
+          <div className="admin-maintenance-form-grid">
+            <input placeholder="Lot number" value={lotNumber} onChange={(e) => setLotNumber(e.target.value)} />
+            <input placeholder="Reported by" value={reportedBy} onChange={(e) => setReportedBy(e.target.value)} />
+          </div>
 
-          <input
-            placeholder="Reported By"
-            value={reportedBy}
-            onChange={(e) => setReportedBy(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              marginBottom: '12px',
-            }}
-          />
+          <textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
 
-          <textarea
-            placeholder="Description"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            style={{
-              display: 'block',
-              width: '100%',
-              minHeight: '110px',
-              marginBottom: '12px',
-            }}
-          />
-
-          <button onClick={createTicket}>
-            Create Ticket
-          </button>
-
-          {message && <p>{message}</p>}
+          <button type="button" onClick={createTicket}>Create Ticket</button>
+          {message && <p className="maintenance-submit-message">{message}</p>}
         </section>
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-            gap: '15px',
-            marginBottom: '20px',
-          }}
-        >
-          <div className="card">
-            <h3>Open</h3>
-            <h1>{tickets.filter(t => t.status === 'Open').length}</h1>
+        <section className="admin-maintenance-board">
+          <div className="admin-maintenance-board-top">
+            <div className="admin-maintenance-heading">
+              <span>CURRENT WORK ORDERS</span>
+              <h2>Review and approve work</h2>
+            </div>
+
+            <div className="admin-maintenance-filters">
+              <label>
+                <Search size={15} />
+                <input placeholder="Search lot, camper, title..." value={search} onChange={(e) => setSearch(e.target.value)} />
+              </label>
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                <option>All</option>
+                <option>Open</option>
+                <option>In Progress</option>
+                <option>Completed</option>
+                <option>Pending Approval</option>
+                <option>Approved</option>
+              </select>
+            </div>
           </div>
 
-          <div className="card">
-            <h3>In Progress</h3>
-            <h1>{tickets.filter(t => t.status === 'In Progress').length}</h1>
-          </div>
-
-          <div className="card">
-            <h3>Completed</h3>
-            <h1>{tickets.filter(t => t.status === 'Completed').length}</h1>
-          </div>
-
-          <div className="card">
-            <h3>Emergency</h3>
-            <h1>{emergencyCount}</h1>
-          </div>
-
-          <div className="card">
-            <h3>Pending Approval</h3>
-            <h1>{tickets.filter(t => !t.admin_approved).length}</h1>
-          </div>
-
-          <div className="card">
-            <h3>Total</h3>
-            <h1>{tickets.length}</h1>
-          </div>
-        </div>
-
-        <section className="card">
-          <h2>Current Tickets</h2>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: '10px',
-              marginBottom: '20px',
-              flexWrap: 'wrap',
-            }}
-          >
-            <input
-              placeholder="Search lot, camper, title..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ flex: 1 }}
-            />
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-            >
-              <option>All</option>
-              <option>Open</option>
-              <option>In Progress</option>
-              <option>Completed</option>
-              <option>Pending Approval</option>
-              <option>Approved</option>
-            </select>
-          </div>
-
-          {tickets
-            .filter((ticket) => {
-              const matchesSearch =
-                ticket.title?.toLowerCase().includes(search.toLowerCase()) ||
-                ticket.lot_number?.toString().includes(search) ||
-                ticket.reported_by?.toLowerCase().includes(search.toLowerCase())
-
-              const matchesStatus =
-                statusFilter === 'All' ||
-                (statusFilter === 'Pending Approval'
-                  ? !ticket.admin_approved
-                  : statusFilter === 'Approved'
-                    ? ticket.admin_approved
-                    : ticket.status === statusFilter)
-
-              return matchesSearch && matchesStatus
-            })
-            .map((ticket) => (
-              <div
-                key={ticket.id}
-                style={{
-                  borderTop: '1px solid #e3ded2',
-                  padding: '15px 0',
-                }}
-              >
-                <p className="muted">{ticket.created_at}</p>
-
-                <h3>{ticket.title}</h3>
-
-                <p><strong>Category:</strong> {ticket.category}</p>
-
-                <p>
-                  <strong>Priority:</strong>{' '}
-                  <MaintenanceBadge kind="priority" value={ticket.priority} />
-                </p>
-
-                <p>
-                  <strong>Approval:</strong>{' '}
+          <div className="admin-maintenance-ticket-list">
+            {filteredTickets.map((ticket) => (
+              <article key={ticket.id} className={`admin-maintenance-ticket ${!ticket.admin_approved ? 'pending' : ''}`}>
+                <div className="admin-maintenance-ticket-main">
+                  <div>
+                    <small>{new Date(ticket.created_at).toLocaleDateString()} · Lot {ticket.lot_number || 'N/A'} · {ticket.category || 'General'}</small>
+                    <h3>{ticket.title}</h3>
+                    <p>{ticket.description || 'No description entered.'}</p>
+                  </div>
                   <span className={ticket.admin_approved ? 'maintenance-approval-badge approved' : 'maintenance-approval-badge pending'}>
-                    {ticket.admin_approved ? 'Approved for Work' : 'Pending Admin Approval'}
+                    {ticket.admin_approved ? 'Approved for Work' : 'Pending Approval'}
                   </span>
-                </p>
-                <p>
-                  <strong>Assigned To:</strong>{' '}
-                  {ticket.assigned_to || 'Unassigned'}
-                </p>
-
-                <p>
-                  <strong>Status:</strong>{' '}
-                  <MaintenanceBadge kind="status" value={ticket.status} />
-                </p>
-                <p><strong>Lot:</strong> {ticket.lot_number || 'N/A'}</p>
-                <p><strong>Reported By:</strong> {ticket.reported_by || 'N/A'}</p>
-                <p>{ticket.description}</p>
-
-                <div
-                  style={{
-                    display: 'flex',
-                    gap: '10px',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {!ticket.admin_approved ? (
-                    <button className="maintenance-approve-button" onClick={() => setApproval(ticket.id, true)}>
-                      Approve Work
-                    </button>
-                  ) : (
-                    <button onClick={() => setApproval(ticket.id, false)}>
-                      Remove Approval
-                    </button>
-                  )}
-
-                  <button onClick={() => updateStatus(ticket.id, 'Open')}>
-                    Open
-                  </button>
-
-                  <button onClick={() => updateStatus(ticket.id, 'In Progress')}>
-                    In Progress
-                  </button>
-
-                  <button onClick={() => updateStatus(ticket.id, 'Completed')}>
-                    Completed
-                  </button>
-<a href={`/admin/maintenance/${ticket.id}`}>
-  <button>
-    View Ticket
-  </button>
-</a>
-                  <button onClick={() => deleteTicket(ticket.id)}>
-                    Delete
-                  </button>
                 </div>
-              </div>
+
+                <div className="admin-maintenance-ticket-meta">
+                  <span><strong>Reported:</strong> {ticket.reported_by || 'N/A'}</span>
+                  <span><strong>Assigned:</strong> {ticket.assigned_to || 'Open'}</span>
+                  <span><strong>Status:</strong> <MaintenanceBadge kind="status" value={ticket.status} /></span>
+                  <span><strong>Priority:</strong> <MaintenanceBadge kind="priority" value={ticket.priority} /></span>
+                </div>
+
+                <div className="admin-maintenance-ticket-actions">
+                  {!ticket.admin_approved ? (
+                    <button className="maintenance-approve-button" onClick={() => setApproval(ticket.id, true)}>Approve Work</button>
+                  ) : (
+                    <button onClick={() => setApproval(ticket.id, false)}>Remove Approval</button>
+                  )}
+                  <button onClick={() => updateStatus(ticket.id, 'Open')}>Open</button>
+                  <button onClick={() => updateStatus(ticket.id, 'In Progress')}>In Progress</button>
+                  <button onClick={() => updateStatus(ticket.id, 'Completed')}>Completed</button>
+                  <button onClick={() => router.push(`/admin/maintenance/${ticket.id}`)}>View Ticket</button>
+                  <button className="danger" onClick={() => deleteTicket(ticket.id)}><Trash2 size={15} /> Delete</button>
+                </div>
+              </article>
             ))}
+
+            {filteredTickets.length === 0 && (
+              <div className="admin-maintenance-empty">
+                <Wrench size={32} />
+                <h3>No matching work orders</h3>
+                <p>Try another search or filter.</p>
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </main>

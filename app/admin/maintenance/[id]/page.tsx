@@ -2,15 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
 
 export default function MaintenanceTicketPage() {
   const params = useParams()
+  const router = useRouter()
 
   const [ticket, setTicket] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
 
   const [completionNotes, setCompletionNotes] = useState('')
   const [status, setStatus] = useState('')
@@ -38,6 +42,9 @@ export default function MaintenanceTicketPage() {
   }
 
   async function saveTicket() {
+    setSaving(true)
+    setMessage('Saving ticket…')
+
     const updates: any = {
       status,
       assigned_to: assignedTo,
@@ -52,18 +59,32 @@ export default function MaintenanceTicketPage() {
         new Date().toISOString()
     }
 
-    await supabase
+    const { data, error } = await supabase
       .from('maintenance_tickets')
       .update(updates)
       .eq('id', ticket.id)
+      .select('*')
+      .single()
 
-    alert('Ticket Updated')
+    if (error) {
+      setMessage(error.message)
+      setSaving(false)
+      return
+    }
 
-    loadTicket()
+    setTicket(data)
+    setStatus(data.status || 'Open')
+    setAssignedTo(data.assigned_to || 'Open')
+    setCompletionNotes(data.completion_notes || '')
+    setMessage('Ticket saved.')
+    setSaving(false)
   }
 
   async function closeTicket() {
-    await supabase
+    setSaving(true)
+    setMessage('Closing ticket…')
+
+    const { data, error } = await supabase
       .from('maintenance_tickets')
       .update({
         status: 'Completed',
@@ -72,18 +93,31 @@ export default function MaintenanceTicketPage() {
           new Date().toISOString(),
       })
       .eq('id', ticket.id)
+      .select('*')
+      .single()
 
-    alert('Ticket Closed')
+    if (error) {
+      setMessage(error.message)
+      setSaving(false)
+      return
+    }
 
-    loadTicket()
+    setTicket(data)
+    setStatus(data.status || 'Completed')
+    setCompletionNotes(data.completion_notes || '')
+    setMessage('Ticket closed.')
+    setSaving(false)
   }
 
   async function setApproval(approved: boolean) {
+    setSaving(true)
+    setMessage(approved ? 'Approving work order…' : 'Removing approval…')
+
     const {
       data: { user },
     } = await supabase.auth.getUser()
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('maintenance_tickets')
       .update({
         admin_approved: approved,
@@ -92,14 +126,25 @@ export default function MaintenanceTicketPage() {
         ...(approved ? {} : { status: 'Open', assigned_to: 'Open' }),
       })
       .eq('id', ticket.id)
+      .select('*')
+      .single()
 
     if (error) {
-      alert(error.message)
+      setMessage(error.message)
+      setSaving(false)
       return
     }
 
-    alert(approved ? 'Work Order Approved' : 'Approval Removed')
-    loadTicket()
+    setTicket(data)
+    setStatus(data.status || 'Open')
+    setAssignedTo(data.assigned_to || 'Open')
+    setCompletionNotes(data.completion_notes || '')
+    setMessage(approved ? 'Work order approved. Returning to all work orders…' : 'Approval removed.')
+    setSaving(false)
+
+    if (approved) {
+      window.setTimeout(() => router.push('/admin/maintenance?updated=approved'), 550)
+    }
   }
 
   function printWorkOrder() {
@@ -129,19 +174,10 @@ export default function MaintenanceTicketPage() {
   return (
     <main className="page">
       <div className="container">
-        <a
-          href="/admin/maintenance"
-          style={{
-            display: 'inline-block',
-            marginBottom: '20px',
-            textDecoration: 'none',
-            fontWeight: 'bold',
-          }}
-        >
-          ← Back to Maintenance
-        </a>
-
-        <section className="card">
+        <section className="card admin-maintenance-detail-card">
+          <button type="button" onClick={() => router.push('/admin/maintenance')} className="admin-maintenance-back-button">
+            ← Back to all work orders
+          </button>
           <h1>{ticket.title}</h1>
 
           <div className={`maintenance-admin-approval ${ticket.admin_approved ? 'approved' : 'pending'}`}>
@@ -153,10 +189,12 @@ export default function MaintenanceTicketPage() {
                   : 'Maintenance can see and act on this request only after approval.'}
               </span>
             </div>
-            <button type="button" onClick={() => setApproval(!ticket.admin_approved)}>
+            <button type="button" onClick={() => setApproval(!ticket.admin_approved)} disabled={saving}>
               {ticket.admin_approved ? 'Remove Approval' : 'Approve Work'}
             </button>
           </div>
+
+          {message && <p className="maintenance-submit-message">{message}</p>}
 
           <p>
             <MaintenanceBadge kind="status" value={ticket.status} />{' '}
@@ -270,15 +308,15 @@ export default function MaintenanceTicketPage() {
               flexWrap: 'wrap',
             }}
           >
-            <button onClick={saveTicket}>
-              Save Ticket
+            <button onClick={saveTicket} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Ticket'}
             </button>
 
             <button onClick={printWorkOrder}>
               Print Work Order
             </button>
 
-            <button onClick={closeTicket}>
+            <button onClick={closeTicket} disabled={saving}>
               Close Ticket
             </button>
           </div>
