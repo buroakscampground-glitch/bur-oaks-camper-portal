@@ -2,6 +2,7 @@ import React from 'react'
 import './globals.css'
 import GlobalBackButton from '../components/GlobalBackButton'
 import CamperChrome from '../components/CamperChrome'
+import AuthLinkRedirect from '../components/AuthLinkRedirect'
 
 export const metadata = {
   title: 'Bur Oaks Campground | A Site to Remember',
@@ -16,6 +17,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <AuthLinkRedirect />
         <CamperChrome>{children}</CamperChrome>
         <GlobalBackButton />
       </body>

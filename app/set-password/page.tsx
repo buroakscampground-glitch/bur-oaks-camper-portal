@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CheckCircle2, LockKeyhole } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
@@ -9,6 +9,34 @@ export default function SetPasswordPage() {
   const [confirmation, setConfirmation] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    async function prepareSecureSession() {
+      const params = new URLSearchParams(window.location.search)
+      const code = params.get('code')
+      let { data } = await supabase.auth.getSession()
+
+      if (!data.session && code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error) {
+          setMessage('This invitation link is invalid or expired. Please request a new invitation.')
+          return
+        }
+        const sessionResult = await supabase.auth.getSession()
+        data = sessionResult.data
+      }
+
+      if (!data.session) {
+        setMessage('This invitation link is invalid or expired. Please request a new invitation.')
+        return
+      }
+
+      setReady(true)
+    }
+
+    prepareSecureSession()
+  }, [])
 
   async function savePassword() {
     if (password.length < 10) {
@@ -70,8 +98,8 @@ export default function SetPasswordPage() {
           />
         </div>
 
-        <button onClick={savePassword} disabled={saving}>
-          {saving ? 'Saving…' : 'Save password'}
+        <button onClick={savePassword} disabled={saving || !ready}>
+          {!ready ? 'Verifying invitation…' : saving ? 'Saving…' : 'Save password'}
         </button>
         {message && <p className="account-recovery-message">{message}</p>}
       </section>
