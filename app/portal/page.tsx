@@ -125,6 +125,11 @@ export default function CamperPortalPage() {
           return
         }
 
+        if (camperData?.role?.toLowerCase() === 'maintenance') {
+          window.location.replace('/maintenance/dashboard')
+          return
+        }
+
         if (!camperData) return
 
         setCamper(camperData)

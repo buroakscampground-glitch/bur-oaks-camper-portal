@@ -15,8 +15,9 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const normalizedEmail = email.trim().toLowerCase()
       const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       })
 
@@ -28,17 +29,26 @@ export default function LoginPage() {
       const { data: camper } = await supabase
         .from('campers')
         .select('role')
-        .eq('email', email.toLowerCase())
+        .ilike('email', normalizedEmail)
         .single()
 
       const role = camper?.role?.toLowerCase()
+
+      if (!role) {
+        await supabase.auth.signOut()
+        setError('This login does not have a portal role assigned. Please contact the campground office.')
+        return
+      }
 
       if (role === 'admin') {
         window.location.href = '/admin'
       } else if (role === 'maintenance') {
         window.location.href = '/maintenance/dashboard'
-      } else {
+      } else if (role === 'camper') {
         window.location.href = '/portal'
+      } else {
+        await supabase.auth.signOut()
+        setError('This account has an unsupported portal role.')
       }
     } catch (err) {
       console.error(err)
