@@ -81,7 +81,7 @@ export default function InvoicesPage() {
       const { data: camperData } = await supabase
         .from('campers')
         .select('*')
-        .ilike('email', user.email)
+        .or(`email.ilike.${user.email.trim().toLowerCase()},secondary_email.ilike.${user.email.trim().toLowerCase()}`)
         .single()
 
       if (!camperData) {

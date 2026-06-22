@@ -29,7 +29,7 @@ export default function LoginPage() {
       const { data: camper } = await supabase
         .from('campers')
         .select('role')
-        .ilike('email', normalizedEmail)
+        .or(`email.ilike.${normalizedEmail},secondary_email.ilike.${normalizedEmail}`)
         .single()
 
       const role = camper?.role?.toLowerCase()

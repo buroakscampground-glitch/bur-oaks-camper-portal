@@ -116,7 +116,7 @@ export default function CamperPortalPage() {
         const { data: camperData, error: camperError } = await supabase
           .from('campers')
           .select('*')
-          .eq('email', user.email)
+          .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
           .single()
 
         if (camperError) throw camperError

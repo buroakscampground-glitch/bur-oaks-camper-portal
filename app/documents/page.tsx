@@ -56,7 +56,7 @@ export default function DocumentsPage() {
       const { data: camper } = await supabase
         .from('campers')
         .select('*')
-        .ilike('email', user.email || '')
+        .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
         .single()
 
       if (!camper) {

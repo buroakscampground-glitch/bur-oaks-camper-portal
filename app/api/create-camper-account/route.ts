@@ -26,12 +26,14 @@ export async function POST(request: Request) {
     if (typeof camperId === 'string' && camperId) {
       const { data } = await context.admin
         .from('campers')
-        .select('id,email,active')
+        .select('id,email,secondary_email,active')
         .eq('id', camperId)
         .single()
 
       camper = data
-      email = String(data?.email || '').trim().toLowerCase()
+      const primaryEmail = String(data?.email || '').trim().toLowerCase()
+      const secondaryEmail = String(data?.secondary_email || '').trim().toLowerCase()
+      email = email === secondaryEmail ? secondaryEmail : primaryEmail
     }
 
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
@@ -41,8 +43,8 @@ export async function POST(request: Request) {
     if (!camper) {
       const { data } = await context.admin
         .from('campers')
-        .select('id,email,active')
-        .ilike('email', email)
+        .select('id,email,secondary_email,active')
+        .or(`email.ilike.${email},secondary_email.ilike.${email}`)
         .single()
 
       camper = data

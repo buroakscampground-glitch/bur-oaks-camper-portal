@@ -26,10 +26,11 @@ export async function getCurrentUserRole(): Promise<UserRole> {
     return DEFAULT_ROLE
   }
 
+  const userEmail = user.email.trim().toLowerCase()
   const { data: camper, error } = await supabase
     .from('campers')
     .select('role')
-    .eq('email', user.email)
+    .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
     .single()
 
   if (error || !camper || !(camper as any).role) {

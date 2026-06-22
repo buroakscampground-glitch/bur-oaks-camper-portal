@@ -27,7 +27,7 @@ export default function ProfilePage() {
     const { data } = await supabase
       .from('campers')
       .select('*')
-      .eq('email', user.email)
+      .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
       .single()
 
     setCamper(data)

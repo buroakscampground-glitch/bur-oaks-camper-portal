@@ -10,6 +10,7 @@ export default function AdminCampersPage() {
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
+  const [secondaryEmail, setSecondaryEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [message, setMessage] = useState('')
@@ -56,6 +57,7 @@ export default function AdminCampersPage() {
     setFirstName('')
     setLastName('')
     setEmail('')
+    setSecondaryEmail('')
     setPhone('')
     setEditingId(null)
   }
@@ -69,6 +71,7 @@ export default function AdminCampersPage() {
           first_name: firstName,
           last_name: lastName,
           email,
+          secondary_email: secondaryEmail.trim() ? secondaryEmail.trim().toLowerCase() : null,
           phone,
         })
         .eq('id', editingId)
@@ -87,6 +90,7 @@ export default function AdminCampersPage() {
           first_name: firstName,
           last_name: lastName,
           email,
+          secondary_email: secondaryEmail.trim() ? secondaryEmail.trim().toLowerCase() : null,
           phone,
           active: true,
         })
@@ -128,11 +132,11 @@ export default function AdminCampersPage() {
     loadCampers()
   }
 
-  async function createPortalAccount(camper: any) {
-    const email = String(camper.email || '').trim().toLowerCase()
+  async function createPortalAccount(camper: any, targetEmail?: string) {
+    const email = String(targetEmail || camper.email || '').trim().toLowerCase()
 
     if (!email || email.endsWith('@no-email.buroaks.local')) {
-      setMessage('Add the camper’s real email before creating a portal account.')
+      setMessage('Add a real email before creating a portal account.')
       return
     }
 
@@ -240,6 +244,14 @@ export default function AdminCampersPage() {
       />
 
       <input
+        placeholder="Second Email (optional)"
+        value={secondaryEmail}
+        onChange={(e) =>
+          setSecondaryEmail(e.target.value)
+        }
+      />
+
+      <input
         placeholder="Phone"
         value={phone}
         onChange={(e) =>
@@ -264,13 +276,13 @@ export default function AdminCampersPage() {
         <div className="admin-camper-setup-link">
           <div>
             <strong>One-time portal setup link</strong>
-            <span>Copy this link and send it privately to Dawn. Do not open it from your admin account.</span>
+            <span>Copy this link and send it privately to the camper. Do not open it from your admin account.</span>
           </div>
           <button
             type="button"
             onClick={async () => {
               await navigator.clipboard.writeText(setupLink)
-              setMessage('Secure setup link copied. Send it privately to Dawn Finley.')
+              setMessage('Secure setup link copied. Send it privately to the camper.')
             }}
           >
             Copy Setup Link
@@ -305,6 +317,9 @@ export default function AdminCampersPage() {
         ?.toLowerCase()
         .includes(searchText) ||
       camper.email
+        ?.toLowerCase()
+        .includes(searchText) ||
+      camper.secondary_email
         ?.toLowerCase()
         .includes(searchText)
     )
@@ -345,6 +360,10 @@ export default function AdminCampersPage() {
       : camper.email}
   </div>
 
+  {camper.secondary_email && (
+    <div>Second email: {camper.secondary_email}</div>
+  )}
+
   <div>{camper.phone || 'No phone on file'}</div>
 </div>
 
@@ -376,10 +395,22 @@ export default function AdminCampersPage() {
               disabled={invitingEmail === camper.email}
               onClick={(event) => {
               event.stopPropagation()
-                createPortalAccount(camper)
+                createPortalAccount(camper, camper.email)
               }}
             >
-              {invitingEmail === camper.email ? 'Sending Invite…' : 'Create Portal Account'}
+              {invitingEmail === camper.email ? 'Sending Invite…' : 'Invite Primary Email'}
+            </button>
+          )}
+          {camper.secondary_email && (
+            <button
+              type="button"
+              disabled={invitingEmail === camper.secondary_email}
+              onClick={(event) => {
+                event.stopPropagation()
+                createPortalAccount(camper, camper.secondary_email)
+              }}
+            >
+              {invitingEmail === camper.secondary_email ? 'Sending Invite…' : 'Invite Second Email'}
             </button>
           )}
         </div>

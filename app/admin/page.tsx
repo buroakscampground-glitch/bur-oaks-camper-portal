@@ -83,7 +83,7 @@ export default function AdminPage() {
     const { data: camper } = await supabase
       .from('campers')
       .select('role')
-      .eq('email', user.email?.toLowerCase())
+      .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
       .single()
 
     if (!camper || camper.role?.toLowerCase() !== 'admin') {

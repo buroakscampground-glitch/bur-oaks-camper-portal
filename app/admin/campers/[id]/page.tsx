@@ -27,6 +27,7 @@ type Camper = {
   first_name: string | null
   last_name: string | null
   email: string | null
+  secondary_email: string | null
   phone: string | null
   role: string | null
   active: boolean | null
@@ -47,6 +48,7 @@ const emptyCamper: Camper = {
   first_name: '',
   last_name: '',
   email: '',
+  secondary_email: '',
   phone: '',
   role: 'camper',
   active: true,
@@ -122,6 +124,9 @@ export default function CamperDetailPage() {
         first_name: camper.first_name.trim(),
         last_name: camper.last_name.trim(),
         email: camper.email.trim().toLowerCase(),
+        secondary_email: camper.secondary_email?.trim()
+          ? camper.secondary_email.trim().toLowerCase()
+          : null,
         phone: camper.phone?.trim() || null,
         role: camper.role || 'camper',
         active: camper.active !== false,
@@ -187,7 +192,7 @@ export default function CamperDetailPage() {
           <div>
             <small>CAMPER PROFILE · LOT {camper.lot_number || 'UNASSIGNED'}</small>
             <h1>{camper.first_name} {camper.last_name}</h1>
-            <p><Mail size={14} /> {camper.email}</p>
+            <p><Mail size={14} /> {camper.email}{camper.secondary_email ? ` · ${camper.secondary_email}` : ''}</p>
           </div>
         </div>
       </header>
@@ -244,7 +249,8 @@ export default function CamperDetailPage() {
 
         <ProfileSection icon={<ContactRound />} kicker="CONTACT" title="Phone & email">
           <div className="admin-camper-form-grid">
-            <Field label="Email address" type="email" value={camper.email} onChange={(value) => updateField('email', value)} icon={<Mail />} />
+            <Field label="Primary email address" type="email" value={camper.email} onChange={(value) => updateField('email', value)} icon={<Mail />} />
+            <Field label="Second email address" type="email" value={camper.secondary_email} onChange={(value) => updateField('secondary_email', value)} icon={<Mail />} />
             <Field label="Phone number" type="tel" value={camper.phone} onChange={(value) => updateField('phone', value)} icon={<Phone />} />
           </div>
         </ProfileSection>

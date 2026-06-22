@@ -9,10 +9,11 @@ export async function requireAdminUser() {
     return null
   }
 
+  const userEmail = user.email.trim().toLowerCase()
   const { data: camper } = await supabase
     .from('campers')
     .select('role,email')
-    .eq('email', user.email)
+    .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
     .single()
 
   if (!camper) {
