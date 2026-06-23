@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { CalendarDays, CheckCircle2, Clock, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
@@ -8,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 const months = ['March', 'April', 'May', 'June', 'July', 'August', 'Sept', 'October']
 
 export default function SaturdayDinnersPage() {
+  const searchParams = useSearchParams()
   const [signups, setSignups] = useState<any[]>([])
   const [selectedDate, setSelectedDate] = useState('')
   const [status, setStatus] = useState('Going')
@@ -49,8 +51,19 @@ export default function SaturdayDinnersPage() {
   const remainingMonthDinners = monthDinners.filter((dinner) => dinner.date >= new Date().toISOString().slice(0, 10) && !dinner.closed)
 
   useEffect(() => {
+    const requestedDate = searchParams.get('date')
+    const requestedDinner = saturdayDinners2026.find((dinner) => dinner.date === requestedDate && !dinner.closed)
+
+    if (!selectedDate && requestedDinner) {
+      setSelectedDate(requestedDinner.date)
+      window.requestAnimationFrame(() => {
+        signupCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+      return
+    }
+
     if (!selectedDate && nextDinner) setSelectedDate(nextDinner.date)
-  }, [nextDinner, selectedDate])
+  }, [nextDinner, searchParams, selectedDate])
 
   useEffect(() => {
     const existing = selectedDate ? signupByDate.get(selectedDate) : null

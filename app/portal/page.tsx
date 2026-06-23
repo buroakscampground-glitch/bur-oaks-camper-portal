@@ -418,7 +418,7 @@ export default function CamperPortalPage() {
                   <span>Saturday dinner</span>
                 </div>
                 {upcomingDinners.map((dinner) => (
-                  <a href="/dinners" key={dinner.id}>
+                  <a href={`/dinners?date=${dinner.date}`} key={dinner.id}>
                     <small>{dinner.month} {dinner.day} · 6 PM</small>
                     <strong>{dinner.menu}</strong>
                     {dinner.theme && <em>{dinner.theme}</em>}
