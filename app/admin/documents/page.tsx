@@ -44,15 +44,33 @@ export default function AdminDocumentsPage() {
   const [futureTemplateId, setFutureTemplateId] = useState('')
 
   async function loadData() {
-    const [camperResult, templateResult, documentResult] = await Promise.all([
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+
+    const [camperResult, templateResult, documentResponse] = await Promise.all([
       supabase.from('campers').select('*').eq('active', true).order('lot_number'),
       supabase.from('document_templates').select('*').order('created_at', { ascending: false }),
-      supabase.from('documents').select('*').order('created_at', { ascending: false }),
+      token
+        ? fetch('/api/admin-documents', {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        : Promise.resolve(null),
     ])
 
     setCampers(camperResult.data || [])
     setTemplates(templateResult.data || [])
-    setDocuments(documentResult.data || [])
+
+    if (documentResponse) {
+      const documentResult = await documentResponse.json().catch(() => null)
+      if (documentResponse.ok) {
+        setDocuments(documentResult?.documents || [])
+      } else {
+        setDocuments([])
+        setMessage(documentResult?.error || 'Unable to load assigned documents.')
+      }
+    } else {
+      setDocuments([])
+    }
 
     if (templateResult.error && /document_templates/i.test(templateResult.error.message)) {
       setMessage('Run migration 009 before adding the launch templates.')

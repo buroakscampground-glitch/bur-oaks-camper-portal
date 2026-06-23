@@ -68,10 +68,13 @@ export async function GET(request: Request) {
   const pendingMaintenance = maintenance.filter((ticket) => ticket.admin_approved !== true)
   const activeMaintenance = maintenance.filter((ticket) => ticket.status !== 'Completed')
   const emergencyMaintenance = maintenance.filter((ticket) => ticket.priority === 'Emergency' && ticket.status !== 'Completed')
-  const pendingDocuments = documents.filter((document) => document.signature_status === 'pending')
   const unreadMaintenance = notifications.filter((notification) => notification.type === 'maintenance_request')
   const unreadPayments = notifications.filter((notification) => notification.type === 'payment_received')
   const unreadRsvps = notifications.filter((notification) => notification.type === 'event_rsvp')
+  const pendingDocuments = documents.filter((document) => {
+    const status = String(document.signature_status || '').toLowerCase()
+    return status !== 'signed' && status !== 'not_required'
+  })
   const insuranceCamperIds = new Set(
     documents
       .filter((document) => document.document_type === 'Golf Cart Insurance')
