@@ -39,7 +39,6 @@ export async function POST(request: Request) {
         status: 'Open',
         reported_by: reporterName,
         lot_number: context.camper.lot_number || '',
-        camper_id: context.camper.id,
         admin_approved: false,
         ...(photoUrls.length ? { photo_urls: photoUrls } : {}),
       })
