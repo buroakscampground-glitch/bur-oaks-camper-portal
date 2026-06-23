@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
+import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
+import { createAdminNotification } from '../../../lib/admin-notifications'
 
 export const runtime = 'nodejs'
 
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
         if (invoiceIds.length > 0) {
           const { data: invoices, error: invoiceError } = await supabaseAdmin
             .from('invoices')
-            .select('id,total_due,camper_id')
+            .select('*')
             .in('id', invoiceIds)
 
           if (invoiceError || !invoices || invoices.length !== invoiceIds.length) {
@@ -118,6 +120,47 @@ export async function POST(request: Request) {
             .in('id', invoiceIds)
 
           if (updateError) throw updateError
+
+          const camperId = invoices[0]?.camper_id
+          const { data: camper } = camperId
+            ? await supabaseAdmin
+                .from('campers')
+                .select('id,first_name,last_name,lot_number')
+                .eq('id', camperId)
+                .single()
+            : { data: null }
+
+          const amountPaid = invoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+          const lotNumber = camper?.lot_number || session.metadata?.lot_number || 'Unknown'
+          const camperName = camper
+            ? `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
+            : 'A camper'
+          const paymentTitle = `Payment received from Site ${lotNumber}`
+          const paymentMessage = `${camperName} paid $${amountPaid.toFixed(2)} online.`
+
+          await createAdminNotification(supabaseAdmin, {
+            type: 'payment_received',
+            title: paymentTitle,
+            message: paymentMessage,
+            lot_number: lotNumber,
+            camper_id: camperId,
+            source_table: 'invoices',
+            source_id: invoiceIds.join(','),
+          }).catch((error) => console.error('Admin payment notification failed:', error))
+
+          await sendAdminAlertEmail({
+            subject: paymentTitle,
+            heading: paymentTitle,
+            message: paymentMessage,
+            details: [
+              { label: 'Site', value: lotNumber },
+              { label: 'Camper', value: camperName },
+              { label: 'Amount', value: `$${amountPaid.toFixed(2)}` },
+              { label: 'Invoices', value: String(invoiceIds.length) },
+            ],
+            actionUrl: `${request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com'}/admin/invoices`,
+            actionLabel: 'View invoices',
+          }).catch((error) => console.error('Admin payment alert email failed:', error))
         }
       }
     }
@@ -127,12 +170,60 @@ export async function POST(request: Request) {
       const invoiceId = intent.metadata.invoice_id
 
       if (intent.metadata.purpose === 'autopay_invoice' && invoiceId) {
+        const { data: invoice, error: invoiceLookupError } = await supabaseAdmin
+          .from('invoices')
+          .select('*')
+          .eq('id', invoiceId)
+          .single()
+
+        if (invoiceLookupError) throw invoiceLookupError
+
         const { error } = await supabaseAdmin
           .from('invoices')
           .update({ status: 'paid' })
           .eq('id', invoiceId)
 
         if (error) throw error
+
+        const { data: camper } = invoice?.camper_id
+          ? await supabaseAdmin
+              .from('campers')
+              .select('id,first_name,last_name,lot_number')
+              .eq('id', invoice.camper_id)
+              .single()
+          : { data: null }
+
+        const amountPaid = Number(invoice?.total_due || 0)
+        const lotNumber = camper?.lot_number || 'Unknown'
+        const camperName = camper
+          ? `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
+          : 'A camper'
+        const paymentTitle = `AutoPay received from Site ${lotNumber}`
+        const paymentMessage = `${camperName} paid $${amountPaid.toFixed(2)} by AutoPay.`
+
+        await createAdminNotification(supabaseAdmin, {
+          type: 'payment_received',
+          title: paymentTitle,
+          message: paymentMessage,
+          lot_number: lotNumber,
+          camper_id: invoice?.camper_id,
+          source_table: 'invoices',
+          source_id: String(invoiceId),
+        }).catch((alertError) => console.error('Admin AutoPay notification failed:', alertError))
+
+        await sendAdminAlertEmail({
+          subject: paymentTitle,
+          heading: paymentTitle,
+          message: paymentMessage,
+          details: [
+            { label: 'Site', value: lotNumber },
+            { label: 'Camper', value: camperName },
+            { label: 'Amount', value: `$${amountPaid.toFixed(2)}` },
+            { label: 'Payment type', value: 'AutoPay' },
+          ],
+          actionUrl: `${request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com'}/admin/invoices`,
+          actionLabel: 'View invoices',
+        }).catch((alertError) => console.error('Admin AutoPay alert email failed:', alertError))
       }
     }
 

@@ -42,6 +42,9 @@ type AdminStats = {
   emergencyMaintenance: number
   completedMaintenance: number
   pendingMaintenance: number
+  maintenanceAlerts: number
+  paymentAlerts: number
+  rsvpAlerts: number
 }
 
 const emptyStats: AdminStats = {
@@ -60,6 +63,9 @@ const emptyStats: AdminStats = {
   emergencyMaintenance: 0,
   completedMaintenance: 0,
   pendingMaintenance: 0,
+  maintenanceAlerts: 0,
+  paymentAlerts: 0,
+  rsvpAlerts: 0,
 }
 
 export default function AdminPage() {
@@ -106,6 +112,7 @@ export default function AdminPage() {
       electricResult,
       maintenanceResult,
       waitlistResult,
+      notificationResult,
     ] = await Promise.all([
       supabase.from('campers').select('id').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
@@ -116,10 +123,12 @@ export default function AdminPage() {
       supabase.from('electric_readings').select('id'),
       supabase.from('maintenance_tickets').select('*'),
       supabase.from('waitlist').select('id'),
+      supabase.from('admin_notifications').select('id,type').is('read_at', null),
     ])
 
     const invoices = invoicesResult.data || []
     const maintenance = maintenanceResult.data || []
+    const notifications = notificationResult.data || []
 
     setStats({
       campers: campersResult.data?.length || 0,
@@ -149,7 +158,20 @@ export default function AdminPage() {
         (ticket) => ticket.status === 'Completed'
       ).length,
       pendingMaintenance: maintenance.filter((ticket) => ticket.admin_approved !== true).length,
+      maintenanceAlerts: notifications.filter((notification) => notification.type === 'maintenance_request').length,
+      paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
+      rsvpAlerts: notifications.filter((notification) => notification.type === 'event_rsvp').length,
     })
+  }
+
+  async function markAlertsSeen(type: string) {
+    await supabase
+      .from('admin_notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('type', type)
+      .is('read_at', null)
+
+    loadStats()
   }
 
   async function handleLogout() {
@@ -182,6 +204,9 @@ export default function AdminPage() {
       title: 'Invoices & Billing',
       description: 'Create invoices, review balances, and track payments.',
       detail: `${stats.unpaidInvoices} unpaid`,
+      alertCount: stats.paymentAlerts,
+      alertLabel: 'new payment alert',
+      alertType: 'payment_received',
       icon: ReceiptText,
       tone: 'gold',
     },
@@ -198,6 +223,9 @@ export default function AdminPage() {
       title: 'Maintenance',
       description: 'Manage repairs, assignments, and work orders.',
       detail: `${stats.openMaintenance + stats.inProgressMaintenance} active · ${stats.pendingMaintenance} pending`,
+      alertCount: stats.maintenanceAlerts || stats.pendingMaintenance,
+      alertLabel: 'maintenance alert',
+      alertType: 'maintenance_request',
       icon: Wrench,
       tone: stats.emergencyMaintenance > 0 ? 'red' : 'orange',
     },
@@ -221,7 +249,7 @@ export default function AdminPage() {
 
   const communityTools = [
     { href: '/admin/events', title: 'Events', detail: `${stats.events} events`, icon: CalendarDays },
-    { href: '/admin/rsvps', title: 'RSVPs', detail: `${stats.rsvps} responses`, icon: UsersRound },
+    { href: '/admin/rsvps', title: 'RSVPs', detail: `${stats.rsvps} responses`, alertCount: stats.rsvpAlerts, alertLabel: 'new RSVP alert', alertType: 'event_rsvp', icon: UsersRound },
     { href: '/admin/announcements', title: 'Announcements', detail: `${stats.announcements} active`, icon: Megaphone },
     { href: '/admin/texts', title: 'Text Alerts', detail: 'Camper notices', icon: BellRing },
     { href: '/admin/documents', title: 'Documents', detail: 'Files & forms', icon: FileText },
@@ -308,8 +336,14 @@ export default function AdminPage() {
           <div className="admin-operation-grid">
             {dailyOperations.map((item) => {
               const Icon = item.icon
+              const alertCount = item.alertCount || 0
               return (
                 <a href={item.href} className="admin-operation-card" key={item.href}>
+                  {alertCount > 0 && (
+                    <span className="admin-attention-badge" aria-label={`${alertCount} ${item.alertLabel}${alertCount === 1 ? '' : 's'}`}>
+                      {alertCount}
+                    </span>
+                  )}
                   <span className={`admin-operation-icon ${item.tone}`}><Icon size={24} /></span>
                   <span className="admin-operation-copy"><strong>{item.title}</strong><small>{item.description}</small><em>{item.detail}</em></span>
                   <ArrowRight size={19} />
@@ -327,8 +361,14 @@ export default function AdminPage() {
           <div className="admin-community-grid">
             {communityTools.map((item) => {
               const Icon = item.icon
+              const alertCount = item.alertCount || 0
               return (
                 <a href={item.href} className="admin-community-card" key={item.href}>
+                  {alertCount > 0 && (
+                    <span className="admin-attention-badge small" aria-label={`${alertCount} ${item.alertLabel}${alertCount === 1 ? '' : 's'}`}>
+                      {alertCount}
+                    </span>
+                  )}
                   <Icon size={21} />
                   <span><strong>{item.title}</strong><small>{item.detail}</small></span>
                   <ArrowRight size={17} />
@@ -337,6 +377,32 @@ export default function AdminPage() {
             })}
           </div>
         </section>
+
+        {(stats.maintenanceAlerts > 0 || stats.paymentAlerts > 0 || stats.rsvpAlerts > 0) && (
+          <section className="admin-command-panel admin-alert-review-panel">
+            <div className="admin-command-heading">
+              <div><span>ATTENTION</span><h2>New activity waiting for review</h2></div>
+              <p>Clear a dot after you have handled that group.</p>
+            </div>
+            <div className="admin-alert-review-grid">
+              {stats.maintenanceAlerts > 0 && (
+                <button type="button" onClick={() => markAlertsSeen('maintenance_request')}>
+                  <Wrench size={18} /> Mark maintenance seen <strong>{stats.maintenanceAlerts}</strong>
+                </button>
+              )}
+              {stats.paymentAlerts > 0 && (
+                <button type="button" onClick={() => markAlertsSeen('payment_received')}>
+                  <ReceiptText size={18} /> Mark payments seen <strong>{stats.paymentAlerts}</strong>
+                </button>
+              )}
+              {stats.rsvpAlerts > 0 && (
+                <button type="button" onClick={() => markAlertsSeen('event_rsvp')}>
+                  <UsersRound size={18} /> Mark RSVPs seen <strong>{stats.rsvpAlerts}</strong>
+                </button>
+              )}
+            </div>
+          </section>
+        )}
 
         <footer className="admin-command-footer">
           <span>Bur Oaks Campground</span>

@@ -105,7 +105,7 @@ export default function MaintenanceRequestPage() {
       }
     }
 
-    const { error } = await supabase
+    const { data: newTicket, error } = await supabase
       .from('maintenance_tickets')
       .insert({
         title,
@@ -116,6 +116,8 @@ export default function MaintenanceRequestPage() {
         lot_number: camper?.lot_number || '',
         ...(uploadedPaths.length ? { photo_urls: uploadedPaths } : {}),
       })
+      .select('id')
+      .single()
 
     if (error) {
       if (uploadedPaths.length) {
@@ -124,6 +126,25 @@ export default function MaintenanceRequestPage() {
       setMessage(error.message)
       setSubmitting(false)
       return
+    }
+
+    if (newTicket?.id) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+
+      if (token) {
+        fetch('/api/admin-alert', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'maintenance_request',
+            ticketId: newTicket.id,
+          }),
+        }).catch((alertError) => console.error('Maintenance alert failed:', alertError))
+      }
     }
 
     setTitle('')

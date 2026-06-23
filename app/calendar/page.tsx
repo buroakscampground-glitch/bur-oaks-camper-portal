@@ -60,6 +60,26 @@ export default function CalendarPage() {
       response,
     })
 
+    if (response === 'Going') {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+
+      if (token) {
+        fetch('/api/admin-alert', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            type: 'event_rsvp',
+            eventId,
+            response,
+          }),
+        }).catch((alertError) => console.error('RSVP alert failed:', alertError))
+      }
+    }
+
     loadCalendar()
   }
 
