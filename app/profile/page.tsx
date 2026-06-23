@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { Eye, FileUp, ShieldCheck, UsersRound } from 'lucide-react'
+import { CheckCircle2, ClipboardCheck, Eye, FileUp, ShieldCheck, UsersRound } from 'lucide-react'
 
 export default function ProfilePage() {
   const [camper, setCamper] = useState<any>(null)
@@ -195,6 +195,16 @@ export default function ProfilePage() {
     )
   }
 
+  const profileChecklist = [
+    { label: 'Phone number', complete: Boolean(camper.phone) },
+    { label: 'Emergency contact', complete: Boolean(camper.emergency_contact_name && camper.emergency_contact_phone) },
+    { label: 'Vehicle information', complete: Boolean(camper.vehicle_make && camper.vehicle_model && camper.license_plate) },
+    { label: 'Directory choice', complete: camper.directory_opt_in !== null && camper.directory_opt_in !== undefined },
+    { label: 'Golf cart insurance', complete: insuranceDocuments.length > 0 },
+  ]
+  const completeItems = profileChecklist.filter((item) => item.complete).length
+  const completionPercent = Math.round((completeItems / profileChecklist.length) * 100)
+
   return (
     <main className="page">
       <div className="container">
@@ -220,6 +230,25 @@ export default function ProfilePage() {
           <p className="muted">
             Manage your camper information.
           </p>
+        </section>
+
+        <section className="card camper-profile-checkup" style={{ marginBottom: '25px' }}>
+          <div className="camper-profile-checkup-heading">
+            <span><ClipboardCheck size={22} /></span>
+            <div>
+              <small>PROFILE CHECKUP</small>
+              <h2>{completionPercent}% complete</h2>
+              <p className="muted">Complete information helps the office contact you quickly and keeps campground records launch-ready.</p>
+            </div>
+          </div>
+          <div className="camper-profile-checklist">
+            {profileChecklist.map((item) => (
+              <span className={item.complete ? 'done' : ''} key={item.label}>
+                {item.complete ? <CheckCircle2 size={16} /> : <i />}
+                {item.label}
+              </span>
+            ))}
+          </div>
         </section>
 
         <section className="card directory-preferences" style={{ marginBottom: '25px' }}>

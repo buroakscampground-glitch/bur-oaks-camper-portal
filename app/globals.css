@@ -1461,6 +1461,128 @@ button:hover {
   backdrop-filter: blur(15px);
 }
 
+.portal-today-panel {
+  margin: 0 28px 30px;
+  padding: 28px;
+  border: 1px solid #dedbd0;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(255,255,255,.98), rgba(248,246,239,.96));
+  box-shadow: 0 16px 42px rgba(38, 51, 41, 0.09);
+}
+
+.portal-today-panel .portal-section-heading em {
+  color: #5f715f;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.portal-today-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.portal-today-card {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  min-height: 172px;
+  padding: 18px;
+  border: 1px solid #e2dfd5;
+  border-radius: 17px;
+  background: #fff;
+  color: inherit;
+  text-decoration: none;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.portal-today-card:hover {
+  transform: translateY(-2px);
+  border-color: #b9c9ba;
+  box-shadow: 0 12px 28px rgba(39, 54, 43, .1);
+}
+
+.portal-today-card > span {
+  display: grid;
+  width: 43px;
+  height: 43px;
+  place-items: center;
+  border-radius: 13px;
+  background: #e7eee5;
+  color: #3f6848;
+}
+
+.portal-today-card.needs-attention {
+  border-color: #e1c989;
+  background: linear-gradient(180deg, #fff, #fff8e9);
+}
+
+.portal-today-card.needs-attention > span {
+  background: #f4e6bd;
+  color: #8d6621;
+}
+
+.portal-today-card.complete > span {
+  background: #e2f0e3;
+  color: #397047;
+}
+
+.portal-today-card small {
+  color: #98783a;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.portal-today-card strong {
+  color: #263b2e;
+  font: 500 21px Georgia, serif;
+}
+
+.portal-today-card p {
+  margin: 0;
+  color: #69766d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.portal-launch-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 16px;
+}
+
+.portal-launch-checklist a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 35px;
+  padding: 0 12px;
+  border: 1px solid #dfd7c4;
+  border-radius: 999px;
+  background: #fff;
+  color: #5f6e64;
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.portal-launch-checklist a > span {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d6b86d;
+}
+
+.portal-launch-checklist a.done {
+  border-color: #c6d8c6;
+  background: #f0f7ef;
+  color: #3f704a;
+}
+
 .portal-snapshot-item {
   display: flex;
   align-items: center;
@@ -1809,6 +1931,10 @@ button:hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .portal-today-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .portal-snapshot-item:nth-child(2) {
     border-right: 0;
   }
@@ -2053,6 +2179,20 @@ button:hover {
   .portal-snapshot {
     grid-template-columns: 1fr;
     margin: 0 14px 24px;
+  }
+
+  .portal-today-panel {
+    margin: 0 14px 24px;
+    padding: 20px;
+  }
+
+  .portal-today-panel .portal-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .portal-today-grid {
+    grid-template-columns: 1fr;
   }
 
   .portal-snapshot-item,
@@ -4691,6 +4831,75 @@ tbody tr:hover {
   margin-bottom: 18px;
 }
 
+.camper-profile-checkup {
+  border-color: #d9e4d4 !important;
+  background: linear-gradient(135deg,#ffffff,#f2f7ef) !important;
+}
+
+.camper-profile-checkup-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.camper-profile-checkup-heading > span {
+  display: grid;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 14px;
+  background: #e2eee4;
+  color: #386445;
+}
+
+.camper-profile-checkup-heading small {
+  color: #9b7833;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.camper-profile-checkup-heading h2 {
+  margin: 4px 0 0;
+  color: #263d2e;
+  font: 500 30px Georgia, serif;
+}
+
+.camper-profile-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.camper-profile-checklist span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid #ddd5c1;
+  border-radius: 999px;
+  background: #fff;
+  color: #657168;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.camper-profile-checklist span i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d6b86d;
+}
+
+.camper-profile-checklist span.done {
+  border-color: #c4d8c4;
+  background: #eef7ed;
+  color: #3f704a;
+}
+
 .directory-preferences-heading > span {
   width: 43px;
   height: 43px;
@@ -4885,6 +5094,7 @@ tbody tr:hover {
 
 .camper-documents-page,
 .camper-maintenance-page,
+.camper-events-page,
 .admin-open-balance-page {
   min-height: 100vh;
   padding: 24px;
@@ -4895,6 +5105,7 @@ tbody tr:hover {
 
 .camper-documents-hero,
 .camper-maintenance-hero,
+.camper-events-hero,
 .admin-open-balance-hero {
   position: relative;
   overflow: hidden;
@@ -4912,6 +5123,7 @@ tbody tr:hover {
 
 .camper-documents-hero > button,
 .camper-maintenance-hero > button,
+.camper-events-hero > button,
 .admin-open-balance-hero > button:first-child {
   display: inline-flex;
   align-items: center;
@@ -4925,6 +5137,7 @@ tbody tr:hover {
 
 .camper-documents-hero > span,
 .camper-maintenance-hero > span,
+.camper-events-hero > span,
 .admin-open-balance-hero span {
   display: inline-flex;
   align-items: center;
@@ -4938,6 +5151,7 @@ tbody tr:hover {
 
 .camper-documents-hero h1,
 .camper-maintenance-hero h1,
+.camper-events-hero h1,
 .admin-open-balance-hero h1 {
   max-width: 760px;
   margin: 12px 0 0;
@@ -4948,12 +5162,263 @@ tbody tr:hover {
 
 .camper-documents-hero p,
 .camper-maintenance-hero p,
+.camper-events-hero p,
 .admin-open-balance-hero p {
   max-width: 680px;
   margin: 15px 0 0;
   color: rgba(255,255,255,.86);
   font-size: 15px;
   line-height: 1.6;
+}
+
+.camper-featured-event {
+  display: inline-grid;
+  gap: 5px;
+  min-width: min(360px,100%);
+  margin-top: 24px;
+  padding: 17px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 16px;
+  background: rgba(255,255,255,.12);
+  backdrop-filter: blur(10px);
+}
+
+.camper-featured-event small {
+  color: #f3d88e;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .12em;
+}
+
+.camper-featured-event strong {
+  color: #fff;
+  font: 500 24px Georgia, serif;
+}
+
+.camper-featured-event span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(255,255,255,.76);
+  font-size: 12px;
+}
+
+.camper-events-shell {
+  max-width: 1220px;
+  margin: 0 auto;
+}
+
+.camper-events-overview {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.camper-events-overview article {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 17px;
+  border: 1px solid #ddd8ca;
+  border-radius: 17px;
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 12px 30px rgba(38,59,45,.07);
+}
+
+.camper-events-overview article > svg {
+  color: #386845;
+}
+
+.camper-events-overview small {
+  color: #7b857d;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.camper-events-overview strong {
+  display: block;
+  margin-top: 3px;
+  color: #263d2e;
+  font: 500 26px Georgia, serif;
+}
+
+.camper-event-grid {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 18px;
+}
+
+.camper-event-card,
+.camper-event-empty {
+  overflow: hidden;
+  border: 1px solid #ddd8ca;
+  border-radius: 24px;
+  background: rgba(255,255,255,.97);
+  box-shadow: 0 14px 40px rgba(38,59,45,.08);
+}
+
+.camper-event-card {
+  display: grid;
+  grid-template-columns: 160px minmax(0,1fr);
+}
+
+.camper-event-art {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 14px;
+  min-height: 260px;
+  padding: 24px;
+  background: radial-gradient(circle at 20% 10%,rgba(243,216,142,.28),transparent 38%),linear-gradient(145deg,#254b31,#17331f);
+  color: #fff;
+  text-align: center;
+}
+
+.camper-event-art span {
+  color: #f3d88e;
+  font: 500 28px Georgia, serif;
+}
+
+.camper-event-copy {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 24px;
+}
+
+.camper-event-copy small {
+  color: #9b7833;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.camper-event-copy h2 {
+  margin: 0;
+  color: #263d2e;
+  font: 500 28px Georgia, serif;
+}
+
+.camper-event-copy p {
+  margin: 0;
+  color: #66726a;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.camper-event-location,
+.camper-event-counts,
+.camper-event-rsvp-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.camper-event-counts span,
+.camper-event-rsvp-status {
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: #f1f4ef;
+  color: #526358;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.camper-event-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.camper-event-actions button {
+  flex: 1;
+  min-width: 96px;
+  min-height: 40px;
+  border: 1px solid #d9e0d8 !important;
+  background: #fff !important;
+  color: #3f5d49 !important;
+}
+
+.camper-event-actions button.active {
+  border-color: #315f3d !important;
+  background: #315f3d !important;
+  color: #fff !important;
+}
+
+.camper-event-actions button.muted.active {
+  border-color: #768079 !important;
+  background: #768079 !important;
+}
+
+.camper-event-empty {
+  grid-column: 1 / -1;
+  padding: 48px;
+  text-align: center;
+}
+
+.camper-documents-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 760px;
+  margin-top: 24px;
+}
+
+.camper-documents-summary article {
+  padding: 15px;
+  border: 1px solid rgba(255,255,255,.22);
+  border-radius: 14px;
+  background: rgba(255,255,255,.11);
+  backdrop-filter: blur(10px);
+}
+
+.camper-documents-summary small {
+  display: block;
+  color: rgba(255,255,255,.68);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.camper-documents-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: #f5dc91;
+  font: 500 28px Georgia, serif;
+}
+
+.camper-document-section {
+  max-width: 1220px;
+  margin: 0 auto 24px;
+}
+
+.camper-document-section-heading {
+  margin: 0 0 14px;
+}
+
+.camper-document-section-heading span {
+  color: #9b7833;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .15em;
+}
+
+.camper-document-section-heading h2 {
+  margin: 5px 0 0;
+  color: #263d2e;
+  font: 500 28px Georgia, serif;
+}
+
+.camper-document-section-heading p {
+  margin: 5px 0 0;
+  color: #6c786f;
+  font-size: 12px;
 }
 
 .camper-documents-grid {
@@ -4987,6 +5452,11 @@ tbody tr:hover {
   background: linear-gradient(180deg,#fff,#f2f8f0);
 }
 
+.camper-documents-grid.urgent .camper-document-card {
+  border-color: #e1c989;
+  background: linear-gradient(180deg,#fff,#fff8e9);
+}
+
 .camper-document-icon {
   display: grid;
   width: 48px;
@@ -5015,11 +5485,17 @@ tbody tr:hover {
 
 .camper-document-status,
 .camper-document-signed-name,
+.camper-document-proof,
 .camper-documents-empty p {
   margin: 0;
   color: #67736b;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.camper-document-proof {
+  color: #3f704a;
+  font-weight: 800;
 }
 
 .camper-document-actions {
@@ -5516,8 +5992,17 @@ tbody tr:hover {
 
 @media(max-width: 980px) {
   .camper-documents-grid,
-  .camper-maintenance-layout {
+  .camper-maintenance-layout,
+  .camper-event-grid {
     grid-template-columns: 1fr;
+  }
+
+  .camper-event-card {
+    grid-template-columns: 1fr;
+  }
+
+  .camper-event-art {
+    min-height: 170px;
   }
 
   .admin-open-balance-hero {
@@ -5541,12 +6026,14 @@ tbody tr:hover {
 @media(max-width: 640px) {
   .camper-documents-page,
   .camper-maintenance-page,
+  .camper-events-page,
   .admin-open-balance-page {
     padding: 12px;
   }
 
   .camper-documents-hero,
   .camper-maintenance-hero,
+  .camper-events-hero,
   .admin-open-balance-hero {
     padding: 24px;
     border-radius: 22px;
@@ -5554,13 +6041,20 @@ tbody tr:hover {
 
   .camper-documents-hero h1,
   .camper-maintenance-hero h1,
+  .camper-events-hero h1,
   .admin-open-balance-hero h1 {
     font-size: 39px;
   }
 
   .camper-maintenance-stats,
+  .camper-documents-summary,
+  .camper-events-overview,
   .admin-open-balance-stats {
     grid-template-columns: 1fr;
+  }
+
+  .camper-event-copy {
+    padding: 20px;
   }
 
   .signature-modal-actions,

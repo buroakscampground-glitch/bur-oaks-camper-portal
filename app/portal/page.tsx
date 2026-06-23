@@ -3,10 +3,13 @@
 import { useEffect, useState } from 'react'
 import {
   ArrowRight,
+  AlertTriangle,
   Bell,
   CalendarDays,
+  CheckCircle2,
   ChevronRight,
   CircleDollarSign,
+  ClipboardCheck,
   FileText,
   Gauge,
   LogOut,
@@ -95,6 +98,7 @@ export default function CamperPortalPage() {
   const [events, setEvents] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [alerts, setAlerts] = useState<any[]>([])
+  const [maintenanceTickets, setMaintenanceTickets] = useState<any[]>([])
   const [latestElectric, setLatestElectric] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
@@ -136,7 +140,7 @@ export default function CamperPortalPage() {
         setCamper(camperData)
 
         const today = new Date().toISOString().split('T')[0]
-        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult] =
+        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult] =
           await Promise.all([
             supabase
               .from('invoices')
@@ -170,6 +174,12 @@ export default function CamperPortalPage() {
               .select('*')
               .order('sent_at', { ascending: false })
               .limit(4),
+            supabase
+              .from('maintenance_tickets')
+              .select('*')
+              .eq('lot_number', camperData.lot_number)
+              .order('created_at', { ascending: false })
+              .limit(5),
           ])
 
         setInvoices(invoiceResult.data || [])
@@ -178,6 +188,7 @@ export default function CamperPortalPage() {
         setEvents(eventResult.data || [])
         setAnnouncements(announcementResult.data || [])
         setAlerts(alertResult.data || [])
+        setMaintenanceTickets(maintenanceResult.data || [])
       } catch (error) {
         console.error('Unable to load camper portal:', error)
       } finally {
@@ -210,6 +221,48 @@ export default function CamperPortalPage() {
     0
   )
   const nextEvent = events[0]
+  const documentsNeedingSignature = documents.filter(
+    (document) =>
+      document.signature_status !== 'signed' &&
+      document.signature_status !== 'not_required'
+  )
+  const activeMaintenance = maintenanceTickets.filter(
+    (ticket) => ticket.status !== 'Completed'
+  )
+  const latestMaintenance = maintenanceTickets[0]
+  const profileFields = [
+    camper?.phone,
+    camper?.emergency_contact_name,
+    camper?.emergency_contact_phone,
+    camper?.vehicle_make,
+    camper?.vehicle_model,
+    camper?.license_plate,
+  ]
+  const completedProfileFields = profileFields.filter(Boolean).length
+  const profileCompletion = Math.round((completedProfileFields / profileFields.length) * 100)
+  const firstLoginTasks = [
+    {
+      label: 'Review profile',
+      complete: profileCompletion >= 80,
+      href: '/profile',
+    },
+    {
+      label: 'Sign documents',
+      complete: documentsNeedingSignature.length === 0,
+      href: '/documents',
+    },
+    {
+      label: 'Check payments',
+      complete: openInvoices.length === 0,
+      href: '/invoices',
+    },
+    {
+      label: 'RSVP for events',
+      complete: !nextEvent,
+      href: '/calendar',
+    },
+  ]
+  const completedTasks = firstLoginTasks.filter((task) => task.complete).length
 
   return (
     <main className="camper-portal-page">
@@ -261,6 +314,55 @@ export default function CamperPortalPage() {
 
         <PortalWeather />
 
+        <section className="portal-today-panel">
+          <div className="portal-section-heading">
+            <div>
+              <span>TODAY AT BUR OAKS</span>
+              <h2>Your quick campground check-in</h2>
+            </div>
+            <em>{completedTasks} of {firstLoginTasks.length} launch items complete</em>
+          </div>
+
+          <div className="portal-today-grid">
+            <a className={`portal-today-card ${documentsNeedingSignature.length ? 'needs-attention' : 'complete'}`} href="/documents">
+              <span>{documentsNeedingSignature.length ? <AlertTriangle size={22} /> : <CheckCircle2 size={22} />}</span>
+              <small>Documents</small>
+              <strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} need signature` : 'All caught up'}</strong>
+              <p>{documentsNeedingSignature.length ? 'Review and sign assigned leases or renewals.' : 'No documents need your signature right now.'}</p>
+            </a>
+
+            <a className={`portal-today-card ${openInvoices.length ? 'needs-attention' : 'complete'}`} href="/invoices">
+              <span>{openInvoices.length ? <CircleDollarSign size={22} /> : <CheckCircle2 size={22} />}</span>
+              <small>Payments</small>
+              <strong>{openInvoices.length ? `$${openBalance.toFixed(2)} open` : 'Balance clear'}</strong>
+              <p>{openInvoices.length ? `${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'} ready to review.` : 'No open invoices are due in the portal.'}</p>
+            </a>
+
+            <a className="portal-today-card" href="/maintenance">
+              <span><Wrench size={22} /></span>
+              <small>Maintenance</small>
+              <strong>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'No active requests'}</strong>
+              <p>{latestMaintenance ? `${latestMaintenance.title || 'Latest request'} · ${latestMaintenance.admin_approved ? latestMaintenance.status : 'Awaiting office approval'}` : 'Submit a request if something needs attention.'}</p>
+            </a>
+
+            <a className="portal-today-card" href="/profile">
+              <span><ClipboardCheck size={22} /></span>
+              <small>Profile</small>
+              <strong>{profileCompletion}% complete</strong>
+              <p>Keep contact, emergency, vehicle, and golf cart information current.</p>
+            </a>
+          </div>
+
+          <div className="portal-launch-checklist">
+            {firstLoginTasks.map((task) => (
+              <a href={task.href} className={task.complete ? 'done' : ''} key={task.label}>
+                {task.complete ? <CheckCircle2 size={16} /> : <span />}
+                {task.label}
+              </a>
+            ))}
+          </div>
+        </section>
+
         <section className="portal-snapshot" aria-label="Account overview">
           <a href="/invoices" className="portal-snapshot-item">
             <span className="portal-snapshot-icon green">
@@ -301,8 +403,8 @@ export default function CamperPortalPage() {
             </span>
             <span>
               <small>Documents</small>
-              <strong>{documents.length}</strong>
-              <em>Available in your portal</em>
+              <strong>{documentsNeedingSignature.length || documents.length}</strong>
+              <em>{documentsNeedingSignature.length ? 'Need signature' : 'Available in your portal'}</em>
             </span>
           </a>
         </section>

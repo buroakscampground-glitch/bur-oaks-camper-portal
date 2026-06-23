@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { CalendarDays, CheckCircle2, MapPin, PartyPopper, UsersRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function CalendarPage() {
@@ -85,35 +86,36 @@ export default function CalendarPage() {
 
   if (loading) return <p style={{ padding: '40px' }}>Loading events...</p>
 
+  const upcomingEvents = events.filter((event) => {
+    const today = new Date().toISOString().split('T')[0]
+    return !event.event_date || event.event_date >= today
+  })
+  const featuredEvent = upcomingEvents[0] || events[0]
+
   return (
-    <main className="page">
-      <div className="container">
-        <section className="card" style={{ marginBottom: '25px' }}>
-          <p className="muted">BUR OAKS CAMPGROUND</p>
-          <button
-  onClick={() => router.push('/portal')}
-  style={{
-    marginBottom: '20px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  }}
->
-  ← Back to Portal
-</button>
-          <h1>📅 Events Calendar</h1>
-<h2 style={{ color: '#2f5d3a' }}>
-  {events.length} Upcoming Events
-</h2>
-<p className="muted">
-  RSVP for upcoming campground events.
-</p>
+    <main className="camper-events-page">
+      <section className="camper-events-hero">
+        <button type="button" onClick={() => router.push('/portal')}>← Back to Portal</button>
+        <span><PartyPopper size={17} /> Campground calendar</span>
+        <h1>Good weekends start here.</h1>
+        <p>See what is happening around Bur Oaks, RSVP for events, and help the office plan for the right crowd.</p>
+        {featuredEvent && (
+          <div className="camper-featured-event">
+            <small>FEATURED NEXT</small>
+            <strong>{featuredEvent.title}</strong>
+            <span><CalendarDays size={15} /> {featuredEvent.event_date || 'Date coming soon'}</span>
+          </div>
+        )}
+      </section>
+
+      <div className="camper-events-shell">
+        <section className="camper-events-overview">
+          <article><CalendarDays size={20} /><span><small>Upcoming</small><strong>{upcomingEvents.length}</strong></span></article>
+          <article><UsersRound size={20} /><span><small>Total RSVPs</small><strong>{rsvps.length}</strong></span></article>
+          <article><CheckCircle2 size={20} /><span><small>Your responses</small><strong>{rsvps.filter((r) => r.camper_id === camper?.id).length}</strong></span></article>
         </section>
 
-        <div className="grid">
+        <div className="camper-event-grid">
           {events.map((event) => {
             const eventRsvps = rsvps.filter((r) => r.event_id === event.id)
             const myRsvp = eventRsvps.find((r) => r.camper_id === camper?.id)
@@ -122,56 +124,53 @@ export default function CalendarPage() {
             const maybeCount = eventRsvps.filter((r) => r.response === 'Maybe').length
 
             return (
-              <section className="card" key={event.id}>
-                <p
-  className="muted"
-  style={{
-    fontWeight: 'bold',
-    color: '#2f5d3a',
-  }}
->
-  📅 {event.event_date}
-</p>
-                <h2>{event.title}</h2>
-                <p>{event.description}</p>
+              <section className="camper-event-card" key={event.id}>
+                <div className="camper-event-art">
+                  <CalendarDays size={32} />
+                  <span>{event.event_date ? new Date(`${event.event_date}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : 'Soon'}</span>
+                </div>
+                <div className="camper-event-copy">
+                  <small>BUR OAKS EVENT</small>
+                  <h2>{event.title}</h2>
+                  <p>{event.description || 'More details will be shared soon.'}</p>
 
-{event.location && (
-  <p className="muted">
-    📍 {event.location}
-  </p>
-)}
+                  {event.location && (
+                    <p className="camper-event-location">
+                      <MapPin size={15} /> {event.location}
+                    </p>
+                  )}
 
-                <p className="muted">
-                ✅ Going: {goingCount}
-&nbsp;&nbsp;•&nbsp;&nbsp;
-🤔 Maybe: {maybeCount}
-                </p>
+                  <div className="camper-event-counts">
+                    <span>✅ {goingCount} going</span>
+                    <span>🤔 {maybeCount} maybe</span>
+                  </div>
 
-                {myRsvp && (
-                  <p>
-                 Your RSVP: <strong>
-  {myRsvp.response === 'Going'
-    ? '✅ Going'
-    : myRsvp.response === 'Maybe'
-    ? '🤔 Maybe'
-    : '❌ Not Going'}
-</strong>
-                  </p>
-                )}
+                  {myRsvp && (
+                    <div className="camper-event-rsvp-status">
+                      Your RSVP: <strong>
+                        {myRsvp.response === 'Going'
+                          ? '✅ Going'
+                          : myRsvp.response === 'Maybe'
+                            ? '🤔 Maybe'
+                            : '❌ Not Going'}
+                      </strong>
+                    </div>
+                  )}
 
-                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  <button onClick={() => saveRsvp(event.id, 'Going')}>Going</button>
-                  <button onClick={() => saveRsvp(event.id, 'Maybe')}>Maybe</button>
-                  <button onClick={() => saveRsvp(event.id, 'Not Going')}>Not Going</button>
+                  <div className="camper-event-actions">
+                    <button className={myRsvp?.response === 'Going' ? 'active' : ''} onClick={() => saveRsvp(event.id, 'Going')}>Going</button>
+                    <button className={myRsvp?.response === 'Maybe' ? 'active' : ''} onClick={() => saveRsvp(event.id, 'Maybe')}>Maybe</button>
+                    <button className={myRsvp?.response === 'Not Going' ? 'active muted' : ''} onClick={() => saveRsvp(event.id, 'Not Going')}>Not Going</button>
+                  </div>
                 </div>
               </section>
             )
           })}
 
           {events.length === 0 && (
-            <section className="card">
+            <section className="camper-event-empty">
               <h2>No events yet</h2>
-              <p className="muted">There are no upcoming campground events posted right now.</p>
+              <p>There are no upcoming campground events posted right now.</p>
             </section>
           )}
         </div>

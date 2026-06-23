@@ -140,6 +140,54 @@ export default function DocumentsPage() {
     return <p style={{ padding: '40px' }}>Loading documents...</p>
   }
 
+  const documentsNeedingSignature = documents.filter(
+    (doc) => doc.signature_status !== 'signed' && doc.signature_status !== 'not_required'
+  )
+  const signedDocuments = documents.filter((doc) => doc.signature_status === 'signed')
+  const referenceDocuments = documents.filter((doc) => doc.signature_status === 'not_required')
+  const signatureProgress = documents.length
+    ? Math.round(((signedDocuments.length + referenceDocuments.length) / documents.length) * 100)
+    : 100
+
+  function renderDocumentCard(doc: any) {
+    return (
+      <section
+        key={doc.id}
+        className={doc.signature_status === 'signed' ? 'camper-document-card signed' : 'camper-document-card'}
+      >
+        <div className="camper-document-icon">
+          {doc.signature_status === 'signed' ? <CheckCircle2 size={22} /> : <FileSignature size={22} />}
+        </div>
+        <small>{doc.document_type || 'General'}</small>
+        <h2>{doc.document_name}</h2>
+        <p className="camper-document-status">
+          {doc.signature_status === 'signed'
+            ? `Signed${doc.signed_at ? ` on ${new Date(doc.signed_at).toLocaleDateString()}` : ''}`
+            : doc.signature_status === 'not_required'
+              ? 'No signature required'
+              : 'Signature pending'}
+        </p>
+        {doc.signed_name && <p className="camper-document-signed-name">Signed by {doc.signed_name}</p>}
+        {doc.signature_record_hash && (
+          <p className="camper-document-proof">Secure signature record saved</p>
+        )}
+
+        <div className="camper-document-actions">
+          {doc.file_url && (
+            <button type="button" onClick={() => openDocument(String(doc.id))}>
+              View Document
+            </button>
+          )}
+          {doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && (
+            <button type="button" className="primary" onClick={() => { setSigningDocument(doc); setMessage('') }}>
+              Sign Document
+            </button>
+          )}
+        </div>
+      </section>
+    )
+  }
+
   return (
     <main className="camper-documents-page">
       <section className="camper-documents-hero">
@@ -147,6 +195,11 @@ export default function DocumentsPage() {
         <span><ShieldCheck size={17} /> Secure document center</span>
         <h1>Leases, renewals, and campground documents.</h1>
         <p>Review assigned documents, open the original file, and electronically sign when a signature is required.</p>
+        <div className="camper-documents-summary">
+          <article><small>Needs signature</small><strong>{documentsNeedingSignature.length}</strong></article>
+          <article><small>Signed / complete</small><strong>{signedDocuments.length + referenceDocuments.length}</strong></article>
+          <article><small>Progress</small><strong>{signatureProgress}%</strong></article>
+        </div>
       </section>
 
         {documents.length === 0 && (
@@ -159,41 +212,31 @@ export default function DocumentsPage() {
           </section>
         )}
 
-        <div className="camper-documents-grid">
-          {documents.map((doc) => (
-            <section
-              key={doc.id}
-              className={doc.signature_status === 'signed' ? 'camper-document-card signed' : 'camper-document-card'}
-            >
-              <div className="camper-document-icon">
-                {doc.signature_status === 'signed' ? <CheckCircle2 size={22} /> : <FileSignature size={22} />}
-              </div>
-              <small>{doc.document_type || 'General'}</small>
-              <h2>{doc.document_name}</h2>
-              <p className="camper-document-status">
-                {doc.signature_status === 'signed'
-                  ? `Signed${doc.signed_at ? ` on ${new Date(doc.signed_at).toLocaleDateString()}` : ''}`
-                  : doc.signature_status === 'not_required'
-                    ? 'No signature required'
-                  : 'Signature pending'}
-              </p>
-              {doc.signed_name && <p className="camper-document-signed-name">Signed by {doc.signed_name}</p>}
+        {documentsNeedingSignature.length > 0 && (
+          <section className="camper-document-section">
+            <div className="camper-document-section-heading">
+              <span>ACTION NEEDED</span>
+              <h2>Documents waiting for your signature</h2>
+              <p>Open each file, review it, then sign securely in the portal.</p>
+            </div>
+            <div className="camper-documents-grid urgent">
+              {documentsNeedingSignature.map(renderDocumentCard)}
+            </div>
+          </section>
+        )}
 
-              <div className="camper-document-actions">
-                {doc.file_url && (
-                  <button type="button" onClick={() => openDocument(String(doc.id))}>
-                    View Document
-                  </button>
-                )}
-                {doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && (
-                  <button type="button" className="primary" onClick={() => { setSigningDocument(doc); setMessage('') }}>
-                    Sign Lease
-                  </button>
-                )}
-              </div>
-            </section>
-          ))}
-        </div>
+        {(signedDocuments.length > 0 || referenceDocuments.length > 0) && (
+          <section className="camper-document-section">
+            <div className="camper-document-section-heading">
+              <span>YOUR RECORDS</span>
+              <h2>Signed and reference documents</h2>
+              <p>These files are saved with your camper account for easy access.</p>
+            </div>
+            <div className="camper-documents-grid">
+              {[...signedDocuments, ...referenceDocuments].map(renderDocumentCard)}
+            </div>
+          </section>
+        )}
 
       {message && <div className="camper-document-message">{message}</div>}
 
