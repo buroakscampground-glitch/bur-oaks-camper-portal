@@ -2,9 +2,9 @@ const campgroundAddress = '10303 Oaks Rd, Alhambra, IL 62001'
 const encodedAddress = encodeURIComponent(campgroundAddress)
 const latitude = 38.8884
 const longitude = -89.7312
-const aerialMapUrl = '/bur-oaks-aerial-map.svg'
 const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`
 const satelliteUrl = `https://www.google.com/maps/@${latitude},${longitude},700m/data=!3m1!1e3`
+const satelliteEmbedUrl = `https://maps.google.com/maps?ll=${latitude},${longitude}&z=17&t=k&output=embed&q=${encodedAddress}`
 
 export default function CampgroundMap({
   lotNumber,
@@ -15,13 +15,16 @@ export default function CampgroundMap({
 }) {
   return (
     <div className={`campground-map ${compact ? 'compact' : ''}`}>
-      <img
-        alt="Aerial style view of Bur Oaks Campground"
-        src={aerialMapUrl}
+      <iframe
+        aria-label="Real satellite view of Bur Oaks Campground"
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        src={satelliteEmbedUrl}
+        title="Bur Oaks Campground satellite map"
       />
 
       <div className="campground-map-overlay">
-        <span>Aerial site view</span>
+        <span>Real satellite view</span>
         <strong>Bur Oaks Campground</strong>
         <small>{campgroundAddress}</small>
         {lotNumber && <em>Your portal site: Lot {lotNumber}</em>}
@@ -32,7 +35,7 @@ export default function CampgroundMap({
         <a href={satelliteUrl} rel="noreferrer" target="_blank">Satellite view</a>
       </div>
 
-      <small className="campground-map-credit">Bur Oaks aerial-style map</small>
+      <small className="campground-map-credit">Live satellite map</small>
     </div>
   )
 }
