@@ -223,7 +223,7 @@ export default function AdminPage() {
       title: 'Maintenance',
       description: 'Manage repairs, assignments, and work orders.',
       detail: `${stats.openMaintenance + stats.inProgressMaintenance} active · ${stats.pendingMaintenance} pending`,
-      alertCount: stats.maintenanceAlerts || stats.pendingMaintenance,
+      alertCount: stats.maintenanceAlerts,
       alertLabel: 'maintenance alert',
       alertType: 'maintenance_request',
       icon: Wrench,

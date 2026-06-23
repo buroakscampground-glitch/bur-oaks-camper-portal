@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
+import { markAdminAlertsSeen } from '../../../../lib/admin-alert-actions'
 
 export default function MaintenanceTicketPage() {
   const params = useParams()
@@ -25,6 +26,8 @@ export default function MaintenanceTicketPage() {
   }, [])
 
   async function loadTicket() {
+    await markAdminAlertsSeen(supabase, 'maintenance_request', String(params.id))
+
     const { data, error } = await supabase
       .from('maintenance_tickets')
       .select('*')

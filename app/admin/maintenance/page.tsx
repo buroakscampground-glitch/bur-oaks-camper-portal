@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
+import { markAdminAlertsSeen } from '../../../lib/admin-alert-actions'
 
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<any[]>([])
@@ -43,6 +44,8 @@ export default function MaintenancePage() {
   }, [])
 
   async function loadTickets() {
+    await markAdminAlertsSeen(supabase, 'maintenance_request')
+
     const { data } = await supabase
       .from('maintenance_tickets')
       .select('*')
@@ -121,7 +124,10 @@ export default function MaintenancePage() {
       .eq('id', id)
 
     setMessage(error ? error.message : approved ? 'Work order approved.' : 'Approval removed.')
-    if (!error) loadTickets()
+    if (!error) {
+      await markAdminAlertsSeen(supabase, 'maintenance_request', id)
+      loadTickets()
+    }
   }
 
   async function deleteTicket(id: string) {
@@ -139,6 +145,7 @@ export default function MaintenancePage() {
     }
 
     setMessage('Ticket deleted.')
+    await markAdminAlertsSeen(supabase, 'maintenance_request', id)
     loadTickets()
   }
 
@@ -286,7 +293,10 @@ export default function MaintenancePage() {
                   <button onClick={() => updateStatus(ticket.id, 'Open')}>Open</button>
                   <button onClick={() => updateStatus(ticket.id, 'In Progress')}>In Progress</button>
                   <button onClick={() => updateStatus(ticket.id, 'Completed')}>Completed</button>
-                  <button onClick={() => router.push(`/admin/maintenance/${ticket.id}`)}>View Ticket</button>
+                  <button onClick={async () => {
+                    await markAdminAlertsSeen(supabase, 'maintenance_request', ticket.id)
+                    router.push(`/admin/maintenance/${ticket.id}`)
+                  }}>View Ticket</button>
                   <button className="danger" onClick={() => deleteTicket(ticket.id)}><Trash2 size={15} /> Delete</button>
                 </div>
               </article>
