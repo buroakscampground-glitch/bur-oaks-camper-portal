@@ -44,7 +44,7 @@ export default function AdminRsvpsPage() {
           <p className="muted">BUR OAKS CAMPGROUND</p>
           <h1>Event RSVPs</h1>
           <button
-  onClick={() => window.history.back()}
+  onClick={() => window.location.href = '/admin'}
   style={{
     marginTop: '10px',
     marginBottom: '15px',

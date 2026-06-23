@@ -15,18 +15,32 @@ function fallbackFor(pathname: string) {
   }
 
   if (pathname.startsWith('/admin/') && pathname !== '/admin') {
+    const section = pathname.split('/')[2]
+    const isDetailPage = pathname.split('/').filter(Boolean).length > 2
+
+    if (section && isDetailPage) {
+      return `/admin/${section}`
+    }
+
     return '/admin'
   }
 
   if (
-    pathname.startsWith('/maintenance/dashboard/') ||
-    pathname === '/maintenance/history'
+    pathname.startsWith('/maintenance/dashboard/')
   ) {
     return '/maintenance/dashboard'
   }
 
+  if (pathname === '/maintenance/history') {
+    return '/maintenance'
+  }
+
   if (pathname === '/maintenance/dashboard') {
     return '/login'
+  }
+
+  if (pathname.startsWith('/portal/events/')) {
+    return '/portal'
   }
 
   if (
@@ -47,15 +61,6 @@ export default function GlobalBackButton() {
   if (pathname === '/') return null
 
   function goBack() {
-    const referrer = document.referrer
-    const cameFromThisSite =
-      referrer && new URL(referrer).origin === window.location.origin
-
-    if (cameFromThisSite && window.history.length > 1) {
-      router.back()
-      return
-    }
-
     router.push(fallbackFor(pathname))
   }
 
