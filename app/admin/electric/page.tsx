@@ -13,6 +13,8 @@ export default function AdminElectricPage() {
   const [currentReading, setCurrentReading] = useState('')
   const [rate, setRate] = useState('0.23')
   const [readingDate, setReadingDate] = useState('')
+  const [includeWaterTrash, setIncludeWaterTrash] = useState(false)
+  const [waterTrashFee, setWaterTrashFee] = useState('20')
   const [searchText, setSearchText] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
@@ -70,6 +72,10 @@ const liveAmount =
   liveUsage > 0
     ? liveUsage * Number(rate || 0)
     : 0
+
+const selectedWaterTrashFee = includeWaterTrash ? Number(waterTrashFee || 0) : 0
+const liveInvoiceTotal = liveAmount + selectedWaterTrashFee
+
   async function saveElectricAndCreateInvoice() {
     setMessage('')
     setSaving(true)
@@ -83,17 +89,25 @@ const liveAmount =
     const previous = Number(previousReading)
     const current = Number(currentReading)
     const rateNumber = Number(rate)
+    const waterTrashAmount = includeWaterTrash ? Number(waterTrashFee) : 0
     const kwhUsed = current - previous
     const amountDue = Number((kwhUsed * rateNumber).toFixed(2))
+    const totalDue = Number((amountDue + waterTrashAmount).toFixed(2))
 
-    if (!Number.isFinite(previous) || !Number.isFinite(current) || !Number.isFinite(rateNumber)) {
+    if (!Number.isFinite(previous) || !Number.isFinite(current) || !Number.isFinite(rateNumber) || !Number.isFinite(waterTrashAmount)) {
       setMessage('Please enter valid numeric values for readings and rate.')
       setSaving(false)
       return
     }
 
-    if (previous < 0 || current < 0 || rateNumber <= 0) {
+    if (previous < 0 || current < 0 || rateNumber <= 0 || waterTrashAmount < 0) {
       setMessage('Readings and rate must be positive values.')
+      setSaving(false)
+      return
+    }
+
+    if (includeWaterTrash && ![20, 25].includes(waterTrashAmount)) {
+      setMessage('Please choose a $20 or $25 water/trash fee.')
       setSaving(false)
       return
     }
@@ -144,10 +158,10 @@ const liveAmount =
       .insert({
         camper_id: camperId,
         invoice_number: invoiceNumber,
-        invoice_type: 'Electric',
-        subtotal: amountDue,
+        invoice_type: includeWaterTrash ? 'Electric + Water/Trash' : 'Electric',
+        subtotal: totalDue,
         late_fee: 0,
-        total_due: amountDue,
+        total_due: totalDue,
         due_date: readingDate,
         status: 'sent',
       })
@@ -160,13 +174,27 @@ const liveAmount =
       return
     }
 
-    const { error: itemError } = await supabase.from('invoice_items').insert({
-      invoice_id: invoice.id,
-      description: `Electric Usage - ${kwhUsed} kWh`,
-      quantity: kwhUsed,
-      unit_price: rateNumber,
-      total: amountDue,
-    })
+    const invoiceItems = [
+      {
+        invoice_id: invoice.id,
+        description: `Electric Usage - ${kwhUsed} kWh`,
+        quantity: kwhUsed,
+        unit_price: rateNumber,
+        total: amountDue,
+      },
+    ]
+
+    if (includeWaterTrash) {
+      invoiceItems.push({
+        invoice_id: invoice.id,
+        description: `Water/Trash Fee - $${waterTrashAmount}`,
+        quantity: 1,
+        unit_price: waterTrashAmount,
+        total: waterTrashAmount,
+      })
+    }
+
+    const { error: itemError } = await supabase.from('invoice_items').insert(invoiceItems)
 
     if (itemError) {
       await supabase.from('invoices').delete().eq('id', invoice.id)
@@ -196,6 +224,10 @@ const liveAmount =
 
     let resultMessage = `Electric invoice created: ${kwhUsed} kWh × $${rateNumber} = $${amountDue}`
 
+    if (includeWaterTrash) {
+      resultMessage += ` + $${waterTrashAmount} water/trash fee = $${totalDue}`
+    }
+
     try {
       const autoPay = await attemptAutoPay(invoice.id)
 
@@ -210,6 +242,8 @@ const liveAmount =
     setPreviousReading('')
     setCurrentReading('')
     setReadingDate('')
+    setIncludeWaterTrash(false)
+    setWaterTrashFee('20')
     setSearchText('')
     loadReadings()
     setSaving(false)
@@ -311,12 +345,96 @@ setTimeout(() => {
       ${liveAmount.toFixed(2)}
     </h2>
     <p className="muted">Estimated Charge</p>
+
+    {includeWaterTrash && (
+      <>
+        <h2>
+          ${liveInvoiceTotal.toFixed(2)}
+        </h2>
+        <p className="muted">Estimated Total with Water/Trash</p>
+      </>
+    )}
   </section>
 )}
           <input placeholder="Rate per kWh" value={rate} onChange={(e) => setRate(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
 
+          <section
+            style={{
+              marginBottom: '14px',
+              padding: '16px',
+              border: includeWaterTrash ? '2px solid #2f5d3a' : '1px solid #d8ded5',
+              borderRadius: '14px',
+              background: includeWaterTrash ? '#eef6eb' : '#f8faf7',
+            }}
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+              }}
+            >
+              <input
+                checked={includeWaterTrash}
+                onChange={(e) => setIncludeWaterTrash(e.target.checked)}
+                style={{ marginTop: '3px' }}
+                type="checkbox"
+              />
+              <span>
+                Add water/trash fee to this electric bill
+                <small
+                  style={{
+                    display: 'block',
+                    marginTop: '4px',
+                    color: '#6b7280',
+                    fontWeight: 'normal',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Use this when electric and water/trash billing go out together.
+                </small>
+              </span>
+            </label>
+
+            {includeWaterTrash && (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                  gap: '10px',
+                  marginTop: '14px',
+                }}
+              >
+                {[20, 25].map((fee) => (
+                  <label
+                    key={fee}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '12px',
+                      border: waterTrashFee === String(fee) ? '2px solid #2f5d3a' : '1px solid #d8ded5',
+                      borderRadius: '12px',
+                      background: waterTrashFee === String(fee) ? '#ffffff' : '#f3f5f1',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      checked={waterTrashFee === String(fee)}
+                      onChange={() => setWaterTrashFee(String(fee))}
+                      type="radio"
+                    />
+                    <strong>${fee} water/trash</strong>
+                  </label>
+                ))}
+              </div>
+            )}
+          </section>
+
           <button onClick={saveElectricAndCreateInvoice} disabled={saving}>
-            {saving ? 'Saving…' : 'Save Reading + Create Invoice'}
+            {saving ? 'Saving…' : includeWaterTrash ? 'Save Reading + Create Combined Invoice' : 'Save Reading + Create Invoice'}
           </button>
 
           {message && <p style={{ color: '#b02a37' }}>{message}</p>}
