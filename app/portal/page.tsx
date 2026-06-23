@@ -102,6 +102,12 @@ function formatDate(value?: string) {
   })
 }
 
+function getMaintenanceDisplayStatus(ticket?: any) {
+  if (!ticket) return 'No active requests'
+  if (!ticket.admin_approved) return 'Awaiting Approval'
+  return ticket.status || 'Open'
+}
+
 export default function CamperPortalPage() {
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
@@ -208,6 +214,17 @@ export default function CamperPortalPage() {
     }
 
     loadDashboard()
+
+    const refresh = () => loadDashboard()
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+    }
   }, [])
 
   async function handleLogout() {
@@ -241,6 +258,15 @@ export default function CamperPortalPage() {
     (ticket) => ticket.status !== 'Completed'
   )
   const latestMaintenance = maintenanceTickets[0]
+  const latestMaintenanceStatus = getMaintenanceDisplayStatus(latestMaintenance)
+  const maintenanceHeadline = activeMaintenance.length
+    ? `${latestMaintenanceStatus} · ${activeMaintenance.length} active`
+    : latestMaintenance?.status === 'Completed'
+      ? 'Completed'
+      : 'No active requests'
+  const maintenanceDetail = latestMaintenance
+    ? `${latestMaintenance.title || 'Latest request'} · ${latestMaintenanceStatus}`
+    : 'No open maintenance requests for your lot right now.'
   const latestAnnouncement = announcements[0]
   const profileFields = [
     camper?.phone,
@@ -306,7 +332,7 @@ export default function CamperPortalPage() {
     { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
     { label: 'Documents', value: documentsNeedingSignature.length ? `${documentsNeedingSignature.length} open` : 'Clear', complete: documentsNeedingSignature.length === 0 },
     { label: 'Balance', value: openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00', complete: openInvoices.length === 0 },
-    { label: 'Maintenance', value: activeMaintenance.length ? `${activeMaintenance.length} active` : 'None', complete: activeMaintenance.length === 0 },
+    { label: 'Maintenance', value: activeMaintenance.length ? latestMaintenanceStatus : latestMaintenance?.status === 'Completed' ? 'Completed' : 'None', complete: activeMaintenance.length === 0 },
   ]
 
   return (
@@ -425,8 +451,8 @@ export default function CamperPortalPage() {
             <article>
               <Wrench size={22} />
               <small>Site check</small>
-              <strong>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'All quiet'}</strong>
-              <p>{latestMaintenance ? `${latestMaintenance.title || 'Latest request'} · ${latestMaintenance.admin_approved ? latestMaintenance.status : 'Awaiting office approval'}` : 'No open maintenance requests for your lot right now.'}</p>
+              <strong>{maintenanceHeadline}</strong>
+              <p>{maintenanceDetail}</p>
             </article>
           </div>
         </section>
@@ -458,8 +484,8 @@ export default function CamperPortalPage() {
             <a className="portal-today-card" href="/maintenance">
               <span><Wrench size={22} /></span>
               <small>Maintenance</small>
-              <strong>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'No active requests'}</strong>
-              <p>{latestMaintenance ? `${latestMaintenance.title || 'Latest request'} · ${latestMaintenance.admin_approved ? latestMaintenance.status : 'Awaiting office approval'}` : 'Submit a request if something needs attention.'}</p>
+              <strong>{maintenanceHeadline}</strong>
+              <p>{latestMaintenance ? maintenanceDetail : 'Submit a request if something needs attention.'}</p>
             </a>
 
             <a className="portal-today-card" href="/profile">

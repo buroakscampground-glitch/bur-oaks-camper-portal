@@ -12,6 +12,12 @@ function formatDate(value?: string) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function getMaintenanceDisplayStatus(ticket?: any) {
+  if (!ticket) return 'No requests'
+  if (!ticket.admin_approved) return 'Awaiting Approval'
+  return ticket.status || 'Open'
+}
+
 export default function MySitePage() {
   const router = useRouter()
   const [camper, setCamper] = useState<any>(null)
@@ -23,6 +29,17 @@ export default function MySitePage() {
 
   useEffect(() => {
     loadSite()
+
+    const refresh = () => loadSite()
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+    }
   }, [])
 
   async function loadSite() {
@@ -72,6 +89,16 @@ export default function MySitePage() {
   const insuranceDocs = documents.filter((document) => document.document_type === 'Golf Cart Insurance')
   const activeMaintenance = maintenance.filter((ticket) => ticket.status !== 'Completed')
   const latestElectric = electric[0]
+  const latestMaintenance = maintenance[0]
+  const latestMaintenanceStatus = getMaintenanceDisplayStatus(latestMaintenance)
+  const maintenanceCardTitle = activeMaintenance.length
+    ? latestMaintenanceStatus
+    : latestMaintenance?.status === 'Completed'
+      ? 'Completed'
+      : 'Clear'
+  const maintenanceCardDetail = latestMaintenance
+    ? latestMaintenance.title || 'Latest request'
+    : 'Recent site requests'
 
   return (
     <main className="my-site-page">
@@ -86,7 +113,7 @@ export default function MySitePage() {
         <a href="/invoices" className={openInvoices.length ? 'attention' : 'complete'}><CircleDollarSign /><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong><span>{openInvoices.length} invoice{openInvoices.length === 1 ? '' : 's'}</span><em>{openInvoices.length ? 'Needs review' : 'Ready'}</em></a>
         <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'complete'}><FileText /><small>Documents</small><strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} pending` : 'Complete'}</strong><span>{documents.length} total files</span><em>{documentsNeedingSignature.length ? 'Signature needed' : 'Ready'}</em></a>
         <a href="/profile" className={insuranceDocs.length ? 'complete' : 'attention'}><ShieldCheck /><small>Insurance</small><strong>{insuranceDocs.length ? 'Uploaded' : 'Needed'}</strong><span>Golf cart insurance</span><em>{insuranceDocs.length ? 'On file' : 'Upload needed'}</em></a>
-        <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'complete'}><Wrench /><small>Maintenance</small><strong>{activeMaintenance.length ? `${activeMaintenance.length} active` : 'Clear'}</strong><span>Recent site requests</span><em>{activeMaintenance.length ? 'In progress' : 'Ready'}</em></a>
+        <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'complete'}><Wrench /><small>Maintenance</small><strong>{maintenanceCardTitle}</strong><span>{maintenanceCardDetail}</span><em>{activeMaintenance.length ? 'Active request' : latestMaintenance?.status === 'Completed' ? 'Closed' : 'Ready'}</em></a>
       </section>
 
       <div className="my-site-layout">
@@ -139,7 +166,7 @@ export default function MySitePage() {
       <section className="my-site-card my-site-wide">
         <div className="my-site-card-heading"><CheckCircle2 /><div><small>RECENT SITE ACTIVITY</small><h2>What’s happening at Lot {camper?.lot_number || '—'}</h2></div></div>
         <div className="my-site-activity-grid">
-          <article><small>Latest maintenance</small><strong>{maintenance[0]?.title || 'No recent requests'}</strong><span>{maintenance[0] ? maintenance[0].status : 'All quiet'}</span></article>
+          <article><small>Latest maintenance</small><strong>{latestMaintenance?.title || 'No recent requests'}</strong><span>{latestMaintenance ? latestMaintenanceStatus : 'All quiet'}</span></article>
           <article><small>Newest document</small><strong>{documents[0]?.document_name || 'No documents yet'}</strong><span>{documents[0]?.signature_status || 'Nothing assigned'}</span></article>
           <article><small>Next step</small><strong>{documentsNeedingSignature.length ? 'Sign documents' : openInvoices.length ? 'Review balance' : 'Enjoy the campground'}</strong><span>{documentsNeedingSignature.length ? 'Documents waiting' : openInvoices.length ? 'Payment available' : 'You are caught up'}</span></article>
         </div>

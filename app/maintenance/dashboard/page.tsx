@@ -18,6 +18,17 @@ export default function MaintenanceDashboard() {
 
   useEffect(() => {
     loadTickets()
+
+    const refresh = () => loadTickets()
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+    }
   }, [])
 
   async function loadTickets() {
@@ -300,6 +311,7 @@ export default function MaintenanceDashboard() {
                       .from('maintenance_tickets')
                       .update({
                         status: 'In Progress',
+                        completed_at: null,
                       })
                       .eq('id', ticket.id)
 

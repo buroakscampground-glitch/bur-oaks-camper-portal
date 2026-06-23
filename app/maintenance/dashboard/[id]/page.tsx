@@ -45,14 +45,26 @@ export default function TicketDetailPage() {
       updates.completed_at = new Date().toISOString()
     }
 
-    await supabase
+    if (status !== 'Completed') {
+      updates.completed_at = null
+    }
+
+    const { data, error } = await supabase
       .from('maintenance_tickets')
       .update(updates)
       .eq('id', params.id)
+      .select('*')
+      .single()
 
+    if (error) {
+      alert(error.message)
+      return
+    }
+
+    setTicket(data)
+    setStatus(data?.status || 'Open')
+    setAssignedTo(data?.assigned_to || 'Open')
     alert('Changes Saved')
-
-    loadTicket()
   }
 
   if (loading) {

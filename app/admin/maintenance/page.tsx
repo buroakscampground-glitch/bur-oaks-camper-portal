@@ -94,9 +94,14 @@ export default function MaintenancePage() {
   }
 
   async function updateStatus(id: string, status: string) {
+    const updates: any = {
+      status,
+      completed_at: status === 'Completed' ? new Date().toISOString() : null,
+    }
+
     const { error } = await supabase
       .from('maintenance_tickets')
-      .update({ status })
+      .update(updates)
       .eq('id', id)
 
     if (error) {
@@ -256,6 +261,7 @@ export default function MaintenancePage() {
                 <option>All</option>
                 <option>Open</option>
                 <option>In Progress</option>
+                <option>Waiting Parts</option>
                 <option>Completed</option>
                 <option>Pending Approval</option>
                 <option>Approved</option>
@@ -292,6 +298,7 @@ export default function MaintenancePage() {
                   )}
                   <button onClick={() => updateStatus(ticket.id, 'Open')}>Open</button>
                   <button onClick={() => updateStatus(ticket.id, 'In Progress')}>In Progress</button>
+                  <button onClick={() => updateStatus(ticket.id, 'Waiting Parts')}>Waiting Parts</button>
                   <button onClick={() => updateStatus(ticket.id, 'Completed')}>Completed</button>
                   <button onClick={async () => {
                     await markAdminAlertsSeen(supabase, 'maintenance_request', ticket.id)

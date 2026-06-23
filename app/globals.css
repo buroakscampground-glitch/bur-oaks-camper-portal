@@ -7077,6 +7077,27 @@ tbody tr:hover {
 .camper-maintenance-ticket.in-progress { border-left-color: #2f6fad; }
 .camper-maintenance-ticket.waiting-parts { border-left-color: #d9822b; }
 
+.camper-maintenance-approval-badge {
+  justify-self: start;
+  display: inline-flex;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: #f3dfaa;
+  color: #765719;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.camper-maintenance-status-note {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f1f5ef;
+}
+
+.camper-maintenance-status-note strong {
+  color: #315f3d;
+}
+
 .camper-maintenance-ticket small {
   color: #879088;
   font-size: 9px;

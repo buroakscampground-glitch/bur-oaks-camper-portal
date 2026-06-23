@@ -62,6 +62,10 @@ export default function MaintenanceTicketPage() {
         new Date().toISOString()
     }
 
+    if (status !== 'Completed') {
+      updates.completed_at = null
+    }
+
     const { data, error } = await supabase
       .from('maintenance_tickets')
       .update(updates)

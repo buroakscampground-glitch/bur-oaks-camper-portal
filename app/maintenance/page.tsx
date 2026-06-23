@@ -7,6 +7,12 @@ import { supabase } from '../../lib/supabase'
 import { MaintenanceBadge } from '../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../components/MaintenancePhotos'
 
+function getMaintenanceDisplayStatus(ticket?: any) {
+  if (!ticket) return 'Open'
+  if (!ticket.admin_approved) return 'Awaiting Office Approval'
+  return ticket.status || 'Open'
+}
+
 export default function MaintenanceRequestPage() {
   const [camper, setCamper] = useState<any>(null)
   const [tickets, setTickets] = useState<any[]>([])
@@ -23,6 +29,17 @@ export default function MaintenanceRequestPage() {
 
   useEffect(() => {
     loadPage()
+
+    const refresh = () => loadPage()
+    const timer = window.setInterval(refresh, 30000)
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+    }
   }, [])
 
   useEffect(() => {
@@ -207,7 +224,7 @@ export default function MaintenanceRequestPage() {
         <p>Submit the issue, attach photos if helpful, and track the status once the office reviews and approves the work.</p>
         <div className="camper-maintenance-stats">
           <article><small>Your lot</small><strong>{camper?.lot_number || 'N/A'}</strong></article>
-          <article><small>Open requests</small><strong>{tickets.filter((ticket) => ticket.status !== 'Completed').length}</strong></article>
+          <article><small>Active requests</small><strong>{tickets.filter((ticket) => ticket.status !== 'Completed').length}</strong></article>
           <article><small>Completed</small><strong>{tickets.filter((ticket) => ticket.status === 'Completed').length}</strong></article>
         </div>
       </section>
@@ -308,8 +325,16 @@ export default function MaintenanceRequestPage() {
                   <small>{new Date(ticket.created_at).toLocaleDateString()} · {ticket.category}</small>
                   <h3>{ticket.title}</h3>
                 </div>
-                <MaintenanceBadge kind="status" value={ticket.status} />
+                {ticket.admin_approved ? (
+                  <MaintenanceBadge kind="status" value={ticket.status} />
+                ) : (
+                  <span className="camper-maintenance-approval-badge">Awaiting Office Approval</span>
+                )}
                 <p>{ticket.description}</p>
+                <p className="camper-maintenance-status-note">
+                  Current status: <strong>{getMaintenanceDisplayStatus(ticket)}</strong>
+                  {ticket.completed_at ? ` · Completed ${new Date(ticket.completed_at).toLocaleDateString()}` : ''}
+                </p>
                 <MaintenancePhotos paths={ticket.photo_urls} />
               </article>
             ))}
