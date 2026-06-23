@@ -1,8 +1,9 @@
-import { EventCard, PageHero, PublicShell } from '../../components/PublicSite'
+import EventFlyerShowcase from '../../components/EventFlyerShowcase'
+import { PageHero, PublicShell } from '../../components/PublicSite'
 
 export default function EventsPage() {
   return <PublicShell><main><PageHero eyebrow="Campground calendar" title="Good times are part of the tradition." description="From holiday weekends to friendly competitions, the Bur Oaks calendar keeps the community connected." />
-    <section id="page-content" className="public-section"><div className="public-section-heading"><div><span className="public-kicker">2026 season</span><h2>Upcoming at Bur Oaks</h2></div></div><div className="public-event-grid"><EventCard flyer="/event-flyer-1.png" date="May 23" title="Memorial Day Weekend" description="Celebrate the unofficial start of summer with friends and family around the campground." /><EventCard flyer="/event-flyer-2.png" date="May 23" title="Mouse Races & Silent Auction" description="A lively community evening with racing, bidding, laughter, and plenty of friendly competition." /><EventCard flyer="/event-flyer-3.png" date="Summer 2026" title="3 Bag Summer Series" description="Join the series throughout the summer and follow the campground standings." /><EventCard date="Dates coming soon" title="More events on the way" description="Additional weekend activities and seasonal traditions will be announced in the camper portal." /></div></section>
+    <section id="page-content" className="public-section"><EventFlyerShowcase context="public" showPast /></section>
     <section className="public-note-card"><span>Current campers</span><h2>Full event details live in your portal.</h2><p>See announcements, RSVP information, and the latest campground calendar.</p><a href="/login">Open camper portal</a></section>
   </main></PublicShell>
 }

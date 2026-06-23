@@ -1,5 +1,6 @@
 import { ArrowRight, CalendarDays, Fish, Leaf, ShieldCheck, Sparkles, TentTree, Users } from 'lucide-react'
-import { EventCard, PublicShell } from '../components/PublicSite'
+import EventFlyerShowcase from '../components/EventFlyerShowcase'
+import { PublicShell } from '../components/PublicSite'
 
 const gallery = [
   '/campground.jpg',
@@ -95,11 +96,7 @@ export default function HomePage() {
             <div><span className="public-kicker">On the calendar</span><h2>There is always something happening.</h2></div>
             <a href="/events">See all events <ArrowRight size={16} /></a>
           </div>
-          <div className="public-event-grid">
-            <EventCard flyer="/event-flyer-1.png" date="May 23" title="Memorial Day Weekend" description="Kick off summer with a full holiday weekend at the campground." />
-            <EventCard flyer="/event-flyer-2.png" date="May 23" title="Mouse Races & Silent Auction" description="An evening of community fun, friendly competition, and fundraising." />
-            <EventCard flyer="/event-flyer-3.png" date="Summer 2026" title="3 Bag Summer Series" description="A season-long series made for players, spectators, and good company." />
-          </div>
+          <EventFlyerShowcase context="public" limit={3} />
         </section>
 
         <section className="public-cta">

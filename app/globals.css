@@ -464,6 +464,153 @@ button:hover {
 .public-event-card h3 { margin: auto 0 12px; padding-top: 60px; font-family: Georgia, serif; font-size: 28px; font-weight: 500; }
 .public-event-card p { margin-bottom: 0; color: #687169; line-height: 1.65; }
 
+.event-flyer-showcase {
+  width: 100%;
+}
+
+.event-flyer-showcase.portal {
+  margin: 0 28px 30px;
+  padding: 28px;
+  border: 1px solid #dedbd0;
+  border-radius: 22px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 16px 42px rgba(38, 51, 41, 0.09);
+}
+
+.event-flyer-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.event-flyer-heading span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #9a7834;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .15em;
+  text-transform: uppercase;
+}
+
+.event-flyer-heading h2 {
+  margin: 7px 0 0;
+  color: #203629;
+  font-family: Georgia, serif;
+  font-size: clamp(28px, 4vw, 44px);
+  font-weight: 500;
+  letter-spacing: -.03em;
+}
+
+.event-flyer-heading p {
+  max-width: 720px;
+  margin: 8px 0 0;
+  color: #68746c;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.event-flyer-heading > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 11px 14px;
+  border-radius: 999px;
+  background: #eff5ec;
+  color: #365e40;
+  font-size: 12px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.event-flyer-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.event-flyer-grid article {
+  overflow: hidden;
+  border: 1px solid #dfdbcf;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 13px 32px rgba(38, 51, 41, .08);
+}
+
+.event-flyer-grid article.featured {
+  grid-column: span 2;
+  display: grid;
+  grid-template-columns: minmax(280px,.78fr) minmax(0,1fr);
+  background: linear-gradient(135deg,#fff,#fbf7eb);
+}
+
+.event-flyer-grid img {
+  width: 100%;
+  height: 360px;
+  object-fit: cover;
+  object-position: top center;
+  background: #f3efe6;
+}
+
+.event-flyer-grid article.featured img {
+  height: 100%;
+  min-height: 520px;
+}
+
+.event-flyer-grid article > div {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  padding: 22px;
+}
+
+.event-flyer-grid article.featured > div {
+  align-content: center;
+  padding: 34px;
+}
+
+.event-flyer-grid article span {
+  color: #9b7833;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.event-flyer-grid article h3 {
+  margin: 0;
+  color: #263b2e;
+  font-family: Georgia, serif;
+  font-size: 25px;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.event-flyer-grid article.featured h3 {
+  font-size: clamp(34px, 5vw, 52px);
+}
+
+.event-flyer-grid article small {
+  color: #3f6a49;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.event-flyer-grid article p {
+  margin: 0;
+  color: #68746c;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.event-flyer-grid article.featured p {
+  font-size: 15px;
+}
+
 .public-cta { padding: 75px max(22px, calc((100vw - 1180px) / 2)); display: flex; align-items: center; justify-content: space-between; gap: 50px; background: var(--forest); color: white; }
 .public-cta h2 { max-width: 760px; margin: 10px 0 0; font-size: clamp(38px, 4.4vw, 64px); font-weight: 500; }
 .public-cta > div:last-child { display: flex; gap: 10px; flex-shrink: 0; }
@@ -634,6 +781,24 @@ button:hover {
   .public-blog-grid > .featured { grid-template-columns: 1fr; gap: 45px; }
   .public-feature-grid,
   .public-event-grid { grid-template-columns: 1fr; }
+  .event-flyer-grid,
+  .event-flyer-grid article.featured {
+    grid-template-columns: 1fr;
+  }
+
+  .event-flyer-grid article.featured {
+    grid-column: auto;
+  }
+
+  .event-flyer-grid article.featured img {
+    min-height: 0;
+    height: 440px;
+  }
+
+  .event-flyer-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
   .public-feature-grid article + article { border-left: 1px solid rgba(21,61,42,.15); border-top: 0; }
   .public-feature-grid article { min-height: 260px; }
   .public-feature-grid h3 { margin-top: 65px; }
@@ -2141,6 +2306,33 @@ button:hover {
   .portal-weather {
     margin: -52px 14px 20px;
     border-radius: 19px;
+  }
+
+  .event-flyer-showcase.portal {
+    margin: 0 14px 24px;
+    padding: 20px;
+    border-radius: 19px;
+  }
+
+  .event-flyer-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .event-flyer-grid article.featured {
+    grid-column: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .event-flyer-grid img,
+  .event-flyer-grid article.featured img {
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 2 / 3;
+  }
+
+  .event-flyer-grid article.featured > div,
+  .event-flyer-grid article > div {
+    padding: 20px;
   }
 
   .portal-weather-heading {

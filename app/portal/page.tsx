@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import PortalWeather from '../../components/PortalWeather'
+import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 
 const serviceLinks = [
   {
@@ -313,6 +314,8 @@ export default function CamperPortalPage() {
         </section>
 
         <PortalWeather />
+
+        <EventFlyerShowcase context="portal" limit={4} />
 
         <section className="portal-today-panel">
           <div className="portal-section-heading">

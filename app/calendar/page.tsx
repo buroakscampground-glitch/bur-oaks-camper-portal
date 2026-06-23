@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarDays, CheckCircle2, MapPin, PartyPopper, UsersRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<any[]>([])
@@ -109,6 +110,8 @@ export default function CalendarPage() {
       </section>
 
       <div className="camper-events-shell">
+        <EventFlyerShowcase context="portal" limit={6} />
+
         <section className="camper-events-overview">
           <article><CalendarDays size={20} /><span><small>Upcoming</small><strong>{upcomingEvents.length}</strong></span></article>
           <article><UsersRound size={20} /><span><small>Total RSVPs</small><strong>{rsvps.length}</strong></span></article>
