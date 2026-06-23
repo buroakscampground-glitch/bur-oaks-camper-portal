@@ -2,13 +2,17 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, CheckCircle2, Clock, HelpCircle, MapPin, PartyPopper, XCircle } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, Clock, Download, HelpCircle, MapPin, PartyPopper, UsersRound, XCircle } from 'lucide-react'
 import { eventFlyers2026 } from '../../../../lib/event-flyers'
 import { supabase } from '../../../../lib/supabase'
 
 type RsvpStatus = {
   eventId?: string
   myResponse: string | null
+  goingCampers?: Array<{
+    name: string
+    lotNumber: string | null
+  }>
   counts: {
     going: number
     maybe: number
@@ -21,6 +25,26 @@ const responseButtons = [
   { label: 'Maybe', icon: HelpCircle, helper: 'Interested' },
   { label: 'Not Going', icon: XCircle, helper: 'Can’t make it' },
 ]
+
+function compactCalendarDate(value: string) {
+  return value.replaceAll('-', '')
+}
+
+function googleCalendarUrl(event: NonNullable<(typeof eventFlyers2026)[number]>) {
+  const start = compactCalendarDate(event.date)
+  const endDate = new Date(`${event.endDate || event.date}T12:00:00`)
+  endDate.setDate(endDate.getDate() + 1)
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: event.title,
+    dates: `${start}/${compactCalendarDate(endDate.toISOString().slice(0, 10))}`,
+    details: event.description,
+    location: 'Bur Oaks Campground',
+  })
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
 
 export default function PortalEventDetailPage() {
   const params = useParams<{ slug: string }>()
@@ -65,6 +89,7 @@ export default function PortalEventDetailPage() {
       setStatus({
         eventId: data.eventId,
         myResponse: data.myResponse,
+        goingCampers: data.goingCampers || [],
         counts: data.counts || { going: 0, maybe: 0, notGoing: 0 },
       })
     } else {
@@ -100,6 +125,7 @@ export default function PortalEventDetailPage() {
       setStatus({
         eventId: data.eventId,
         myResponse: data.myResponse,
+        goingCampers: data.goingCampers || [],
         counts: data.counts || { going: 0, maybe: 0, notGoing: 0 },
       })
       setMessage(`Saved — you are marked as ${responseLabel}.`)
@@ -190,6 +216,37 @@ export default function PortalEventDetailPage() {
                 <span>{status?.counts.maybe || 0} maybe</span>
                 <span>{status?.counts.notGoing || 0} not going</span>
               </div>
+            </section>
+
+            <section className="portal-event-extras">
+              <article>
+                <Download size={21} />
+                <div>
+                  <small>Save the date</small>
+                  <h2>Add it to your calendar</h2>
+                  <p>Drop this event onto your phone calendar so the weekend does not sneak up on you.</p>
+                  <a href={googleCalendarUrl(event)} rel="noreferrer" target="_blank">Add to Google Calendar</a>
+                </div>
+              </article>
+
+              <article>
+                <UsersRound size={21} />
+                <div>
+                  <small>Who's going</small>
+                  <h2>Campers planning to attend</h2>
+                  <p>Only campers who opted into the camper directory are shown here.</p>
+                  <div className="portal-event-going-list">
+                    {(status?.goingCampers || []).slice(0, 6).map((camper) => (
+                      <span key={`${camper.lotNumber}-${camper.name}`}>
+                        Lot {camper.lotNumber || '—'} · {camper.name}
+                      </span>
+                    ))}
+                    {(!status?.goingCampers || status.goingCampers.length === 0) && (
+                      <span>No opted-in campers shown yet.</span>
+                    )}
+                  </div>
+                </div>
+              </article>
             </section>
           </div>
 

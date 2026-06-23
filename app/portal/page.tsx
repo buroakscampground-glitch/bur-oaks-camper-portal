@@ -241,6 +241,7 @@ export default function CamperPortalPage() {
     (ticket) => ticket.status !== 'Completed'
   )
   const latestMaintenance = maintenanceTickets[0]
+  const latestAnnouncement = announcements[0]
   const profileFields = [
     camper?.phone,
     camper?.emergency_contact_name,
@@ -396,6 +397,39 @@ export default function CamperPortalPage() {
         </section>
 
         <EventFlyerShowcase context="portal" limit={4} />
+
+        <section className="portal-weekend-brief">
+          <div className="portal-section-heading">
+            <div>
+              <span>THIS WEEKEND AT BUR OAKS</span>
+              <h2>A quick glance before you pack the cooler</h2>
+            </div>
+            <a href="/calendar">See all events <ArrowRight size={16} /></a>
+          </div>
+
+          <div className="portal-weekend-brief-grid">
+            <article>
+              <CalendarDays size={22} />
+              <small>Next event</small>
+              <strong>{nextEvent?.title || 'Nothing posted yet'}</strong>
+              <p>{nextEvent ? `${formatDate(nextEvent.event_date)} · RSVP from the calendar.` : 'The next campground event will show here as soon as it is posted.'}</p>
+            </article>
+
+            <article>
+              <Megaphone size={22} />
+              <small>Latest note</small>
+              <strong>{latestAnnouncement?.title || 'No new announcements'}</strong>
+              <p>{latestAnnouncement?.message || 'Important campground updates will appear right here.'}</p>
+            </article>
+
+            <article>
+              <Wrench size={22} />
+              <small>Site check</small>
+              <strong>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'All quiet'}</strong>
+              <p>{latestMaintenance ? `${latestMaintenance.title || 'Latest request'} · ${latestMaintenance.admin_approved ? latestMaintenance.status : 'Awaiting office approval'}` : 'No open maintenance requests for your lot right now.'}</p>
+            </article>
+          </div>
+        </section>
 
         <section className="portal-today-panel">
           <div className="portal-section-heading">

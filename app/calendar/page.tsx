@@ -2,9 +2,26 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarDays, CheckCircle2, MapPin, PartyPopper, UsersRound } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Download, MapPin, PartyPopper, UsersRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
+
+function googleCalendarUrl(event: any) {
+  const eventDate = event.event_date || new Date().toISOString().split('T')[0]
+  const start = eventDate.replaceAll('-', '')
+  const endDate = new Date(`${eventDate}T12:00:00`)
+  endDate.setDate(endDate.getDate() + 1)
+  const end = endDate.toISOString().slice(0, 10).replaceAll('-', '')
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: event.title || 'Bur Oaks Event',
+    dates: `${start}/${end}`,
+    details: event.description || '',
+    location: event.location || 'Bur Oaks Campground',
+  })
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`
+}
 
 export default function CalendarPage() {
   const [events, setEvents] = useState<any[]>([])
@@ -164,6 +181,9 @@ export default function CalendarPage() {
                     <button className={myRsvp?.response === 'Going' ? 'active' : ''} onClick={() => saveRsvp(event.id, 'Going')}>Going</button>
                     <button className={myRsvp?.response === 'Maybe' ? 'active' : ''} onClick={() => saveRsvp(event.id, 'Maybe')}>Maybe</button>
                     <button className={myRsvp?.response === 'Not Going' ? 'active muted' : ''} onClick={() => saveRsvp(event.id, 'Not Going')}>Not Going</button>
+                    <a className="camper-event-calendar-link" href={googleCalendarUrl(event)} rel="noreferrer" target="_blank">
+                      <Download size={15} /> Add to calendar
+                    </a>
                   </div>
                 </div>
               </section>

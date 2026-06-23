@@ -59,10 +59,32 @@ async function getEventStatus(context: NonNullable<Awaited<ReturnType<typeof get
 
   const safeRsvps = rsvps || []
   const myRsvp = safeRsvps.find((rsvp) => rsvp.camper_id === context.camper.id)
+  const goingCamperIds = Array.from(
+    new Set(
+      safeRsvps
+        .filter((rsvp) => rsvp.response === 'Going' && rsvp.camper_id)
+        .map((rsvp) => rsvp.camper_id)
+    )
+  )
+  let goingCampers: Array<{ name: string; lotNumber: string | null }> = []
+
+  if (goingCamperIds.length) {
+    const { data: optedInCampers } = await context.admin
+      .from('campers')
+      .select('id,first_name,last_name,lot_number,directory_opt_in')
+      .in('id', goingCamperIds)
+      .eq('directory_opt_in', true)
+
+    goingCampers = (optedInCampers || []).map((camper) => ({
+      name: `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper',
+      lotNumber: camper.lot_number || null,
+    }))
+  }
 
   return {
     eventId: event.id,
     myResponse: myRsvp?.response || null,
+    goingCampers,
     counts: {
       going: safeRsvps.filter((rsvp) => rsvp.response === 'Going').length,
       maybe: safeRsvps.filter((rsvp) => rsvp.response === 'Maybe').length,

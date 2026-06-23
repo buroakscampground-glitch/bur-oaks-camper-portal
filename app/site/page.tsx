@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollarSign, FileText, Gauge, Home, Phone, ShieldCheck, UserRound, Wrench } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollarSign, FileText, Gauge, Home, MapPin, Phone, ShieldCheck, TentTree, UserRound, Wrench } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 function formatDate(value?: string) {
@@ -83,10 +83,10 @@ export default function MySitePage() {
       </section>
 
       <section className="my-site-status-grid">
-        <a href="/invoices" className={openInvoices.length ? 'attention' : 'complete'}><CircleDollarSign /><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong><span>{openInvoices.length} invoice{openInvoices.length === 1 ? '' : 's'}</span></a>
-        <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'complete'}><FileText /><small>Documents</small><strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} pending` : 'Complete'}</strong><span>{documents.length} total files</span></a>
-        <a href="/profile" className={insuranceDocs.length ? 'complete' : 'attention'}><ShieldCheck /><small>Insurance</small><strong>{insuranceDocs.length ? 'Uploaded' : 'Needed'}</strong><span>Golf cart insurance</span></a>
-        <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'complete'}><Wrench /><small>Maintenance</small><strong>{activeMaintenance.length ? `${activeMaintenance.length} active` : 'Clear'}</strong><span>Recent site requests</span></a>
+        <a href="/invoices" className={openInvoices.length ? 'attention' : 'complete'}><CircleDollarSign /><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong><span>{openInvoices.length} invoice{openInvoices.length === 1 ? '' : 's'}</span><em>{openInvoices.length ? 'Needs review' : 'Ready'}</em></a>
+        <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'complete'}><FileText /><small>Documents</small><strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} pending` : 'Complete'}</strong><span>{documents.length} total files</span><em>{documentsNeedingSignature.length ? 'Signature needed' : 'Ready'}</em></a>
+        <a href="/profile" className={insuranceDocs.length ? 'complete' : 'attention'}><ShieldCheck /><small>Insurance</small><strong>{insuranceDocs.length ? 'Uploaded' : 'Needed'}</strong><span>Golf cart insurance</span><em>{insuranceDocs.length ? 'On file' : 'Upload needed'}</em></a>
+        <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'complete'}><Wrench /><small>Maintenance</small><strong>{activeMaintenance.length ? `${activeMaintenance.length} active` : 'Clear'}</strong><span>Recent site requests</span><em>{activeMaintenance.length ? 'In progress' : 'Ready'}</em></a>
       </section>
 
       <div className="my-site-layout">
@@ -116,6 +116,25 @@ export default function MySitePage() {
           <a href="/electric">View electric history</a>
         </section>
       </div>
+
+      <section className="my-site-card my-site-wide my-site-map-card">
+        <div className="my-site-card-heading"><MapPin /><div><small>CAMPGROUND MAP</small><h2>Your Bur Oaks map preview</h2></div></div>
+        <div className="my-site-map-layout">
+          <div className="my-site-map-visual" aria-label="Bur Oaks campground map preview">
+            <span className="my-site-map-lake">Lake</span>
+            <span className="my-site-map-site">Lot {camper?.lot_number || '—'}</span>
+            <span className="my-site-map-rec">Rec Hall</span>
+            <span className="my-site-map-gate">Gate</span>
+            <span className="my-site-map-trail"><TentTree size={15} /> Oaks</span>
+          </div>
+          <div className="my-site-map-copy">
+            <small>Coming into the weekend</small>
+            <h3>Know where the fun, services, and your site are.</h3>
+            <p>This is the start of the interactive campground map area. Next we can turn it into clickable lots, occupied/vacant status, camper lookup, and maintenance links.</p>
+            <a href="/amenities">View amenities</a>
+          </div>
+        </div>
+      </section>
 
       <section className="my-site-card my-site-wide">
         <div className="my-site-card-heading"><CheckCircle2 /><div><small>RECENT SITE ACTIVITY</small><h2>What’s happening at Lot {camper?.lot_number || '—'}</h2></div></div>
