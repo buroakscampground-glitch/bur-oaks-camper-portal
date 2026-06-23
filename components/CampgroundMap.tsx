@@ -4,7 +4,18 @@ const latitude = 38.8884
 const longitude = -89.7312
 const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`
 const satelliteUrl = `https://www.google.com/maps/@${latitude},${longitude},700m/data=!3m1!1e3`
-const satelliteEmbedUrl = `https://maps.google.com/maps?ll=${latitude},${longitude}&z=17&t=k&output=embed&q=${encodedAddress}`
+const satelliteTileBase = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/17'
+const satelliteTiles = [
+  [50144, 32864],
+  [50144, 32865],
+  [50144, 32866],
+  [50145, 32864],
+  [50145, 32865],
+  [50145, 32866],
+  [50146, 32864],
+  [50146, 32865],
+  [50146, 32866],
+]
 
 export default function CampgroundMap({
   lotNumber,
@@ -15,13 +26,17 @@ export default function CampgroundMap({
 }) {
   return (
     <div className={`campground-map ${compact ? 'compact' : ''}`}>
-      <iframe
-        aria-label="Real satellite view of Bur Oaks Campground"
-        loading="lazy"
-        referrerPolicy="no-referrer-when-downgrade"
-        src={satelliteEmbedUrl}
-        title="Bur Oaks Campground satellite map"
-      />
+      <div className="campground-satellite-tiles" aria-label="Real satellite view of Bur Oaks Campground">
+        {satelliteTiles.map(([row, column]) => (
+          <img
+            alt=""
+            aria-hidden="true"
+            key={`${row}-${column}`}
+            loading="lazy"
+            src={`${satelliteTileBase}/${row}/${column}`}
+          />
+        ))}
+      </div>
 
       <div className="campground-map-overlay">
         <span>Real satellite view</span>
@@ -35,7 +50,7 @@ export default function CampgroundMap({
         <a href={satelliteUrl} rel="noreferrer" target="_blank">Satellite view</a>
       </div>
 
-      <small className="campground-map-credit">Live satellite map</small>
+      <small className="campground-map-credit">Satellite imagery © Esri</small>
     </div>
   )
 }

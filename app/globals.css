@@ -1848,6 +1848,72 @@ button:hover {
   color: #315f3d;
 }
 
+.portal-planner-dinners {
+  display: grid;
+  grid-template-columns: auto repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: stretch;
+  margin-top: 18px;
+}
+
+.portal-planner-dinners > div {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 5px;
+  min-width: 86px;
+  padding: 12px;
+  border-radius: 16px;
+  background: #315f3d;
+  color: #f0d98d;
+}
+
+.portal-planner-dinners > div span {
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .1em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.portal-planner-dinners a {
+  display: grid;
+  gap: 4px;
+  padding: 13px;
+  border: 1px solid rgba(154,120,52,.18);
+  border-radius: 16px;
+  background: rgba(255,255,255,.86);
+  color: #253c2d;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(38,51,41,.06);
+}
+
+.portal-planner-dinners small {
+  color: #9a7834;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+
+.portal-planner-dinners strong {
+  color: #253c2d;
+  font: 500 18px/1.08 Georgia, serif;
+}
+
+.portal-planner-dinners em {
+  align-self: end;
+  justify-self: start;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: #f0e5bd;
+  color: #73551c;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
 .portal-readiness-stack {
   display: grid;
   gap: 9px;
@@ -2649,7 +2715,9 @@ button:hover {
 .my-site-activity-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.my-site-activity-grid article{padding:18px;border-radius:17px;background:#f6f8f4}.my-site-activity-grid strong{display:block;margin-top:6px;color:#253b2d;font:500 21px Georgia,serif}.my-site-activity-grid span{display:block;margin-top:6px;color:#6d786f;font-size:12px}
 .my-site-status-grid em{align-self:end;justify-self:start;margin-top:5px;padding:7px 10px;border-radius:999px;background:#e3eee4;color:#315f3d;font-size:10px;font-style:normal;font-weight:900;text-transform:uppercase;letter-spacing:.08em}.my-site-status-grid a.attention em{background:#f1dfae;color:#865f1f}
 .campground-map{position:relative;min-height:360px;overflow:hidden;border:1px solid rgba(49,95,61,.14);border-radius:24px;background:#163721;box-shadow:0 18px 42px rgba(34,54,38,.13)}
-.campground-map img,.campground-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;filter:saturate(1.08) contrast(1.05)}
+.campground-map>img,.campground-map iframe{position:absolute;inset:0;width:100%;height:100%;border:0;object-fit:cover;filter:saturate(1.08) contrast(1.05)}
+.campground-satellite-tiles{position:absolute;inset:-18%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);transform:scale(1.08);filter:saturate(1.08) contrast(1.05)}
+.campground-satellite-tiles img{width:100%;height:100%;object-fit:cover}
 .campground-map:after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(11,29,18,.08),rgba(11,29,18,.48))}
 .campground-map-overlay{position:absolute;left:18px;right:18px;bottom:18px;z-index:2;display:grid;gap:4px;max-width:360px;padding:16px;border:1px solid rgba(255,255,255,.28);border-radius:18px;background:rgba(250,248,242,.94);box-shadow:0 18px 38px rgba(12,28,18,.22);backdrop-filter:blur(12px)}
 .campground-map-overlay span{color:#9a7834;font-size:9px;font-weight:900;letter-spacing:.13em;text-transform:uppercase}.campground-map-overlay strong{color:#253c2d;font:500 25px/1.05 Georgia,serif}.campground-map-overlay small{color:#627067;font-size:12px;font-weight:800}.campground-map-overlay em{justify-self:start;margin-top:4px;padding:7px 10px;border-radius:999px;background:#315f3d;color:#fff;font-size:11px;font-style:normal;font-weight:900}
@@ -2807,6 +2875,15 @@ button:hover {
   .portal-site-command {
     padding: 21px;
     border-radius: 20px;
+  }
+
+  .portal-planner-dinners {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-planner-dinners > div {
+    justify-items: start;
+    min-width: 0;
   }
 
   .portal-readiness-stack {

@@ -29,6 +29,7 @@ import {
 import { supabase } from '../../lib/supabase'
 import PortalWeather from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
+import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 
 const serviceLinks = [
   {
@@ -335,7 +336,11 @@ export default function CamperPortalPage() {
             title: 'Everything looks calm',
             detail: 'No urgent portal items right now. Enjoy your time at Bur Oaks.',
             action: 'Need maintenance?',
-          }
+        }
+  const today = new Date().toISOString().slice(0, 10)
+  const upcomingDinners = saturdayDinners2026
+    .filter((dinner) => dinner.date >= today && !dinner.closed)
+    .slice(0, 2)
   const siteReadiness = [
     { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
     { label: 'Documents', value: documentsNeedingSignature.length ? `${documentsNeedingSignature.length} open` : 'Clear', complete: documentsNeedingSignature.length === 0 },
@@ -405,6 +410,22 @@ export default function CamperPortalPage() {
               <a href={weekendFocus.href}>{weekendFocus.action} <ArrowRight size={16} /></a>
               <a href="/site">Open My Site</a>
             </div>
+
+            {upcomingDinners.length > 0 && (
+              <div className="portal-planner-dinners">
+                <div>
+                  <Soup size={16} />
+                  <span>Saturday dinner</span>
+                </div>
+                {upcomingDinners.map((dinner) => (
+                  <a href="/dinners" key={dinner.id}>
+                    <small>{dinner.month} {dinner.day} · 6 PM</small>
+                    <strong>{dinner.menu}</strong>
+                    {dinner.theme && <em>{dinner.theme}</em>}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="portal-readiness-stack">
