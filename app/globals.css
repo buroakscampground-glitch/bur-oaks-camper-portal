@@ -470,11 +470,27 @@ button:hover {
 
 .event-flyer-showcase.portal {
   margin: 0 28px 30px;
-  padding: 24px;
-  border: 1px solid #dedbd0;
-  border-radius: 22px;
-  background: linear-gradient(135deg, rgba(255,255,255,.97), rgba(248,246,239,.94));
-  box-shadow: 0 14px 34px rgba(38, 51, 41, 0.075);
+  padding: 26px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(49, 74, 55, .13);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 8% 0%, rgba(176, 139, 71, .16), transparent 28%),
+    linear-gradient(135deg, rgba(255,255,255,.98), rgba(247,244,235,.96));
+  box-shadow: 0 18px 46px rgba(38, 51, 41, 0.09);
+}
+
+.event-flyer-showcase.portal::before {
+  content: "";
+  width: 260px;
+  height: 260px;
+  position: absolute;
+  right: -120px;
+  top: -140px;
+  border-radius: 999px;
+  background: rgba(42, 87, 55, .07);
+  pointer-events: none;
 }
 
 .event-flyer-heading {
@@ -612,37 +628,61 @@ button:hover {
 }
 
 .event-flyer-showcase.portal .event-flyer-heading {
+  position: relative;
+  z-index: 1;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .event-flyer-showcase.portal .event-flyer-heading h2 {
-  font-size: clamp(24px, 3vw, 34px);
+  font-size: clamp(25px, 3vw, 36px);
 }
 
 .event-flyer-showcase.portal .event-flyer-heading p {
-  max-width: 620px;
-  font-size: 12px;
+  max-width: 660px;
+  font-size: 13px;
+  color: #59675e;
+}
+
+.event-flyer-showcase.portal .event-flyer-heading > a {
+  background: #244b32;
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(36, 75, 50, .18);
 }
 
 .event-flyer-showcase.portal .event-flyer-grid {
-  grid-template-columns: 1.1fr .9fr;
-  gap: 12px;
+  position: relative;
+  z-index: 1;
+  grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr);
+  gap: 14px;
+  align-items: stretch;
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article {
-  border-radius: 18px;
-  box-shadow: 0 10px 24px rgba(38, 51, 41, .06);
+  border: 1px solid rgba(41, 65, 48, .11);
+  border-radius: 22px;
+  background: rgba(255,255,255,.88);
+  box-shadow: 0 12px 30px rgba(38, 51, 41, .065);
+  backdrop-filter: blur(12px);
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article.featured {
   grid-column: auto;
-  grid-template-columns: 185px minmax(0, 1fr);
+  grid-row: span 3;
+  display: grid;
+  grid-template-columns: minmax(190px, .45fr) minmax(0, 1fr);
+  min-height: 300px;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.96), rgba(251,247,236,.95)),
+    #fff;
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article:not(.featured) {
   display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
+  grid-column: 2;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: stretch;
+  min-height: 92px;
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article:not(.featured):nth-child(n+4) {
@@ -650,43 +690,62 @@ button:hover {
 }
 
 .event-flyer-showcase.portal .event-flyer-grid img {
-  height: 135px;
+  height: 100%;
+  min-height: 92px;
   object-fit: cover;
   object-position: top center;
+  filter: saturate(.95);
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article.featured img {
   height: 100%;
-  min-height: 260px;
+  min-height: 300px;
+  border-right: 1px solid rgba(41, 65, 48, .1);
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article > div {
-  padding: 16px;
+  align-content: center;
+  gap: 6px;
+  padding: 14px 16px;
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article.featured > div {
-  padding: 22px;
+  align-content: center;
+  gap: 10px;
+  padding: 28px;
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article h3 {
-  font-size: 18px;
+  font-size: 17px;
+  letter-spacing: -.01em;
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article.featured h3 {
-  font-size: clamp(25px, 4vw, 34px);
+  font-size: clamp(29px, 4vw, 42px);
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article p {
   display: -webkit-box;
   overflow: hidden;
   font-size: 12px;
+  color: #5d6b62;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
 }
 
 .event-flyer-showcase.portal .event-flyer-grid article.featured p {
-  font-size: 13px;
-  -webkit-line-clamp: 4;
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.65;
+  -webkit-line-clamp: 3;
+}
+
+.event-flyer-showcase.portal .event-flyer-grid article small {
+  color: #2f6942;
+}
+
+.event-flyer-showcase.portal .event-flyer-grid article span {
+  color: #9a7834;
 }
 
 .public-cta { padding: 75px max(22px, calc((100vw - 1180px) / 2)); display: flex; align-items: center; justify-content: space-between; gap: 50px; background: var(--forest); color: white; }
@@ -2388,13 +2447,14 @@ button:hover {
 
   .event-flyer-showcase.portal {
     margin: 0 14px 24px;
-    padding: 20px;
-    border-radius: 19px;
+    padding: 18px;
+    border-radius: 22px;
   }
 
   .event-flyer-showcase.portal .event-flyer-heading {
     align-items: flex-start;
     flex-direction: column;
+    gap: 14px;
   }
 
   .event-flyer-grid {
@@ -2403,6 +2463,7 @@ button:hover {
 
   .event-flyer-showcase.portal .event-flyer-grid {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .event-flyer-grid article.featured {
@@ -2412,7 +2473,10 @@ button:hover {
 
   .event-flyer-showcase.portal .event-flyer-grid article.featured,
   .event-flyer-showcase.portal .event-flyer-grid article:not(.featured) {
-    grid-template-columns: 92px minmax(0,1fr);
+    grid-column: auto;
+    grid-row: auto;
+    grid-template-columns: 88px minmax(0,1fr);
+    min-height: 108px;
   }
 
   .event-flyer-grid img,
@@ -2424,8 +2488,10 @@ button:hover {
 
   .event-flyer-showcase.portal .event-flyer-grid img,
   .event-flyer-showcase.portal .event-flyer-grid article.featured img {
-    height: 135px;
+    height: 108px;
+    min-height: 108px;
     aspect-ratio: auto;
+    border-right: 1px solid rgba(41, 65, 48, .1);
   }
 
   .event-flyer-grid article.featured > div,
@@ -2436,11 +2502,18 @@ button:hover {
   .event-flyer-showcase.portal .event-flyer-grid article.featured > div,
   .event-flyer-showcase.portal .event-flyer-grid article > div {
     padding: 14px;
+    align-content: center;
   }
 
   .event-flyer-showcase.portal .event-flyer-grid article.featured h3,
   .event-flyer-showcase.portal .event-flyer-grid article h3 {
     font-size: 18px;
+  }
+
+  .event-flyer-showcase.portal .event-flyer-grid article.featured p,
+  .event-flyer-showcase.portal .event-flyer-grid article p {
+    font-size: 12px;
+    -webkit-line-clamp: 2;
   }
 
   .portal-weather-heading {
