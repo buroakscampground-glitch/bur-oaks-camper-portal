@@ -12,6 +12,7 @@ const pageNames: Record<string, string> = {
   lots: 'Lots & Sites',
   waitlist: 'Waitlist',
   events: 'Events',
+  dinners: 'Saturday Dinners',
   rsvps: 'RSVP Tracking',
   announcements: 'Announcements',
   texts: 'Text Alerts',

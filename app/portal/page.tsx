@@ -18,6 +18,7 @@ import {
   Megaphone,
   ReceiptText,
   ShieldCheck,
+  Soup,
   Sparkles,
   TentTree,
   UserRound,
@@ -64,6 +65,13 @@ const serviceLinks = [
     description: 'See what is happening around the campground.',
     icon: CalendarDays,
     accent: 'green',
+  },
+  {
+    href: '/dinners',
+    title: 'Saturday Dinners',
+    description: 'See the monthly menu and tell us what you are bringing.',
+    icon: Soup,
+    accent: 'gold',
   },
   {
     href: '/documents',

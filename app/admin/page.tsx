@@ -16,6 +16,7 @@ import {
   Megaphone,
   ReceiptText,
   ShieldCheck,
+  Soup,
   TentTree,
   UserRoundSearch,
   Users,
@@ -266,6 +267,7 @@ export default function AdminPage() {
 
   const communityTools = [
     { href: '/admin/events', title: 'Events', detail: `${stats.events} events`, icon: CalendarDays },
+    { href: '/admin/dinners', title: 'Saturday Dinners', detail: 'Menu & potluck', icon: Soup },
     { href: '/admin/rsvps', title: 'RSVPs', detail: `${stats.rsvps} responses`, alertCount: stats.rsvpAlerts, alertLabel: 'new RSVP alert', alertType: 'event_rsvp', icon: UsersRound },
     { href: '/admin/announcements', title: 'Announcements', detail: `${stats.announcements} active`, icon: Megaphone },
     { href: '/admin/notifications', title: 'Notifications', detail: `${stats.totalUnreadAlerts} unread`, alertCount: stats.totalUnreadAlerts, alertLabel: 'new notification', icon: BellRing },
