@@ -44,21 +44,36 @@ export async function POST(request: Request) {
         source_id: String(ticket.id),
       }).catch((error) => console.error('Admin notification failed:', error))
 
-      await sendAdminAlertEmail({
-        subject: title,
-        heading: title,
-        message,
-        details: [
-          { label: 'Site', value: ticket.lot_number },
-          { label: 'Category', value: ticket.category },
-          { label: 'Status', value: 'Needs admin approval' },
-          { label: 'Description', value: ticket.description },
-        ],
-        actionUrl: `${origin}/admin/maintenance/${ticket.id}`,
-        actionLabel: 'Review request',
-      }).catch((error) => console.error('Admin alert email failed:', error))
+      let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
+      let emailMessage = ''
 
-      return NextResponse.json({ success: true })
+      try {
+        const emailResult = await sendAdminAlertEmail({
+          subject: title,
+          heading: title,
+          message,
+          details: [
+            { label: 'Site', value: ticket.lot_number },
+            { label: 'Category', value: ticket.category },
+            { label: 'Status', value: 'Needs admin approval' },
+            { label: 'Description', value: ticket.description },
+            { label: 'Photos', value: Array.isArray(ticket.photo_urls) ? ticket.photo_urls.length : null },
+          ],
+          actionUrl: `${origin}/admin/maintenance/${ticket.id}`,
+          actionLabel: 'Review request',
+        })
+
+        if ((emailResult as any)?.skipped) {
+          emailStatus = 'skipped'
+          emailMessage = (emailResult as any)?.reason || 'Email alert is not configured.'
+        }
+      } catch (error: any) {
+        emailStatus = 'failed'
+        emailMessage = error?.message || 'Admin alert email failed.'
+        console.error('Admin alert email failed:', error)
+      }
+
+      return NextResponse.json({ success: true, emailStatus, emailMessage })
     }
 
     if (body.type === 'event_rsvp' && body.eventId && body.response) {
@@ -86,21 +101,35 @@ export async function POST(request: Request) {
         source_id: String(body.eventId),
       }).catch((error) => console.error('Admin notification failed:', error))
 
-      await sendAdminAlertEmail({
-        subject: title,
-        heading: title,
-        message,
-        details: [
-          { label: 'Camper', value: camperName },
-          { label: 'Site', value: context.camper.lot_number },
-          { label: 'Event', value: event.title },
-          { label: 'Date', value: event.event_date },
-        ],
-        actionUrl: `${origin}/admin/rsvps`,
-        actionLabel: 'View RSVPs',
-      }).catch((error) => console.error('Admin alert email failed:', error))
+      let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
+      let emailMessage = ''
 
-      return NextResponse.json({ success: true })
+      try {
+        const emailResult = await sendAdminAlertEmail({
+          subject: title,
+          heading: title,
+          message,
+          details: [
+            { label: 'Camper', value: camperName },
+            { label: 'Site', value: context.camper.lot_number },
+            { label: 'Event', value: event.title },
+            { label: 'Date', value: event.event_date },
+          ],
+          actionUrl: `${origin}/admin/rsvps`,
+          actionLabel: 'View RSVPs',
+        })
+
+        if ((emailResult as any)?.skipped) {
+          emailStatus = 'skipped'
+          emailMessage = (emailResult as any)?.reason || 'Email alert is not configured.'
+        }
+      } catch (error: any) {
+        emailStatus = 'failed'
+        emailMessage = error?.message || 'Admin alert email failed.'
+        console.error('Admin alert email failed:', error)
+      }
+
+      return NextResponse.json({ success: true, emailStatus, emailMessage })
     }
 
     return NextResponse.json({ error: 'Unsupported alert type' }, { status: 400 })

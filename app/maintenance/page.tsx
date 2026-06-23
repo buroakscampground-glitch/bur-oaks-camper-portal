@@ -128,12 +128,15 @@ export default function MaintenanceRequestPage() {
       return
     }
 
+    let alertMessage = ''
+
     if (newTicket?.id) {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData.session?.access_token
 
       if (token) {
-        fetch('/api/admin-alert', {
+        try {
+          const alertResponse = await fetch('/api/admin-alert', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
@@ -143,7 +146,21 @@ export default function MaintenanceRequestPage() {
             type: 'maintenance_request',
             ticketId: newTicket.id,
           }),
-        }).catch((alertError) => console.error('Maintenance alert failed:', alertError))
+          })
+          const alertResult = await alertResponse.json().catch(() => null)
+
+          if (!alertResponse.ok) {
+            alertMessage = ' The request was saved, but the email alert did not send.'
+            console.error('Maintenance alert failed:', alertResult)
+          } else if (alertResult?.emailStatus === 'skipped') {
+            alertMessage = ` The request was saved, but email alerts are not fully configured: ${alertResult.emailMessage || 'missing email setup'}.`
+          } else if (alertResult?.emailStatus === 'failed') {
+            alertMessage = ` The request was saved, but the email alert failed: ${alertResult.emailMessage || 'email provider error'}.`
+          }
+        } catch (alertError) {
+          alertMessage = ' The request was saved, but the email alert did not send.'
+          console.error('Maintenance alert failed:', alertError)
+        }
       }
     }
 
@@ -151,7 +168,7 @@ export default function MaintenanceRequestPage() {
     setDescription('')
     setCategory('General')
     setPhotoFiles([])
-    setMessage('✅ Maintenance request submitted. The office will review it before work is assigned.')
+    setMessage(`✅ Maintenance request submitted. The office will review it before work is assigned.${alertMessage}`)
     setSubmitting(false)
     loadPage()
   }
