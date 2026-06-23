@@ -27,3 +27,56 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ documents })
 }
+
+export async function DELETE(request: Request) {
+  const context = await getAuthenticatedContext(request)
+
+  if (!context || String(context.camper.role || '').toLowerCase() !== 'admin') {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+
+  const url = new URL(request.url)
+  const documentId = url.searchParams.get('id')
+
+  if (!documentId) {
+    return NextResponse.json({ error: 'Missing document id.' }, { status: 400 })
+  }
+
+  const { data: document, error: documentError } = await context.admin
+    .from('documents')
+    .select('id,document_name,file_url')
+    .eq('id', documentId)
+    .single()
+
+  if (documentError || !document) {
+    return NextResponse.json({ error: 'Document not found.' }, { status: 404 })
+  }
+
+  const storagePath = String(document.file_url || '')
+  if (storagePath) {
+    const { error: storageError } = await context.admin.storage
+      .from('camper-documents')
+      .remove([storagePath])
+
+    if (storageError) {
+      return NextResponse.json({ error: storageError.message }, { status: 500 })
+    }
+  }
+
+  const { error: deleteError } = await context.admin
+    .from('documents')
+    .delete()
+    .eq('id', documentId)
+
+  if (deleteError) {
+    return NextResponse.json({ error: deleteError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    success: true,
+    removed: {
+      id: document.id,
+      document_name: document.document_name,
+    },
+  })
+}

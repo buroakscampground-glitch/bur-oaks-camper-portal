@@ -42,6 +42,7 @@ export default function AdminDocumentsPage() {
   const [signatureSearch, setSignatureSearch] = useState('')
   const [signatureView, setSignatureView] = useState<'waiting' | 'signed'>('waiting')
   const [futureTemplateId, setFutureTemplateId] = useState('')
+  const [removingDocumentId, setRemovingDocumentId] = useState('')
 
   async function loadData() {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -339,6 +340,45 @@ export default function AdminDocumentsPage() {
     await loadData()
   }
 
+  async function removeAssignedDocument(document: any) {
+    if (working || removingDocumentId) return
+
+    const camper = camperById.get(String(document.camper_id))
+    const camperLabel = camper
+      ? `Lot ${camper.lot_number || 'N/A'} — ${camper.first_name || ''} ${camper.last_name || ''}`.trim()
+      : 'this camper'
+    const ok = window.confirm(
+      `Pull back "${document.document_name || 'this document'}" from ${camperLabel}? This removes the assigned copy from their portal. The master library document will stay saved.`
+    )
+    if (!ok) return
+
+    setRemovingDocumentId(String(document.id))
+    setMessage('Removing assigned document…')
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Please log in again before removing documents.')
+
+      const response = await fetch(`/api/admin-documents?id=${encodeURIComponent(String(document.id))}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Unable to remove this document.')
+      }
+
+      setMessage('Assigned document removed from camper portal.')
+      await loadData()
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to remove this document.')
+    } finally {
+      setRemovingDocumentId('')
+    }
+  }
+
   const filteredCampers = campers.filter((camper) => {
     const search = camperSearch.trim().toLowerCase()
     if (!search) return true
@@ -464,7 +504,19 @@ export default function AdminDocumentsPage() {
                   <strong>{camper ? `${camper.first_name || ''} ${camper.last_name || ''}`.trim() : 'Camper not found'}</strong>
                   <p>{document.document_name || 'Untitled document'}</p>
                 </div>
-                <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : 'Waiting for signature'}</em>
+                <div className="signature-tracker-row-actions">
+                  <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : 'Waiting for signature'}</em>
+                  <button
+                    className="danger"
+                    type="button"
+                    onClick={() => removeAssignedDocument(document)}
+                    disabled={removingDocumentId === String(document.id)}
+                    aria-label={`Remove ${document.document_name || 'document'}`}
+                  >
+                    {removingDocumentId === String(document.id) ? <Loader2 className="admin-spin" size={14} /> : <Trash2 size={14} />}
+                    Pull back
+                  </button>
+                </div>
               </article>
             )
           })}
@@ -635,6 +687,14 @@ export default function AdminDocumentsPage() {
                         {isSignedDocument(document) ? <CheckCircle2 size={15} /> : <FileCheck2 size={15} />}
                         <span>{document.document_name}</span>
                         <em>{isSignedDocument(document) ? 'Signed' : isViewOnlyDocument(document) ? 'View only' : 'Waiting'}</em>
+                        <button
+                          type="button"
+                          onClick={() => removeAssignedDocument(document)}
+                          disabled={removingDocumentId === String(document.id)}
+                          aria-label={`Remove ${document.document_name || 'document'}`}
+                        >
+                          {removingDocumentId === String(document.id) ? <Loader2 className="admin-spin" size={12} /> : <Trash2 size={12} />}
+                        </button>
                       </p>
                     ))
                   )}
