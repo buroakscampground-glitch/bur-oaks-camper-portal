@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollarSign, FileText, Gauge, Home, MapPin, Phone, ShieldCheck, TentTree, UserRound, Wrench } from 'lucide-react'
+import { ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollarSign, FileText, Gauge, Home, MapPin, Phone, ShieldCheck, UserRound, Wrench } from 'lucide-react'
+import CampgroundMap from '../../components/CampgroundMap'
 import { supabase } from '../../lib/supabase'
 
 function formatDate(value?: string) {
@@ -145,19 +146,13 @@ export default function MySitePage() {
       </div>
 
       <section className="my-site-card my-site-wide my-site-map-card">
-        <div className="my-site-card-heading"><MapPin /><div><small>CAMPGROUND MAP</small><h2>Your Bur Oaks map preview</h2></div></div>
+        <div className="my-site-card-heading"><MapPin /><div><small>CAMPGROUND MAP</small><h2>Your Bur Oaks satellite map</h2></div></div>
         <div className="my-site-map-layout">
-          <div className="my-site-map-visual" aria-label="Bur Oaks campground map preview">
-            <span className="my-site-map-lake">Lake</span>
-            <span className="my-site-map-site">Lot {camper?.lot_number || '—'}</span>
-            <span className="my-site-map-rec">Rec Hall</span>
-            <span className="my-site-map-gate">Gate</span>
-            <span className="my-site-map-trail"><TentTree size={15} /> Oaks</span>
-          </div>
+          <CampgroundMap lotNumber={camper?.lot_number} />
           <div className="my-site-map-copy">
-            <small>Coming into the weekend</small>
-            <h3>Know where the fun, services, and your site are.</h3>
-            <p>This is the start of the interactive campground map area. Next we can turn it into clickable lots, occupied/vacant status, camper lookup, and maintenance links.</p>
+            <small>Real campground view</small>
+            <h3>See Bur Oaks from above before you head out.</h3>
+            <p>This gives campers a real satellite view of the campground area. Exact clickable lot placement will be the next step once we digitize the full Bur Oaks lot map.</p>
             <a href="/amenities">View amenities</a>
           </div>
         </div>
