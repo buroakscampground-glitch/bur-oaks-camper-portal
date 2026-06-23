@@ -407,7 +407,7 @@ export default function InvoicesPage() {
 
         <footer className="account-footer">
           <span>Bur Oaks Campground · Lot {camper?.lot_number || '—'}</span>
-          <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
+          <span><a href="/privacy" rel="noreferrer" target="_blank">Privacy</a> · <a href="/terms" rel="noreferrer" target="_blank">Terms</a></span>
         </footer>
       </div>
     </main>

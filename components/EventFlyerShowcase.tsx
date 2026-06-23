@@ -53,7 +53,7 @@ export default function EventFlyerShowcase({
           </p>
         </div>
         {nextEvent && (
-          <a href="/events">
+          <a href={context === 'portal' ? '/calendar' : '/events'}>
             <CalendarDays size={16} /> {nextEvent.displayDate}
           </a>
         )}

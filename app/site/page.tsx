@@ -153,7 +153,7 @@ export default function MySitePage() {
             <small>Real campground view</small>
             <h3>See Bur Oaks from above before you head out.</h3>
             <p>This gives campers a real satellite view of the campground area. Exact clickable lot placement will be the next step once we digitize the full Bur Oaks lot map.</p>
-            <a href="/amenities">View amenities</a>
+            <a href="/portal">Back to portal home</a>
           </div>
         </div>
       </section>

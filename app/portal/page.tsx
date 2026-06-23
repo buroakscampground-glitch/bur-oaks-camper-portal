@@ -693,7 +693,7 @@ export default function CamperPortalPage() {
         <footer className="portal-footer">
           <span>Bur Oaks Campground</span>
           <span>
-            <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · Lot{' '}
+            <a href="/privacy" rel="noreferrer" target="_blank">Privacy</a> · <a href="/terms" rel="noreferrer" target="_blank">Terms</a> · Lot{' '}
             {camper?.lot_number || '—'} · {camper?.first_name} {camper?.last_name}
           </span>
         </footer>
