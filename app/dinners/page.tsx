@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, CheckCircle2, Clock, Send, Soup, UsersRound } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { CalendarDays, CheckCircle2, Clock, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 
@@ -15,6 +15,7 @@ export default function SaturdayDinnersPage() {
   const [guestCount, setGuestCount] = useState(1)
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const signupCardRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     loadSignups()
@@ -42,6 +43,10 @@ export default function SaturdayDinnersPage() {
 
   const selectedDinner = saturdayDinners2026.find((dinner) => dinner.date === selectedDate) || nextDinner
   const signupByDate = new Map(signups.map((signup) => [signup.dinner_date, signup]))
+  const currentMonth = selectedDinner?.month || nextDinner?.month || 'June'
+  const monthDinners = saturdayDinners2026.filter((dinner) => dinner.month === currentMonth)
+  const openMonthDinners = monthDinners.filter((dinner) => !dinner.closed)
+  const remainingMonthDinners = monthDinners.filter((dinner) => dinner.date >= new Date().toISOString().slice(0, 10) && !dinner.closed)
 
   useEffect(() => {
     if (!selectedDate && nextDinner) setSelectedDate(nextDinner.date)
@@ -98,6 +103,14 @@ export default function SaturdayDinnersPage() {
     loadSignups()
   }
 
+  function openDinner(dinnerDate: string) {
+    setSelectedDate(dinnerDate)
+    setMessage('')
+    window.requestAnimationFrame(() => {
+      signupCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }
+
   return (
     <main className="saturday-dinners-page">
       <section className="saturday-dinners-hero">
@@ -116,11 +129,37 @@ export default function SaturdayDinnersPage() {
         )}
       </section>
 
-      <section className="saturday-dinner-signup">
+      <section className="saturday-month-snapshot">
+        <div>
+          <span><Sparkles size={15} /> {currentMonth.toUpperCase()} SNAPSHOT</span>
+          <h2>{currentMonth} Saturday dinners at a glance</h2>
+          <p>Tap any meal below and this page will open the signup card so you can mark Going, Maybe, or Not Going.</p>
+        </div>
+        <article>
+          <small>Open meals</small>
+          <strong>{openMonthDinners.length}</strong>
+          <span>{remainingMonthDinners.length} still upcoming</span>
+        </article>
+        {remainingMonthDinners[0] && (
+          <article>
+            <small>Next in {currentMonth}</small>
+            <strong>{remainingMonthDinners[0].day}</strong>
+            <span>{remainingMonthDinners[0].menu}</span>
+          </article>
+        )}
+        <article>
+          <small>Your replies</small>
+          <strong>{monthDinners.filter((dinner) => signupByDate.has(dinner.date)).length}</strong>
+          <span>saved this month</span>
+        </article>
+      </section>
+
+      <section className="saturday-dinner-signup" ref={signupCardRef}>
         <div>
           <small>YOUR RESPONSE</small>
           <h2>{selectedDinner?.month} {selectedDinner?.day} · {selectedDinner?.menu}</h2>
           <p><Clock size={15} /> Every Saturday dinner starts at 6:00 PM.</p>
+          {selectedDinner?.theme && <p><Sparkles size={15} /> Theme: {selectedDinner.theme}</p>}
         </div>
 
         <div className="saturday-dinner-form">
@@ -169,7 +208,7 @@ export default function SaturdayDinnersPage() {
                     className={`${selectedDate === dinner.date ? 'selected' : ''} ${dinner.closed ? 'closed' : ''}`}
                     disabled={dinner.closed}
                     key={dinner.id}
-                    onClick={() => setSelectedDate(dinner.date)}
+                    onClick={() => openDinner(dinner.date)}
                     type="button"
                   >
                     <span><CalendarDays size={14} /> {dinner.day}</span>
