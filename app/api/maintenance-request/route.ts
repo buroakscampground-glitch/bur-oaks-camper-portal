@@ -87,6 +87,11 @@ export async function POST(request: Request) {
       if ((emailResult as any)?.skipped) {
         emailStatus = 'skipped'
         emailMessage = (emailResult as any)?.reason || 'Email alert is not configured.'
+      } else {
+        console.info('Maintenance request alert email sent:', {
+          ticketId: ticket.id,
+          resendId: (emailResult as any)?.id,
+        })
       }
     } catch (emailError: any) {
       emailStatus = 'failed'

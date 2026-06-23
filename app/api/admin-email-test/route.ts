@@ -10,6 +10,18 @@ function maskEmail(value: string) {
   return `${name.slice(0, 2)}***@${domain}`
 }
 
+function adminAlertRecipients() {
+  const raw =
+    process.env.ADMIN_ALERT_EMAILS ||
+    process.env.ADMIN_ALERT_EMAIL ||
+    'buroakscampground@gmail.com'
+
+  return raw
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean)
+}
+
 export async function POST(request: Request) {
   const context = await getAuthenticatedContext(request)
 
@@ -17,14 +29,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const to = process.env.ADMIN_ALERT_EMAIL || 'buroakscampground@gmail.com'
+  const to = adminAlertRecipients()
   const from =
-    process.env.PORTAL_INVITE_FROM ||
     process.env.ADMIN_ALERT_FROM ||
+    process.env.PORTAL_INVITE_FROM ||
     'Bur Oaks Campground <onboarding@resend.dev>'
   const replyTo =
-    process.env.PORTAL_INVITE_REPLY_TO ||
     process.env.ADMIN_ALERT_REPLY_TO ||
+    process.env.PORTAL_INVITE_REPLY_TO ||
     'buroakscampground@gmail.com'
 
   try {
@@ -33,7 +45,7 @@ export async function POST(request: Request) {
       heading: 'Test admin email alert',
       message: 'This is a test email from the Bur Oaks Camper Portal. If you received this, maintenance and payment alert email delivery is connected.',
       details: [
-        { label: 'Sent to', value: to },
+        { label: 'Sent to', value: to.join(', ') },
         { label: 'Sent from', value: from },
         { label: 'Reply-to', value: replyTo },
         { label: 'Triggered by', value: context.user.email },
@@ -49,7 +61,7 @@ export async function POST(request: Request) {
         message: (result as any).reason || 'Email alert is not configured.',
         configured: {
           hasResendKey: Boolean(process.env.RESEND_API_KEY),
-          to: maskEmail(to),
+          to: to.map(maskEmail).join(', '),
           from,
           replyTo: maskEmail(replyTo),
         },
@@ -59,10 +71,10 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       status: 'sent',
-      message: `Test email sent to ${maskEmail(to)}.`,
+      message: `Test email sent to ${to.map(maskEmail).join(', ')}.`,
       configured: {
         hasResendKey: Boolean(process.env.RESEND_API_KEY),
-        to: maskEmail(to),
+        to: to.map(maskEmail).join(', '),
         from,
         replyTo: maskEmail(replyTo),
       },
@@ -74,7 +86,7 @@ export async function POST(request: Request) {
       message: error?.message || 'Test email failed.',
       configured: {
         hasResendKey: Boolean(process.env.RESEND_API_KEY),
-        to: maskEmail(to),
+        to: to.map(maskEmail).join(', '),
         from,
         replyTo: maskEmail(replyTo),
       },

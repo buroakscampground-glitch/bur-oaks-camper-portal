@@ -13,6 +13,18 @@ export function adminAlertEmailConfigured() {
   return Boolean(process.env.RESEND_API_KEY)
 }
 
+function adminAlertRecipients() {
+  const raw =
+    process.env.ADMIN_ALERT_EMAILS ||
+    process.env.ADMIN_ALERT_EMAIL ||
+    'buroakscampground@gmail.com'
+
+  return raw
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean)
+}
+
 export async function sendAdminAlertEmail({
   subject,
   heading,
@@ -27,14 +39,14 @@ export async function sendAdminAlertEmail({
     return { skipped: true, reason: 'RESEND_API_KEY is not configured.' }
   }
 
-  const to = process.env.ADMIN_ALERT_EMAIL || 'buroakscampground@gmail.com'
+  const to = adminAlertRecipients()
   const from =
-    process.env.PORTAL_INVITE_FROM ||
     process.env.ADMIN_ALERT_FROM ||
+    process.env.PORTAL_INVITE_FROM ||
     'Bur Oaks Campground <onboarding@resend.dev>'
   const replyTo =
-    process.env.PORTAL_INVITE_REPLY_TO ||
     process.env.ADMIN_ALERT_REPLY_TO ||
+    process.env.PORTAL_INVITE_REPLY_TO ||
     'buroakscampground@gmail.com'
 
   const visibleDetails = details.filter((detail) => detail.value !== null && detail.value !== undefined && detail.value !== '')
@@ -101,8 +113,20 @@ export async function sendAdminAlertEmail({
   const result = await response.json().catch(() => ({}))
 
   if (!response.ok) {
+    console.error('Admin alert email rejected by Resend:', {
+      subject,
+      status: response.status,
+      message: result?.message,
+      name: result?.name,
+    })
     throw new Error(result?.message || 'The admin alert email could not be sent.')
   }
+
+  console.info('Admin alert email accepted by Resend:', {
+    subject,
+    id: result?.id,
+    recipients: to.length,
+  })
 
   return result
 }

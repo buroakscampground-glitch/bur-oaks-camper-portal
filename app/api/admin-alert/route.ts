@@ -14,6 +14,8 @@ export async function POST(request: Request) {
 
   const origin = new URL(request.url).origin
   const body = await request.json().catch(() => ({}))
+  const role = String(context.camper.role || '').toLowerCase()
+  const canAlertAnyTicket = role === 'admin' || role === 'maintenance'
 
   try {
     if (body.type === 'maintenance_request' && body.ticketId) {
@@ -27,19 +29,22 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Maintenance ticket not found' }, { status: 404 })
       }
 
-      if (String(ticket.lot_number || '') !== String(context.camper.lot_number || '')) {
+      if (!canAlertAnyTicket && String(ticket.lot_number || '') !== String(context.camper.lot_number || '')) {
         return NextResponse.json({ error: 'Not authorized' }, { status: 403 })
       }
 
       const title = `Maintenance request from Site ${ticket.lot_number || 'Unknown'}`
-      const message = `${ticket.reported_by || 'A camper'} submitted: ${ticket.title || 'Maintenance request'}`
+      const reporter =
+        ticket.reported_by ||
+        (role === 'maintenance' ? 'Maintenance team' : 'A camper')
+      const message = `${reporter} submitted: ${ticket.title || 'Maintenance request'}`
 
       await createAdminNotification(context.admin, {
         type: 'maintenance_request',
         title,
         message,
         lot_number: ticket.lot_number,
-        camper_id: context.camper.id,
+        camper_id: ticket.camper_id || context.camper.id,
         source_table: 'maintenance_tickets',
         source_id: String(ticket.id),
       }).catch((error) => console.error('Admin notification failed:', error))
@@ -54,6 +59,7 @@ export async function POST(request: Request) {
           message,
           details: [
             { label: 'Site', value: ticket.lot_number },
+            { label: 'Reported by', value: reporter },
             { label: 'Category', value: ticket.category },
             { label: 'Status', value: 'Needs admin approval' },
             { label: 'Description', value: ticket.description },

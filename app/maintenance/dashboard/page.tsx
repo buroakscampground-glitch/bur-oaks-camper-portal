@@ -48,7 +48,7 @@ export default function MaintenanceDashboard() {
       return
     }
 
-    const { error } = await supabase
+    const { data: ticket, error } = await supabase
       .from('maintenance_tickets')
       .insert({
         title: newTitle,
@@ -61,16 +61,42 @@ export default function MaintenanceDashboard() {
         work_order: true,
         admin_approved: false,
       })
+      .select('id')
+      .single()
 
     if (error) {
       alert(error.message)
       return
     }
 
+    let alertMessage = ''
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+
+    if (token && ticket?.id) {
+      const alertResponse = await fetch('/api/admin-alert', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'maintenance_request',
+          ticketId: ticket.id,
+        }),
+      })
+      const alertResult = await alertResponse.json().catch(() => null)
+      if (!alertResponse.ok || alertResult?.emailStatus === 'failed') {
+        alertMessage = ` Ticket was saved, but the admin email alert did not send: ${alertResult?.emailMessage || alertResult?.error || 'unknown email error'}.`
+      } else if (alertResult?.emailStatus === 'skipped') {
+        alertMessage = ` Ticket was saved, but email alerts are not configured: ${alertResult.emailMessage || 'missing setup'}.`
+      }
+    }
+
     setNewTitle('')
     setNewDescription('')
     setNewPriority('Normal')
-    setSubmitMessage('Submitted for admin approval. It will appear in the work queue after approval.')
+    setSubmitMessage(`Submitted for admin approval. It will appear in the work queue after approval.${alertMessage}`)
 
     loadTickets()
   }
