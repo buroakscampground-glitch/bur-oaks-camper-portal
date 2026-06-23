@@ -61,7 +61,7 @@ const serviceLinks = [
   {
     href: '/profile',
     title: 'Camper Profile',
-    description: 'Keep contact, vehicle, and emergency details current.',
+    description: 'Update contact info and upload golf cart insurance.',
     icon: UserRound,
     accent: 'slate',
   },

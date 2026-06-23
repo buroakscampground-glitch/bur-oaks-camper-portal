@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { ShieldCheck, UsersRound } from 'lucide-react'
+import { Eye, FileUp, ShieldCheck, UsersRound } from 'lucide-react'
 
 export default function ProfilePage() {
   const [camper, setCamper] = useState<any>(null)
+  const [insuranceDocuments, setInsuranceDocuments] = useState<any[]>([])
+  const [insuranceFile, setInsuranceFile] = useState<File | null>(null)
+  const [uploadingInsurance, setUploadingInsurance] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [insuranceMessage, setInsuranceMessage] = useState('')
 
   useEffect(() => {
     loadProfile()
@@ -31,6 +35,18 @@ export default function ProfilePage() {
       .single()
 
     setCamper(data)
+
+    if (data?.id) {
+      const { data: documents } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('camper_id', data.id)
+        .eq('document_type', 'Golf Cart Insurance')
+        .order('created_at', { ascending: false })
+
+      setInsuranceDocuments(documents || [])
+    }
+
     setLoading(false)
   }
 
@@ -87,6 +103,80 @@ export default function ProfilePage() {
   async function handleSignOut() {
     await supabase.auth.signOut()
     window.location.href = '/login'
+  }
+
+  async function uploadGolfCartInsurance() {
+    if (!insuranceFile) {
+      setInsuranceMessage('Choose your golf cart insurance file first.')
+      return
+    }
+
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+
+    if (!token) {
+      window.location.href = '/login'
+      return
+    }
+
+    setUploadingInsurance(true)
+    setInsuranceMessage('Uploading your golf cart insurance…')
+
+    const formData = new FormData()
+    formData.append('file', insuranceFile)
+
+    try {
+      const response = await fetch('/api/upload-golf-cart-insurance', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        setInsuranceMessage(result.error || 'Unable to upload your insurance.')
+        return
+      }
+
+      setInsuranceFile(null)
+      setInsuranceDocuments((current) => [result.document, ...current])
+      setInsuranceMessage('✅ Golf cart insurance uploaded successfully.')
+    } catch {
+      setInsuranceMessage('Unable to upload your insurance. Please try again.')
+    } finally {
+      setUploadingInsurance(false)
+    }
+  }
+
+  async function openInsuranceDocument(documentId: string) {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+
+    if (!token) {
+      window.location.href = '/login'
+      return
+    }
+
+    const response = await fetch('/api/document-url', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ documentId }),
+    })
+
+    const result = await response.json()
+
+    if (!response.ok || !result.url) {
+      setInsuranceMessage('Unable to open this insurance file.')
+      return
+    }
+
+    window.location.href = result.url
   }
 
   if (loading) {
@@ -344,6 +434,46 @@ export default function ProfilePage() {
             }
             style={{ width: '100%', marginBottom: '12px' }}
           />
+
+          <div className="camper-insurance-upload-box">
+            <div>
+              <span><ShieldCheck size={18} /> Golf cart insurance</span>
+              <p>
+                Upload your current golf cart insurance card or proof of coverage.
+                PDF, Word, or photo files are accepted.
+              </p>
+            </div>
+
+            <label className="camper-insurance-upload-button">
+              <FileUp size={18} />
+              <span>{insuranceFile ? insuranceFile.name : 'Choose insurance file'}</span>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.heic,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
+                onChange={(event) => setInsuranceFile(event.target.files?.[0] || null)}
+              />
+            </label>
+
+            <button type="button" onClick={uploadGolfCartInsurance} disabled={uploadingInsurance || !insuranceFile}>
+              {uploadingInsurance ? 'Uploading…' : 'Upload Golf Cart Insurance'}
+            </button>
+
+            {insuranceMessage && <p className="camper-insurance-message">{insuranceMessage}</p>}
+
+            <div className="camper-insurance-list">
+              {insuranceDocuments.length === 0 ? (
+                <small>No golf cart insurance is on file yet.</small>
+              ) : (
+                insuranceDocuments.map((document) => (
+                  <button key={document.id} type="button" onClick={() => openInsuranceDocument(document.id)}>
+                    <Eye size={15} />
+                    <span>{document.document_name}</span>
+                    <em>{document.created_at ? new Date(document.created_at).toLocaleDateString() : 'Saved'}</em>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
 
           <button
             onClick={saveProfile}

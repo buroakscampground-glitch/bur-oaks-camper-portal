@@ -2614,6 +2614,109 @@ button:hover {
   font-style: normal;
 }
 
+.camper-insurance-upload-box {
+  display: grid;
+  gap: 13px;
+  margin: 18px 0;
+  padding: 16px;
+  border: 1px solid #d9e4d4;
+  border-radius: 15px;
+  background: linear-gradient(135deg, #f7fbf4, #edf5eb);
+}
+
+.camper-insurance-upload-box > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.camper-insurance-upload-box > div:first-child span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #2f5639;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.camper-insurance-upload-box p {
+  margin: 0;
+  color: #66756a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.camper-insurance-upload-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px dashed #9db69e;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #425f49;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.camper-insurance-upload-button input {
+  display: none;
+}
+
+.camper-insurance-upload-box > button,
+.camper-insurance-list button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 0;
+  border-radius: 11px;
+  background: #2f5b3b;
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.camper-insurance-upload-box > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.camper-insurance-message {
+  margin: 0 !important;
+  color: #31573a;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.camper-insurance-list {
+  display: grid;
+  gap: 8px;
+}
+
+.camper-insurance-list small {
+  color: #7b867f;
+  font-size: 11px;
+}
+
+.camper-insurance-list button {
+  justify-content: flex-start;
+  padding: 0 11px;
+  background: #ffffff;
+  color: #304a38;
+  border: 1px solid #d9e2d6;
+}
+
+.camper-insurance-list button em {
+  margin-left: auto;
+  color: #879087;
+  font-size: 10px;
+  font-style: normal;
+}
+
 .admin-camper-directory-options {
   display: grid;
   gap: 10px;
