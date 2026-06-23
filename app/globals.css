@@ -6115,6 +6115,100 @@ tbody tr:hover {
   color: #315f3d;
 }
 
+.admin-email-test-page {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.admin-email-test-card {
+  width: min(820px, 100%);
+  padding: clamp(24px, 4vw, 42px);
+  border: 1px solid #ded9cd;
+  border-radius: 26px;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 18px 46px rgba(37,52,42,.1);
+}
+
+.admin-email-test-card > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #9a7834;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.admin-email-test-card h1 {
+  max-width: 620px;
+  margin: 10px 0;
+  color: #263d2e;
+  font: 500 clamp(34px, 5vw, 54px) Georgia, serif;
+  letter-spacing: -.04em;
+}
+
+.admin-email-test-card p {
+  max-width: 660px;
+  color: #647168;
+  line-height: 1.6;
+}
+
+.admin-email-test-card > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 8px;
+  padding: 0 17px;
+  border: 0 !important;
+  border-radius: 999px;
+  background: #315f3d !important;
+  color: #fff !important;
+  font-weight: 900;
+}
+
+.admin-email-test-card > button:disabled {
+  opacity: .65;
+}
+
+.admin-email-test-result {
+  display: flex;
+  gap: 13px;
+  margin-top: 20px;
+  padding: 16px;
+  border-radius: 16px;
+}
+
+.admin-email-test-result.success {
+  background: #e9f4e8;
+  color: #315f3d;
+}
+
+.admin-email-test-result.failed {
+  background: #fff1df;
+  color: #8a5720;
+}
+
+.admin-email-test-result strong {
+  display: block;
+  color: inherit;
+}
+
+.admin-email-test-result p {
+  margin: 4px 0 0;
+  color: inherit;
+}
+
+.admin-email-test-result ul {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
 .camper-documents-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

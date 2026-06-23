@@ -16,6 +16,7 @@ const pageNames: Record<string, string> = {
   announcements: 'Announcements',
   texts: 'Text Alerts',
   documents: 'Documents',
+  'email-test': 'Email Alert Test',
   gatecards: 'Gate Cards',
   directory: 'Camper Directory',
   'archived-campers': 'Camper Archive',
