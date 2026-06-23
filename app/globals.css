@@ -549,12 +549,25 @@ button:hover {
   gap: 16px;
 }
 
+.event-flyer-link {
+  display: contents;
+  color: inherit;
+  text-decoration: none;
+}
+
 .event-flyer-grid article {
   overflow: hidden;
   border: 1px solid #dfdbcf;
   border-radius: 22px;
   background: #fff;
   box-shadow: 0 13px 32px rgba(38, 51, 41, .08);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.event-flyer-link:hover article {
+  transform: translateY(-2px);
+  border-color: rgba(47, 93, 58, .24);
+  box-shadow: 0 18px 38px rgba(38, 51, 41, .12);
 }
 
 .event-flyer-grid article.featured {
@@ -5734,6 +5747,243 @@ tbody tr:hover {
   text-align: center;
 }
 
+.portal-event-detail-page {
+  min-height: 100vh;
+  padding: 28px;
+  background:
+    radial-gradient(circle at 12% 8%, rgba(176,139,71,.18), transparent 30%),
+    linear-gradient(135deg, #f7f2e7 0%, #edf2e9 46%, #f9f6ef 100%);
+  color: #203629;
+}
+
+.portal-event-detail-hero {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.portal-event-detail-hero > button,
+.portal-event-detail-empty > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 22px;
+  padding: 11px 15px;
+  border: 1px solid rgba(38, 64, 45, .16);
+  border-radius: 999px;
+  background: rgba(255,255,255,.75);
+  color: #294632;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(38, 51, 41, .08);
+}
+
+.portal-event-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(330px, .72fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.portal-event-detail-copy,
+.portal-event-flyer-frame,
+.portal-event-detail-empty {
+  border: 1px solid rgba(45, 75, 53, .13);
+  border-radius: 32px;
+  background: rgba(255,255,255,.86);
+  box-shadow: 0 24px 60px rgba(38, 51, 41, .11);
+  backdrop-filter: blur(14px);
+}
+
+.portal-event-detail-copy {
+  padding: clamp(26px, 4vw, 46px);
+}
+
+.portal-event-detail-copy > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #9a7834;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+.portal-event-detail-copy h1 {
+  max-width: 760px;
+  margin: 12px 0 14px;
+  color: #203629;
+  font-family: Georgia, serif;
+  font-size: clamp(42px, 6vw, 72px);
+  font-weight: 500;
+  letter-spacing: -.045em;
+  line-height: .95;
+}
+
+.portal-event-detail-copy > p {
+  max-width: 740px;
+  margin: 0;
+  color: #59675e;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.portal-event-detail-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 28px 0;
+}
+
+.portal-event-detail-meta article {
+  display: flex;
+  gap: 12px;
+  min-height: 96px;
+  padding: 18px;
+  border: 1px solid rgba(44, 72, 51, .11);
+  border-radius: 20px;
+  background: #f8f5ec;
+}
+
+.portal-event-detail-meta svg {
+  color: #315f3d;
+  flex: 0 0 auto;
+}
+
+.portal-event-detail-meta small,
+.portal-event-rsvp-panel span {
+  display: block;
+  color: #9a7834;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.portal-event-detail-meta strong {
+  display: block;
+  margin-top: 5px;
+  color: #223a2b;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.portal-event-rsvp-panel {
+  padding: 24px;
+  border-radius: 26px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(49, 95, 61, .12), transparent 30%),
+    #f4efe3;
+}
+
+.portal-event-rsvp-panel h2 {
+  margin: 6px 0 6px;
+  color: #203629;
+  font-family: Georgia, serif;
+  font-size: 32px;
+  font-weight: 500;
+}
+
+.portal-event-rsvp-panel p {
+  margin: 0;
+  color: #647168;
+  line-height: 1.55;
+}
+
+.portal-event-rsvp-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.portal-event-rsvp-actions button {
+  min-height: 112px;
+  display: grid;
+  place-items: center;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid rgba(37, 72, 47, .15);
+  border-radius: 20px;
+  background: rgba(255,255,255,.76);
+  color: #2b4934;
+  cursor: pointer;
+  transition: transform .18s ease, background .18s ease, border-color .18s ease;
+}
+
+.portal-event-rsvp-actions button:hover {
+  transform: translateY(-2px);
+  background: #fff;
+}
+
+.portal-event-rsvp-actions button.active {
+  border-color: #315f3d;
+  background: #315f3d;
+  color: #fff;
+  box-shadow: 0 16px 28px rgba(49, 95, 61, .22);
+}
+
+.portal-event-rsvp-actions button:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+
+.portal-event-rsvp-actions strong {
+  font-size: 15px;
+}
+
+.portal-event-rsvp-actions small {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: .72;
+}
+
+.portal-event-message {
+  margin-top: 14px !important;
+  font-weight: 800;
+  color: #315f3d !important;
+}
+
+.portal-event-count-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+.portal-event-count-row span {
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.74);
+  color: #315f3d;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.portal-event-flyer-frame {
+  position: sticky;
+  top: 18px;
+  overflow: hidden;
+  padding: 12px;
+}
+
+.portal-event-flyer-frame img {
+  width: 100%;
+  max-height: calc(100vh - 90px);
+  display: block;
+  border-radius: 24px;
+  object-fit: contain;
+  background: #f2ede3;
+}
+
+.portal-event-detail-empty {
+  max-width: 720px;
+  margin: 60px auto;
+  padding: 36px;
+  text-align: center;
+}
+
 .camper-documents-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -6370,6 +6620,16 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 
+  .portal-event-detail-grid,
+  .portal-event-detail-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-event-flyer-frame {
+    position: relative;
+    top: auto;
+  }
+
   .camper-event-card {
     grid-template-columns: 1fr;
   }
@@ -6400,6 +6660,7 @@ tbody tr:hover {
   .camper-documents-page,
   .camper-maintenance-page,
   .camper-events-page,
+  .portal-event-detail-page,
   .admin-open-balance-page {
     padding: 12px;
   }
@@ -6428,6 +6689,43 @@ tbody tr:hover {
 
   .camper-event-copy {
     padding: 20px;
+  }
+
+  .portal-event-detail-copy {
+    padding: 24px;
+    border-radius: 24px;
+  }
+
+  .portal-event-detail-copy h1 {
+    font-size: 41px;
+  }
+
+  .portal-event-detail-copy > p {
+    font-size: 15px;
+  }
+
+  .portal-event-rsvp-panel {
+    padding: 18px;
+    border-radius: 21px;
+  }
+
+  .portal-event-rsvp-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-event-rsvp-actions button {
+    min-height: 76px;
+    grid-template-columns: auto 1fr;
+    justify-items: start;
+    text-align: left;
+  }
+
+  .portal-event-rsvp-actions small {
+    grid-column: 2;
+  }
+
+  .portal-event-flyer-frame {
+    border-radius: 24px;
   }
 
   .signature-modal-actions,

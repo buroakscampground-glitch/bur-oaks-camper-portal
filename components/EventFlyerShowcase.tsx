@@ -61,15 +61,21 @@ export default function EventFlyerShowcase({
 
       <div className="event-flyer-grid">
         {visibleEvents.map((event, index) => (
-          <article className={index === 0 ? 'featured' : ''} key={event.slug}>
-            <img src={event.flyer} alt={`${event.title} flyer`} loading={index < 2 ? 'eager' : 'lazy'} />
-            <div>
-              <span>{index === 0 && nextEvent?.slug === event.slug ? 'NEXT EVENT' : event.displayDate}</span>
-              <h3>{event.title}</h3>
-              {event.time && <small>{event.time}</small>}
-              <p>{event.description}</p>
-            </div>
-          </article>
+          <a
+            className="event-flyer-link"
+            href={context === 'portal' ? `/portal/events/${event.slug}` : '/events'}
+            key={event.slug}
+          >
+            <article className={index === 0 ? 'featured' : ''}>
+              <img src={event.flyer} alt={`${event.title} flyer`} loading={index < 2 ? 'eager' : 'lazy'} />
+              <div>
+                <span>{index === 0 && nextEvent?.slug === event.slug ? 'NEXT EVENT' : event.displayDate}</span>
+                <h3>{event.title}</h3>
+                {event.time && <small>{event.time}</small>}
+                <p>{event.description}</p>
+              </div>
+            </article>
+          </a>
         ))}
       </div>
     </section>
