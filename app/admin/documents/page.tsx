@@ -41,6 +41,7 @@ export default function AdminDocumentsPage() {
   const [camperSearch, setCamperSearch] = useState('')
   const [signatureSearch, setSignatureSearch] = useState('')
   const [signatureView, setSignatureView] = useState<'waiting' | 'signed'>('waiting')
+  const [futureTemplateId, setFutureTemplateId] = useState('')
 
   async function loadData() {
     const [camperResult, templateResult, documentResult] = await Promise.all([
@@ -184,6 +185,15 @@ export default function AdminDocumentsPage() {
     } finally {
       setWorking(false)
     }
+  }
+
+  async function assignLibraryDocumentFromDropdown() {
+    if (!camperId) return setMessage('Please select a camper.')
+    if (!futureTemplateId) return setMessage('Please select a document from the library.')
+
+    await assignTemplateToCamper(futureTemplateId, camperId)
+    setCamperId('')
+    setFutureTemplateId('')
   }
 
   async function openTemplate(template: any) {
@@ -557,11 +567,15 @@ export default function AdminDocumentsPage() {
                   {camperDocuments.length === 0 ? (
                     <p><FilePlus2 size={15} /> No documents assigned</p>
                   ) : (
-                    camperDocuments.slice(0, 3).map((document) => (
-                      <p key={document.id}><FileCheck2 size={15} /> {document.document_name}</p>
+                    camperDocuments.slice(0, 4).map((document) => (
+                      <p className={document.signature_status === 'signed' ? 'signed' : 'pending'} key={document.id}>
+                        {document.signature_status === 'signed' ? <CheckCircle2 size={15} /> : <FileCheck2 size={15} />}
+                        <span>{document.document_name}</span>
+                        <em>{document.signature_status === 'signed' ? 'Signed' : document.signature_status === 'not_required' ? 'View only' : 'Waiting'}</em>
+                      </p>
                     ))
                   )}
-                  {camperDocuments.length > 3 && <small>+{camperDocuments.length - 3} more documents</small>}
+                  {camperDocuments.length > 4 && <small>+{camperDocuments.length - 4} more documents</small>}
                 </div>
 
                 <button
@@ -589,14 +603,24 @@ export default function AdminDocumentsPage() {
       <section className="admin-document-panel assign-document-panel">
         <div className="admin-document-heading compact">
           <span><UserRoundCheck size={21} /></span>
-          <div><small>FUTURE ASSIGNMENTS</small><h2>Assign a camper document</h2><p>Use this only after complete camper information is available.</p></div>
+          <div><small>FUTURE ASSIGNMENTS</small><h2>Assign a camper document</h2><p>Choose a saved library document or upload a one-off file for a camper.</p></div>
         </div>
-        <div className="admin-assignment-form">
+
+        <div className="admin-library-assignment-form">
           <label><span>Camper</span><select value={camperId} onChange={(event) => setCamperId(event.target.value)}><option value="">Select camper</option>{campers.map((camper) => <option key={camper.id} value={camper.id}>Lot {camper.lot_number} — {camper.first_name} {camper.last_name}</option>)}</select></label>
+          <label><span>Library document</span><select value={futureTemplateId} onChange={(event) => setFutureTemplateId(event.target.value)}><option value="">Select saved document</option>{templates.map((template) => <option key={template.id} value={template.id}>{template.document_name}</option>)}</select></label>
+          <button type="button" onClick={assignLibraryDocumentFromDropdown} disabled={working || !camperId || !futureTemplateId}>
+            {working ? 'Assigning…' : 'Assign library document'}
+          </button>
+        </div>
+
+        <div className="admin-one-off-divider"><span>or upload one file just for this camper</span></div>
+
+        <div className="admin-assignment-form">
           <label><span>Document name</span><input value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder="2026 Seasonal Lease" /></label>
           <label><span>Type</span><input value={documentType} onChange={(event) => setDocumentType(event.target.value)} /></label>
           <label><span>File</span><input type="file" onChange={(event) => setAssignedFile(event.target.files?.[0] || null)} /></label>
-          <button type="button" onClick={uploadAssignedDocument} disabled={working}>Assign document</button>
+          <button type="button" onClick={uploadAssignedDocument} disabled={working || !camperId}>Assign uploaded file</button>
         </div>
       </section>
 
