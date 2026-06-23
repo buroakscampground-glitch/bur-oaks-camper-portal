@@ -9,6 +9,7 @@ const camperPages: Record<string, string> = {
   '/electric': 'Electric Usage',
   '/calendar': 'Events Calendar',
   '/directory': 'Camper Directory',
+  '/site': 'My Site',
   '/maintenance': 'Maintenance Requests',
   '/maintenance/history': 'Maintenance History',
 }

@@ -12,10 +12,13 @@ import {
   ClipboardCheck,
   FileText,
   Gauge,
+  Home,
   LogOut,
   MapPin,
   Megaphone,
   ReceiptText,
+  ShieldCheck,
+  Sparkles,
   TentTree,
   UserRound,
   UsersRound,
@@ -27,6 +30,13 @@ import PortalWeather from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 
 const serviceLinks = [
+  {
+    href: '/site',
+    title: 'My Site',
+    description: 'See your lot, account status, documents, and site details.',
+    icon: Home,
+    accent: 'green',
+  },
   {
     href: '/invoices',
     title: 'Invoices & AutoPay',
@@ -264,6 +274,39 @@ export default function CamperPortalPage() {
     },
   ]
   const completedTasks = firstLoginTasks.filter((task) => task.complete).length
+  const weekendFocus = documentsNeedingSignature.length
+    ? {
+        href: '/documents',
+        title: 'Signature needed',
+        detail: `${documentsNeedingSignature.length} document${documentsNeedingSignature.length === 1 ? '' : 's'} waiting for you.`,
+        action: 'Review documents',
+      }
+    : openInvoices.length
+      ? {
+          href: '/invoices',
+          title: 'Balance to review',
+          detail: `$${openBalance.toFixed(2)} open across ${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'}.`,
+          action: 'Open billing',
+        }
+      : nextEvent
+        ? {
+            href: '/calendar',
+            title: 'Plan around the next event',
+            detail: `${nextEvent.title} is coming up ${formatDate(nextEvent.event_date)}.`,
+            action: 'View calendar',
+          }
+        : {
+            href: '/maintenance',
+            title: 'Everything looks calm',
+            detail: 'No urgent portal items right now. Enjoy your time at Bur Oaks.',
+            action: 'Need maintenance?',
+          }
+  const siteReadiness = [
+    { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
+    { label: 'Documents', value: documentsNeedingSignature.length ? `${documentsNeedingSignature.length} open` : 'Clear', complete: documentsNeedingSignature.length === 0 },
+    { label: 'Balance', value: openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00', complete: openInvoices.length === 0 },
+    { label: 'Maintenance', value: activeMaintenance.length ? `${activeMaintenance.length} active` : 'None', complete: activeMaintenance.length === 0 },
+  ]
 
   return (
     <main className="camper-portal-page">
@@ -305,6 +348,9 @@ export default function CamperPortalPage() {
               <a className="portal-primary-action" href="/invoices">
                 Billing & payments <ArrowRight size={18} />
               </a>
+              <a className="portal-secondary-action" href="/site">
+                View my site
+              </a>
               <a className="portal-secondary-action" href="/maintenance">
                 Request maintenance
               </a>
@@ -314,6 +360,40 @@ export default function CamperPortalPage() {
         </section>
 
         <PortalWeather />
+
+        <section className="portal-weekend-planner">
+          <div className="portal-planner-main">
+            <span><Sparkles size={16} /> WEEKEND PLANNER</span>
+            <h2>{weekendFocus.title}</h2>
+            <p>{weekendFocus.detail}</p>
+            <div className="portal-planner-actions">
+              <a href={weekendFocus.href}>{weekendFocus.action} <ArrowRight size={16} /></a>
+              <a href="/site">Open My Site</a>
+            </div>
+          </div>
+
+          <div className="portal-readiness-stack">
+            {siteReadiness.map((item) => (
+              <article className={item.complete ? 'complete' : 'attention'} key={item.label}>
+                <span>{item.complete ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}</span>
+                <div>
+                  <small>{item.label}</small>
+                  <strong>{item.value}</strong>
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <aside className="portal-next-best">
+            <ShieldCheck size={24} />
+            <div>
+              <small>Campground concierge</small>
+              <strong>{nextEvent ? nextEvent.title : 'No event posted yet'}</strong>
+              <p>{nextEvent ? `${formatDate(nextEvent.event_date)} · RSVP and see event details.` : 'Check back for the next Bur Oaks event.'}</p>
+            </div>
+            <a href="/calendar">Events</a>
+          </aside>
+        </section>
 
         <EventFlyerShowcase context="portal" limit={4} />
 
@@ -535,6 +615,20 @@ export default function CamperPortalPage() {
             )}
           </section>
         </div>
+
+        <section className="portal-site-command">
+          <div>
+            <span><Home size={16} /> MY SITE</span>
+            <h2>Lot {camper?.lot_number || '—'} at a glance.</h2>
+            <p>One page for your site details, documents, insurance, payments, electric history, and maintenance requests.</p>
+          </div>
+          <div className="portal-site-command-grid">
+            <article><small>Camper</small><strong>{camper?.first_name || ''} {camper?.last_name || ''}</strong></article>
+            <article><small>Latest electric</small><strong>{latestElectric ? `${latestElectric.kwh_used || 0} kWh` : 'No reading'}</strong></article>
+            <article><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong></article>
+          </div>
+          <a href="/site">Open My Site <ArrowRight size={16} /></a>
+        </section>
 
         <footer className="portal-footer">
           <span>Bur Oaks Campground</span>
