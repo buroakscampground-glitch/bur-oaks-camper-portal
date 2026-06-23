@@ -1,10 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import { CheckCircle2, ClipboardCheck, Eye, FileUp, ShieldCheck, UsersRound } from 'lucide-react'
 
 export default function ProfilePage() {
+  const router = useRouter()
   const [camper, setCamper] = useState<any>(null)
   const [insuranceDocuments, setInsuranceDocuments] = useState<any[]>([])
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null)
@@ -152,31 +154,7 @@ export default function ProfilePage() {
   }
 
   async function openInsuranceDocument(documentId: string) {
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-
-    if (!token) {
-      window.location.href = '/login'
-      return
-    }
-
-    const response = await fetch('/api/document-url', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ documentId }),
-    })
-
-    const result = await response.json()
-
-    if (!response.ok || !result.url) {
-      setInsuranceMessage('Unable to open this insurance file.')
-      return
-    }
-
-    window.location.href = result.url
+    router.push(`/documents/view/${documentId}`)
   }
 
   if (loading) {

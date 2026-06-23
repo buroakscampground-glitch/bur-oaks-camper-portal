@@ -240,16 +240,7 @@ export default function CamperDetailPage() {
   }
 
   async function openInsuranceDocument(document: any) {
-    const { data, error } = await supabase.storage
-      .from('camper-documents')
-      .createSignedUrl(document.file_url, 60)
-
-    if (error || !data?.signedUrl) {
-      setMessage('Unable to open this insurance file.')
-      return
-    }
-
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    router.push(`/documents/view/${document.id}`)
   }
 
   if (loading) {

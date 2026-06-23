@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   ArchiveRestore,
   ArrowUpRight,
@@ -22,6 +23,7 @@ import { supabase } from '../../../lib/supabase'
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024
 
 export default function AdminDocumentsPage() {
+  const router = useRouter()
   const [campers, setCampers] = useState<any[]>([])
   const [templates, setTemplates] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
@@ -183,9 +185,7 @@ export default function AdminDocumentsPage() {
   }
 
   async function openTemplate(template: any) {
-    const { data, error } = await supabase.storage.from('camper-documents').createSignedUrl(template.storage_path, 60)
-    if (error || !data?.signedUrl) return setMessage('Unable to open this template.')
-    window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    router.push(`/admin/documents/templates/${template.id}`)
   }
 
   async function deleteTemplate(template: any) {

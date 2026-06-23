@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Document could not be opened.' }, { status: 404 })
     }
 
-    return NextResponse.json({ url: data.signedUrl })
+    return NextResponse.json({ url: data.signedUrl, fileUrl: objectPath })
   } catch (error) {
     console.error('Unable to create document link:', error)
     return NextResponse.json({ error: 'Unable to open document.' }, { status: 500 })

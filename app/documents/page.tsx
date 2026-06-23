@@ -16,30 +16,7 @@ export default function DocumentsPage() {
   const router = useRouter()
 
   async function openDocument(documentId: string) {
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
-
-    if (!token) {
-      window.location.href = '/login'
-      return
-    }
-
-    const response = await fetch('/api/document-url', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ documentId }),
-    })
-    const result = await response.json()
-
-    if (!response.ok || !result.url) {
-      window.alert('This document could not be opened. Please contact the campground office.')
-      return
-    }
-
-    window.location.href = result.url
+    router.push(`/documents/view/${documentId}`)
   }
 
   useEffect(() => {
