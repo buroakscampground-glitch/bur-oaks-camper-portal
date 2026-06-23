@@ -4,7 +4,7 @@ const latitude = 38.8884
 const longitude = -89.7312
 const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`
 const satelliteUrl = `https://www.google.com/maps/@${latitude},${longitude},700m/data=!3m1!1e3`
-const satelliteTileBase = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/17'
+const satelliteTileBase = 'https://mt.google.com/vt/lyrs=s&z=17'
 const satelliteTiles = [
   [50144, 32864],
   [50144, 32865],
@@ -33,7 +33,8 @@ export default function CampgroundMap({
             aria-hidden="true"
             key={`${row}-${column}`}
             loading="lazy"
-            src={`${satelliteTileBase}/${row}/${column}`}
+            referrerPolicy="no-referrer"
+            src={`${satelliteTileBase}&x=${column}&y=${row}`}
           />
         ))}
       </div>
@@ -50,7 +51,7 @@ export default function CampgroundMap({
         <a href={satelliteUrl} rel="noreferrer" target="_blank">Satellite view</a>
       </div>
 
-      <small className="campground-map-credit">Satellite imagery © Esri</small>
+      <small className="campground-map-credit">Satellite imagery © Google</small>
     </div>
   )
 }
