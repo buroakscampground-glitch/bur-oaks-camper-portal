@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
+import MaintenanceConversation from '../../../../components/MaintenanceConversation'
 
 export default function TicketDetailPage() {
   const params = useParams()
@@ -176,6 +177,13 @@ export default function TicketDetailPage() {
           <p>{ticket.description}</p>
 
           <MaintenancePhotos paths={ticket.photo_urls} />
+
+          <MaintenanceConversation
+            ticketId={ticket.id}
+            camperId={ticket.camper_id}
+            authorName="Maintenance Staff"
+            authorRole="maintenance"
+          />
 
           {ticket.completion_notes && (
             <>

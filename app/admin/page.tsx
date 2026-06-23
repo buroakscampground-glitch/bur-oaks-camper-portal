@@ -45,6 +45,9 @@ type AdminStats = {
   maintenanceAlerts: number
   paymentAlerts: number
   rsvpAlerts: number
+  documentActions: number
+  insuranceMissing: number
+  totalUnreadAlerts: number
 }
 
 const emptyStats: AdminStats = {
@@ -66,6 +69,9 @@ const emptyStats: AdminStats = {
   maintenanceAlerts: 0,
   paymentAlerts: 0,
   rsvpAlerts: 0,
+  documentActions: 0,
+  insuranceMissing: 0,
+  totalUnreadAlerts: 0,
 }
 
 export default function AdminPage() {
@@ -113,6 +119,7 @@ export default function AdminPage() {
       maintenanceResult,
       waitlistResult,
       notificationResult,
+      documentResult,
     ] = await Promise.all([
       supabase.from('campers').select('id').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
@@ -124,11 +131,18 @@ export default function AdminPage() {
       supabase.from('maintenance_tickets').select('*'),
       supabase.from('waitlist').select('id'),
       supabase.from('admin_notifications').select('id,type').is('read_at', null),
+      supabase.from('documents').select('id,document_type,signature_status,camper_id'),
     ])
 
     const invoices = invoicesResult.data || []
     const maintenance = maintenanceResult.data || []
     const notifications = notificationResult.data || []
+    const documents = documentResult.data || []
+    const insuredCamperIds = new Set(
+      documents
+        .filter((document) => document.document_type === 'Golf Cart Insurance')
+        .map((document) => String(document.camper_id))
+    )
 
     setStats({
       campers: campersResult.data?.length || 0,
@@ -161,6 +175,9 @@ export default function AdminPage() {
       maintenanceAlerts: notifications.filter((notification) => notification.type === 'maintenance_request').length,
       paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
       rsvpAlerts: notifications.filter((notification) => notification.type === 'event_rsvp').length,
+      documentActions: documents.filter((document) => document.signature_status === 'pending').length,
+      insuranceMissing: (campersResult.data || []).filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
+      totalUnreadAlerts: notifications.length,
     })
   }
 
@@ -230,10 +247,10 @@ export default function AdminPage() {
       tone: stats.emergencyMaintenance > 0 ? 'red' : 'orange',
     },
     {
-      href: '/admin/lots',
+      href: '/admin/map',
       title: 'Lots & Sites',
-      description: 'Manage lot assignments, meters, and rent rates.',
-      detail: 'Site operations',
+      description: 'View occupied, vacant, and maintenance lots.',
+      detail: 'Visual campground map',
       icon: Map,
       tone: 'plum',
     },
@@ -251,8 +268,9 @@ export default function AdminPage() {
     { href: '/admin/events', title: 'Events', detail: `${stats.events} events`, icon: CalendarDays },
     { href: '/admin/rsvps', title: 'RSVPs', detail: `${stats.rsvps} responses`, alertCount: stats.rsvpAlerts, alertLabel: 'new RSVP alert', alertType: 'event_rsvp', icon: UsersRound },
     { href: '/admin/announcements', title: 'Announcements', detail: `${stats.announcements} active`, icon: Megaphone },
+    { href: '/admin/notifications', title: 'Notifications', detail: `${stats.totalUnreadAlerts} unread`, alertCount: stats.totalUnreadAlerts, alertLabel: 'new notification', icon: BellRing },
     { href: '/admin/texts', title: 'Text Alerts', detail: 'Camper notices', icon: BellRing },
-    { href: '/admin/documents', title: 'Documents', detail: 'Files & forms', icon: FileText },
+    { href: '/admin/documents', title: 'Documents', detail: `${stats.documentActions} need signatures`, icon: FileText },
     { href: '/admin/gatecards', title: 'Gate Cards', detail: 'Access control', icon: KeyRound },
     { href: '/admin/directory', title: 'Directory', detail: 'Camper lookup', icon: UserRoundSearch },
     { href: '/admin/archived-campers', title: 'Archive', detail: `${stats.archivedCampers} records`, icon: Archive },
@@ -326,6 +344,39 @@ export default function AdminPage() {
         </section>
 
         <AdminWeather />
+
+        <section className="admin-command-panel admin-today-panel">
+          <div className="admin-command-heading">
+            <div><span>TODAY COMMAND CENTER</span><h2>What needs attention first</h2></div>
+            <a href="/admin/notifications">Open notifications <ArrowRight size={16} /></a>
+          </div>
+          <div className="admin-today-grid">
+            <article className={stats.totalUnreadAlerts ? 'attention' : ''}>
+              <BellRing size={21} />
+              <small>New alerts</small>
+              <strong>{stats.totalUnreadAlerts || 'Clear'}</strong>
+              <p>{stats.totalUnreadAlerts ? 'Review new campground activity.' : 'No unread alerts right now.'}</p>
+            </article>
+            <article className={stats.pendingMaintenance ? 'attention' : ''}>
+              <Wrench size={21} />
+              <small>Pending approvals</small>
+              <strong>{stats.pendingMaintenance || 'None'}</strong>
+              <p>{stats.pendingMaintenance ? 'Maintenance is waiting for admin approval.' : 'No work orders waiting.'}</p>
+            </article>
+            <article className={stats.documentActions ? 'attention' : ''}>
+              <FileText size={21} />
+              <small>Unsigned documents</small>
+              <strong>{stats.documentActions || 'Clear'}</strong>
+              <p>{stats.documentActions ? 'Leases or renewals still need signatures.' : 'No pending signatures found.'}</p>
+            </article>
+            <article className={stats.insuranceMissing ? 'attention' : ''}>
+              <ShieldCheck size={21} />
+              <small>Insurance missing</small>
+              <strong>{stats.insuranceMissing || 'Clear'}</strong>
+              <p>{stats.insuranceMissing ? 'Campers missing golf cart insurance on file.' : 'Insurance records look good.'}</p>
+            </article>
+          </div>
+        </section>
 
         <section className="admin-command-panel">
           <div className="admin-command-heading">

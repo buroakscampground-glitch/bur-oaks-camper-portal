@@ -6,6 +6,7 @@ import { Camera, CheckCircle2, ClipboardList, ImagePlus, Wrench, X } from 'lucid
 import { supabase } from '../../lib/supabase'
 import { MaintenanceBadge } from '../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../components/MaintenancePhotos'
+import MaintenanceConversation from '../../components/MaintenanceConversation'
 
 function getMaintenanceDisplayStatus(ticket?: any) {
   if (!ticket) return 'Open'
@@ -25,6 +26,7 @@ export default function MaintenanceRequestPage() {
   const [userId, setUserId] = useState('')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
+  const [expandedTicketId, setExpandedTicketId] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -336,6 +338,21 @@ export default function MaintenanceRequestPage() {
                   {ticket.completed_at ? ` · Completed ${new Date(ticket.completed_at).toLocaleDateString()}` : ''}
                 </p>
                 <MaintenancePhotos paths={ticket.photo_urls} />
+                <button
+                  className="camper-maintenance-note-toggle"
+                  type="button"
+                  onClick={() => setExpandedTicketId(expandedTicketId === ticket.id ? '' : ticket.id)}
+                >
+                  {expandedTicketId === ticket.id ? 'Hide notes' : 'View / add notes'}
+                </button>
+                {expandedTicketId === ticket.id && (
+                  <MaintenanceConversation
+                    ticketId={ticket.id}
+                    camperId={camper?.id}
+                    authorName={`${camper?.first_name || ''} ${camper?.last_name || ''}`.trim() || 'Camper'}
+                    authorRole="camper"
+                  />
+                )}
               </article>
             ))}
           </div>

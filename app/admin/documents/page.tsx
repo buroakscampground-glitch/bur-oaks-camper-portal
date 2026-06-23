@@ -254,6 +254,61 @@ export default function AdminDocumentsPage() {
     }
   }
 
+  async function assignSelectedTemplateToVisibleCampers() {
+    if (!selectedTemplateId) {
+      setMessage('Select a library document first.')
+      return
+    }
+
+    const ok = window.confirm(`Assign the selected document to ${filteredCampers.length} visible camper${filteredCampers.length === 1 ? '' : 's'}? Campers who already have it will be skipped.`)
+    if (!ok) return
+
+    let assigned = 0
+    setWorking(true)
+
+    for (const camper of filteredCampers) {
+      const template = templates.find((item) => String(item.id) === String(selectedTemplateId))
+      if (!template) break
+
+      const alreadyAssigned = documents.some(
+        (document) =>
+          String(document.camper_id) === String(camper.id) &&
+          String(document.document_name).trim().toLowerCase() ===
+            String(template.document_name).trim().toLowerCase()
+      )
+      if (alreadyAssigned) continue
+
+      const originalName = String(template.storage_path).split('/').pop() || 'seasonal-lease.docx'
+      const cleanName = originalName.replace(/^[0-9a-f-]{36}-/i, '')
+      const destinationPath = `${camper.id}/${crypto.randomUUID()}-${cleanName}`
+
+      const { error: copyError } = await supabase
+        .storage
+        .from('camper-documents')
+        .copy(template.storage_path, destinationPath)
+      if (copyError) continue
+
+      const { error: insertError } = await supabase.from('documents').insert({
+        camper_id: camper.id,
+        document_name: template.document_name,
+        document_type: template.document_type || 'Seasonal Lease',
+        file_url: destinationPath,
+        signature_status: 'pending',
+      })
+
+      if (insertError) {
+        await supabase.storage.from('camper-documents').remove([destinationPath])
+        continue
+      }
+
+      assigned += 1
+    }
+
+    setWorking(false)
+    setMessage(`Assigned the selected document to ${assigned} camper${assigned === 1 ? '' : 's'}.`)
+    await loadData()
+  }
+
   const filteredCampers = campers.filter((camper) => {
     const search = camperSearch.trim().toLowerCase()
     if (!search) return true
@@ -376,6 +431,9 @@ export default function AdminDocumentsPage() {
             <FileCheck2 size={18} />
             <span><small>Selected lease</small><strong>{selectedTemplate.document_name}</strong></span>
             <em>Choose “Assign selected lease” on a camper below.</em>
+            <button type="button" onClick={assignSelectedTemplateToVisibleCampers} disabled={working}>
+              Assign to visible campers
+            </button>
           </div>
         )}
 

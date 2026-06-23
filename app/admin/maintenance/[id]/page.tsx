@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
+import MaintenanceConversation from '../../../../components/MaintenanceConversation'
 import { markAdminAlertsSeen } from '../../../../lib/admin-alert-actions'
 
 export default function MaintenanceTicketPage() {
@@ -277,6 +278,13 @@ export default function MaintenanceTicketPage() {
           <p>{ticket.description}</p>
 
           <MaintenancePhotos paths={ticket.photo_urls} />
+
+          <MaintenanceConversation
+            ticketId={ticket.id}
+            camperId={ticket.camper_id}
+            authorName="Bur Oaks Admin"
+            authorRole="admin"
+          />
 
           <hr style={{ margin: '20px 0' }} />
 
