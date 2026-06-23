@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { sendPaymentReceivedAlert } from '../../../lib/payment-alerts'
 
 export const runtime = 'nodejs'
 
@@ -116,7 +117,16 @@ export async function POST(request: Request) {
         .update({ status: 'paid' })
         .eq('id', invoice.id)
 
-      return NextResponse.json({ charged: true, paymentIntentId: intent.id })
+      const alertResult = await sendPaymentReceivedAlert({
+        admin: context.admin,
+        invoiceIds: [String(invoice.id)],
+        camperId: invoice.camper_id,
+        amountPaid: Number(invoice.total_due || 0),
+        paymentType: 'AutoPay',
+        origin: new URL(request.url).origin,
+      })
+
+      return NextResponse.json({ charged: true, paymentIntentId: intent.id, ...alertResult })
     }
 
     return NextResponse.json({ charged: false, reason: intent.status })
