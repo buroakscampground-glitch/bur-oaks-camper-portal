@@ -30,9 +30,11 @@ export async function sendAdminAlertEmail({
   const to = process.env.ADMIN_ALERT_EMAIL || 'buroakscampground@gmail.com'
   const from =
     process.env.PORTAL_INVITE_FROM ||
+    process.env.ADMIN_ALERT_FROM ||
     'Bur Oaks Campground <onboarding@resend.dev>'
   const replyTo =
     process.env.PORTAL_INVITE_REPLY_TO ||
+    process.env.ADMIN_ALERT_REPLY_TO ||
     'buroakscampground@gmail.com'
 
   const visibleDetails = details.filter((detail) => detail.value !== null && detail.value !== undefined && detail.value !== '')

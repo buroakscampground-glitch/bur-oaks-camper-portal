@@ -124,63 +124,47 @@ export default function MaintenanceRequestPage() {
       }
     }
 
-    const { data: newTicket, error } = await supabase
-      .from('maintenance_tickets')
-      .insert({
-        title,
-        description,
-        category,
-        status: 'Open',
-        reported_by: `${camper?.first_name || ''} ${camper?.last_name || ''}`,
-        lot_number: camper?.lot_number || '',
-        ...(uploadedPaths.length ? { photo_urls: uploadedPaths } : {}),
-      })
-      .select('id')
-      .single()
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
 
-    if (error) {
+    if (!token) {
       if (uploadedPaths.length) {
         await supabase.storage.from('maintenance-photos').remove(uploadedPaths)
       }
-      setMessage(error.message)
+      setMessage('Please sign in again before submitting your request.')
+      setSubmitting(false)
+      return
+    }
+
+    const response = await fetch('/api/maintenance-request', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title,
+        description,
+        category,
+        photoUrls: uploadedPaths,
+      }),
+    })
+    const result = await response.json().catch(() => null)
+
+    if (!response.ok || !result?.success) {
+      if (uploadedPaths.length) {
+        await supabase.storage.from('maintenance-photos').remove(uploadedPaths)
+      }
+      setMessage(result?.error || 'Unable to submit maintenance request.')
       setSubmitting(false)
       return
     }
 
     let alertMessage = ''
-
-    if (newTicket?.id) {
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData.session?.access_token
-
-      if (token) {
-        try {
-          const alertResponse = await fetch('/api/admin-alert', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            type: 'maintenance_request',
-            ticketId: newTicket.id,
-          }),
-          })
-          const alertResult = await alertResponse.json().catch(() => null)
-
-          if (!alertResponse.ok) {
-            alertMessage = ' The request was saved, but the email alert did not send.'
-            console.error('Maintenance alert failed:', alertResult)
-          } else if (alertResult?.emailStatus === 'skipped') {
-            alertMessage = ` The request was saved, but email alerts are not fully configured: ${alertResult.emailMessage || 'missing email setup'}.`
-          } else if (alertResult?.emailStatus === 'failed') {
-            alertMessage = ` The request was saved, but the email alert failed: ${alertResult.emailMessage || 'email provider error'}.`
-          }
-        } catch (alertError) {
-          alertMessage = ' The request was saved, but the email alert did not send.'
-          console.error('Maintenance alert failed:', alertError)
-        }
-      }
+    if (result.emailStatus === 'skipped') {
+      alertMessage = ` Email alerts are not fully configured: ${result.emailMessage || 'missing email setup'}.`
+    } else if (result.emailStatus === 'failed') {
+      alertMessage = ` The request was saved, but the email alert failed: ${result.emailMessage || 'email provider error'}.`
     }
 
     setTitle('')

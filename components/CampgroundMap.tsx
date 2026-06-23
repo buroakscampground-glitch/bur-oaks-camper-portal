@@ -2,9 +2,9 @@ const campgroundAddress = '10303 Oaks Rd, Alhambra, IL 62001'
 const encodedAddress = encodeURIComponent(campgroundAddress)
 const latitude = 38.8884
 const longitude = -89.7312
-const mapEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=-89.7382%2C38.8838%2C-89.7242%2C38.8926&layer=mapnik&marker=${latitude}%2C${longitude}`
+const mapEmbedUrl = `https://maps.google.com/maps?ll=${latitude},${longitude}&q=${latitude},${longitude}&z=17&t=k&output=embed`
 const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodedAddress}`
-const satelliteUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}&query_place_id=Bur%20Oaks%20Campground`
+const satelliteUrl = `https://www.google.com/maps/@${latitude},${longitude},700m/data=!3m1!1e3`
 
 export default function CampgroundMap({
   lotNumber,
@@ -16,14 +16,14 @@ export default function CampgroundMap({
   return (
     <div className={`campground-map ${compact ? 'compact' : ''}`}>
       <iframe
-        title="Bur Oaks Campground map"
+        title="Bur Oaks Campground satellite map"
         src={mapEmbedUrl}
         loading="lazy"
         referrerPolicy="no-referrer-when-downgrade"
       />
 
       <div className="campground-map-overlay">
-        <span>Live map</span>
+        <span>Satellite view</span>
         <strong>Bur Oaks Campground</strong>
         <small>{campgroundAddress}</small>
         {lotNumber && <em>Your portal site: Lot {lotNumber}</em>}
