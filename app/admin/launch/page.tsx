@@ -6,10 +6,14 @@ import {
   ArrowRight,
   CheckCircle2,
   ClipboardCheck,
+  CircleDollarSign,
   LoaderCircle,
   Rocket,
   ShieldAlert,
   Sparkles,
+  Soup,
+  UsersRound,
+  Wrench,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
@@ -58,6 +62,33 @@ const statusConfig = {
     icon: ShieldAlert,
   },
 }
+
+const liveTests = [
+  {
+    href: '/maintenance',
+    label: 'Maintenance request',
+    detail: 'Submit one camper request and confirm the admin alert email arrives.',
+    icon: Wrench,
+  },
+  {
+    href: '/dinners',
+    label: 'Saturday dinner',
+    detail: 'Mark Going/Maybe and confirm the dinner response email arrives.',
+    icon: Soup,
+  },
+  {
+    href: '/calendar',
+    label: 'Event RSVP',
+    detail: 'RSVP to one event and check the red dot plus admin notification.',
+    icon: UsersRound,
+  },
+  {
+    href: '/invoices',
+    label: 'Invoice payment',
+    detail: 'Pay a small invoice and confirm Stripe marks it paid.',
+    icon: CircleDollarSign,
+  },
+]
 
 export default function AdminLaunchPage() {
   const [checklist, setChecklist] = useState<LaunchChecklist | null>(null)
@@ -190,6 +221,30 @@ export default function AdminLaunchPage() {
               <small>Use the grouped checklist below for final polish.</small>
             </article>
           )}
+        </div>
+      </section>
+
+      <section className="admin-launch-test-run">
+        <div>
+          <span><Sparkles size={15} /> LIVE TEST RUN</span>
+          <h2>Four checks before you tell campers it is ready</h2>
+          <p>Run these on the live site after each deployment. If all four pass, the core camper experience is in strong shape.</p>
+        </div>
+        <div>
+          {liveTests.map((test) => {
+            const Icon = test.icon
+
+            return (
+              <a href={test.href} key={test.label}>
+                <Icon size={20} />
+                <span>
+                  <strong>{test.label}</strong>
+                  <small>{test.detail}</small>
+                </span>
+                <ArrowRight size={17} />
+              </a>
+            )
+          })}
         </div>
       </section>
 

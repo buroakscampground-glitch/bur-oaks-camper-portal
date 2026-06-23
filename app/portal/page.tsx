@@ -401,6 +401,37 @@ export default function CamperPortalPage() {
 
         <PortalWeather />
 
+        <section className="portal-quick-actions" aria-label="Camper quick actions">
+          <a className={openInvoices.length ? 'attention' : ''} href="/invoices">
+            <ReceiptText size={20} />
+            <span>
+              <small>{openInvoices.length ? 'Payment ready' : 'Billing'}</small>
+              <strong>{openInvoices.length ? `$${openBalance.toFixed(2)} open` : 'All clear'}</strong>
+            </span>
+          </a>
+          <a className={documentsNeedingSignature.length ? 'attention' : ''} href="/documents">
+            <FileText size={20} />
+            <span>
+              <small>{documentsNeedingSignature.length ? 'Signature needed' : 'Documents'}</small>
+              <strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} waiting` : `${documents.length} available`}</strong>
+            </span>
+          </a>
+          <a href="/maintenance">
+            <Wrench size={20} />
+            <span>
+              <small>Maintenance</small>
+              <strong>{activeMaintenance.length ? `${activeMaintenance.length} active` : 'Request help'}</strong>
+            </span>
+          </a>
+          <a href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>
+            <Soup size={20} />
+            <span>
+              <small>Saturday dinner</small>
+              <strong>{upcomingDinners[0] ? `${upcomingDinners[0].month} ${upcomingDinners[0].day}` : 'View menu'}</strong>
+            </span>
+          </a>
+        </section>
+
         <section className="portal-weekend-planner">
           <div className="portal-planner-main">
             <span><Sparkles size={16} /> WEEKEND PLANNER</span>
@@ -726,6 +757,25 @@ export default function CamperPortalPage() {
             {camper?.lot_number || '—'} · {camper?.first_name} {camper?.last_name}
           </span>
         </footer>
+
+        <nav className="portal-mobile-dock" aria-label="Quick portal navigation">
+          <a href="/invoices" className={openInvoices.length ? 'attention' : ''}>
+            <ReceiptText size={18} />
+            <span>Pay</span>
+          </a>
+          <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : ''}>
+            <FileText size={18} />
+            <span>Docs</span>
+          </a>
+          <a href="/maintenance">
+            <Wrench size={18} />
+            <span>Fix</span>
+          </a>
+          <a href="/dinners">
+            <Soup size={18} />
+            <span>Dinner</span>
+          </a>
+        </nav>
       </div>
     </main>
   )
