@@ -39,6 +39,8 @@ export default function AdminDocumentsPage() {
   const [draggedTemplateId, setDraggedTemplateId] = useState('')
   const [libraryDropActive, setLibraryDropActive] = useState(false)
   const [camperSearch, setCamperSearch] = useState('')
+  const [signatureSearch, setSignatureSearch] = useState('')
+  const [signatureView, setSignatureView] = useState<'waiting' | 'signed'>('waiting')
 
   async function loadData() {
     const [camperResult, templateResult, documentResult] = await Promise.all([
@@ -320,13 +322,96 @@ export default function AdminDocumentsPage() {
   const selectedTemplate = templates.find(
     (template) => String(template.id) === String(selectedTemplateId)
   )
+  const camperById = new Map(campers.map((camper) => [String(camper.id), camper]))
+  const signatureDocuments = documents
+    .filter((document) =>
+      signatureView === 'waiting'
+        ? document.signature_status === 'pending'
+        : document.signature_status === 'signed'
+    )
+    .filter((document) => {
+      const camper = camperById.get(String(document.camper_id))
+      const search = signatureSearch.trim().toLowerCase()
+      if (!search) return true
+      return `${document.document_name || ''} ${document.document_type || ''} ${camper?.first_name || ''} ${camper?.last_name || ''} ${camper?.lot_number || ''} ${camper?.email || ''}`
+        .toLowerCase()
+        .includes(search)
+    })
+  const pendingSignatureCount = documents.filter((document) => document.signature_status === 'pending').length
+  const signedSignatureCount = documents.filter((document) => document.signature_status === 'signed').length
 
   return (
     <main className="admin-document-center">
       <section className="admin-document-overview">
         <article><span className="green"><FileStack size={22} /></span><div><small>Approved templates</small><strong>{templates.length}</strong><em>Private and unassigned</em></div></article>
-        <article><span className="gold"><LockKeyhole size={22} /></span><div><small>Storage</small><strong>Private</strong><em>Short-lived secure links</em></div></article>
+        <article><span className="gold"><LockKeyhole size={22} /></span><div><small>Waiting signatures</small><strong>{pendingSignatureCount}</strong><em>Need camper action</em></div></article>
         <article><span className="blue"><UserRoundCheck size={22} /></span><div><small>Active campers</small><strong>{campers.length}</strong><em>Available for future assignment</em></div></article>
+      </section>
+
+      <section className="admin-document-panel signature-tracker-panel">
+        <div className="admin-document-heading signature-tracker-heading">
+          <span><FileCheck2 size={22} /></span>
+          <div>
+            <small>SIGNATURE TRACKER</small>
+            <h2>Who still needs to sign?</h2>
+            <p>Track assigned documents by camper, lot, status, and signed date.</p>
+          </div>
+          <div className="signature-tracker-actions">
+            <label>
+              <Search size={15} />
+              <input
+                value={signatureSearch}
+                onChange={(event) => setSignatureSearch(event.target.value)}
+                placeholder="Search person, lot, or document"
+              />
+            </label>
+            <div>
+              <button
+                className={signatureView === 'waiting' ? 'active' : ''}
+                type="button"
+                onClick={() => setSignatureView('waiting')}
+              >
+                Waiting <strong>{pendingSignatureCount}</strong>
+              </button>
+              <button
+                className={signatureView === 'signed' ? 'active' : ''}
+                type="button"
+                onClick={() => setSignatureView('signed')}
+              >
+                Signed <strong>{signedSignatureCount}</strong>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="signature-tracker-list">
+          {signatureDocuments.map((document) => {
+            const camper = camperById.get(String(document.camper_id))
+            const signedDate = document.signed_at
+              ? new Date(document.signed_at).toLocaleDateString()
+              : null
+
+            return (
+              <article className={document.signature_status === 'signed' ? 'signed' : 'waiting'} key={document.id}>
+                <span>{document.signature_status === 'signed' ? <CheckCircle2 size={19} /> : <FileCheck2 size={19} />}</span>
+                <div>
+                  <small>LOT {camper?.lot_number || 'N/A'} · {document.document_type || 'Document'}</small>
+                  <strong>{camper ? `${camper.first_name || ''} ${camper.last_name || ''}`.trim() : 'Camper not found'}</strong>
+                  <p>{document.document_name || 'Untitled document'}</p>
+                </div>
+                <em>{document.signature_status === 'signed' ? `Signed ${signedDate || ''}` : 'Waiting for signature'}</em>
+              </article>
+            )
+          })}
+
+          {signatureDocuments.length === 0 && (
+            <div className="signature-tracker-empty">
+              <FileCheck2 size={28} />
+              <strong>{signatureView === 'waiting' ? 'No waiting signatures found' : 'No completed signatures found'}</strong>
+              <span>{signatureSearch ? 'Try a different search.' : 'Documents will appear here as they are assigned and signed.'}</span>
+            </div>
+          )}
+        </div>
       </section>
 
       <div className="admin-document-layout">
