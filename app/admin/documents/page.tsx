@@ -357,6 +357,37 @@ export default function AdminDocumentsPage() {
     String(document.signature_status || '').toLowerCase() === 'not_required'
   const isWaitingSignature = (document: any) =>
     !isSignedDocument(document) && !isViewOnlyDocument(document)
+  const normalized = (value: unknown) => String(value || '').trim().toLowerCase()
+  const camperFullName = (camper: any) =>
+    `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
+  const documentBelongsToCamper = (document: any, camper: any) => {
+    const documentCamperId = String(document.camper_id || document.camper?.id || '')
+    if (documentCamperId && documentCamperId === String(camper.id)) return true
+
+    const camperEmails = [
+      camper.email,
+      camper.secondary_email,
+      camper.signature_email,
+    ].map(normalized).filter(Boolean)
+    const documentEmails = [
+      document.email,
+      document.camper_email,
+      document.assigned_email,
+      document.recipient_email,
+      document.signer_email,
+    ].map(normalized).filter(Boolean)
+    if (documentEmails.some((email) => camperEmails.includes(email))) return true
+
+    const camperLot = normalized(camper.lot_number || camper.site_number || camper.site)
+    const documentLot = normalized(document.lot_number || document.site_number || document.site || document.lot)
+    if (camperLot && documentLot && camperLot === documentLot) return true
+
+    const camperName = normalized(camperFullName(camper))
+    const documentName = normalized(document.camper_name || document.assigned_to || document.recipient_name)
+    if (camperName && documentName && documentName.includes(camperName)) return true
+
+    return false
+  }
   const signatureDocuments = documents
     .filter((document) =>
       signatureView === 'waiting'
@@ -558,9 +589,9 @@ export default function AdminDocumentsPage() {
 
         <div className="admin-camper-document-grid">
           {filteredCampers.map((camper) => {
-            const camperDocuments = documents.filter(
-              (document) => String(document.camper_id) === String(camper.id)
-            )
+            const camperDocuments = documents.filter((document) => documentBelongsToCamper(document, camper))
+            const camperWaitingDocuments = camperDocuments.filter(isWaitingSignature)
+            const camperSignedDocuments = camperDocuments.filter(isSignedDocument)
             const activeTemplateId = draggedTemplateId || selectedTemplateId
             const isAssigning = assigningCamperId === camper.id
 
@@ -585,6 +616,14 @@ export default function AdminDocumentsPage() {
                     <strong>{camper.first_name} {camper.last_name}</strong>
                     <em>{camper.email || 'No email entered'}</em>
                   </div>
+                </div>
+
+                <div className={`admin-camper-document-status ${camperDocuments.length ? 'has-documents' : ''}`}>
+                  <strong>{camperDocuments.length}</strong>
+                  <span>{camperDocuments.length === 1 ? 'document assigned' : 'documents assigned'}</span>
+                  {camperDocuments.length > 0 && (
+                    <em>{camperWaitingDocuments.length} waiting · {camperSignedDocuments.length} signed</em>
+                  )}
                 </div>
 
                 <div className="admin-camper-document-files">
