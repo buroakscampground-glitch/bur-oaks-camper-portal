@@ -25,15 +25,21 @@ export default function RoleGuard({
         return
       }
 
+      const userEmail = user.email.trim().toLowerCase()
       const { data: camper } = await supabase
         .from('campers')
         .select('role,active')
-        .ilike('email', user.email)
-        .single()
+        .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
+        .maybeSingle()
 
-      const role = String(camper?.role || 'camper').toLowerCase()
+      const role = String(camper?.role || '').toLowerCase()
 
-      if (camper?.active === false || !allowedRolesKey.split(',').includes(role)) {
+      if (!role || camper?.active === false) {
+        window.location.replace('/login')
+        return
+      }
+
+      if (!allowedRolesKey.split(',').includes(role)) {
         window.location.replace(role === 'camper' ? '/portal' : '/login')
         return
       }
