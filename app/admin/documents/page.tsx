@@ -333,11 +333,17 @@ export default function AdminDocumentsPage() {
     (template) => String(template.id) === String(selectedTemplateId)
   )
   const camperById = new Map(campers.map((camper) => [String(camper.id), camper]))
+  const isSignedDocument = (document: any) =>
+    String(document.signature_status || '').toLowerCase() === 'signed'
+  const isViewOnlyDocument = (document: any) =>
+    String(document.signature_status || '').toLowerCase() === 'not_required'
+  const isWaitingSignature = (document: any) =>
+    !isSignedDocument(document) && !isViewOnlyDocument(document)
   const signatureDocuments = documents
     .filter((document) =>
       signatureView === 'waiting'
-        ? document.signature_status === 'pending'
-        : document.signature_status === 'signed'
+        ? isWaitingSignature(document)
+        : isSignedDocument(document)
     )
     .filter((document) => {
       const camper = camperById.get(String(document.camper_id))
@@ -347,8 +353,8 @@ export default function AdminDocumentsPage() {
         .toLowerCase()
         .includes(search)
     })
-  const pendingSignatureCount = documents.filter((document) => document.signature_status === 'pending').length
-  const signedSignatureCount = documents.filter((document) => document.signature_status === 'signed').length
+  const pendingSignatureCount = documents.filter(isWaitingSignature).length
+  const signedSignatureCount = documents.filter(isSignedDocument).length
 
   return (
     <main className="admin-document-center">
@@ -402,14 +408,14 @@ export default function AdminDocumentsPage() {
               : null
 
             return (
-              <article className={document.signature_status === 'signed' ? 'signed' : 'waiting'} key={document.id}>
-                <span>{document.signature_status === 'signed' ? <CheckCircle2 size={19} /> : <FileCheck2 size={19} />}</span>
+              <article className={isSignedDocument(document) ? 'signed' : 'waiting'} key={document.id}>
+                <span>{isSignedDocument(document) ? <CheckCircle2 size={19} /> : <FileCheck2 size={19} />}</span>
                 <div>
                   <small>LOT {camper?.lot_number || 'N/A'} · {document.document_type || 'Document'}</small>
                   <strong>{camper ? `${camper.first_name || ''} ${camper.last_name || ''}`.trim() : 'Camper not found'}</strong>
                   <p>{document.document_name || 'Untitled document'}</p>
                 </div>
-                <em>{document.signature_status === 'signed' ? `Signed ${signedDate || ''}` : 'Waiting for signature'}</em>
+                <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : 'Waiting for signature'}</em>
               </article>
             )
           })}
@@ -568,10 +574,10 @@ export default function AdminDocumentsPage() {
                     <p><FilePlus2 size={15} /> No documents assigned</p>
                   ) : (
                     camperDocuments.slice(0, 4).map((document) => (
-                      <p className={document.signature_status === 'signed' ? 'signed' : 'pending'} key={document.id}>
-                        {document.signature_status === 'signed' ? <CheckCircle2 size={15} /> : <FileCheck2 size={15} />}
+                      <p className={isSignedDocument(document) ? 'signed' : 'pending'} key={document.id}>
+                        {isSignedDocument(document) ? <CheckCircle2 size={15} /> : <FileCheck2 size={15} />}
                         <span>{document.document_name}</span>
-                        <em>{document.signature_status === 'signed' ? 'Signed' : document.signature_status === 'not_required' ? 'View only' : 'Waiting'}</em>
+                        <em>{isSignedDocument(document) ? 'Signed' : isViewOnlyDocument(document) ? 'View only' : 'Waiting'}</em>
                       </p>
                     ))
                   )}
