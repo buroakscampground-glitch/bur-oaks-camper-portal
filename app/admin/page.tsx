@@ -15,6 +15,7 @@ import {
   Map,
   Megaphone,
   ReceiptText,
+  Rocket,
   ShieldCheck,
   Soup,
   TentTree,
@@ -273,6 +274,7 @@ export default function AdminPage() {
     { href: '/admin/notifications', title: 'Notifications', detail: `${stats.totalUnreadAlerts} unread`, alertCount: stats.totalUnreadAlerts, alertLabel: 'new notification', icon: BellRing },
     { href: '/admin/texts', title: 'Text Alerts', detail: 'Camper notices', icon: BellRing },
     { href: '/admin/documents', title: 'Documents', detail: `${stats.documentActions} need signatures`, icon: FileText },
+    { href: '/admin/launch', title: 'Launch Checklist', detail: 'Go-live readiness', icon: Rocket },
     { href: '/admin/gatecards', title: 'Gate Cards', detail: 'Access control', icon: KeyRound },
     { href: '/admin/directory', title: 'Directory', detail: 'Camper lookup', icon: UserRoundSearch },
     { href: '/admin/archived-campers', title: 'Archive', detail: `${stats.archivedCampers} records`, icon: Archive },
@@ -323,6 +325,10 @@ export default function AdminPage() {
               Your command center for campers, billing, maintenance, and the
               day-to-day details that keep Bur Oaks running beautifully.
             </p>
+            <div className="admin-command-hero-actions">
+              <a href="/admin/launch"><Rocket size={18} /> Open launch checklist</a>
+              <a href="/admin/notifications">Review alerts</a>
+            </div>
           </div>
         </section>
 
@@ -353,30 +359,30 @@ export default function AdminPage() {
             <a href="/admin/notifications">Open notifications <ArrowRight size={16} /></a>
           </div>
           <div className="admin-today-grid">
-            <article className={stats.totalUnreadAlerts ? 'attention' : ''}>
+            <a href="/admin/notifications" className={stats.totalUnreadAlerts ? 'attention' : ''}>
               <BellRing size={21} />
               <small>New alerts</small>
               <strong>{stats.totalUnreadAlerts || 'Clear'}</strong>
               <p>{stats.totalUnreadAlerts ? 'Review new campground activity.' : 'No unread alerts right now.'}</p>
-            </article>
-            <article className={stats.pendingMaintenance ? 'attention' : ''}>
+            </a>
+            <a href="/admin/maintenance" className={stats.pendingMaintenance ? 'attention' : ''}>
               <Wrench size={21} />
               <small>Pending approvals</small>
               <strong>{stats.pendingMaintenance || 'None'}</strong>
               <p>{stats.pendingMaintenance ? 'Maintenance is waiting for admin approval.' : 'No work orders waiting.'}</p>
-            </article>
-            <article className={stats.documentActions ? 'attention' : ''}>
+            </a>
+            <a href="/admin/documents" className={stats.documentActions ? 'attention' : ''}>
               <FileText size={21} />
               <small>Unsigned documents</small>
               <strong>{stats.documentActions || 'Clear'}</strong>
               <p>{stats.documentActions ? 'Leases or renewals still need signatures.' : 'No pending signatures found.'}</p>
-            </article>
-            <article className={stats.insuranceMissing ? 'attention' : ''}>
+            </a>
+            <a href="/admin/campers" className={stats.insuranceMissing ? 'attention' : ''}>
               <ShieldCheck size={21} />
               <small>Insurance missing</small>
               <strong>{stats.insuranceMissing || 'Clear'}</strong>
               <p>{stats.insuranceMissing ? 'Campers missing golf cart insurance on file.' : 'Insurance records look good.'}</p>
-            </article>
+            </a>
           </div>
         </section>
 

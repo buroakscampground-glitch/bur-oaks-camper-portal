@@ -19,6 +19,7 @@ const pageNames: Record<string, string> = {
   notifications: 'Notifications',
   documents: 'Documents',
   map: 'Campground Map',
+  launch: 'Launch Checklist',
   'email-test': 'Email Alert Test',
   gatecards: 'Gate Cards',
   directory: 'Camper Directory',
