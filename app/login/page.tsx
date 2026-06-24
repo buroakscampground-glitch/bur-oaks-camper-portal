@@ -26,17 +26,21 @@ export default function LoginPage() {
         return
       }
 
-      const { data: camper } = await supabase
+      const { data: camperMatches } = await supabase
         .from('campers')
-        .select('role')
+        .select('id,role,active,email,secondary_email')
         .or(`email.ilike.${normalizedEmail},secondary_email.ilike.${normalizedEmail}`)
-        .single()
+        .limit(10)
 
-      const role = camper?.role?.toLowerCase()
+      const campers = camperMatches || []
+      const camper =
+        campers.find((match) => match.active !== false && match.role) ||
+        campers.find((match) => match.active !== false)
+      const role = String(camper?.role || 'camper').toLowerCase()
 
-      if (!role) {
+      if (!camper) {
         await supabase.auth.signOut()
-        setError('This login does not have a portal role assigned. Please contact the campground office.')
+        setError('This login is not connected to a camper record. Please contact the campground office.')
         return
       }
 

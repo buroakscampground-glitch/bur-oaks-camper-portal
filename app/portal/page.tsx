@@ -143,13 +143,17 @@ export default function CamperPortalPage() {
           return
         }
 
-        const { data: camperData, error: camperError } = await supabase
+        const { data: camperMatches, error: camperError } = await supabase
           .from('campers')
           .select('*')
           .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-          .single()
+          .limit(10)
 
         if (camperError) throw camperError
+
+        const camperData =
+          (camperMatches || []).find((match) => match.active !== false && match.role) ||
+          (camperMatches || []).find((match) => match.active !== false)
 
         if (camperData?.role?.toLowerCase() === 'admin') {
           window.location.replace('/admin')
