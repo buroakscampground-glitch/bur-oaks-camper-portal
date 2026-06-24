@@ -466,26 +466,26 @@ export default function CamperPortalPage() {
           </div>
 
           <div className="portal-arrival-status">
-            <article className={openInvoices.length ? 'attention' : 'good'}>
+            <a href="/invoices" className={openInvoices.length ? 'attention' : 'good'}>
               <small>Balance</small>
               <strong>{openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00'}</strong>
               <em>{openInvoices.length ? `${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'} open` : 'Nothing due'}</em>
-            </article>
-            <article className={documentsNeedingSignature.length ? 'attention' : 'good'}>
+            </a>
+            <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'good'}>
               <small>Documents</small>
               <strong>{documentsNeedingSignature.length || documents.length}</strong>
               <em>{documentsNeedingSignature.length ? 'Need signature' : 'Ready'}</em>
-            </article>
-            <article className={activeMaintenance.length ? 'attention' : 'good'}>
+            </a>
+            <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'good'}>
               <small>Requests</small>
               <strong>{activeMaintenance.length || '0'}</strong>
               <em>{activeMaintenance.length ? latestMaintenanceStatus : 'No active work'}</em>
-            </article>
-            <article className="good">
+            </a>
+            <a href={nextDinner ? `/dinners?date=${nextDinner.date}` : '/dinners'} className="good">
               <small>Next dinner</small>
               <strong>{nextDinner ? `${nextDinner.month} ${nextDinner.day}` : 'Menu'}</strong>
               <em>{nextDinner?.menu || 'View schedule'}</em>
-            </article>
+            </a>
           </div>
         </section>
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { checkoutItems } from '../../lib/stripe'
+import { fallbackInvoiceLine, invoiceLineDetails } from '../../lib/invoice-display'
 import {
   createAutoPayEnrollment,
   disableAutoPay,
@@ -89,7 +90,7 @@ export default function InvoicesPage() {
 
       const { data } = await supabase
         .from('invoices')
-        .select('*')
+        .select('*, invoice_items(*)')
         .eq('camper_id', camperData.id)
         .order('due_date', { ascending: false })
 
@@ -315,6 +316,12 @@ export default function InvoicesPage() {
                 {visibleInvoices.map((invoice) => {
                   const isPaid = invoice.status === 'paid'
                   const isSelected = selectedInvoices.includes(invoice.id)
+                  const invoiceItems = Array.isArray(invoice.invoice_items)
+                    ? invoice.invoice_items
+                    : []
+                  const visibleItemLines = invoiceItems.length
+                    ? invoiceItems.map((item: any) => ({ key: item.id || `${invoice.id}-${item.description}`, ...invoiceLineDetails(item) }))
+                    : [{ key: `${invoice.id}-fallback`, ...fallbackInvoiceLine(invoice) }]
 
                   return (
                     <article className={`account-invoice-row ${isSelected ? 'selected' : ''}`} key={invoice.id}>
@@ -332,6 +339,17 @@ export default function InvoicesPage() {
                         <div>
                           <small>Invoice #{invoice.invoice_number}</small>
                           <h3>{invoice.invoice_type || 'Campground charge'}</h3>
+                          <div className="account-invoice-items">
+                            {visibleItemLines.map((line: any) => (
+                              <p key={line.key}>
+                                <span>
+                                  <b>{line.title}</b>
+                                  <em>{line.explanation}</em>
+                                </span>
+                                <strong>{formatMoney(line.amount)}</strong>
+                              </p>
+                            ))}
+                          </div>
                         </div>
                         <div className="account-due-date"><CalendarDays size={15} /><span><small>Due date</small><strong>{formatDate(invoice.due_date)}</strong></span></div>
                       </div>
@@ -340,6 +358,9 @@ export default function InvoicesPage() {
                         <span className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</span>
                       </div>
                       <div className="account-invoice-action">
+                        <a className="account-view-invoice" href={`/invoices/${invoice.id}`}>
+                          View invoice
+                        </a>
                         {!isPaid ? (
                           <button type="button" onClick={() => handlePayInvoice(invoice)} disabled={processingInvoiceId === invoice.id || checkoutLoading}>
                             {processingInvoiceId === invoice.id ? 'Opening…' : 'Pay now'} <ChevronRight size={16} />
