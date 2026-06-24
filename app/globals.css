@@ -3428,6 +3428,34 @@ button:hover {
   color: #67736b;
 }
 
+.admin-camper-health-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 11px;
+}
+
+.admin-camper-health-strip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .02em;
+}
+
+.admin-camper-health-strip span.good {
+  background: #e8f3ea;
+  color: #2f6b3e;
+}
+
+.admin-camper-health-strip span.warn {
+  background: #fff0d0;
+  color: #8a5a14;
+}
+
 /* ADMIN CAMPER PROFILE EDITOR */
 
 .admin-workspace-content > main.admin-camper-profile-page {
@@ -3672,7 +3700,8 @@ button:hover {
 }
 
 .admin-camper-field input,
-.admin-camper-field select {
+.admin-camper-field select,
+.admin-camper-field textarea {
   width: 100%;
   min-height: 43px;
   padding: 0 11px !important;
@@ -3685,9 +3714,17 @@ button:hover {
 }
 
 .admin-camper-field input:focus,
-.admin-camper-field select:focus {
+.admin-camper-field select:focus,
+.admin-camper-field textarea:focus {
   border-color: #7aa082 !important;
   box-shadow: 0 0 0 3px rgba(83, 126, 92, 0.12) !important;
+}
+
+.admin-camper-field textarea {
+  min-height: 132px;
+  padding: 12px !important;
+  resize: vertical;
+  line-height: 1.55;
 }
 
 .admin-camper-field .with-icon {

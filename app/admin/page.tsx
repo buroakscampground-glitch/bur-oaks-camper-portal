@@ -400,6 +400,18 @@ export default function AdminPage() {
               <strong>{stats.documentActions || 'Clear'}</strong>
               <p>{stats.documentActions ? 'Leases or renewals still need signatures.' : 'No pending signatures found.'}</p>
             </a>
+            <a href="/admin/pump-outs" className={stats.pumpOuts ? 'attention' : ''}>
+              <Droplets size={21} />
+              <small>Sewer pump-outs</small>
+              <strong>{stats.pumpOuts || 'Clear'}</strong>
+              <p>{stats.pumpOuts ? 'Campers are waiting for pump-out service or billing.' : 'No pump-outs waiting.'}</p>
+            </a>
+            <a href="/admin/open-balance" className={stats.unpaidInvoices ? 'attention' : ''}>
+              <ReceiptText size={21} />
+              <small>Open balances</small>
+              <strong>{stats.unpaidInvoices || 'Clear'}</strong>
+              <p>{stats.unpaidInvoices ? `$${stats.balance.toFixed(2)} still open across invoices.` : 'No unpaid invoices right now.'}</p>
+            </a>
             <a href="/admin/campers" className={stats.insuranceMissing ? 'attention' : ''}>
               <ShieldCheck size={21} />
               <small>Insurance missing</small>

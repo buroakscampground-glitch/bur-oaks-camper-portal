@@ -17,6 +17,7 @@ export default function AdminCampersPage() {
   const [invitingEmail, setInvitingEmail] = useState<string | null>(null)
   const [setupLink, setSetupLink] = useState('')
   const [portalStatuses, setPortalStatuses] = useState<Record<string, 'pending' | 'accepted'>>({})
+  const [camperHealth, setCamperHealth] = useState<Record<string, any>>({})
   const [bulkSending, setBulkSending] = useState(false)
   const [search, setSearch] = useState('')
   const router = useRouter()
@@ -27,7 +28,60 @@ export default function AdminCampersPage() {
       .eq('active', true)
       .order('lot_number', { ascending: true })
 
-    setCampers(data || [])
+    const activeCampers = data || []
+    setCampers(activeCampers)
+    loadCamperHealth(activeCampers)
+  }
+
+  async function loadCamperHealth(activeCampers: any[]) {
+    const camperIds = activeCampers.map((camper) => camper.id)
+    const lotNumbers = activeCampers.map((camper) => String(camper.lot_number || '')).filter(Boolean)
+
+    if (!camperIds.length) {
+      setCamperHealth({})
+      return
+    }
+
+    const [invoiceResult, documentResult, maintenanceResult, insuranceResult, pumpOutResult] = await Promise.all([
+      supabase.from('invoices').select('camper_id,total_due,status').in('camper_id', camperIds),
+      supabase.from('documents').select('camper_id,signature_status').in('camper_id', camperIds),
+      supabase.from('maintenance_tickets').select('lot_number,status,admin_approved').in('lot_number', lotNumbers),
+      supabase.from('documents').select('camper_id,document_type').in('camper_id', camperIds).eq('document_type', 'Golf Cart Insurance'),
+      supabase.from('sewer_pump_out_requests').select('camper_id,status,billed_at').in('camper_id', camperIds),
+    ])
+
+    const health: Record<string, any> = {}
+    const insuranceIds = new Set((insuranceResult.data || []).map((doc) => String(doc.camper_id)))
+
+    activeCampers.forEach((camper) => {
+      const camperInvoices = (invoiceResult.data || []).filter((invoice) => invoice.camper_id === camper.id)
+      const openInvoices = camperInvoices.filter((invoice) => invoice.status !== 'paid')
+      const unsignedDocs = (documentResult.data || []).filter((doc) => {
+        const status = String(doc.signature_status || '').toLowerCase()
+        return doc.camper_id === camper.id && status !== 'signed' && status !== 'not_required'
+      })
+      const activeMaintenance = (maintenanceResult.data || []).filter((ticket) =>
+        String(ticket.lot_number || '') === String(camper.lot_number || '') &&
+        ticket.admin_approved === true &&
+        ticket.status !== 'Completed'
+      )
+      const activePumpOuts = (pumpOutResult.data || []).filter((request) =>
+        request.camper_id === camper.id &&
+        request.status !== 'cancelled' &&
+        !request.billed_at
+      )
+
+      health[camper.id] = {
+        openBalance: openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+        openInvoices: openInvoices.length,
+        unsignedDocs: unsignedDocs.length,
+        activeMaintenance: activeMaintenance.length,
+        activePumpOuts: activePumpOuts.length,
+        insuranceOnFile: insuranceIds.has(String(camper.id)),
+      }
+    })
+
+    setCamperHealth(health)
   }
 
   async function loadPortalStatuses() {
@@ -265,7 +319,10 @@ export default function AdminCampersPage() {
       <section className="admin-camper-bulk-invites">
         <div>
           <strong>Bulk portal invitations</strong>
-          <span>Send password setup emails in batches of 25. Accepted accounts and campers emailed recently are skipped automatically.</span>
+        <span>
+          Send password setup emails in batches of 25. Accepted accounts and campers emailed recently are skipped automatically.
+          {' '}Accepted: {Object.values(portalStatuses).filter((status) => status === 'accepted').length} · Pending: {Object.values(portalStatuses).filter((status) => status === 'pending').length}
+        </span>
         </div>
         <button type="button" onClick={sendBulkPortalInvites} disabled={bulkSending}>
           {bulkSending ? 'Sending Batch…' : 'Send Next Batch of Portal Invites'}
@@ -392,6 +449,17 @@ export default function AdminCampersPage() {
     )
   })
   .map((camper) => (
+    (() => {
+      const health = camperHealth[camper.id] || {}
+      const needsAttention =
+        health.openInvoices ||
+        health.unsignedDocs ||
+        health.activeMaintenance ||
+        health.activePumpOuts ||
+        !health.insuranceOnFile ||
+        !camper.phone
+
+      return (
         <div
   key={camper.id}
   style={{
@@ -432,6 +500,27 @@ export default function AdminCampersPage() {
   )}
 
   <div>{camper.phone || 'No phone on file'}</div>
+
+  <div className="admin-camper-health-strip">
+    <span className={portalStatuses[camper.email?.toLowerCase()] === 'accepted' ? 'good' : 'warn'}>
+      Portal {portalStatuses[camper.email?.toLowerCase()] === 'accepted' ? 'accepted' : 'not accepted'}
+    </span>
+    <span className={health.openInvoices ? 'warn' : 'good'}>
+      {health.openInvoices ? `$${Number(health.openBalance || 0).toFixed(2)} open` : 'Balance clear'}
+    </span>
+    <span className={health.unsignedDocs ? 'warn' : 'good'}>
+      {health.unsignedDocs ? `${health.unsignedDocs} unsigned` : 'Docs clear'}
+    </span>
+    <span className={health.activePumpOuts ? 'warn' : 'good'}>
+      {health.activePumpOuts ? `${health.activePumpOuts} pump-out` : 'No pump-out'}
+    </span>
+    <span className={health.insuranceOnFile ? 'good' : 'warn'}>
+      {health.insuranceOnFile ? 'Insurance filed' : 'Insurance missing'}
+    </span>
+    <span className={needsAttention ? 'warn' : 'good'}>
+      {needsAttention ? 'Needs review' : 'Healthy'}
+    </span>
+  </div>
 </div>
 
           <br />
@@ -481,7 +570,9 @@ export default function AdminCampersPage() {
             </button>
           )}
         </div>
-      ))}
+      )
+    })()
+  ))}
     </main>
   )
 }

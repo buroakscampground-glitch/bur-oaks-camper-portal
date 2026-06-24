@@ -50,6 +50,7 @@ type Camper = {
   golf_cart_color: string | null
   directory_opt_in: boolean | null
   directory_show_phone: boolean | null
+  office_notes: string | null
 }
 
 const emptyCamper: Camper = {
@@ -77,6 +78,7 @@ const emptyCamper: Camper = {
   golf_cart_color: '',
   directory_opt_in: false,
   directory_show_phone: false,
+  office_notes: '',
 }
 
 export default function CamperDetailPage() {
@@ -170,6 +172,7 @@ export default function CamperDetailPage() {
         golf_cart_color: camper.golf_cart_color?.trim() || null,
         directory_opt_in: Boolean(camper.directory_opt_in),
         directory_show_phone: Boolean(camper.directory_opt_in && camper.directory_show_phone),
+        office_notes: camper.office_notes?.trim() || null,
       })
       .eq('id', camperId)
       .select('*')
@@ -434,6 +437,17 @@ export default function CamperDetailPage() {
               <span><strong>Show phone number</strong><small>Their email and emergency details always stay private.</small></span>
             </label>
           </div>
+        </ProfileSection>
+
+        <ProfileSection icon={<FileText />} kicker="PRIVATE OFFICE NOTES" title="Admin-only notes">
+          <label className="admin-camper-field">
+            <span>Office notes</span>
+            <textarea
+              value={camper.office_notes || ''}
+              onChange={(event) => updateField('office_notes', event.target.value)}
+              placeholder="Examples: prefers text, call before entering site, lease notes, special billing notes..."
+            />
+          </label>
         </ProfileSection>
       </div>
 
