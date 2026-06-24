@@ -28,7 +28,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
-import PortalWeather from '../../components/PortalWeather'
+import PortalWeather, { PortalWeatherMini } from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 
@@ -462,6 +462,8 @@ export default function CamperPortalPage() {
               <a href="/maintenance">Need help?</a>
             </div>
           </div>
+
+          <PortalWeatherMini />
 
           <div className="portal-arrival-status">
             <article className={openInvoices.length ? 'attention' : 'good'}>

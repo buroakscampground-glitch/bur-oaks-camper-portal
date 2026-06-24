@@ -258,6 +258,77 @@ export default function PortalWeather() {
   )
 }
 
+export function PortalWeatherMini() {
+  const [weather, setWeather] = useState<WeatherData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    async function loadWeather() {
+      try {
+        const response = await fetch('/api/weather', { cache: 'no-store' })
+        if (!response.ok) throw new Error('Weather unavailable')
+        setWeather(await response.json())
+      } catch {
+        setError(true)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadWeather()
+  }, [])
+
+  if (loading) {
+    return (
+      <article className="portal-arrival-weather loading">
+        <RefreshCw className="portal-weather-spin" size={18} />
+        <span>Checking weather…</span>
+      </article>
+    )
+  }
+
+  if (error || !weather) {
+    return (
+      <article className="portal-arrival-weather">
+        <CloudSun size={25} />
+        <div>
+          <small>Weather</small>
+          <strong>Check soon</strong>
+          <em>Forecast is updating.</em>
+        </div>
+      </article>
+    )
+  }
+
+  const current = condition(weather.current.weatherCode)
+  const CurrentIcon = current.Icon
+  const today = weather.daily[0]
+  const tomorrow = weather.daily[1]
+
+  return (
+    <article className="portal-arrival-weather">
+      <div className="portal-arrival-weather-now">
+        <span><CurrentIcon size={28} /></span>
+        <div>
+          <small>Right now at Bur Oaks</small>
+          <strong>{weather.current.temperature}°</strong>
+          <em>{current.label} · feels like {weather.current.feelsLike}°</em>
+        </div>
+      </div>
+
+      <div className="portal-arrival-weather-grid">
+        <span><Droplets size={13} /> Rain {today?.rainChance || 0}%</span>
+        <span><Wind size={13} /> Wind {weather.current.windSpeed} mph</span>
+        <span>Today {today ? `${today.high}° / ${today.low}°` : '—'}</span>
+        <span>Tomorrow {tomorrow ? `${tomorrow.high}° / ${tomorrow.low}°` : '—'}</span>
+      </div>
+
+      <a href="#campground-weather-title">View full forecast</a>
+    </article>
+  )
+}
+
 function TentWeatherIcon() {
   return <CloudSun size={25} />
 }
