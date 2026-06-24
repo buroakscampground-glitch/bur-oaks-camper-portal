@@ -118,6 +118,14 @@ function getMaintenanceDisplayStatus(ticket?: any) {
   return ticket.status || 'Open'
 }
 
+function formatFriendlyToday() {
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
 export default function CamperPortalPage() {
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
@@ -383,6 +391,14 @@ export default function CamperPortalPage() {
     { label: 'Balance', value: openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00', complete: openInvoices.length === 0 },
     { label: 'Maintenance', value: activeMaintenance.length ? latestMaintenanceStatus : latestMaintenance?.status === 'Completed' ? 'Completed' : 'None', complete: activeMaintenance.length === 0 },
   ]
+  const urgentCount =
+    (documentsNeedingSignature.length ? 1 : 0) +
+    (openInvoices.length ? 1 : 0) +
+    (activeMaintenance.length ? 1 : 0)
+  const nextDinner = upcomingDinners[0]
+  const portalMood = urgentCount
+    ? `${urgentCount} thing${urgentCount === 1 ? '' : 's'} need attention`
+    : 'Your portal is all caught up'
 
   return (
     <main className="camper-portal-page">
@@ -433,6 +449,42 @@ export default function CamperPortalPage() {
             </div>
           </div>
 
+        </section>
+
+        <section className="portal-arrival-card" aria-label="Today at your site">
+          <div className="portal-arrival-main">
+            <span><Sparkles size={16} /> {formatFriendlyToday()}</span>
+            <h2>Lot {camper?.lot_number || '—'} is ready for the weekend.</h2>
+            <p>{portalMood}. Weather, billing, documents, dinners, and requests are all gathered here so you do not have to hunt around.</p>
+            <div className="portal-arrival-actions">
+              <a href={weekendFocus.href}>{weekendFocus.action} <ArrowRight size={16} /></a>
+              <a href="/dinners">Saturday dinners</a>
+              <a href="/maintenance">Need help?</a>
+            </div>
+          </div>
+
+          <div className="portal-arrival-status">
+            <article className={openInvoices.length ? 'attention' : 'good'}>
+              <small>Balance</small>
+              <strong>{openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00'}</strong>
+              <em>{openInvoices.length ? `${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'} open` : 'Nothing due'}</em>
+            </article>
+            <article className={documentsNeedingSignature.length ? 'attention' : 'good'}>
+              <small>Documents</small>
+              <strong>{documentsNeedingSignature.length || documents.length}</strong>
+              <em>{documentsNeedingSignature.length ? 'Need signature' : 'Ready'}</em>
+            </article>
+            <article className={activeMaintenance.length ? 'attention' : 'good'}>
+              <small>Requests</small>
+              <strong>{activeMaintenance.length || '0'}</strong>
+              <em>{activeMaintenance.length ? latestMaintenanceStatus : 'No active work'}</em>
+            </article>
+            <article className="good">
+              <small>Next dinner</small>
+              <strong>{nextDinner ? `${nextDinner.month} ${nextDinner.day}` : 'Menu'}</strong>
+              <em>{nextDinner?.menu || 'View schedule'}</em>
+            </article>
+          </div>
         </section>
 
         <section className="portal-pumpout-alert">
@@ -823,6 +875,10 @@ export default function CamperPortalPage() {
             <Soup size={18} />
             <span>Dinner</span>
           </a>
+          <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump}>
+            <Droplets size={18} />
+            <span>Pump</span>
+          </button>
         </nav>
       </div>
     </main>
