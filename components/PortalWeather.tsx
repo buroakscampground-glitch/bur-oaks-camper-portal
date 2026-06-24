@@ -258,7 +258,7 @@ export default function PortalWeather() {
   )
 }
 
-export function PortalWeatherMini() {
+export function PortalWeatherMini({ variant = 'card' }: { variant?: 'card' | 'hero' }) {
   const [weather, setWeather] = useState<WeatherData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -281,7 +281,7 @@ export function PortalWeatherMini() {
 
   if (loading) {
     return (
-      <article className="portal-arrival-weather loading">
+      <article className={`portal-arrival-weather ${variant === 'hero' ? 'hero' : ''} loading`}>
         <RefreshCw className="portal-weather-spin" size={18} />
         <span>Checking weather…</span>
       </article>
@@ -290,11 +290,11 @@ export function PortalWeatherMini() {
 
   if (error || !weather) {
     return (
-      <article className="portal-arrival-weather">
+      <article className={`portal-arrival-weather ${variant === 'hero' ? 'hero' : ''}`}>
         <CloudSun size={25} />
         <div>
-          <small>Weather</small>
-          <strong>Check soon</strong>
+          <small>{variant === 'hero' ? 'Plan your weekend' : 'Weather'}</small>
+          <strong>Forecast updating</strong>
           <em>Forecast is updating.</em>
         </div>
       </article>
@@ -305,15 +305,25 @@ export function PortalWeatherMini() {
   const CurrentIcon = current.Icon
   const today = weather.daily[0]
   const tomorrow = weather.daily[1]
+  const outlook = campingOutlook(weather.daily)
+  const weekend = weather.daily.filter((day) => isWeekend(day.date)).slice(0, 2)
+  const focusDay = weekend[0] || today
+  const focusLabel = focusDay
+    ? `${dayLabel(focusDay.date)} ${focusDay.high}° · Rain ${focusDay.rainChance}%`
+    : `${weather.current.temperature}° right now`
 
   return (
-    <article className="portal-arrival-weather">
+    <article className={`portal-arrival-weather ${variant === 'hero' ? 'hero' : ''}`}>
       <div className="portal-arrival-weather-now">
         <span><CurrentIcon size={28} /></span>
         <div>
-          <small>Right now at Bur Oaks</small>
-          <strong>{weather.current.temperature}°</strong>
-          <em>{current.label} · feels like {weather.current.feelsLike}°</em>
+          <small>{variant === 'hero' ? 'Plan your weekend' : 'Right now at Bur Oaks'}</small>
+          <strong>{variant === 'hero' ? outlook.title : `${weather.current.temperature}°`}</strong>
+          <em>
+            {variant === 'hero'
+              ? `${focusLabel}. ${outlook.detail}`
+              : `${current.label} · feels like ${weather.current.feelsLike}°`}
+          </em>
         </div>
       </div>
 

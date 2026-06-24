@@ -436,6 +436,8 @@ export default function CamperPortalPage() {
               campground happenings—is right here.
             </p>
 
+            <PortalWeatherMini variant="hero" />
+
             <div className="portal-hero-actions">
               <a className="portal-primary-action" href="/invoices">
                 Billing & payments <ArrowRight size={18} />
@@ -462,8 +464,6 @@ export default function CamperPortalPage() {
               <a href="/maintenance">Need help?</a>
             </div>
           </div>
-
-          <PortalWeatherMini />
 
           <div className="portal-arrival-status">
             <article className={openInvoices.length ? 'attention' : 'good'}>

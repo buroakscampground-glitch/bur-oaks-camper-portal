@@ -1306,7 +1306,7 @@ button:hover {
 .portal-hero-content {
   position: relative;
   z-index: 1;
-  max-width: 690px;
+  max-width: 760px;
   padding: 70px 55px 105px;
 }
 
@@ -1345,7 +1345,7 @@ button:hover {
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 30px;
+  margin-top: 22px;
 }
 
 .portal-primary-action,
@@ -1448,7 +1448,7 @@ button:hover {
   position: relative;
   z-index: 6;
   display: grid;
-  grid-template-columns: minmax(0, 1.05fr) minmax(280px, .58fr) minmax(340px, .75fr);
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, .78fr);
   gap: 18px;
   margin: -58px 28px 24px;
   padding: 18px;
@@ -1584,6 +1584,18 @@ button:hover {
   color: #263d2e;
 }
 
+.portal-arrival-weather.hero {
+  width: min(640px, 100%);
+  margin-top: 24px;
+  border-color: rgba(255, 255, 255, .23);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(229, 200, 121, .22), transparent 34%),
+    rgba(255, 255, 255, .12);
+  color: #fff;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .16);
+  backdrop-filter: blur(12px);
+}
+
 .portal-arrival-weather.loading {
   align-content: center;
   justify-items: center;
@@ -1610,6 +1622,11 @@ button:hover {
   color: #f1d784;
 }
 
+.portal-arrival-weather.hero .portal-arrival-weather-now > span {
+  background: rgba(255, 255, 255, .15);
+  color: #f1d784;
+}
+
 .portal-arrival-weather-now div {
   display: grid;
   min-width: 0;
@@ -1629,6 +1646,11 @@ button:hover {
   font: 500 35px/1 Georgia, serif;
 }
 
+.portal-arrival-weather.hero strong {
+  color: #fff;
+  font-size: clamp(26px, 3vw, 36px);
+}
+
 .portal-arrival-weather em {
   overflow: hidden;
   margin-top: 2px;
@@ -1638,6 +1660,16 @@ button:hover {
   font-weight: 800;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.portal-arrival-weather.hero small {
+  color: #ead8a6;
+}
+
+.portal-arrival-weather.hero em {
+  max-width: 510px;
+  color: rgba(255, 255, 255, .82);
+  white-space: normal;
 }
 
 .portal-arrival-weather-grid {
@@ -1659,12 +1691,21 @@ button:hover {
   font-weight: 900;
 }
 
+.portal-arrival-weather.hero .portal-arrival-weather-grid span {
+  background: rgba(255, 255, 255, .12);
+  color: rgba(255, 255, 255, .86);
+}
+
 .portal-arrival-weather a {
   justify-self: start;
   color: #315f3d;
   font-size: 11px;
   font-weight: 900;
   text-decoration: none;
+}
+
+.portal-arrival-weather.hero a {
+  color: #f1d784;
 }
 
 .portal-arrival-card + .portal-pumpout-alert {
@@ -2964,11 +3005,11 @@ button:hover {
 
 @media (max-width: 1000px) {
   .portal-arrival-card {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
   }
 
   .portal-arrival-main {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .portal-weekend-planner,
