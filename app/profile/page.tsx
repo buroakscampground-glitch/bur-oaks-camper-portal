@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../lib/supabase'
+import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { CheckCircle2, ClipboardCheck, Eye, FileUp, ShieldCheck, UsersRound } from 'lucide-react'
 
 export default function ProfilePage() {
@@ -30,11 +30,7 @@ export default function ProfilePage() {
       return
     }
 
-    const { data } = await supabase
-      .from('campers')
-      .select('*')
-      .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-      .single()
+    const data = await getCurrentCamper()
 
     setCamper(data)
 

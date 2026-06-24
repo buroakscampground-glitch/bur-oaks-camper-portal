@@ -17,6 +17,32 @@ export type UserRole = 'admin' | 'camper'
 
 const DEFAULT_ROLE: UserRole = 'camper'
 
+function pickBestCamperMatch(matches: any[] = []) {
+  return (
+    matches.find((match) => match.active !== false && match.role) ||
+    matches.find((match) => match.active !== false) ||
+    matches[0] ||
+    null
+  )
+}
+
+export async function getCurrentCamper() {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user?.email) return null
+
+  const userEmail = user.email.trim().toLowerCase()
+  const { data: camperMatches } = await supabase
+    .from('campers')
+    .select('*')
+    .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
+    .limit(10)
+
+  return pickBestCamperMatch(camperMatches || [])
+}
+
 export async function getCurrentUserRole(): Promise<UserRole> {
   const {
     data: { user },
@@ -33,9 +59,7 @@ export async function getCurrentUserRole(): Promise<UserRole> {
     .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
     .limit(10)
 
-  const camper =
-    (camperMatches || []).find((match: any) => match.role) ||
-    (camperMatches || [])[0]
+  const camper = pickBestCamperMatch(camperMatches || [])
 
   if (error || !camper || !(camper as any).role) {
     return DEFAULT_ROLE

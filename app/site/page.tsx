@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollarSign, FileText, Gauge, Home, MapPin, Phone, ShieldCheck, UserRound, Wrench } from 'lucide-react'
 import CampgroundMap from '../../components/CampgroundMap'
-import { supabase } from '../../lib/supabase'
+import { getCurrentCamper, supabase } from '../../lib/supabase'
 
 function formatDate(value?: string) {
   if (!value) return 'Not recorded'
@@ -53,11 +53,7 @@ export default function MySitePage() {
       return
     }
 
-    const { data: camperData } = await supabase
-      .from('campers')
-      .select('*')
-      .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-      .single()
+    const camperData = await getCurrentCamper()
 
     if (!camperData) {
       setLoading(false)

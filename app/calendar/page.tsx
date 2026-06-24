@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CalendarDays, CheckCircle2, Download, MapPin, PartyPopper, UsersRound } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { getCurrentCamper, supabase } from '../../lib/supabase'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 
 function googleCalendarUrl(event: any) {
@@ -42,11 +42,7 @@ export default function CalendarPage() {
       return
     }
 
-    const { data: camperData } = await supabase
-      .from('campers')
-      .select('*')
-      .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-      .single()
+    const camperData = await getCurrentCamper()
 
     setCamper(camperData)
 

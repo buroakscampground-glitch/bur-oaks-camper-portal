@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '../../lib/supabase'
+import { getCurrentCamper, supabase } from '../../lib/supabase'
 
 export default function ElectricPage() {
   const [readings, setReadings] = useState<any[]>([])
@@ -20,11 +20,7 @@ export default function ElectricPage() {
         return
       }
 
-      const { data: camper } = await supabase
-        .from('campers')
-        .select('*')
-        .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-        .single()
+      const camper = await getCurrentCamper()
 
       if (!camper) {
         setLoading(false)

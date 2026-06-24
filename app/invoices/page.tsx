@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { checkoutItems } from '../../lib/stripe'
 import {
   createAutoPayEnrollment,
@@ -78,11 +78,7 @@ export default function InvoicesPage() {
         return
       }
 
-      const { data: camperData } = await supabase
-        .from('campers')
-        .select('*')
-        .or(`email.ilike.${user.email.trim().toLowerCase()},secondary_email.ilike.${user.email.trim().toLowerCase()}`)
-        .single()
+      const camperData = await getCurrentCamper()
 
       if (!camperData) {
         setLoading(false)

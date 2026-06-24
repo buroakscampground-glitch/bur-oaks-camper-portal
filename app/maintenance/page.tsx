@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, CheckCircle2, ClipboardList, ImagePlus, Wrench, X } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { MaintenanceBadge } from '../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../components/MaintenancePhotos'
 import MaintenanceConversation from '../../components/MaintenanceConversation'
@@ -63,11 +63,7 @@ export default function MaintenanceRequestPage() {
 
     setUserId(user.id)
 
-    const { data: camperData } = await supabase
-      .from('campers')
-      .select('*')
-      .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-      .single()
+    const camperData = await getCurrentCamper()
 
     setCamper(camperData)
 

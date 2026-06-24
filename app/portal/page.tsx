@@ -26,7 +26,7 @@ import {
   Wrench,
   Zap,
 } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { getCurrentCamper, supabase } from '../../lib/supabase'
 import PortalWeather from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
@@ -143,17 +143,7 @@ export default function CamperPortalPage() {
           return
         }
 
-        const { data: camperMatches, error: camperError } = await supabase
-          .from('campers')
-          .select('*')
-          .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-          .limit(10)
-
-        if (camperError) throw camperError
-
-        const camperData =
-          (camperMatches || []).find((match) => match.active !== false && match.role) ||
-          (camperMatches || []).find((match) => match.active !== false)
+        const camperData = await getCurrentCamper()
 
         if (camperData?.role?.toLowerCase() === 'admin') {
           window.location.replace('/admin')

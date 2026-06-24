@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, FileSignature, LockKeyhole, ShieldCheck } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+import { getCurrentCamper, supabase } from '../../lib/supabase'
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([])
@@ -32,11 +32,7 @@ export default function DocumentsPage() {
       }
       setCurrentUserEmail(user.email?.trim().toLowerCase() || '')
 
-      const { data: camper } = await supabase
-        .from('campers')
-        .select('*')
-        .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-        .single()
+      const camper = await getCurrentCamper()
 
       if (!camper) {
         setLoading(false)
