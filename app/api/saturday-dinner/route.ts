@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   const dinnerDate = String(body.dinnerDate || '')
   const status = String(body.status || 'Going')
   const bringing = String(body.bringing || '').trim()
-  const guestCount = Math.max(1, Math.min(20, Number(body.guestCount || 1)))
+  const guestCount = Math.max(1, Math.min(99, Math.round(Number(body.guestCount || 1))))
   const dinner = saturdayDinners2026.find((item) => item.date === dinnerDate)
 
   if (!dinner || dinner.closed) {

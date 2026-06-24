@@ -124,6 +124,11 @@ export default function SaturdayDinnersPage() {
     })
   }
 
+  function updateGuestCount(value: number) {
+    const safeCount = Math.max(1, Math.min(99, Math.round(value || 1)))
+    setGuestCount(safeCount)
+  }
+
   return (
     <main className="saturday-dinners-page">
       <section className="saturday-dinners-hero">
@@ -196,7 +201,19 @@ export default function SaturdayDinnersPage() {
           </label>
           <label>
             <span>How many people?</span>
-            <input type="number" min={1} max={20} value={guestCount} onChange={(event) => setGuestCount(Number(event.target.value || 1))} />
+            <div className="saturday-dinner-count">
+              <button type="button" onClick={() => updateGuestCount(guestCount - 1)} disabled={guestCount <= 1}>−</button>
+              <input
+                type="number"
+                min={1}
+                max={99}
+                inputMode="numeric"
+                value={guestCount}
+                onChange={(event) => updateGuestCount(Number(event.target.value || 1))}
+                aria-label="Number of people coming to dinner"
+              />
+              <button type="button" onClick={() => updateGuestCount(guestCount + 1)}>+</button>
+            </div>
           </label>
           <label className="bring-field">
             <span>What are you bringing?</span>
@@ -227,7 +244,13 @@ export default function SaturdayDinnersPage() {
                     <span><CalendarDays size={14} /> {dinner.day}</span>
                     <strong>{dinner.menu}</strong>
                     {dinner.theme && <em>{dinner.theme}</em>}
-                    {mySignup && <small><CheckCircle2 size={13} /> {mySignup.attending_status}{mySignup.bringing ? ` · ${mySignup.bringing}` : ''}</small>}
+                    {mySignup && (
+                      <small>
+                        <CheckCircle2 size={13} /> {mySignup.attending_status}
+                        {mySignup.guest_count ? ` · ${mySignup.guest_count} people` : ''}
+                        {mySignup.bringing ? ` · ${mySignup.bringing}` : ''}
+                      </small>
+                    )}
                   </button>
                 )
               })}
