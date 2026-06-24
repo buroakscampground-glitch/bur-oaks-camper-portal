@@ -102,21 +102,40 @@ export async function POST(request: Request) {
 
     if (portalInviteEmailConfigured()) {
       const setupUrl = await generateSetupUrl(context, email, origin)
-      await sendPortalInviteEmail({
-        to: email,
-        camperName: `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper',
-        setupUrl,
-      })
+      try {
+        await sendPortalInviteEmail({
+          to: email,
+          camperName: `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper',
+          setupUrl,
+        })
 
-      await context.admin.from('portal_invite_log').insert({
-        camper_id: camper.id,
-        email,
-        delivery_status: 'sent',
-        delivery_provider: 'resend',
-        sent_by: context.user.email,
-      })
+        await context.admin.from('portal_invite_log').insert({
+          camper_id: camper.id,
+          email,
+          delivery_status: 'sent',
+          delivery_provider: 'resend',
+          sent_by: context.user.email,
+        })
 
-      return NextResponse.json({ success: true, delivery: 'email-service' })
+        return NextResponse.json({ success: true, delivery: 'email-service' })
+      } catch (emailError) {
+        console.error('Portal invite email failed; returning manual setup link:', emailError)
+
+        await context.admin.from('portal_invite_log').insert({
+          camper_id: camper.id,
+          email,
+          delivery_status: 'manual',
+          delivery_provider: 'resend-fallback',
+          sent_by: context.user.email,
+        })
+
+        return NextResponse.json({
+          success: true,
+          delivery: 'manual',
+          setupUrl,
+          warning: 'The email sender could not send this invite, so use this secure setup link manually.',
+        })
+      }
     }
 
     const { error } = await context.admin.auth.admin.inviteUserByEmail(email, {
