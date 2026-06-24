@@ -14,6 +14,7 @@ export default function AdminElectricPage() {
   const [currentReading, setCurrentReading] = useState('')
   const [rate, setRate] = useState('0.23')
   const [readingDate, setReadingDate] = useState('')
+  const [dueDate, setDueDate] = useState('')
   const [includeWaterTrash, setIncludeWaterTrash] = useState(false)
   const [waterTrashFee, setWaterTrashFee] = useState('20')
   const [searchText, setSearchText] = useState('')
@@ -21,6 +22,13 @@ export default function AdminElectricPage() {
   const [saving, setSaving] = useState(false)
   const currentReadingRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
+
+  function dateInputToday() {
+    const today = new Date()
+    const offset = today.getTimezoneOffset()
+    const localToday = new Date(today.getTime() - offset * 60 * 1000)
+    return localToday.toISOString().split('T')[0]
+  }
 
   useEffect(() => {
     loadCampers()
@@ -95,7 +103,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     setMessage('')
     setSaving(true)
 
-    if (!camperId || !previousReading || !currentReading || !rate || !readingDate) {
+    if (!camperId || !previousReading || !currentReading || !rate || !readingDate || !dueDate) {
       setMessage('Please fill out all fields.')
       setSaving(false)
       return
@@ -140,7 +148,14 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     }
 
     if (parsedDate > new Date()) {
-      setMessage('Reading date cannot be in the future.')
+      setMessage('Meter reading date cannot be in the future. Use the invoice due date field for future due dates.')
+      setSaving(false)
+      return
+    }
+
+    const parsedDueDate = new Date(dueDate)
+    if (Number.isNaN(parsedDueDate.getTime())) {
+      setMessage('Please provide a valid invoice due date.')
       setSaving(false)
       return
     }
@@ -198,7 +213,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
         subtotal: totalDue,
         late_fee: 0,
         total_due: totalDue,
-        due_date: readingDate,
+        due_date: dueDate,
         status: 'sent',
       })
       .select()
@@ -213,7 +228,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     const invoiceItems = [
       {
         invoice_id: invoice.id,
-        description: `Electric Usage - ${kwhUsed} kWh`,
+        description: `Electric Usage - ${kwhUsed} kWh used @ $${rateNumber.toFixed(2)}/kWh`,
         quantity: kwhUsed,
         unit_price: rateNumber,
         total: amountDue,
@@ -223,7 +238,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     if (includeWaterTrash) {
       invoiceItems.push({
         invoice_id: invoice.id,
-        description: `Water/Trash Fee - $${waterTrashAmount}`,
+        description: `Water/Trash Fee - $${waterTrashAmount.toFixed(2)}`,
         quantity: 1,
         unit_price: waterTrashAmount,
         total: waterTrashAmount,
@@ -233,9 +248,9 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     if (pumpOutTotal > 0) {
       invoiceItems.push({
         invoice_id: invoice.id,
-        description: `Sewer Pump-Out Fee - ${activePumpOuts.length} request${activePumpOuts.length === 1 ? '' : 's'}`,
+        description: `${activePumpOuts.length} Sewer Pump-Out${activePumpOuts.length === 1 ? '' : 's'} @ $10.00 each`,
         quantity: activePumpOuts.length,
-        unit_price: 10,
+        unit_price: activePumpOuts.length ? Number((pumpOutTotal / activePumpOuts.length).toFixed(2)) : 10,
         total: pumpOutTotal,
       })
     }
@@ -285,15 +300,17 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       }
     }
 
-    let resultMessage = `Electric invoice created: ${kwhUsed} kWh × $${rateNumber} = $${amountDue}`
+    let resultMessage = `Electric invoice created. Electric: ${kwhUsed} kWh × $${rateNumber.toFixed(2)} = $${amountDue.toFixed(2)}`
 
     if (includeWaterTrash) {
-      resultMessage += ` + $${waterTrashAmount} water/trash fee = $${totalDue}`
+      resultMessage += ` + Water/Trash: $${waterTrashAmount.toFixed(2)}`
     }
 
     if (pumpOutTotal > 0) {
-      resultMessage += ` + $${pumpOutTotal.toFixed(2)} sewer pump-out fee${activePumpOuts.length === 1 ? '' : 's'}`
+      resultMessage += ` + Sewer Pump-Outs: ${activePumpOuts.length} × $10.00 = $${pumpOutTotal.toFixed(2)}`
     }
+
+    resultMessage += ` — Total due: $${totalDue.toFixed(2)} by ${dueDate}.`
 
     try {
       const autoPay = await attemptAutoPay(invoice.id)
@@ -309,6 +326,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     setPreviousReading('')
     setCurrentReading('')
     setReadingDate('')
+    setDueDate('')
     setIncludeWaterTrash(false)
     setWaterTrashFee('20')
     setSearchText('')
@@ -353,29 +371,27 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
           <select
   value={camperId}
   onChange={async (e) => {
-    const selectedId = e.target.value
-    setCamperId(selectedId)
+	    const selectedId = e.target.value
+	    setCamperId(selectedId)
+	
+	    if (!selectedId) return
 
-    if (!selectedId) return
-
-    const { data } = await supabase
-      .from('electric_readings')
-      .select('*')
-      .eq('camper_id', selectedId)
-      .order('reading_date', { ascending: false })
-      .limit(1)
-      .single()
+      const today = dateInputToday()
+      setReadingDate(today)
+      setDueDate(today)
+	
+	    const { data } = await supabase
+	      .from('electric_readings')
+	      .select('*')
+	      .eq('camper_id', selectedId)
+	      .order('reading_date', { ascending: false })
+	      .limit(1)
+	      .maybeSingle()
 
     if (data) {
   setPreviousReading(
     String(data.current_reading)
   )
-
-  const today = new Date()
-  .toISOString()
-  .split('T')[0]
-
-setReadingDate(today)
 
 setTimeout(() => {
   currentReadingRef.current?.focus()
@@ -390,7 +406,19 @@ setTimeout(() => {
             ))}
           </select>
 
-          <input type="date" value={readingDate} onChange={(e) => setReadingDate(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px', marginBottom: '12px' }}>
+            <label style={{ display: 'grid', gap: '6px' }}>
+              <span style={{ fontWeight: 800 }}>Meter reading date</span>
+              <input type="date" value={readingDate} onChange={(e) => setReadingDate(e.target.value)} />
+              <small className="muted">The date the meter was read.</small>
+            </label>
+
+            <label style={{ display: 'grid', gap: '6px' }}>
+              <span style={{ fontWeight: 800 }}>Invoice due date</span>
+              <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <small className="muted">This can be a future date.</small>
+            </label>
+          </div>
 
           <input placeholder="Previous Reading" value={previousReading} onChange={(e) => setPreviousReading(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
 
@@ -412,7 +440,28 @@ setTimeout(() => {
     <h2>
       ${liveAmount.toFixed(2)}
     </h2>
-    <p className="muted">Estimated Charge</p>
+	    <p className="muted">Estimated Charge</p>
+
+    <div style={{ display: 'grid', gap: '8px', marginTop: '12px', padding: '12px', borderRadius: '12px', background: '#fff' }}>
+      <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+        <span>Electric: {liveUsage} kWh × ${Number(rate || 0).toFixed(2)}</span>
+        <strong>${liveAmount.toFixed(2)}</strong>
+      </p>
+
+      {includeWaterTrash && (
+        <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+          <span>Water/Trash fee</span>
+          <strong>${selectedWaterTrashFee.toFixed(2)}</strong>
+        </p>
+      )}
+
+      {pumpOutChargeTotal > 0 && (
+        <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+          <span>{selectedPumpOuts.length} sewer pump-out{selectedPumpOuts.length === 1 ? '' : 's'} × $10.00</span>
+          <strong>${pumpOutChargeTotal.toFixed(2)}</strong>
+        </p>
+      )}
+    </div>
 
     {(includeWaterTrash || pumpOutChargeTotal > 0) && (
       <>
