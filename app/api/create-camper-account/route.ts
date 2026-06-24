@@ -5,6 +5,7 @@ import {
   portalInviteEmailConfigured,
   sendPortalInviteEmail,
 } from '../../../lib/portal-invite-email'
+import { getSiteUrl } from '../../../lib/site-url'
 
 async function generateSetupUrl(context: any, email: string, origin: string) {
   let linkResult = await context.admin.auth.admin.generateLink({
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const origin = new URL(request.url).origin
+    const origin = getSiteUrl()
 
     if (portalInviteEmailConfigured()) {
       const setupUrl = await generateSetupUrl(context, email, origin)

@@ -5,6 +5,7 @@ import {
   portalInviteEmailConfigured,
   sendPortalInviteEmail,
 } from '../../../lib/portal-invite-email'
+import { getSiteUrl } from '../../../lib/site-url'
 
 type Recipient = {
   camperId: string
@@ -72,7 +73,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}))
     const batchSize = Math.min(Math.max(Number(body.batchSize) || 25, 1), 50)
-    const origin = new URL(request.url).origin
+    const origin = getSiteUrl()
 
     const [{ data: campers, error: camperError }, { data: logs }] = await Promise.all([
       context.admin

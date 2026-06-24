@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { Mail, Send } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') ||
+  'https://www.buroakscampground.com'
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
@@ -14,7 +18,7 @@ export default function ForgotPasswordPage() {
     setMessage('')
 
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/set-password`,
+      redirectTo: `${siteUrl}/set-password`,
     })
 
     setMessage(
