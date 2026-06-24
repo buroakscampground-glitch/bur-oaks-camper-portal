@@ -43,6 +43,7 @@ export default function AdminDocumentsPage() {
   const [signatureView, setSignatureView] = useState<'waiting' | 'signed'>('waiting')
   const [futureTemplateId, setFutureTemplateId] = useState('')
   const [removingDocumentId, setRemovingDocumentId] = useState('')
+  const [requiresTwoSignatures, setRequiresTwoSignatures] = useState(false)
 
   async function loadData() {
     const { data: sessionData } = await supabase.auth.getSession()
@@ -188,6 +189,7 @@ export default function AdminDocumentsPage() {
         document_type: documentType,
         file_url: filePath,
         signature_status: 'pending',
+        ...(requiresTwoSignatures ? { requires_two_signatures: true } : {}),
       })
 
       if (error) {
@@ -198,6 +200,7 @@ export default function AdminDocumentsPage() {
       setCamperId('')
       setDocumentName('')
       setAssignedFile(null)
+      setRequiresTwoSignatures(false)
       setMessage('Document assigned successfully.')
     } catch (error: any) {
       setMessage(error.message || 'Unable to assign the document.')
@@ -266,6 +269,7 @@ export default function AdminDocumentsPage() {
         document_type: template.document_type || 'Seasonal Lease',
         file_url: destinationPath,
         signature_status: 'pending',
+        ...(requiresTwoSignatures ? { requires_two_signatures: true } : {}),
       })
 
       if (insertError) {
@@ -325,6 +329,7 @@ export default function AdminDocumentsPage() {
         document_type: template.document_type || 'Seasonal Lease',
         file_url: destinationPath,
         signature_status: 'pending',
+        ...(requiresTwoSignatures ? { requires_two_signatures: true } : {}),
       })
 
       if (insertError) {
@@ -397,6 +402,12 @@ export default function AdminDocumentsPage() {
     String(document.signature_status || '').toLowerCase() === 'not_required'
   const isWaitingSignature = (document: any) =>
     !isSignedDocument(document) && !isViewOnlyDocument(document)
+  const signatureStatusLabel = (document: any) => {
+    if (isSignedDocument(document)) return document.requires_two_signatures ? 'Both signed' : 'Signed'
+    if (isViewOnlyDocument(document)) return 'View only'
+    if (String(document.signature_status || '').toLowerCase() === 'pending_second_signature') return 'Waiting for second signer'
+    return document.requires_two_signatures ? 'Waiting for first signer' : 'Waiting'
+  }
   const normalized = (value: unknown) => String(value || '').trim().toLowerCase()
   const camperFullName = (camper: any) =>
     `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
@@ -505,7 +516,7 @@ export default function AdminDocumentsPage() {
                   <p>{document.document_name || 'Untitled document'}</p>
                 </div>
                 <div className="signature-tracker-row-actions">
-                  <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : 'Waiting for signature'}</em>
+                <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : signatureStatusLabel(document)}</em>
                   <button
                     className="danger"
                     type="button"
@@ -633,6 +644,14 @@ export default function AdminDocumentsPage() {
             <FileCheck2 size={18} />
             <span><small>Selected lease</small><strong>{selectedTemplate.document_name}</strong></span>
             <em>Choose “Assign selected lease” on a camper below.</em>
+            <label className="admin-two-signer-toggle">
+              <input
+                type="checkbox"
+                checked={requiresTwoSignatures}
+                onChange={(event) => setRequiresTwoSignatures(event.target.checked)}
+              />
+              <span>Require two signatures</span>
+            </label>
             <button type="button" onClick={assignSelectedTemplateToVisibleCampers} disabled={working}>
               Assign to visible campers
             </button>
@@ -686,7 +705,7 @@ export default function AdminDocumentsPage() {
                       <p className={isSignedDocument(document) ? 'signed' : 'pending'} key={document.id}>
                         {isSignedDocument(document) ? <CheckCircle2 size={15} /> : <FileCheck2 size={15} />}
                         <span>{document.document_name}</span>
-                        <em>{isSignedDocument(document) ? 'Signed' : isViewOnlyDocument(document) ? 'View only' : 'Waiting'}</em>
+                        <em>{signatureStatusLabel(document)}</em>
                         <button
                           type="button"
                           onClick={() => removeAssignedDocument(document)}
@@ -732,6 +751,14 @@ export default function AdminDocumentsPage() {
         <div className="admin-library-assignment-form">
           <label><span>Camper</span><select value={camperId} onChange={(event) => setCamperId(event.target.value)}><option value="">Select camper</option>{campers.map((camper) => <option key={camper.id} value={camper.id}>Lot {camper.lot_number} — {camper.first_name} {camper.last_name}</option>)}</select></label>
           <label><span>Library document</span><select value={futureTemplateId} onChange={(event) => setFutureTemplateId(event.target.value)}><option value="">Select saved document</option>{templates.map((template) => <option key={template.id} value={template.id}>{template.document_name}</option>)}</select></label>
+          <label className="admin-two-signer-toggle form-toggle">
+            <input
+              type="checkbox"
+              checked={requiresTwoSignatures}
+              onChange={(event) => setRequiresTwoSignatures(event.target.checked)}
+            />
+            <span>Two signatures</span>
+          </label>
           <button type="button" onClick={assignLibraryDocumentFromDropdown} disabled={working || !camperId || !futureTemplateId}>
             {working ? 'Assigning…' : 'Assign library document'}
           </button>
@@ -743,6 +770,14 @@ export default function AdminDocumentsPage() {
           <label><span>Document name</span><input value={documentName} onChange={(event) => setDocumentName(event.target.value)} placeholder="2026 Seasonal Lease" /></label>
           <label><span>Type</span><input value={documentType} onChange={(event) => setDocumentType(event.target.value)} /></label>
           <label><span>File</span><input type="file" onChange={(event) => setAssignedFile(event.target.files?.[0] || null)} /></label>
+          <label className="admin-two-signer-toggle form-toggle">
+            <input
+              type="checkbox"
+              checked={requiresTwoSignatures}
+              onChange={(event) => setRequiresTwoSignatures(event.target.checked)}
+            />
+            <span>Two signatures</span>
+          </label>
           <button type="button" onClick={uploadAssignedDocument} disabled={working || !camperId}>Assign uploaded file</button>
         </div>
       </section>

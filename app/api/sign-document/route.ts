@@ -54,8 +54,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Document not found.' }, { status: 404 })
     }
 
+    const requiresTwoSignatures = document.requires_two_signatures === true
+    const currentUserEmail = String(context.user.email || '').trim().toLowerCase()
+    const firstSignerEmail = String(document.signed_email || '').trim().toLowerCase()
+    const secondSignerEmail = String(document.second_signed_email || '').trim().toLowerCase()
+
     if (document.signature_status === 'signed') {
       return NextResponse.json({ error: 'This document has already been signed.' }, { status: 409 })
+    }
+
+    if (firstSignerEmail === currentUserEmail || secondSignerEmail === currentUserEmail) {
+      return NextResponse.json({ error: 'You have already signed this document.' }, { status: 409 })
     }
 
     const signedAt = new Date().toISOString()
@@ -77,20 +86,38 @@ export async function POST(request: Request) {
     ].join('|')
 
     const signatureRecordHash = createHash('sha256').update(signaturePayload).digest('hex')
+    const firstSignatureAlreadyRecorded = Boolean(document.signed_at || document.signed_email)
+    const signingSecondSlot = requiresTwoSignatures && firstSignatureAlreadyRecorded
+    const nextSignatureStatus = requiresTwoSignatures && !signingSecondSlot
+      ? 'pending_second_signature'
+      : 'signed'
+    const updatePayload = signingSecondSlot
+      ? {
+          signature_status: nextSignatureStatus,
+          second_signed_at: signedAt,
+          second_signed_name: cleanName,
+          second_signed_email: context.user.email,
+          second_signed_user_id: context.user.id,
+          second_signature_ip: signatureIp,
+          second_signature_user_agent: signatureUserAgent,
+          second_signature_consent_text: consentText,
+          second_signature_record_hash: signatureRecordHash,
+        }
+      : {
+          signature_status: nextSignatureStatus,
+          signed_at: signedAt,
+          signed_name: cleanName,
+          signed_email: context.user.email,
+          signed_user_id: context.user.id,
+          signature_ip: signatureIp,
+          signature_user_agent: signatureUserAgent,
+          signature_consent_text: consentText,
+          signature_record_hash: signatureRecordHash,
+        }
 
     const { error: updateError } = await context.admin
       .from('documents')
-      .update({
-        signature_status: 'signed',
-        signed_at: signedAt,
-        signed_name: cleanName,
-        signed_email: context.user.email,
-        signed_user_id: context.user.id,
-        signature_ip: signatureIp,
-        signature_user_agent: signatureUserAgent,
-        signature_consent_text: consentText,
-        signature_record_hash: signatureRecordHash,
-      })
+      .update(updatePayload)
       .eq('id', document.id)
       .eq('camper_id', context.camper.id)
       .neq('signature_status', 'signed')
@@ -107,6 +134,9 @@ export async function POST(request: Request) {
       signedAt,
       signatureRecordHash,
       consentText,
+      signatureStatus: nextSignatureStatus,
+      signedSlot: signingSecondSlot ? 'second' : 'first',
+      requiresTwoSignatures,
     })
   } catch (error) {
     console.error('Unable to sign document:', error)

@@ -177,7 +177,10 @@ export default function AdminPage() {
       maintenanceAlerts: notifications.filter((notification) => notification.type === 'maintenance_request').length,
       paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
       rsvpAlerts: notifications.filter((notification) => notification.type === 'event_rsvp').length,
-      documentActions: documents.filter((document) => document.signature_status === 'pending').length,
+      documentActions: documents.filter((document) => {
+        const status = String(document.signature_status || '').toLowerCase()
+        return status !== 'signed' && status !== 'not_required'
+      }).length,
       insuranceMissing: (campersResult.data || []).filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
       totalUnreadAlerts: notifications.length,
     })

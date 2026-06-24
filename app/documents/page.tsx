@@ -13,6 +13,7 @@ export default function DocumentsPage() {
   const [consentAccepted, setConsentAccepted] = useState(false)
   const [signing, setSigning] = useState(false)
   const [message, setMessage] = useState('')
+  const [currentUserEmail, setCurrentUserEmail] = useState('')
   const router = useRouter()
 
   async function openDocument(documentId: string) {
@@ -29,6 +30,7 @@ export default function DocumentsPage() {
         window.location.href = '/login'
         return
       }
+      setCurrentUserEmail(user.email?.trim().toLowerCase() || '')
 
       const { data: camper } = await supabase
         .from('campers')
@@ -98,10 +100,20 @@ export default function DocumentsPage() {
         document.id === signingDocument.id
           ? {
               ...document,
-              signature_status: 'signed',
-              signed_at: result.signedAt,
-              signed_name: typedName.trim(),
-              signature_record_hash: result.signatureRecordHash,
+              signature_status: result.signatureStatus || 'signed',
+              ...(result.signedSlot === 'second'
+                ? {
+                    second_signed_at: result.signedAt,
+                    second_signed_name: typedName.trim(),
+                    second_signed_email: currentUserEmail,
+                    second_signature_record_hash: result.signatureRecordHash,
+                  }
+                : {
+                    signed_at: result.signedAt,
+                    signed_name: typedName.trim(),
+                    signed_email: currentUserEmail,
+                    signature_record_hash: result.signatureRecordHash,
+                  }),
             }
           : document
       )
@@ -110,7 +122,9 @@ export default function DocumentsPage() {
     setTypedName('')
     setConsentAccepted(false)
     setSigning(false)
-    setMessage('✅ Document signed and securely recorded.')
+    setMessage(result.signatureStatus === 'pending_second_signature'
+      ? '✅ Your signature was recorded. This document is waiting for the second signer.'
+      : '✅ Document signed and securely recorded.')
   }
 
   if (loading) {
@@ -125,6 +139,24 @@ export default function DocumentsPage() {
   const signatureProgress = documents.length
     ? Math.round(((signedDocuments.length + referenceDocuments.length) / documents.length) * 100)
     : 100
+  const normalizedEmail = currentUserEmail.trim().toLowerCase()
+  const hasCurrentUserSigned = (doc: any) =>
+    [doc.signed_email, doc.second_signed_email]
+      .map((email) => String(email || '').trim().toLowerCase())
+      .includes(normalizedEmail)
+  const documentStatusText = (doc: any) => {
+    if (doc.signature_status === 'signed') {
+      if (doc.requires_two_signatures) return 'Both signatures complete'
+      return `Signed${doc.signed_at ? ` on ${new Date(doc.signed_at).toLocaleDateString()}` : ''}`
+    }
+    if (doc.signature_status === 'not_required') return 'No signature required'
+    if (doc.signature_status === 'pending_second_signature') return 'Waiting for second signer'
+    return doc.requires_two_signatures ? 'Waiting for first signer' : 'Signature pending'
+  }
+  const canCurrentUserSign = (doc: any) =>
+    doc.signature_status !== 'signed' &&
+    doc.signature_status !== 'not_required' &&
+    !hasCurrentUserSigned(doc)
 
   function renderDocumentCard(doc: any) {
     return (
@@ -137,14 +169,21 @@ export default function DocumentsPage() {
         </div>
         <small>{doc.document_type || 'General'}</small>
         <h2>{doc.document_name}</h2>
-        <p className="camper-document-status">
-          {doc.signature_status === 'signed'
-            ? `Signed${doc.signed_at ? ` on ${new Date(doc.signed_at).toLocaleDateString()}` : ''}`
-            : doc.signature_status === 'not_required'
-              ? 'No signature required'
-              : 'Signature pending'}
-        </p>
+        <p className="camper-document-status">{documentStatusText(doc)}</p>
+        {doc.requires_two_signatures && (
+          <div className="camper-document-signers">
+            <p className={doc.signed_name ? 'complete' : ''}>
+              <span>Signer 1</span>
+              <strong>{doc.signed_name || 'Waiting'}</strong>
+            </p>
+            <p className={doc.second_signed_name ? 'complete' : ''}>
+              <span>Signer 2</span>
+              <strong>{doc.second_signed_name || 'Waiting'}</strong>
+            </p>
+          </div>
+        )}
         {doc.signed_name && <p className="camper-document-signed-name">Signed by {doc.signed_name}</p>}
+        {doc.second_signed_name && <p className="camper-document-signed-name">Second signer: {doc.second_signed_name}</p>}
         {doc.signature_record_hash && (
           <p className="camper-document-proof">Secure signature record saved</p>
         )}
@@ -155,10 +194,13 @@ export default function DocumentsPage() {
               View Document
             </button>
           )}
-          {doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && (
+          {canCurrentUserSign(doc) && (
             <button type="button" className="primary" onClick={() => { setSigningDocument(doc); setMessage('') }}>
               Sign Document
             </button>
+          )}
+          {!canCurrentUserSign(doc) && doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && (
+            <span className="camper-document-waiting-note">Waiting for the other signer</span>
           )}
         </div>
       </section>
@@ -227,6 +269,11 @@ export default function DocumentsPage() {
               Before signing, open and review the document. By continuing, you agree to use
               electronic records and signatures for this Bur Oaks Campground document.
             </p>
+            {signingDocument.requires_two_signatures && (
+              <p className="signature-two-signer-note">
+                This document requires two signatures. Your signature will be saved, then the document will remain open until the second signer completes it.
+              </p>
+            )}
             <label className="signature-consent">
               <input
                 type="checkbox"
