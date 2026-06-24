@@ -6,6 +6,15 @@ export function getSiteUrl() {
     process.env.SITE_URL ||
     fallbackSiteUrl
 
-  return configured.replace(/\/+$/, '')
-}
+  const normalized = configured.replace(/\/+$/, '')
 
+  if (
+    normalized.includes('localhost') ||
+    normalized.includes('127.0.0.1') ||
+    normalized.includes('bur-oaks-camper-portal-tace')
+  ) {
+    return fallbackSiteUrl
+  }
+
+  return normalized
+}
