@@ -42,9 +42,15 @@ export default function LoginPage() {
 
       if (!destinationResponse.ok || !destinationResult?.destination) {
         await supabase.auth.signOut()
+        const diagnosticDetails = [
+          destinationResult?.email ? `Signed in as ${destinationResult.email}.` : '',
+          destinationResult?.serviceRoleConfigured === false ? 'Server service key missing.' : '',
+          typeof destinationResult?.camperMatchCount === 'number' ? `Camper matches: ${destinationResult.camperMatchCount}.` : '',
+          destinationResult?.camperSummary ? `Records: ${destinationResult.camperSummary}.` : '',
+        ].filter(Boolean).join(' ')
         setError(
-          destinationResult?.email
-            ? `${destinationResult?.error || 'This login is not connected to a camper record.'} Signed in as ${destinationResult.email}.`
+          diagnosticDetails
+            ? `${destinationResult?.error || 'This login is not connected to a camper record.'} ${diagnosticDetails}`
             : destinationResult?.error || 'This login is not connected to a camper record. Please contact the campground office.'
         )
         return

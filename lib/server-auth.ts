@@ -22,11 +22,23 @@ export async function getAuthenticatedContext(request: Request) {
 
   const admin = createClient(supabaseUrl, serviceRoleKey)
   const userEmail = data.user.email.trim().toLowerCase()
-  const { data: camperMatches } = await admin
-    .from('campers')
-    .select('*')
-    .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
-    .limit(10)
+  const [primaryMatch, secondaryMatch] = await Promise.all([
+    admin
+      .from('campers')
+      .select('*')
+      .ilike('email', userEmail)
+      .limit(10),
+    admin
+      .from('campers')
+      .select('*')
+      .ilike('secondary_email', userEmail)
+      .limit(10),
+  ])
+
+  const camperMatches = [
+    ...(primaryMatch.data || []),
+    ...(secondaryMatch.data || []),
+  ].filter((match, index, all) => all.findIndex((item) => item.id === match.id) === index)
 
   const camper =
     (camperMatches || []).find((match) => match.active !== false && match.role) ||
