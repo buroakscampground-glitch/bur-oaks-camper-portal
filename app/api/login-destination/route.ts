@@ -18,6 +18,7 @@ export async function GET(request: Request) {
     let userEmail = ''
     let camperMatchCount = 0
     let camperSummary = ''
+    let camperLookupError = ''
 
     if (token && anonKey) {
       const authClient = createClient(supabaseUrl, anonKey)
@@ -43,6 +44,11 @@ export async function GET(request: Request) {
         ...(primaryMatch.data || []),
         ...(secondaryMatch.data || []),
       ].filter((match, index, all) => all.findIndex((item) => item.id === match.id) === index)
+
+      camperLookupError = [
+        primaryMatch.error?.message,
+        secondaryMatch.error?.message,
+      ].filter(Boolean).join(' | ')
 
       camperMatchCount = camperMatches.length
       camperSummary = camperMatches
@@ -79,8 +85,10 @@ export async function GET(request: Request) {
           : 'Server is missing SUPABASE_SERVICE_ROLE_KEY.',
         email: userEmail,
         serviceRoleConfigured: Boolean(serviceRoleKey),
+        supabaseProjectUrl: supabaseUrl,
         camperMatchCount,
         camperSummary,
+        camperLookupError,
       },
       { status: 404 }
     )

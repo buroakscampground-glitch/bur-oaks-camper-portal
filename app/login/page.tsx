@@ -45,7 +45,9 @@ export default function LoginPage() {
         const diagnosticDetails = [
           destinationResult?.email ? `Signed in as ${destinationResult.email}.` : '',
           destinationResult?.serviceRoleConfigured === false ? 'Server service key missing.' : '',
+          destinationResult?.supabaseProjectUrl ? `Supabase URL: ${destinationResult.supabaseProjectUrl}.` : '',
           typeof destinationResult?.camperMatchCount === 'number' ? `Camper matches: ${destinationResult.camperMatchCount}.` : '',
+          destinationResult?.camperLookupError ? `Lookup error: ${destinationResult.camperLookupError}.` : '',
           destinationResult?.camperSummary ? `Records: ${destinationResult.camperSummary}.` : '',
         ].filter(Boolean).join(' ')
         setError(
