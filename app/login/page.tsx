@@ -26,34 +26,31 @@ export default function LoginPage() {
         return
       }
 
-      const { data: camperMatches } = await supabase
-        .from('campers')
-        .select('id,role,active,email,secondary_email')
-        .or(`email.ilike.${normalizedEmail},secondary_email.ilike.${normalizedEmail}`)
-        .limit(10)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
 
-      const campers = camperMatches || []
-      const camper =
-        campers.find((match) => match.active !== false && match.role) ||
-        campers.find((match) => match.active !== false)
-      const role = String(camper?.role || 'camper').toLowerCase()
-
-      if (!camper) {
+      if (!token) {
         await supabase.auth.signOut()
-        setError('This login is not connected to a camper record. Please contact the campground office.')
+        setError('Login session could not be verified. Please try again.')
         return
       }
 
-      if (role === 'admin') {
-        window.location.href = '/admin'
-      } else if (role === 'maintenance') {
-        window.location.href = '/maintenance/dashboard'
-      } else if (role === 'camper') {
-        window.location.href = '/portal'
-      } else {
+      const destinationResponse = await fetch('/api/login-destination', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const destinationResult = await destinationResponse.json().catch(() => null)
+
+      if (!destinationResponse.ok || !destinationResult?.destination) {
         await supabase.auth.signOut()
-        setError('This account has an unsupported portal role.')
+        setError(
+          destinationResult?.email
+            ? `${destinationResult?.error || 'This login is not connected to a camper record.'} Signed in as ${destinationResult.email}.`
+            : destinationResult?.error || 'This login is not connected to a camper record. Please contact the campground office.'
+        )
+        return
       }
+
+      window.location.href = destinationResult.destination
     } catch (err) {
       console.error(err)
       setError('Login failed')
