@@ -4,6 +4,32 @@ const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   'https://mzywctpxnpejglnspyqi.supabase.co'
 
+async function findCamperForEmail(client: any, userEmail: string) {
+  const [primaryMatch, secondaryMatch] = await Promise.all([
+    client
+      .from('campers')
+      .select('*')
+      .ilike('email', userEmail)
+      .limit(10),
+    client
+      .from('campers')
+      .select('*')
+      .ilike('secondary_email', userEmail)
+      .limit(10),
+  ])
+
+  const camperMatches = [
+    ...(primaryMatch.data || []),
+    ...(secondaryMatch.data || []),
+  ].filter((match, index, all) => all.findIndex((item) => item.id === match.id) === index)
+
+  return (
+    camperMatches.find((match) => match.active !== false && match.role) ||
+    camperMatches.find((match) => match.active !== false) ||
+    null
+  )
+}
+
 export async function getAuthenticatedContext(request: Request) {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -22,27 +48,19 @@ export async function getAuthenticatedContext(request: Request) {
 
   const admin = createClient(supabaseUrl, serviceRoleKey)
   const userEmail = data.user.email.trim().toLowerCase()
-  const [primaryMatch, secondaryMatch] = await Promise.all([
-    admin
-      .from('campers')
-      .select('*')
-      .ilike('email', userEmail)
-      .limit(10),
-    admin
-      .from('campers')
-      .select('*')
-      .ilike('secondary_email', userEmail)
-      .limit(10),
-  ])
+  let camper = await findCamperForEmail(admin, userEmail)
 
-  const camperMatches = [
-    ...(primaryMatch.data || []),
-    ...(secondaryMatch.data || []),
-  ].filter((match, index, all) => all.findIndex((item) => item.id === match.id) === index)
+  if (!camper) {
+    const userScopedClient = createClient(supabaseUrl, anonKey, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    })
 
-  const camper =
-    (camperMatches || []).find((match) => match.active !== false && match.role) ||
-    (camperMatches || []).find((match) => match.active !== false)
+    camper = await findCamperForEmail(userScopedClient, userEmail)
+  }
 
   if (!camper || camper.active === false) {
     return null
