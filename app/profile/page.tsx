@@ -44,7 +44,6 @@ export default function ProfilePage() {
         .select('*')
         .eq('camper_id', data.id)
         .eq('document_type', 'Golf Cart Insurance')
-        .order('created_at', { ascending: false })
 
       setInsuranceDocuments(documents || [])
     }
@@ -62,11 +61,17 @@ export default function ProfilePage() {
       first_name: camper.first_name,
       last_name: camper.last_name,
       phone: camper.phone,
+      second_profile_first_name: camper.second_profile_first_name,
+      second_profile_last_name: camper.second_profile_last_name,
+      second_profile_phone: camper.second_profile_phone,
       emergency_contact_name: camper.emergency_contact_name,
       emergency_contact_phone: camper.emergency_contact_phone,
       vehicle_make: camper.vehicle_make,
       vehicle_model: camper.vehicle_model,
       license_plate: camper.license_plate,
+      vehicle_2_make: camper.vehicle_2_make,
+      vehicle_2_model: camper.vehicle_2_model,
+      vehicle_2_license_plate: camper.vehicle_2_license_plate,
       golf_cart_make: camper.golf_cart_make,
       golf_cart_color: camper.golf_cart_color,
     }
@@ -175,6 +180,7 @@ export default function ProfilePage() {
 
   const profileChecklist = [
     { label: 'Phone number', complete: Boolean(camper.phone) },
+    { label: 'Second profile optional', complete: Boolean(camper.second_profile_first_name || camper.secondary_email) },
     { label: 'Emergency contact', complete: Boolean(camper.emergency_contact_name && camper.emergency_contact_phone) },
     { label: 'Vehicle information', complete: Boolean(camper.vehicle_make && camper.vehicle_model && camper.license_plate) },
     { label: 'Directory choice', complete: camper.directory_opt_in !== null && camper.directory_opt_in !== undefined },
@@ -288,7 +294,10 @@ export default function ProfilePage() {
         </section>
 
         <section className="card" style={{ marginBottom: '25px' }}>
-          <h2>Profile Information</h2>
+          <h2>Profile 1 Information</h2>
+          <p style={{ marginTop: '-4px', color: '#66736a' }}>
+            Primary camper/signature profile for this site.
+          </p>
 
           <input
             placeholder="First Name"
@@ -348,6 +357,60 @@ export default function ProfilePage() {
         </section>
 
         <section className="card" style={{ marginBottom: '25px' }}>
+          <h2>Profile 2 Information</h2>
+          <p style={{ marginTop: '-4px', color: '#66736a' }}>
+            Optional second camper/signature profile. This helps when two people need to sign leases for the same site.
+          </p>
+
+          <input
+            placeholder="Second profile first name"
+            value={camper.second_profile_first_name || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                second_profile_first_name: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="Second profile last name"
+            value={camper.second_profile_last_name || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                second_profile_last_name: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="Second profile phone"
+            value={camper.second_profile_phone || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                second_profile_phone: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            value={camper.secondary_email || 'Second portal email not added yet'}
+            disabled
+            style={{
+              width: '100%',
+              marginBottom: '12px',
+              background: '#f3f4f6',
+            }}
+          />
+
+        </section>
+
+        <section className="card" style={{ marginBottom: '25px' }}>
           <h2>Emergency Contact</h2>
 
           <input
@@ -377,9 +440,12 @@ export default function ProfilePage() {
 
         <section className="card" style={{ marginBottom: '25px' }}>
           <h2>Vehicle Information</h2>
+          <p style={{ marginTop: '-4px', color: '#66736a' }}>
+            Add the main vehicle and an optional second vehicle for the site.
+          </p>
 
           <input
-            placeholder="Vehicle Make"
+            placeholder="Vehicle 1 Make"
             value={camper.vehicle_make || ''}
             onChange={(e) =>
               setCamper({
@@ -391,7 +457,7 @@ export default function ProfilePage() {
           />
 
           <input
-            placeholder="Vehicle Model"
+            placeholder="Vehicle 1 Model"
             value={camper.vehicle_model || ''}
             onChange={(e) =>
               setCamper({
@@ -403,12 +469,48 @@ export default function ProfilePage() {
           />
 
           <input
-            placeholder="License Plate"
+            placeholder="Vehicle 1 License Plate"
             value={camper.license_plate || ''}
             onChange={(e) =>
               setCamper({
                 ...camper,
                 license_plate: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="Vehicle 2 Make"
+            value={camper.vehicle_2_make || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                vehicle_2_make: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="Vehicle 2 Model"
+            value={camper.vehicle_2_model || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                vehicle_2_model: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="Vehicle 2 License Plate"
+            value={camper.vehicle_2_license_plate || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                vehicle_2_license_plate: e.target.value,
               })
             }
             style={{ width: '100%', marginBottom: '12px' }}

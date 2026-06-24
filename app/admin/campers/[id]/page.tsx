@@ -33,6 +33,9 @@ type Camper = {
   email: string | null
   secondary_email: string | null
   phone: string | null
+  second_profile_first_name: string | null
+  second_profile_last_name: string | null
+  second_profile_phone: string | null
   role: string | null
   active: boolean | null
   emergency_contact_name: string | null
@@ -40,6 +43,9 @@ type Camper = {
   vehicle_make: string | null
   vehicle_model: string | null
   license_plate: string | null
+  vehicle_2_make: string | null
+  vehicle_2_model: string | null
+  vehicle_2_license_plate: string | null
   golf_cart_make: string | null
   golf_cart_color: string | null
   directory_opt_in: boolean | null
@@ -54,6 +60,9 @@ const emptyCamper: Camper = {
   email: '',
   secondary_email: '',
   phone: '',
+  second_profile_first_name: '',
+  second_profile_last_name: '',
+  second_profile_phone: '',
   role: 'camper',
   active: true,
   emergency_contact_name: '',
@@ -61,6 +70,9 @@ const emptyCamper: Camper = {
   vehicle_make: '',
   vehicle_model: '',
   license_plate: '',
+  vehicle_2_make: '',
+  vehicle_2_model: '',
+  vehicle_2_license_plate: '',
   golf_cart_make: '',
   golf_cart_color: '',
   directory_opt_in: false,
@@ -98,7 +110,6 @@ export default function CamperDetailPage() {
         .select('*')
         .eq('camper_id', camperId)
         .eq('document_type', 'Golf Cart Insurance')
-        .order('created_at', { ascending: false }),
     ])
 
     if (camperResult.error || !camperResult.data) {
@@ -142,6 +153,9 @@ export default function CamperDetailPage() {
           ? camper.secondary_email.trim().toLowerCase()
           : null,
         phone: camper.phone?.trim() || null,
+        second_profile_first_name: camper.second_profile_first_name?.trim() || null,
+        second_profile_last_name: camper.second_profile_last_name?.trim() || null,
+        second_profile_phone: camper.second_profile_phone?.trim() || null,
         role: camper.role || 'camper',
         active: camper.active !== false,
         emergency_contact_name: camper.emergency_contact_name?.trim() || null,
@@ -149,6 +163,9 @@ export default function CamperDetailPage() {
         vehicle_make: camper.vehicle_make?.trim() || null,
         vehicle_model: camper.vehicle_model?.trim() || null,
         license_plate: camper.license_plate?.trim() || null,
+        vehicle_2_make: camper.vehicle_2_make?.trim() || null,
+        vehicle_2_model: camper.vehicle_2_model?.trim() || null,
+        vehicle_2_license_plate: camper.vehicle_2_license_plate?.trim() || null,
         golf_cart_make: camper.golf_cart_make?.trim() || null,
         golf_cart_color: camper.golf_cart_color?.trim() || null,
         directory_opt_in: Boolean(camper.directory_opt_in),
@@ -335,11 +352,19 @@ export default function CamperDetailPage() {
           </div>
         </ProfileSection>
 
-        <ProfileSection icon={<ContactRound />} kicker="CONTACT" title="Phone & email">
+        <ProfileSection icon={<ContactRound />} kicker="CONTACT" title="Profile 1 & portal emails">
           <div className="admin-camper-form-grid">
             <Field label="Primary email address" type="email" value={camper.email} onChange={(value) => updateField('email', value)} icon={<Mail />} />
             <Field label="Second email address" type="email" value={camper.secondary_email} onChange={(value) => updateField('secondary_email', value)} icon={<Mail />} />
-            <Field label="Phone number" type="tel" value={camper.phone} onChange={(value) => updateField('phone', value)} icon={<Phone />} />
+            <Field label="Profile 1 phone number" type="tel" value={camper.phone} onChange={(value) => updateField('phone', value)} icon={<Phone />} />
+          </div>
+        </ProfileSection>
+
+        <ProfileSection icon={<UsersRound />} kicker="OPTIONAL" title="Profile 2">
+          <div className="admin-camper-form-grid three">
+            <Field label="Profile 2 first name" value={camper.second_profile_first_name} onChange={(value) => updateField('second_profile_first_name', value)} />
+            <Field label="Profile 2 last name" value={camper.second_profile_last_name} onChange={(value) => updateField('second_profile_last_name', value)} />
+            <Field label="Profile 2 phone" type="tel" value={camper.second_profile_phone} onChange={(value) => updateField('second_profile_phone', value)} icon={<Phone />} />
           </div>
         </ProfileSection>
 
@@ -352,9 +377,12 @@ export default function CamperDetailPage() {
 
         <ProfileSection icon={<Car />} kicker="VEHICLES" title="Vehicle & golf cart">
           <div className="admin-camper-form-grid three">
-            <Field label="Vehicle make" value={camper.vehicle_make} onChange={(value) => updateField('vehicle_make', value)} />
-            <Field label="Vehicle model" value={camper.vehicle_model} onChange={(value) => updateField('vehicle_model', value)} />
-            <Field label="License plate" value={camper.license_plate} onChange={(value) => updateField('license_plate', value)} />
+            <Field label="Vehicle 1 make" value={camper.vehicle_make} onChange={(value) => updateField('vehicle_make', value)} />
+            <Field label="Vehicle 1 model" value={camper.vehicle_model} onChange={(value) => updateField('vehicle_model', value)} />
+            <Field label="Vehicle 1 license plate" value={camper.license_plate} onChange={(value) => updateField('license_plate', value)} />
+            <Field label="Vehicle 2 make" value={camper.vehicle_2_make} onChange={(value) => updateField('vehicle_2_make', value)} />
+            <Field label="Vehicle 2 model" value={camper.vehicle_2_model} onChange={(value) => updateField('vehicle_2_model', value)} />
+            <Field label="Vehicle 2 license plate" value={camper.vehicle_2_license_plate} onChange={(value) => updateField('vehicle_2_license_plate', value)} />
             <Field label="Golf cart make" value={camper.golf_cart_make} onChange={(value) => updateField('golf_cart_make', value)} />
             <Field label="Golf cart color" value={camper.golf_cart_color} onChange={(value) => updateField('golf_cart_color', value)} />
           </div>
