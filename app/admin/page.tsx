@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CircleDollarSign,
   ClipboardList,
+  Droplets,
   FileText,
   Gauge,
   KeyRound,
@@ -49,6 +50,8 @@ type AdminStats = {
   rsvpAlerts: number
   documentActions: number
   insuranceMissing: number
+  pumpOuts: number
+  pumpOutAlerts: number
   totalUnreadAlerts: number
 }
 
@@ -73,6 +76,8 @@ const emptyStats: AdminStats = {
   rsvpAlerts: 0,
   documentActions: 0,
   insuranceMissing: 0,
+  pumpOuts: 0,
+  pumpOutAlerts: 0,
   totalUnreadAlerts: 0,
 }
 
@@ -122,6 +127,7 @@ export default function AdminPage() {
       waitlistResult,
       notificationResult,
       documentResult,
+      pumpOutResult,
     ] = await Promise.all([
       supabase.from('campers').select('id').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
@@ -134,6 +140,7 @@ export default function AdminPage() {
       supabase.from('waitlist').select('id'),
       supabase.from('admin_notifications').select('id,type').is('read_at', null),
       supabase.from('documents').select('id,document_type,signature_status,camper_id'),
+      supabase.from('sewer_pump_out_requests').select('id,status,billed_at'),
     ])
 
     const invoices = invoicesResult.data || []
@@ -177,11 +184,13 @@ export default function AdminPage() {
       maintenanceAlerts: notifications.filter((notification) => notification.type === 'maintenance_request').length,
       paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
       rsvpAlerts: notifications.filter((notification) => notification.type === 'event_rsvp').length,
+      pumpOutAlerts: notifications.filter((notification) => notification.type === 'sewer_pump_out').length,
       documentActions: documents.filter((document) => {
         const status = String(document.signature_status || '').toLowerCase()
         return status !== 'signed' && status !== 'not_required'
       }).length,
       insuranceMissing: (campersResult.data || []).filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
+      pumpOuts: (pumpOutResult.data || []).filter((request) => request.status !== 'cancelled' && !request.billed_at).length,
       totalUnreadAlerts: notifications.length,
     })
   }
@@ -239,6 +248,17 @@ export default function AdminPage() {
       detail: `${stats.electric} readings`,
       icon: Zap,
       tone: 'blue',
+    },
+    {
+      href: '/admin/pump-outs',
+      title: 'Sewer Pump-Outs',
+      description: 'See who needs pumped and what will be added to electric bills.',
+      detail: `${stats.pumpOuts} active`,
+      alertCount: stats.pumpOutAlerts,
+      alertLabel: 'pump-out alert',
+      alertType: 'sewer_pump_out',
+      icon: Droplets,
+      tone: 'red',
     },
     {
       href: '/admin/maintenance',

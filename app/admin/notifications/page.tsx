@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BellRing, CheckCheck, CircleDollarSign, MessageSquareWarning, PartyPopper, Search, Soup, Wrench } from 'lucide-react'
+import { BellRing, CheckCheck, CircleDollarSign, Droplets, MessageSquareWarning, PartyPopper, Search, Soup, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
@@ -9,6 +9,7 @@ const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   payment_received: { label: 'Payment', icon: CircleDollarSign, href: '/admin/invoices' },
   event_rsvp: { label: 'RSVP', icon: PartyPopper, href: '/admin/rsvps' },
   saturday_dinner: { label: 'Saturday Dinner', icon: Soup, href: '/admin/dinners' },
+  sewer_pump_out: { label: 'Sewer Pump-Out', icon: Droplets, href: '/admin/pump-outs' },
 }
 
 export default function AdminNotificationsPage() {
@@ -89,6 +90,7 @@ export default function AdminNotificationsPage() {
           <option value="payment_received">Payments</option>
           <option value="event_rsvp">RSVPs</option>
           <option value="saturday_dinner">Saturday Dinners</option>
+          <option value="sewer_pump_out">Sewer Pump-Outs</option>
         </select>
       </section>
 

@@ -1,5 +1,5 @@
 type NotificationInput = {
-  type: 'maintenance_request' | 'payment_received' | 'event_rsvp' | 'saturday_dinner'
+  type: 'maintenance_request' | 'payment_received' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out'
   title: string
   message: string
   lot_number?: string | null

@@ -8,6 +8,7 @@ import { attemptAutoPay } from '../../../lib/autopay'
 export default function AdminElectricPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [readings, setReadings] = useState<any[]>([])
+  const [pumpOuts, setPumpOuts] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
   const [previousReading, setPreviousReading] = useState('')
   const [currentReading, setCurrentReading] = useState('')
@@ -24,6 +25,7 @@ export default function AdminElectricPage() {
   useEffect(() => {
     loadCampers()
     loadReadings()
+    loadPumpOuts()
   }, [])
 
   async function loadCampers() {
@@ -38,6 +40,17 @@ export default function AdminElectricPage() {
       .order('reading_date', { ascending: false })
 
     setReadings(data || [])
+  }
+
+  async function loadPumpOuts() {
+    const { data } = await supabase
+      .from('sewer_pump_out_requests')
+      .select('*')
+      .is('billed_at', null)
+      .neq('status', 'cancelled')
+      .order('requested_at', { ascending: true })
+
+    setPumpOuts(data || [])
   }
 
   const filteredReadings = useMemo(() => {
@@ -74,7 +87,9 @@ const liveAmount =
     : 0
 
 const selectedWaterTrashFee = includeWaterTrash ? Number(waterTrashFee || 0) : 0
-const liveInvoiceTotal = liveAmount + selectedWaterTrashFee
+const selectedPumpOuts = pumpOuts.filter((request) => request.camper_id === camperId)
+const pumpOutChargeTotal = selectedPumpOuts.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
+const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
 
   async function saveElectricAndCreateInvoice() {
     setMessage('')
@@ -92,7 +107,6 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee
     const waterTrashAmount = includeWaterTrash ? Number(waterTrashFee) : 0
     const kwhUsed = current - previous
     const amountDue = Number((kwhUsed * rateNumber).toFixed(2))
-    const totalDue = Number((amountDue + waterTrashAmount).toFixed(2))
 
     if (!Number.isFinite(previous) || !Number.isFinite(current) || !Number.isFinite(rateNumber) || !Number.isFinite(waterTrashAmount)) {
       setMessage('Please enter valid numeric values for readings and rate.')
@@ -150,6 +164,24 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee
       return
     }
 
+    const { data: freshPumpOuts, error: pumpOutLookupError } = await supabase
+      .from('sewer_pump_out_requests')
+      .select('*')
+      .eq('camper_id', camperId)
+      .is('billed_at', null)
+      .neq('status', 'cancelled')
+      .order('requested_at', { ascending: true })
+
+    if (pumpOutLookupError) {
+      setMessage(pumpOutLookupError.message)
+      setSaving(false)
+      return
+    }
+
+    const activePumpOuts = freshPumpOuts || []
+    const pumpOutTotal = Number(activePumpOuts.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0).toFixed(2))
+    const totalDue = Number((amountDue + waterTrashAmount + pumpOutTotal).toFixed(2))
+
     const selectedCamper = campers.find((c) => c.id === camperId)
     const invoiceNumber = `ELECTRIC-${selectedCamper?.lot_number || 'UNKNOWN'}-${Date.now()}`
 
@@ -158,7 +190,11 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee
       .insert({
         camper_id: camperId,
         invoice_number: invoiceNumber,
-        invoice_type: includeWaterTrash ? 'Electric + Water/Trash' : 'Electric',
+        invoice_type: [
+          'Electric',
+          includeWaterTrash ? 'Water/Trash' : '',
+          pumpOutTotal > 0 ? 'Sewer Pump-Out' : '',
+        ].filter(Boolean).join(' + '),
         subtotal: totalDue,
         late_fee: 0,
         total_due: totalDue,
@@ -194,6 +230,16 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee
       })
     }
 
+    if (pumpOutTotal > 0) {
+      invoiceItems.push({
+        invoice_id: invoice.id,
+        description: `Sewer Pump-Out Fee - ${activePumpOuts.length} request${activePumpOuts.length === 1 ? '' : 's'}`,
+        quantity: activePumpOuts.length,
+        unit_price: 10,
+        total: pumpOutTotal,
+      })
+    }
+
     const { error: itemError } = await supabase.from('invoice_items').insert(invoiceItems)
 
     if (itemError) {
@@ -222,10 +268,31 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee
       return
     }
 
+    if (activePumpOuts.length > 0) {
+      const { error: pumpOutBillingError } = await supabase
+        .from('sewer_pump_out_requests')
+        .update({
+          billed_invoice_id: invoice.id,
+          billed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', activePumpOuts.map((request) => request.id))
+
+      if (pumpOutBillingError) {
+        setMessage(`Electric invoice was created, but pump-out requests were not marked billed: ${pumpOutBillingError.message}`)
+        setSaving(false)
+        return
+      }
+    }
+
     let resultMessage = `Electric invoice created: ${kwhUsed} kWh × $${rateNumber} = $${amountDue}`
 
     if (includeWaterTrash) {
       resultMessage += ` + $${waterTrashAmount} water/trash fee = $${totalDue}`
+    }
+
+    if (pumpOutTotal > 0) {
+      resultMessage += ` + $${pumpOutTotal.toFixed(2)} sewer pump-out fee${activePumpOuts.length === 1 ? '' : 's'}`
     }
 
     try {
@@ -246,6 +313,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee
     setWaterTrashFee('20')
     setSearchText('')
     loadReadings()
+    loadPumpOuts()
     setSaving(false)
   }
 
@@ -346,12 +414,16 @@ setTimeout(() => {
     </h2>
     <p className="muted">Estimated Charge</p>
 
-    {includeWaterTrash && (
+    {(includeWaterTrash || pumpOutChargeTotal > 0) && (
       <>
         <h2>
           ${liveInvoiceTotal.toFixed(2)}
         </h2>
-        <p className="muted">Estimated Total with Water/Trash</p>
+        <p className="muted">
+          Estimated Total
+          {includeWaterTrash ? ' with Water/Trash' : ''}
+          {pumpOutChargeTotal > 0 ? ` + ${selectedPumpOuts.length} sewer pump-out${selectedPumpOuts.length === 1 ? '' : 's'}` : ''}
+        </p>
       </>
     )}
   </section>
@@ -432,6 +504,25 @@ setTimeout(() => {
               </div>
             )}
           </section>
+
+          {camperId && (
+            <section
+              style={{
+                marginBottom: '14px',
+                padding: '16px',
+                border: pumpOutChargeTotal > 0 ? '2px solid #9f1d1d' : '1px solid #d8ded5',
+                borderRadius: '14px',
+                background: pumpOutChargeTotal > 0 ? '#fff3ef' : '#f8faf7',
+              }}
+            >
+              <strong>Sewer pump-out charges</strong>
+              <p className="muted" style={{ marginBottom: 0 }}>
+                {pumpOutChargeTotal > 0
+                  ? `${selectedPumpOuts.length} unbilled pump-out request${selectedPumpOuts.length === 1 ? '' : 's'} will be added automatically: $${pumpOutChargeTotal.toFixed(2)}.`
+                  : 'No unbilled sewer pump-outs for this camper.'}
+              </p>
+            </section>
+          )}
 
           <button onClick={saveElectricAndCreateInvoice} disabled={saving}>
             {saving ? 'Saving…' : includeWaterTrash ? 'Save Reading + Create Combined Invoice' : 'Save Reading + Create Invoice'}

@@ -10,6 +10,7 @@ import {
   ChevronRight,
   CircleDollarSign,
   ClipboardCheck,
+  Droplets,
   FileText,
   Gauge,
   Home,
@@ -127,6 +128,8 @@ export default function CamperPortalPage() {
   const [maintenanceTickets, setMaintenanceTickets] = useState<any[]>([])
   const [latestElectric, setLatestElectric] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [pumpMessage, setPumpMessage] = useState('')
+  const [requestingPump, setRequestingPump] = useState(false)
 
   useEffect(() => {
     async function loadDashboard() {
@@ -233,6 +236,45 @@ export default function CamperPortalPage() {
   async function handleLogout() {
     await supabase.auth.signOut()
     window.location.href = '/login'
+  }
+
+  async function requestSewerPumpOut() {
+    const confirmed = window.confirm('Request a sewer pump-out for your site? A $10 charge will be added to your next electric bill.')
+    if (!confirmed) return
+
+    setRequestingPump(true)
+    setPumpMessage('Sending your sewer pump-out request…')
+
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+
+    if (!token) {
+      window.location.href = '/login'
+      return
+    }
+
+    const response = await fetch('/api/sewer-pump-out', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({}),
+    })
+    const result = await response.json().catch(() => null)
+
+    if (!response.ok) {
+      setPumpMessage(result?.error || 'Unable to send pump-out request.')
+      setRequestingPump(false)
+      return
+    }
+
+    let emailNote = ''
+    if (result?.emailStatus === 'failed') emailNote = ' Office email alert failed, but the request was saved.'
+    if (result?.emailStatus === 'skipped') emailNote = ' Office email alert skipped, but the request was saved.'
+
+    setPumpMessage(`Sewer pump-out requested for Lot ${camper?.lot_number || 'your site'}. $10 will be added to your next electric bill.${emailNote}`)
+    setRequestingPump(false)
   }
 
   if (loading) {
@@ -391,6 +433,18 @@ export default function CamperPortalPage() {
             </div>
           </div>
 
+        </section>
+
+        <section className="portal-pumpout-alert">
+          <div>
+            <span><Droplets size={18} /> SEWER PUMP-OUT</span>
+            <h2>Need your sewer pumped?</h2>
+            <p>Tap the red button and the office will add you to the pump-out list. A $10 charge is added to your next electric bill.</p>
+            {pumpMessage && <small>{pumpMessage}</small>}
+          </div>
+          <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump}>
+            {requestingPump ? 'Sending…' : 'Request pump-out'}
+          </button>
         </section>
 
         <PortalWeather />
