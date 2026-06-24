@@ -20,10 +20,13 @@ export default function SetPasswordPage() {
       let { data } = await supabase.auth.getSession()
 
       if (
-        !data.session &&
         tokenHash &&
         (requestedType === 'invite' || requestedType === 'recovery')
       ) {
+        if (data.session) {
+          await supabase.auth.signOut()
+        }
+
         const verification = await supabase.auth.verifyOtp({
           token_hash: tokenHash,
           type: requestedType,
