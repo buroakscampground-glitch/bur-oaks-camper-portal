@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ClipboardCheck,
   CircleDollarSign,
+  Droplets,
   LoaderCircle,
   Rocket,
   ShieldAlert,
@@ -43,6 +44,8 @@ type LaunchChecklist = {
     maintenance: number
     payments: number
     rsvps: number
+    dinners: number
+    pumpOuts: number
     total: number
   }
   groups: LaunchGroup[]
@@ -87,6 +90,12 @@ const liveTests = [
     label: 'Invoice payment',
     detail: 'Pay a small invoice and confirm Stripe marks it paid.',
     icon: CircleDollarSign,
+  },
+  {
+    href: '/admin/pump-outs',
+    label: 'Sewer pump-out',
+    detail: 'Submit one camper pump-out request and confirm it appears in the admin queue.',
+    icon: Droplets,
   },
 ]
 
@@ -227,8 +236,8 @@ export default function AdminLaunchPage() {
       <section className="admin-launch-test-run">
         <div>
           <span><Sparkles size={15} /> LIVE TEST RUN</span>
-          <h2>Four checks before you tell campers it is ready</h2>
-          <p>Run these on the live site after each deployment. If all four pass, the core camper experience is in strong shape.</p>
+          <h2>Five checks before you tell campers it is ready</h2>
+          <p>Run these on the live site after each deployment. If all five pass, the core camper experience is in strong shape.</p>
         </div>
         <div>
           {liveTests.map((test) => {

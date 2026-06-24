@@ -43,6 +43,7 @@ export async function GET(request: Request) {
     notificationsResult,
     eventsResult,
     inviteLogResult,
+    pumpOutResult,
   ] = await Promise.all([
     context.admin.from('campers').select('id,email,secondary_email,active,role,lot_number').eq('active', true),
     context.admin.from('invoices').select('id,total_due,status'),
@@ -51,6 +52,7 @@ export async function GET(request: Request) {
     context.admin.from('admin_notifications').select('id,type,read_at').is('read_at', null),
     context.admin.from('events').select('id,event_date,title').gte('event_date', today),
     context.admin.from('portal_invite_log').select('id,email,status,created_at'),
+    context.admin.from('sewer_pump_out_requests').select('id,status,billed_at'),
   ])
 
   const campers = campersResult.data || []
@@ -60,6 +62,7 @@ export async function GET(request: Request) {
   const notifications = notificationsResult.data || []
   const events = eventsResult.data || []
   const inviteLogs = inviteLogResult.data || []
+  const pumpOuts = pumpOutResult.data || []
 
   const activeCampers = campers.filter((camper) => String(camper.role || 'camper').toLowerCase() === 'camper')
   const campersMissingEmail = activeCampers.filter((camper) => !camper.email && !camper.secondary_email)
@@ -71,6 +74,10 @@ export async function GET(request: Request) {
   const unreadMaintenance = notifications.filter((notification) => notification.type === 'maintenance_request')
   const unreadPayments = notifications.filter((notification) => notification.type === 'payment_received')
   const unreadRsvps = notifications.filter((notification) => notification.type === 'event_rsvp')
+  const unreadDinners = notifications.filter((notification) => notification.type === 'saturday_dinner')
+  const unreadPumpOuts = notifications.filter((notification) => notification.type === 'sewer_pump_out')
+  const openPumpOuts = pumpOuts.filter((request) => request.status !== 'cancelled' && !request.billed_at)
+  const waitingPumpOuts = openPumpOuts.filter((request) => request.status !== 'completed')
   const pendingDocuments = documents.filter((document) => {
     const status = String(document.signature_status || '').toLowerCase()
     return status !== 'signed' && status !== 'not_required'
@@ -169,6 +176,17 @@ export async function GET(request: Request) {
       href: '/admin/open-balance',
     }),
     item({
+      id: 'pump-outs',
+      label: 'Sewer pump-outs',
+      status: waitingPumpOuts.length ? 'action' : openPumpOuts.length ? 'warning' : 'ready',
+      detail: waitingPumpOuts.length
+        ? `${waitingPumpOuts.length} pump-out request${waitingPumpOuts.length === 1 ? '' : 's'} waiting for service.`
+        : openPumpOuts.length
+          ? `${openPumpOuts.length} completed pump-out charge${openPumpOuts.length === 1 ? '' : 's'} waiting to be billed.`
+          : 'No sewer pump-out requests waiting.',
+      href: '/admin/pump-outs',
+    }),
+    item({
       id: 'documents',
       label: 'Documents & signatures',
       status: pendingDocuments.length ? 'warning' : 'ready',
@@ -212,6 +230,8 @@ export async function GET(request: Request) {
       maintenance: unreadMaintenance.length,
       payments: unreadPayments.length,
       rsvps: unreadRsvps.length,
+      dinners: unreadDinners.length,
+      pumpOuts: unreadPumpOuts.length,
       total: notifications.length,
     },
     groups: [

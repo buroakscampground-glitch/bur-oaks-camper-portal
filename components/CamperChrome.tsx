@@ -47,7 +47,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
       <div className="camper-workspace-content">{children}</div>
       <footer className="camper-workspace-footer">
         <span><MapPin size={13} /> Bur Oaks Campground</span>
-        <span><a href="/privacy" rel="noreferrer" target="_blank">Privacy</a> · <a href="/terms" rel="noreferrer" target="_blank">Terms</a></span>
+        <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
       </footer>
     </div>
   )
