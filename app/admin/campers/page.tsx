@@ -269,7 +269,7 @@ export default function AdminCampersPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ batchSize: 25 }),
+        body: JSON.stringify({ batchSize: 50 }),
       })
 
       const result = await response.json()
@@ -320,7 +320,7 @@ export default function AdminCampersPage() {
         <div>
           <strong>Bulk portal invitations</strong>
         <span>
-          Send password setup emails in batches of 25. Accepted accounts and campers emailed recently are skipped automatically.
+          Send password setup emails in batches of 50. Accepted accounts and campers emailed recently are skipped automatically.
           {' '}Accepted: {Object.values(portalStatuses).filter((status) => status === 'accepted').length} · Pending: {Object.values(portalStatuses).filter((status) => status === 'pending').length}
         </span>
         </div>

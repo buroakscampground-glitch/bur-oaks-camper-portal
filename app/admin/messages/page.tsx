@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Bell, CheckCircle2, Mail, MessageCircle, Search, Send, UserRound } from 'lucide-react'
+import { Bell, CheckCircle2, Mail, MessageCircle, Search, Send, UserRound, UsersRound, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 function formatMessageTime(value?: string) {
@@ -24,6 +24,7 @@ export default function AdminMessagesPage() {
   const [messages, setMessages] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [draft, setDraft] = useState('')
+  const [selectedCamperIds, setSelectedCamperIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
@@ -89,7 +90,9 @@ export default function AdminMessagesPage() {
 
   async function sendMessage() {
     const text = draft.trim()
-    if (!text || !selectedCamperId) return
+    const bulkMode = selectedCamperIds.length > 0
+
+    if (!text || (!selectedCamperId && !bulkMode)) return
 
     setSending(true)
     setNotice('')
@@ -100,22 +103,34 @@ export default function AdminMessagesPage() {
         'Content-Type': 'application/json',
         ...(await authHeaders()),
       },
-      body: JSON.stringify({ camperId: selectedCamperId, message: text }),
+      body: JSON.stringify(
+        bulkMode
+          ? { camperIds: selectedCamperIds, message: text }
+          : { camperId: selectedCamperId, message: text }
+      ),
     })
     const result = await response.json().catch(() => ({}))
 
     if (!response.ok) {
-      setNotice(result.error || 'Unable to send reply.')
+      setNotice(result.error || (bulkMode ? 'Unable to send mass message.' : 'Unable to send reply.'))
     } else {
       setDraft('')
-      setMessages((current) => [...current, result.message])
-      setNotice(
-        result.emailStatus === 'failed'
-          ? `Reply saved, but camper email failed: ${result.emailMessage || 'unknown error'}`
-          : result.emailStatus === 'skipped'
-            ? `Reply saved. Camper email skipped: ${result.emailMessage || 'not configured'}`
-            : 'Reply sent and camper email alert triggered.'
-      )
+      if (bulkMode) {
+        setSelectedCamperIds([])
+        setNotice(
+          `Mass message sent to ${result.sentCount || selectedCamperIds.length} camper${Number(result.sentCount || selectedCamperIds.length) === 1 ? '' : 's'}. ` +
+          `Email alerts: ${result.emailSentCount || 0} sent, ${result.emailSkippedCount || 0} skipped, ${result.emailFailedCount || 0} failed.`
+        )
+      } else {
+        setMessages((current) => [...current, result.message])
+        setNotice(
+          result.emailStatus === 'failed'
+            ? `Reply saved, but camper email failed: ${result.emailMessage || 'unknown error'}`
+            : result.emailStatus === 'skipped'
+              ? `Reply saved. Camper email skipped: ${result.emailMessage || 'not configured'}`
+              : 'Reply sent and camper email alert triggered.'
+        )
+      }
       loadConversations()
     }
 
@@ -132,6 +147,25 @@ export default function AdminMessagesPage() {
   }, [conversations, search])
 
   const unreadTotal = conversations.reduce((sum, conversation) => sum + Number(conversation.unreadCount || 0), 0)
+  const selectedBulkCount = selectedCamperIds.length
+  const selectedBulkCampers = conversations.filter((conversation) => selectedCamperIds.includes(String(conversation.camper.id)))
+  const selectedBulkLabel = selectedBulkCount > 0
+    ? `Mass message to ${selectedBulkCount} camper${selectedBulkCount === 1 ? '' : 's'}`
+    : selectedConversation
+      ? `Reply to ${camperName(selectedConversation.camper)}`
+      : 'Choose a camper'
+
+  function toggleCamperSelection(camperId: string) {
+    setSelectedCamperIds((current) => (
+      current.includes(camperId)
+        ? current.filter((id) => id !== camperId)
+        : [...current, camperId]
+    ))
+  }
+
+  function selectAllVisible() {
+    setSelectedCamperIds(Array.from(new Set(filteredConversations.map((conversation) => String(conversation.camper.id)))))
+  }
 
   return (
     <main className="office-inbox-page admin">
@@ -154,6 +188,17 @@ export default function AdminMessagesPage() {
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search camper, lot, or email" />
           </label>
 
+          <div className="office-bulk-toolbar">
+            <button type="button" onClick={selectAllVisible} disabled={filteredConversations.length === 0}>
+              <UsersRound size={15} /> Select all visible
+            </button>
+            {selectedBulkCount > 0 && (
+              <button type="button" onClick={() => setSelectedCamperIds([])}>
+                <X size={15} /> Clear {selectedBulkCount}
+              </button>
+            )}
+          </div>
+
           <div className="office-conversations">
             {loading ? (
               <p className="office-message-empty">Opening inbox…</p>
@@ -163,21 +208,29 @@ export default function AdminMessagesPage() {
               filteredConversations.map((conversation) => {
                 const camper = conversation.camper
                 const selected = String(camper.id) === String(selectedCamperId)
+                const checked = selectedCamperIds.includes(String(camper.id))
 
                 return (
-                  <button
-                    type="button"
-                    className={selected ? 'selected' : ''}
-                    onClick={() => setSelectedCamperId(camper.id)}
+                  <article
+                    className={`office-conversation-row ${selected ? 'selected' : ''} ${checked ? 'checked' : ''}`}
                     key={camper.id}
                   >
-                    <span><UserRound size={17} /></span>
-                    <div>
-                      <strong>Lot {camper.lot_number || '—'} · {camperName(camper)}</strong>
-                      <small>{conversation.lastMessage?.body || camper.email || 'No messages yet'}</small>
-                    </div>
-                    {conversation.unreadCount > 0 && <em>{conversation.unreadCount}</em>}
-                  </button>
+                    <label className="office-conversation-check" aria-label={`Select ${camperName(camper)}`}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCamperSelection(String(camper.id))}
+                      />
+                    </label>
+                    <button type="button" className="office-conversation-open" onClick={() => setSelectedCamperId(camper.id)}>
+                      <span><UserRound size={17} /></span>
+                      <div>
+                        <strong>Lot {camper.lot_number || '—'} · {camperName(camper)}</strong>
+                        <small>{conversation.lastMessage?.body || camper.email || 'No messages yet'}</small>
+                      </div>
+                      {conversation.unreadCount > 0 && <em>{conversation.unreadCount}</em>}
+                    </button>
+                  </article>
                 )
               })
             )}
@@ -188,13 +241,25 @@ export default function AdminMessagesPage() {
           <div className="office-inbox-thread-header">
             <div>
               <small>Lot {selectedConversation?.camper?.lot_number || '—'}</small>
-              <h2>{selectedConversation ? camperName(selectedConversation.camper) : 'Choose a camper'}</h2>
+              <h2>{selectedBulkLabel}</h2>
             </div>
-            <span><Mail size={16} /> Email alert on reply</span>
+            <span><Mail size={16} /> Email alert on send</span>
           </div>
 
+          {selectedBulkCount > 0 && (
+            <div className="office-bulk-summary">
+              <CheckCircle2 size={17} />
+              <span>
+                Selected: {selectedBulkCampers.slice(0, 4).map((conversation) => `Lot ${conversation.camper.lot_number || '—'}`).join(', ')}
+                {selectedBulkCount > 4 ? `, and ${selectedBulkCount - 4} more` : ''}
+              </span>
+            </div>
+          )}
+
           <div className="office-message-list">
-            {!selectedCamperId ? (
+            {selectedBulkCount > 0 ? (
+              <p className="office-message-empty">You are sending one office message to all selected campers. Individual conversation history will stay in each camper thread.</p>
+            ) : !selectedCamperId ? (
               <p className="office-message-empty">Choose a camper conversation to begin.</p>
             ) : messages.length === 0 ? (
               <p className="office-message-empty">No messages with this camper yet. Send the first note.</p>
@@ -212,12 +277,12 @@ export default function AdminMessagesPage() {
             <textarea
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
-              placeholder={selectedCamperId ? 'Type your reply to this camper…' : 'Choose a camper first…'}
-              disabled={!selectedCamperId}
+              placeholder={selectedBulkCount > 0 ? 'Type the message for the selected campers…' : selectedCamperId ? 'Type your reply to this camper…' : 'Choose a camper first…'}
+              disabled={!selectedCamperId && selectedBulkCount === 0}
               rows={4}
             />
-            <button type="button" onClick={sendMessage} disabled={sending || !draft.trim() || !selectedCamperId}>
-              <Send size={16} /> {sending ? 'Sending…' : 'Send reply'}
+            <button type="button" onClick={sendMessage} disabled={sending || !draft.trim() || (!selectedCamperId && selectedBulkCount === 0)}>
+              <Send size={16} /> {sending ? 'Sending…' : selectedBulkCount > 0 ? `Send to ${selectedBulkCount}` : 'Send reply'}
             </button>
           </div>
 

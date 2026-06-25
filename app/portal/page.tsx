@@ -143,6 +143,7 @@ export default function CamperPortalPage() {
   const [alerts, setAlerts] = useState<any[]>([])
   const [maintenanceTickets, setMaintenanceTickets] = useState<any[]>([])
   const [latestElectric, setLatestElectric] = useState<any>(null)
+  const [unreadOfficeMessages, setUnreadOfficeMessages] = useState(0)
   const [loading, setLoading] = useState(true)
   const [pumpMessage, setPumpMessage] = useState('')
   const [requestingPump, setRequestingPump] = useState(false)
@@ -179,7 +180,7 @@ export default function CamperPortalPage() {
         setCamper(camperData)
 
         const today = new Date().toISOString().split('T')[0]
-        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult] =
+        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult] =
           await Promise.all([
             supabase
               .from('invoices')
@@ -219,6 +220,12 @@ export default function CamperPortalPage() {
               .eq('lot_number', camperData.lot_number)
               .order('created_at', { ascending: false })
               .limit(5),
+            supabase
+              .from('office_messages')
+              .select('id', { count: 'exact', head: true })
+              .eq('camper_id', camperData.id)
+              .eq('sender_role', 'admin')
+              .is('read_by_camper_at', null),
           ])
 
         setInvoices(invoiceResult.data || [])
@@ -228,6 +235,7 @@ export default function CamperPortalPage() {
         setAnnouncements(announcementResult.data || [])
         setAlerts(alertResult.data || [])
         setMaintenanceTickets(maintenanceResult.data || [])
+        setUnreadOfficeMessages(messageResult.count || 0)
       } catch (error) {
         console.error('Unable to load camper portal:', error)
       } finally {
@@ -466,6 +474,12 @@ export default function CamperPortalPage() {
             <span><Sparkles size={16} /> {formatFriendlyToday()}</span>
             <h2>Lot {camper?.lot_number || '—'} is ready for the weekend.</h2>
             <p>{portalMood}. Weather, billing, documents, dinners, and requests are all gathered here so you do not have to hunt around.</p>
+            {unreadOfficeMessages > 0 && (
+              <a className="portal-office-message-alert" href="/messages">
+                <span><MessageCircle size={17} /> New message from office</span>
+                <strong>{unreadOfficeMessages}</strong>
+              </a>
+            )}
             <div className="portal-arrival-actions">
               <a href={weekendFocus.href}>{weekendFocus.action} <ArrowRight size={16} /></a>
               <a href="/dinners">Saturday dinners</a>
@@ -533,11 +547,11 @@ export default function CamperPortalPage() {
               <strong>{activeMaintenance.length ? `${activeMaintenance.length} active` : 'Request help'}</strong>
             </span>
           </a>
-          <a href="/messages">
+          <a className={unreadOfficeMessages > 0 ? 'attention' : ''} href="/messages">
             <MessageCircle size={20} />
             <span>
-              <small>Messages</small>
-              <strong>Contact office</strong>
+              <small>{unreadOfficeMessages > 0 ? 'New office message' : 'Messages'}</small>
+              <strong>{unreadOfficeMessages > 0 ? `${unreadOfficeMessages} unread` : 'Contact office'}</strong>
             </span>
           </a>
           <a href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>

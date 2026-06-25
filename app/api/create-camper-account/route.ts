@@ -37,7 +37,7 @@ async function generateSetupUrl(context: any, email: string, origin: string) {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'camper-invite', 10, 10 * 60_000)
+  const rateLimit = checkRateLimit(request, 'camper-invite', 30, 10 * 60_000)
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many invitation attempts. Please wait before trying again.' },

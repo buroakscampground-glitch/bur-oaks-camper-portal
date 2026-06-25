@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json().catch(() => ({}))
-    const batchSize = Math.min(Math.max(Number(body.batchSize) || 25, 1), 50)
+    const batchSize = Math.min(Math.max(Number(body.batchSize) || 50, 1), 50)
     const origin = getSiteUrl()
 
     const [{ data: campers, error: camperError }, { data: logs }] = await Promise.all([
