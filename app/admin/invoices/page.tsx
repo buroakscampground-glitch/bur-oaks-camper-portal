@@ -13,6 +13,7 @@ import {
   ReceiptText,
   Search,
   Sparkles,
+  Trash2,
   UserRound,
   WalletCards,
 } from 'lucide-react'
@@ -48,6 +49,7 @@ export default function AdminInvoicesPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState('')
 
   async function loadInvoices() {
     const { data } = await supabase
@@ -140,6 +142,41 @@ export default function AdminInvoicesPage() {
       setMessage(error.message || 'Unable to create invoice.')
     } finally {
       setCreating(false)
+    }
+  }
+
+  async function deleteInvoice(invoice: any) {
+    const camperName = `${invoice.campers?.first_name || ''} ${invoice.campers?.last_name || ''}`.trim()
+    const confirmed = confirm(
+      `Delete invoice #${invoice.invoice_number} for ${camperName || `Lot ${invoice.campers?.lot_number || '—'}`}?\n\nThis permanently removes the invoice and its itemized charges.`
+    )
+
+    if (!confirmed) return
+
+    setDeletingInvoiceId(invoice.id)
+    setMessage('')
+
+    try {
+      const { error: itemError } = await supabase
+        .from('invoice_items')
+        .delete()
+        .eq('invoice_id', invoice.id)
+
+      if (itemError) throw itemError
+
+      const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoice.id)
+
+      if (error) throw error
+
+      setMessage(`Invoice #${invoice.invoice_number} deleted.`)
+      await loadInvoices()
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to delete invoice.')
+    } finally {
+      setDeletingInvoiceId('')
     }
   }
 
@@ -270,7 +307,7 @@ export default function AdminInvoicesPage() {
               {visibleInvoices.map((invoice) => {
                 const isPaid = invoice.status === 'paid'
                 return (
-                  <a className="admin-invoice-record" href={`/admin/invoices/${invoice.id}`} key={invoice.id}>
+                  <article className="admin-invoice-record" key={invoice.id}>
                     <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : 'open'}`}>
                       {isPaid ? <CheckCircle2 size={20} /> : <ReceiptText size={20} />}
                     </span>
@@ -281,8 +318,13 @@ export default function AdminInvoicesPage() {
                     </span>
                     <span className="admin-invoice-record-date"><CalendarDays size={14} /><span><small>Due</small><strong>{formatDate(invoice.due_date)}</strong></span></span>
                     <span className="admin-invoice-record-total"><strong>{formatMoney(invoice.total_due)}</strong><em className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</em></span>
-                    <ArrowRight className="admin-invoice-record-arrow" size={18} />
-                  </a>
+                    <span className="admin-invoice-record-actions">
+                      <a href={`/admin/invoices/${invoice.id}`}>View <ArrowRight size={14} /></a>
+                      <button type="button" onClick={() => deleteInvoice(invoice)} disabled={deletingInvoiceId === invoice.id}>
+                        <Trash2 size={14} /> {deletingInvoiceId === invoice.id ? 'Deleting…' : 'Delete'}
+                      </button>
+                    </span>
+                  </article>
                 )
               })}
             </div>

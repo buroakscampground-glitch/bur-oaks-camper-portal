@@ -15,6 +15,7 @@ import {
   LogOut,
   Map,
   Megaphone,
+  MessageCircle,
   ReceiptText,
   Rocket,
   ShieldCheck,
@@ -52,6 +53,7 @@ type AdminStats = {
   insuranceMissing: number
   pumpOuts: number
   pumpOutAlerts: number
+  messageAlerts: number
   totalUnreadAlerts: number
 }
 
@@ -78,6 +80,7 @@ const emptyStats: AdminStats = {
   insuranceMissing: 0,
   pumpOuts: 0,
   pumpOutAlerts: 0,
+  messageAlerts: 0,
   totalUnreadAlerts: 0,
 }
 
@@ -128,6 +131,7 @@ export default function AdminPage() {
       notificationResult,
       documentResult,
       pumpOutResult,
+      messageResult,
     ] = await Promise.all([
       supabase.from('campers').select('id').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
@@ -141,6 +145,7 @@ export default function AdminPage() {
       supabase.from('admin_notifications').select('id,type').is('read_at', null),
       supabase.from('documents').select('id,document_type,signature_status,camper_id'),
       supabase.from('sewer_pump_out_requests').select('id,status,billed_at'),
+      supabase.from('office_messages').select('id').eq('sender_role', 'camper').is('read_by_admin_at', null),
     ])
 
     const invoices = invoicesResult.data || []
@@ -185,6 +190,7 @@ export default function AdminPage() {
       paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
       rsvpAlerts: notifications.filter((notification) => notification.type === 'event_rsvp').length,
       pumpOutAlerts: notifications.filter((notification) => notification.type === 'sewer_pump_out').length,
+      messageAlerts: messageResult.data?.length || notifications.filter((notification) => notification.type === 'direct_message').length,
       documentActions: documents.filter((document) => {
         const status = String(document.signature_status || '').toLowerCase()
         return status !== 'signed' && status !== 'not_required'
@@ -294,6 +300,7 @@ export default function AdminPage() {
     { href: '/admin/dinners', title: 'Saturday Dinners', detail: 'Menu & potluck', icon: Soup },
     { href: '/admin/rsvps', title: 'RSVPs', detail: `${stats.rsvps} responses`, alertCount: stats.rsvpAlerts, alertLabel: 'new RSVP alert', alertType: 'event_rsvp', icon: UsersRound },
     { href: '/admin/announcements', title: 'Announcements', detail: `${stats.announcements} active`, icon: Megaphone },
+    { href: '/admin/messages', title: 'Messages', detail: `${stats.messageAlerts} unread`, alertCount: stats.messageAlerts, alertLabel: 'new message', icon: MessageCircle },
     { href: '/admin/notifications', title: 'Notifications', detail: `${stats.totalUnreadAlerts} unread`, alertCount: stats.totalUnreadAlerts, alertLabel: 'new notification', icon: BellRing },
     { href: '/admin/texts', title: 'Text Alerts', detail: 'Camper notices', icon: BellRing },
     { href: '/admin/documents', title: 'Documents', detail: `${stats.documentActions} need signatures`, icon: FileText },

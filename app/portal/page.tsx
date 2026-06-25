@@ -17,6 +17,7 @@ import {
   LogOut,
   MapPin,
   Megaphone,
+  MessageCircle,
   ReceiptText,
   ShieldCheck,
   Soup,
@@ -88,6 +89,13 @@ const serviceLinks = [
     description: 'Update contact info and upload golf cart insurance.',
     icon: UserRound,
     accent: 'slate',
+  },
+  {
+    href: '/messages',
+    title: 'Message the Office',
+    description: 'Send a private note to Bur Oaks and see replies.',
+    icon: MessageCircle,
+    accent: 'blue',
   },
   {
     href: '/directory',
@@ -523,6 +531,13 @@ export default function CamperPortalPage() {
             <span>
               <small>Maintenance</small>
               <strong>{activeMaintenance.length ? `${activeMaintenance.length} active` : 'Request help'}</strong>
+            </span>
+          </a>
+          <a href="/messages">
+            <MessageCircle size={20} />
+            <span>
+              <small>Messages</small>
+              <strong>Contact office</strong>
             </span>
           </a>
           <a href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>

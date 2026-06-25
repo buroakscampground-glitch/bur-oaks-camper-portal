@@ -17,6 +17,7 @@ const pageNames: Record<string, string> = {
   announcements: 'Announcements',
   texts: 'Text Alerts',
   notifications: 'Notifications',
+  messages: 'Camper Messages',
   documents: 'Documents',
   map: 'Campground Map',
   launch: 'Launch Checklist',

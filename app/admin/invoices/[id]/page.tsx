@@ -33,7 +33,17 @@ export default function InvoiceDetailPage() {
     setLoading(false)
   }
 async function deleteInvoice() {
-  if (!confirm('Delete this invoice permanently?')) {
+  if (!confirm('Delete this invoice permanently? This also removes its itemized charge lines.')) {
+    return
+  }
+
+  const { error: itemError } = await supabase
+    .from('invoice_items')
+    .delete()
+    .eq('invoice_id', invoice.id)
+
+  if (itemError) {
+    alert(itemError.message)
     return
   }
 
