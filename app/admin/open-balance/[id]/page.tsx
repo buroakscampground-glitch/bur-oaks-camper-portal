@@ -1,15 +1,35 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { ArrowLeft, CheckCircle2, ClipboardCopy, Printer, ReceiptText, Trash2, WalletCards } from "lucide-react"
+import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
 
-import { useParams } from "next/navigation"
+function formatMoney(value: unknown) {
+  return Number(value || 0).toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+  })
+}
+
+function formatDate(value?: string) {
+  if (!value) return "—"
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })
+}
 
 export default function CamperBalancePage() {
   const params = useParams()
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
   const [totalDue, setTotalDue] = useState(0)
+  const [message, setMessage] = useState("")
+  const [busyInvoiceId, setBusyInvoiceId] = useState("")
 
   useEffect(() => {
     loadData()
@@ -32,76 +52,74 @@ export default function CamperBalancePage() {
       .eq("camper_id", camperId)
       .neq("status", "paid")
       .order("due_date")
-    setInvoices(invoiceData || [])
 
-    setTotalDue(
-      (invoiceData || []).reduce(
-        (sum, invoice) =>
-          sum + Number(invoice.total_due || 0),
-        0
-      )
-    )
+    const openInvoices = invoiceData || []
+    setInvoices(openInvoices)
+    setTotalDue(openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0))
   }
+
   async function markPaid(invoiceId: string) {
-  const confirmed = window.confirm(
-    "Mark this invoice as paid?"
-  )
+    const confirmed = window.confirm("Mark this invoice as paid?")
+    if (!confirmed) return
 
-  if (!confirmed) return
+    setBusyInvoiceId(invoiceId)
+    const { error } = await supabase
+      .from("invoices")
+      .update({ status: "paid" })
+      .eq("id", invoiceId)
 
-  const { error } = await supabase
-    .from("invoices")
-    .update({
-      status: "paid",
-    })
-    .eq("id", invoiceId)
+    setBusyInvoiceId("")
 
-  if (error) {
-    alert(error.message)
-    return
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    setMessage("Invoice marked paid.")
+    await loadData()
   }
 
-  await loadData()
+  async function deleteInvoice(invoice: any) {
+    const confirmed = window.confirm(
+      `Delete invoice #${invoice.invoice_number} permanently?\n\nThis removes the invoice and its itemized charge lines.`
+    )
 
-  alert("Invoice marked paid!")
-}
+    if (!confirmed) return
 
-async function deleteInvoice(invoice: any) {
-  const confirmed = window.confirm(
-    `Delete invoice #${invoice.invoice_number} permanently?\n\nThis removes the invoice and its itemized charge lines.`
-  )
+    setBusyInvoiceId(invoice.id)
 
-  if (!confirmed) return
+    const { error: itemError } = await supabase
+      .from("invoice_items")
+      .delete()
+      .eq("invoice_id", invoice.id)
 
-  const { error: itemError } = await supabase
-    .from("invoice_items")
-    .delete()
-    .eq("invoice_id", invoice.id)
+    if (itemError) {
+      setBusyInvoiceId("")
+      setMessage(itemError.message)
+      return
+    }
 
-  if (itemError) {
-    alert(itemError.message)
-    return
+    const { error } = await supabase
+      .from("invoices")
+      .delete()
+      .eq("id", invoice.id)
+
+    setBusyInvoiceId("")
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    setMessage("Invoice deleted.")
+    await loadData()
   }
 
-  const { error } = await supabase
-    .from("invoices")
-    .delete()
-    .eq("id", invoice.id)
-
-  if (error) {
-    alert(error.message)
-    return
-  }
-
-  await loadData()
-  alert("Invoice deleted.")
-}
-
-function sendReminder() {
-  const message = `
+  function sendReminder() {
+    const text = `
 Hello ${camper?.first_name || ""},
 
-This is a reminder that your Bur Oaks Campground account currently has an outstanding balance of $${totalDue.toFixed(2)}.
+This is a reminder that your Bur Oaks Campground account currently has an outstanding balance of ${formatMoney(totalDue)}.
 
 Please contact the office if you have any questions regarding your account.
 
@@ -109,194 +127,84 @@ Thank you,
 Bur Oaks Campground
 `
 
-  navigator.clipboard.writeText(message)
-
-  alert("Reminder copied to clipboard!")
-}
-  return (
-    <main
-      style={{
-        padding: "40px",
-        maxWidth: "1200px",
-        margin: "0 auto",
-      }}
-    >
-      <button
-  onClick={() =>
-    (window.location.href = "/admin/open-balance")
+    navigator.clipboard.writeText(text.trim())
+    setMessage("Reminder copied to clipboard.")
   }
-  style={{
-    marginRight: "10px",
-  }}
->
-  ← Back to Open Balances
-</button>
 
-<button
-  onClick={() => window.print()}
-  style={{
-    background: "#2563eb",
-    color: "white",
-    border: "none",
-    padding: "10px 16px",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  }}
->
-  🖨 Print Statement
-</button>
-<button
-  onClick={() => sendReminder()}
-  style={{
-    marginLeft: "10px",
-    background: "#ea580c",
-    color: "white",
-    border: "none",
-    padding: "10px 16px",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "bold",
-  }}
->
-  📧 Send Reminder
-</button>
-<div
-  style={{
-    textAlign: "center",
-    marginBottom: "30px",
-  }}
->
-  <h1>Bur Oaks Campground</h1>
-  <h2>Account Statement</h2>
-</div>
-      <h1>
-        {camper?.first_name} {camper?.last_name}
-      </h1>
+  const camperName = `${camper?.first_name || ""} ${camper?.last_name || ""}`.trim() || "Camper"
+  const oldestDue = invoices[0]?.due_date
+  const lateInvoices = invoices.filter((invoice) => {
+    if (!invoice.due_date) return false
+    const due = new Date(`${invoice.due_date}T12:00:00`)
+    return due < new Date()
+  })
 
-      <h2>
-        Lot {camper?.lot_number}
-      </h2>
+  return (
+    <main className="admin-open-balance-page admin-open-detail-page">
+      <section className="admin-open-detail-hero">
+        <a href="/admin/open-balance"><ArrowLeft size={17} /> Back to Open Balances</a>
+        <div>
+          <span><WalletCards size={18} /> ACCOUNT STATEMENT</span>
+          <h1>{camperName}</h1>
+          <p>Lot {camper?.lot_number || "—"} · Review open invoices, print a statement, copy a reminder, mark paid, or delete incorrect invoices.</p>
+        </div>
+        <div className="admin-open-detail-actions">
+          <button type="button" onClick={() => window.print()}><Printer size={16} /> Print</button>
+          <button type="button" onClick={sendReminder}><ClipboardCopy size={16} /> Copy reminder</button>
+        </div>
+      </section>
 
-      <div
-        style={{
-          background: "white",
-          padding: "20px",
-          borderRadius: "12px",
-          marginBottom: "20px",
-          boxShadow: "0 2px 10px rgba(0,0,0,.1)",
-        }}
-      >
-        <h2>Total Outstanding</h2>
+      <section className="admin-open-detail-stats">
+        <article><small>Total outstanding</small><strong>{formatMoney(totalDue)}</strong><em>Open balance</em></article>
+        <article><small>Open invoices</small><strong>{invoices.length}</strong><em>Awaiting payment</em></article>
+        <article><small>Oldest due date</small><strong>{formatDate(oldestDue)}</strong><em>First unpaid due date</em></article>
+        <article className={lateInvoices.length ? "attention" : ""}><small>Past due</small><strong>{lateInvoices.length}</strong><em>{lateInvoices.length ? "Needs attention" : "None past due"}</em></article>
+      </section>
 
-        <h1
-          style={{
-            color: "#dc2626",
-          }}
-        >
-          ${totalDue.toFixed(2)}
-        </h1>
-      </div>
+      <section className="admin-open-statement-card">
+        <div className="admin-open-statement-heading">
+          <div>
+            <span><ReceiptText size={16} /> BUR OAKS CAMPGROUND</span>
+            <h2>Open invoice statement</h2>
+            <p>{camperName} · Lot {camper?.lot_number || "—"}</p>
+          </div>
+          <strong>{formatMoney(totalDue)}</strong>
+        </div>
 
-      <table
-        style={{
-          width: "100%",
-          borderCollapse: "collapse",
-          background: "white",
-          boxShadow: "0 2px 10px rgba(0,0,0,.1)",
-        }}
-      >
-        <thead>
-          <tr
-            style={{
-              background: "#111827",
-              color: "white",
-            }}
-          >
-            <th style={{ padding: "12px" }}>
-              Invoice #
-            </th>
+        {invoices.length === 0 ? (
+          <div className="admin-open-empty">
+            <CheckCircle2 size={34} />
+            <h2>No open invoices</h2>
+            <p>This camper does not currently have an outstanding balance.</p>
+          </div>
+        ) : (
+          <div className="admin-open-invoice-list">
+            {invoices.map((invoice) => (
+              <article key={invoice.id}>
+                <div className="admin-open-invoice-main">
+                  <small>Invoice #{invoice.invoice_number}</small>
+                  <h3>{invoice.invoice_type || "Campground invoice"}</h3>
+                  <p>Due {formatDate(invoice.due_date)} · Status: {invoice.status || "sent"}</p>
+                </div>
+                <div className="admin-open-invoice-amount">
+                  <strong>{formatMoney(invoice.total_due)}</strong>
+                  <span>{invoice.status || "sent"}</span>
+                </div>
+                <div className="admin-open-invoice-actions">
+                  <button type="button" onClick={() => markPaid(invoice.id)} disabled={busyInvoiceId === invoice.id}>
+                    <CheckCircle2 size={15} /> Mark paid
+                  </button>
+                  <button className="danger" type="button" onClick={() => deleteInvoice(invoice)} disabled={busyInvoiceId === invoice.id}>
+                    <Trash2 size={15} /> Delete
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
-            <th style={{ padding: "12px" }}>
-              Type
-            </th>
-
-            <th style={{ padding: "12px" }}>
-              Amount
-            </th>
-
-            <th style={{ padding: "12px" }}>
-              Due Date
-            </th>
-
-            <th style={{ padding: "12px" }}>
-              Status
-            </th>
-
-            <th style={{ padding: "12px" }}>
-              Actions
-            </th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {invoices.map((invoice) => (
-            <tr key={invoice.id}>
-              <td style={{ padding: "12px" }}>
-                {invoice.invoice_number}
-              </td>
-
-              <td style={{ padding: "12px" }}>
-                {invoice.invoice_type}
-              </td>
-
-              <td style={{ padding: "12px" }}>
-                ${Number(invoice.total_due).toFixed(2)}
-              </td>
-
-              <td style={{ padding: "12px" }}>
-                {invoice.due_date}
-              </td>
-
-              <td style={{ padding: "12px" }}>
-  {invoice.status}
-
-  <button
-    onClick={() => markPaid(invoice.id)}
-    style={{
-      marginLeft: "10px",
-      background: "#16a34a",
-      color: "white",
-      border: "none",
-      padding: "6px 10px",
-      borderRadius: "6px",
-      cursor: "pointer",
-    }}
-  >
-    Mark Paid
-  </button>
-</td>
-
-              <td style={{ padding: "12px" }}>
-                <button
-                  onClick={() => deleteInvoice(invoice)}
-                  style={{
-                    background: "#dc2626",
-                    color: "white",
-                    border: "none",
-                    padding: "6px 10px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    fontWeight: "bold",
-                  }}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {message && <p className="admin-open-detail-message">{message}</p>}
     </main>
   )
 }

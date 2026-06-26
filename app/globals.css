@@ -8064,6 +8064,8 @@ tbody tr:hover {
   font-size: 12px;
 }
 
+.admin-open-detail-page{display:grid;gap:20px}.admin-open-detail-hero{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:18px;max-width:1220px;margin:0 auto;padding:34px;border-radius:28px;background:radial-gradient(circle at 88% 12%,rgba(230,202,127,.22),transparent 28%),linear-gradient(135deg,#173722,#315f3d);color:#fff;box-shadow:0 22px 60px rgba(35,60,42,.18)}.admin-open-detail-hero>a{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 13px;border:1px solid rgba(255,255,255,.24);border-radius:999px;background:rgba(255,255,255,.12);color:#fff;font-size:12px;font-weight:900;text-decoration:none}.admin-open-detail-hero span,.admin-open-statement-heading span{display:inline-flex;align-items:center;gap:8px;color:#e6ca7f;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.admin-open-detail-hero h1{margin:10px 0 0;color:#fff;font:500 clamp(38px,5vw,62px)/1.02 Georgia,serif;letter-spacing:-.04em}.admin-open-detail-hero p{max-width:780px;margin:13px 0 0;color:rgba(255,255,255,.84);line-height:1.6}.admin-open-detail-actions{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end}.admin-open-detail-actions button{display:inline-flex;align-items:center;gap:8px;min-height:41px;border:0!important;background:#fff!important;color:#315f3d!important;font-size:12px;font-weight:900}.admin-open-detail-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;max-width:1220px;margin:0 auto}.admin-open-detail-stats article{padding:18px;border:1px solid #dfddd3;border-radius:18px;background:#fff;box-shadow:0 10px 28px rgba(34,54,38,.07)}.admin-open-detail-stats article.attention{border-color:#e1b7ad;background:#fff3f0}.admin-open-detail-stats small{color:#899188;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.admin-open-detail-stats strong{display:block;margin-top:4px;color:#253b2d;font:500 30px Georgia,serif}.admin-open-detail-stats em{display:block;margin-top:3px;color:#79847c;font-size:10px;font-style:normal}.admin-open-statement-card{overflow:hidden;max-width:1220px;margin:0 auto;border:1px solid #dfddd3;border-radius:24px;background:#fff;box-shadow:0 16px 40px rgba(34,54,38,.08)}.admin-open-statement-heading{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:24px;border-bottom:1px solid #e8e4da;background:linear-gradient(135deg,#fffdf7,#f5f0e4)}.admin-open-statement-heading h2{margin:8px 0 0;color:#263d2e;font:500 34px Georgia,serif}.admin-open-statement-heading p{margin:5px 0 0;color:#68746c}.admin-open-statement-heading strong{color:#a43e32;font:500 40px Georgia,serif}.admin-open-invoice-list{display:grid}.admin-open-invoice-list article{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:16px;align-items:center;padding:18px 22px;border-bottom:1px solid #ebe7dd}.admin-open-invoice-list article:last-child{border-bottom:0}.admin-open-invoice-main small{color:#8a938c;font-size:9px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.admin-open-invoice-main h3{margin:5px 0 0;color:#263d2e;font-size:18px}.admin-open-invoice-main p{margin:5px 0 0;color:#667168;font-size:12px}.admin-open-invoice-amount{display:grid;justify-items:end;gap:5px}.admin-open-invoice-amount strong{color:#263d2e;font:500 25px Georgia,serif}.admin-open-invoice-amount span{padding:6px 9px;border-radius:999px;background:#fff0d4;color:#80571d;font-size:9px;font-weight:900;text-transform:uppercase}.admin-open-invoice-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}.admin-open-invoice-actions button{display:inline-flex;align-items:center;gap:7px;min-height:37px;font-size:11px}.admin-open-invoice-actions button.danger{background:#f8e2e1!important;color:#9d3e37!important}.admin-open-detail-message{position:fixed;right:22px;bottom:22px;z-index:1000;margin:0;padding:12px 15px;border-radius:12px;background:#263d2e;color:#fff;font-size:12px;box-shadow:0 12px 30px rgba(38,61,46,.24)}
+
 @media(max-width: 980px) {
   .camper-documents-grid,
   .camper-maintenance-layout,
@@ -8105,6 +8107,22 @@ tbody tr:hover {
     justify-content: center;
     grid-column: 1 / -1;
   }
+
+  .admin-open-detail-hero,
+  .admin-open-invoice-list article {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-open-detail-actions,
+  .admin-open-invoice-actions,
+  .admin-open-invoice-amount {
+    justify-content: start;
+    justify-items: start;
+  }
+
+  .admin-open-detail-stats {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
 }
 
 @media(max-width: 640px) {
@@ -8134,8 +8152,19 @@ tbody tr:hover {
   .camper-maintenance-stats,
   .camper-documents-summary,
   .camper-events-overview,
-  .admin-open-balance-stats {
+  .admin-open-balance-stats,
+  .admin-open-detail-stats {
     grid-template-columns: 1fr;
+  }
+
+  .admin-open-detail-hero,
+  .admin-open-statement-heading {
+    padding: 22px;
+    border-radius: 22px;
+  }
+
+  .admin-open-detail-hero h1 {
+    font-size: 38px;
   }
 
   .camper-event-copy {
@@ -8299,3 +8328,5 @@ tbody tr:hover {
 /* OFFICE BROADCAST + PORTAL MESSAGE BADGE */
 .office-bulk-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:0 16px 2px}.office-bulk-toolbar button{display:inline-flex;align-items:center;gap:7px;min-height:35px;padding:0 11px;border:1px solid #dfe4dc!important;border-radius:999px;background:#f6faf4!important;color:#315f3d!important;font-size:11px;font-weight:900}.office-bulk-toolbar button:disabled{opacity:.45}.office-conversation-row{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;border-radius:17px}.office-conversation-row.selected .office-conversation-open{border-color:#bcd3bd;background:#eef6ec}.office-conversation-row.checked .office-conversation-open{border-color:#e0bf72;background:#fff8e8}.office-conversation-check{display:grid;width:28px;height:100%;min-height:52px;place-items:center}.office-conversation-check input{width:18px;height:18px;accent-color:#315f3d}.office-conversation-open{min-width:0}.office-bulk-summary{display:flex;align-items:center;gap:9px;margin:14px 22px 0;padding:12px 14px;border:1px solid #ead9ad;border-radius:15px;background:#fff8e6;color:#6a5120;font-size:12px;font-weight:900}.office-bulk-summary svg{color:#9a7834}.portal-office-message-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;width:min(420px,100%);margin-top:14px;padding:12px 14px;border:1px solid rgba(182,61,50,.28);border-radius:18px;background:#fff7f5;color:#263d2e;text-decoration:none;box-shadow:0 14px 30px rgba(182,61,50,.1)}.portal-office-message-alert span{display:inline-flex!important;align-items:center;gap:8px;color:#8e332b!important;font-size:12px!important;font-weight:950!important;letter-spacing:.04em!important;text-transform:none!important}.portal-office-message-alert strong{display:grid;min-width:30px;height:30px;place-items:center;border-radius:999px;background:#b63d32;color:#fff;font-size:13px;font-weight:950}
 @media(max-width:640px){.office-conversation-row{grid-template-columns:1fr}.office-conversation-check{justify-content:start;width:auto;height:auto;min-height:0;padding-left:4px}.office-bulk-toolbar{margin:0 12px 2px}.office-bulk-summary{margin:12px 16px 0}.portal-office-message-alert{align-items:flex-start;flex-direction:column}.portal-office-message-alert strong{align-self:flex-start}}
+
+@media print{.admin-workspace-header,.admin-workspace-footer,.admin-open-detail-hero>a,.admin-open-detail-actions,.admin-open-invoice-actions,.admin-open-detail-message{display:none!important}.admin-open-balance-page{padding:0!important;background:#fff!important}.admin-open-detail-hero{display:block;padding:0 0 16px!important;border:0!important;border-radius:0!important;background:#fff!important;color:#111!important;box-shadow:none!important}.admin-open-detail-hero h1{color:#111!important;font-size:34px!important}.admin-open-detail-hero p{color:#333!important}.admin-open-detail-stats,.admin-open-statement-card{box-shadow:none!important}.admin-open-invoice-list article{grid-template-columns:minmax(0,1fr) auto!important}.admin-open-invoice-amount{justify-items:end!important}}
