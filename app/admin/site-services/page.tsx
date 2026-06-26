@@ -1,0 +1,262 @@
+'use client'
+
+import { useEffect, useMemo, useState } from 'react'
+import { CheckCircle2, Search, Sparkles, SprayCan, Waves, XCircle } from 'lucide-react'
+import { supabase } from '../../../lib/supabase'
+
+const serviceOptions = [
+  { type: 'full_weed_eat', label: 'Full weed eat', amount: 45 },
+  { type: 'half_weed_eat', label: 'Half weed eat', amount: 20 },
+  { type: 'spray_weeds', label: 'Spray weeds', amount: 45 },
+  { type: 'half_spray_weeds', label: 'Half spray weeds', amount: 20 },
+  { type: 'pressure_wash', label: 'Pressure wash', amount: 20 },
+]
+
+function camperName(camper: any) {
+  return `${camper?.first_name || ''} ${camper?.last_name || ''}`.trim() || 'Camper'
+}
+
+export default function AdminSiteServicesPage() {
+  const [campers, setCampers] = useState<any[]>([])
+  const [charges, setCharges] = useState<any[]>([])
+  const [camperId, setCamperId] = useState('')
+  const [serviceType, setServiceType] = useState(serviceOptions[0].type)
+  const [performedAt, setPerformedAt] = useState('')
+  const [notes, setNotes] = useState('')
+  const [filter, setFilter] = useState('active')
+  const [search, setSearch] = useState('')
+  const [message, setMessage] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [savingId, setSavingId] = useState('')
+
+  useEffect(() => {
+    const today = new Date()
+    const localToday = new Date(today.getTime() - today.getTimezoneOffset() * 60 * 1000)
+    setPerformedAt(localToday.toISOString().slice(0, 10))
+    loadCampers()
+    loadCharges()
+  }, [])
+
+  async function loadCampers() {
+    const { data, error } = await supabase
+      .from('campers')
+      .select('id,first_name,last_name,lot_number,email,active,role')
+      .eq('active', true)
+      .order('lot_number', { ascending: true })
+
+    if (error) setMessage(error.message)
+    setCampers((data || []).filter((camper) => !['admin', 'maintenance'].includes(String(camper.role || 'camper').toLowerCase())))
+  }
+
+  async function loadCharges() {
+    const { data, error } = await supabase
+      .from('site_service_charges')
+      .select('*')
+      .order('performed_at', { ascending: false })
+
+    if (error) setMessage(error.message)
+    setCharges(data || [])
+  }
+
+  async function addCharge() {
+    setMessage('')
+    const selectedCamper = campers.find((camper) => camper.id === camperId)
+    const selectedService = serviceOptions.find((service) => service.type === serviceType)
+
+    if (!selectedCamper || !selectedService || !performedAt) {
+      setMessage('Choose a camper, service, and date first.')
+      return
+    }
+
+    setSaving(true)
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    const { error } = await supabase.from('site_service_charges').insert({
+      camper_id: selectedCamper.id,
+      lot_number: selectedCamper.lot_number || null,
+      camper_name: camperName(selectedCamper),
+      service_type: selectedService.type,
+      service_label: selectedService.label,
+      charge_amount: selectedService.amount,
+      notes: notes.trim() || null,
+      performed_at: `${performedAt}T12:00:00`,
+      created_by: user?.email || null,
+    })
+
+    setSaving(false)
+
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+
+    setMessage(`${selectedService.label} added for Lot ${selectedCamper.lot_number || '—'}. It will attach to the next electric bill.`)
+    setNotes('')
+    loadCharges()
+  }
+
+  async function cancelCharge(id: string) {
+    setSavingId(id)
+    const { error } = await supabase
+      .from('site_service_charges')
+      .update({ cancelled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    setSavingId('')
+    setMessage(error ? error.message : 'Site service charge cancelled.')
+    if (!error) loadCharges()
+  }
+
+  async function restoreCharge(id: string) {
+    setSavingId(id)
+    const { error } = await supabase
+      .from('site_service_charges')
+      .update({ cancelled_at: null, updated_at: new Date().toISOString() })
+      .eq('id', id)
+
+    setSavingId('')
+    setMessage(error ? error.message : 'Site service charge restored.')
+    if (!error) loadCharges()
+  }
+
+  const selectedService = serviceOptions.find((service) => service.type === serviceType) || serviceOptions[0]
+  const activeCharges = charges.filter((charge) => !charge.billed_at && !charge.cancelled_at)
+  const billedCharges = charges.filter((charge) => charge.billed_at)
+  const pendingTotal = activeCharges.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0)
+
+  const visibleCharges = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    return charges.filter((charge) => {
+      const isActive = !charge.billed_at && !charge.cancelled_at
+      const matchesFilter =
+        filter === 'all' ||
+        (filter === 'active' ? isActive : filter === 'billed' ? Boolean(charge.billed_at) : Boolean(charge.cancelled_at))
+      const matchesSearch =
+        !term ||
+        `${charge.lot_number || ''} ${charge.camper_name || ''} ${charge.service_label || ''} ${charge.notes || ''}`
+          .toLowerCase()
+          .includes(term)
+
+      return matchesFilter && matchesSearch
+    })
+  }, [charges, filter, search])
+
+  return (
+    <main className="admin-site-services-page">
+      <section className="admin-site-services-hero">
+        <a href="/admin">← Back to dashboard</a>
+        <span><Sparkles size={17} /> SITE SERVICE CHARGES</span>
+        <h1>Add sporadic site work to the next electric bill.</h1>
+        <p>Use this when Bur Oaks weed eats, sprays weeds, or pressure washes a camper site. Unbilled charges attach automatically when you create that camper’s next electric invoice.</p>
+      </section>
+
+      <section className="admin-site-service-stats">
+        <article><small>Pending services</small><strong>{activeCharges.length}</strong></article>
+        <article><small>Pending charges</small><strong>${pendingTotal.toFixed(2)}</strong></article>
+        <article><small>Already billed</small><strong>{billedCharges.length}</strong></article>
+      </section>
+
+      <section className="admin-site-service-form">
+        <div>
+          <span><SprayCan size={16} /> Add service</span>
+          <h2>What was done?</h2>
+          <p>Pick the camper, choose the work performed, and it waits for the next electric bill.</p>
+        </div>
+
+        <label>
+          <span>Camper / lot</span>
+          <select value={camperId} onChange={(event) => setCamperId(event.target.value)}>
+            <option value="">Select camper</option>
+            {campers.map((camper) => (
+              <option key={camper.id} value={camper.id}>
+                Lot {camper.lot_number || '—'} · {camperName(camper)}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Service</span>
+          <select value={serviceType} onChange={(event) => setServiceType(event.target.value)}>
+            {serviceOptions.map((service) => (
+              <option key={service.type} value={service.type}>
+                {service.label} — ${service.amount}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label>
+          <span>Date done</span>
+          <input type="date" value={performedAt} onChange={(event) => setPerformedAt(event.target.value)} />
+        </label>
+
+        <label className="admin-site-service-notes">
+          <span>Notes</span>
+          <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional note, area, or detail" />
+        </label>
+
+        <button type="button" onClick={addCharge} disabled={saving}>
+          <CheckCircle2 size={16} /> {saving ? 'Adding…' : `Add ${selectedService.label} · $${selectedService.amount}`}
+        </button>
+      </section>
+
+      <section className="admin-site-service-toolbar">
+        <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search lot, camper, service, or notes" /></label>
+        <select value={filter} onChange={(event) => setFilter(event.target.value)}>
+          <option value="active">Active / unbilled</option>
+          <option value="billed">Billed</option>
+          <option value="cancelled">Cancelled</option>
+          <option value="all">All</option>
+        </select>
+      </section>
+
+      <section className="admin-site-service-list">
+        {visibleCharges.map((charge) => {
+          const isBilled = Boolean(charge.billed_at)
+          const isCancelled = Boolean(charge.cancelled_at)
+
+          return (
+            <article className={`${isBilled ? 'billed' : ''} ${isCancelled ? 'cancelled' : ''}`} key={charge.id}>
+              <span>{isBilled ? 'Billed' : isCancelled ? 'Cancelled' : 'Pending'}</span>
+              <div>
+                <small>Lot {charge.lot_number || 'N/A'} · {new Date(charge.performed_at).toLocaleDateString()}</small>
+                <h2>{charge.service_label} · {charge.camper_name}</h2>
+                <p>{charge.notes || 'No notes added.'}</p>
+                <em>
+                  ${Number(charge.charge_amount || 0).toFixed(2)}
+                  {isBilled ? ` · billed on ${new Date(charge.billed_at).toLocaleDateString()}` : ' · pending next electric bill'}
+                </em>
+              </div>
+              <div className="admin-site-service-actions">
+                {!isBilled && !isCancelled && (
+                  <button className="danger" type="button" onClick={() => cancelCharge(charge.id)} disabled={savingId === charge.id}>
+                    <XCircle size={15} /> Cancel
+                  </button>
+                )}
+                {!isBilled && isCancelled && (
+                  <button type="button" onClick={() => restoreCharge(charge.id)} disabled={savingId === charge.id}>
+                    Restore
+                  </button>
+                )}
+              </div>
+            </article>
+          )
+        })}
+
+        {visibleCharges.length === 0 && (
+          <div className="admin-site-service-empty">
+            <Waves size={34} />
+            <h2>No site service charges found</h2>
+            <p>New weed eating, spraying, and pressure washing charges will appear here.</p>
+          </div>
+        )}
+      </section>
+
+      {message && <p className="admin-site-service-message">{message}</p>}
+    </main>
+  )
+}

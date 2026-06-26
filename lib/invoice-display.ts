@@ -38,6 +38,30 @@ export function invoiceLineDetails(item: any) {
     }
   }
 
+  if (lower.includes('weed eat')) {
+    return {
+      title: lower.includes('half') ? 'Half weed eat service' : 'Full weed eat service',
+      explanation: 'Site trimming service completed by Bur Oaks and added to this electric bill.',
+      amount: total,
+    }
+  }
+
+  if (lower.includes('spray weed')) {
+    return {
+      title: lower.includes('half') ? 'Half weed spraying service' : 'Weed spraying service',
+      explanation: 'Weed control service completed by Bur Oaks and added to this electric bill.',
+      amount: total,
+    }
+  }
+
+  if (lower.includes('pressure wash')) {
+    return {
+      title: 'Pressure washing service',
+      explanation: 'Pressure washing service completed by Bur Oaks and added to this electric bill.',
+      amount: total,
+    }
+  }
+
   if (lower.includes('rent') || lower.includes('lot')) {
     return {
       title: 'Lot rent',

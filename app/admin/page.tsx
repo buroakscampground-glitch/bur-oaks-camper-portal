@@ -20,6 +20,7 @@ import {
   Rocket,
   ShieldCheck,
   Soup,
+  SprayCan,
   TentTree,
   UserRoundSearch,
   Users,
@@ -53,6 +54,7 @@ type AdminStats = {
   insuranceMissing: number
   pumpOuts: number
   pumpOutAlerts: number
+  siteServices: number
   messageAlerts: number
   totalUnreadAlerts: number
 }
@@ -80,6 +82,7 @@ const emptyStats: AdminStats = {
   insuranceMissing: 0,
   pumpOuts: 0,
   pumpOutAlerts: 0,
+  siteServices: 0,
   messageAlerts: 0,
   totalUnreadAlerts: 0,
 }
@@ -131,6 +134,7 @@ export default function AdminPage() {
       notificationResult,
       documentResult,
       pumpOutResult,
+      siteServiceResult,
       messageResult,
     ] = await Promise.all([
       supabase.from('campers').select('id').eq('active', true),
@@ -145,6 +149,7 @@ export default function AdminPage() {
       supabase.from('admin_notifications').select('id,type').is('read_at', null),
       supabase.from('documents').select('id,document_type,signature_status,camper_id'),
       supabase.from('sewer_pump_out_requests').select('id,status,billed_at'),
+      supabase.from('site_service_charges').select('id,billed_at,cancelled_at'),
       supabase.from('office_messages').select('id').eq('sender_role', 'camper').is('read_by_admin_at', null),
     ])
 
@@ -197,6 +202,7 @@ export default function AdminPage() {
       }).length,
       insuranceMissing: (campersResult.data || []).filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
       pumpOuts: (pumpOutResult.data || []).filter((request) => request.status !== 'cancelled' && !request.billed_at).length,
+      siteServices: (siteServiceResult.data || []).filter((charge) => !charge.cancelled_at && !charge.billed_at).length,
       totalUnreadAlerts: notifications.length,
     })
   }
@@ -265,6 +271,14 @@ export default function AdminPage() {
       alertType: 'sewer_pump_out',
       icon: Droplets,
       tone: 'red',
+    },
+    {
+      href: '/admin/site-services',
+      title: 'Site Services',
+      description: 'Add weed eating, weed spraying, and pressure washing charges.',
+      detail: `${stats.siteServices} unbilled`,
+      icon: SprayCan,
+      tone: 'gold',
     },
     {
       href: '/admin/maintenance',
@@ -412,6 +426,12 @@ export default function AdminPage() {
               <small>Sewer pump-outs</small>
               <strong>{stats.pumpOuts || 'Clear'}</strong>
               <p>{stats.pumpOuts ? 'Campers are waiting for pump-out service or billing.' : 'No pump-outs waiting.'}</p>
+            </a>
+            <a href="/admin/site-services" className={stats.siteServices ? 'attention' : ''}>
+              <SprayCan size={21} />
+              <small>Site services</small>
+              <strong>{stats.siteServices || 'Clear'}</strong>
+              <p>{stats.siteServices ? 'Weed eating, spraying, or pressure washing charges are waiting for billing.' : 'No site service charges waiting.'}</p>
             </a>
             <a href="/admin/open-balance" className={stats.unpaidInvoices ? 'attention' : ''}>
               <ReceiptText size={21} />

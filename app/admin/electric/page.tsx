@@ -9,6 +9,7 @@ export default function AdminElectricPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [readings, setReadings] = useState<any[]>([])
   const [pumpOuts, setPumpOuts] = useState<any[]>([])
+  const [siteServiceCharges, setSiteServiceCharges] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
   const [previousReading, setPreviousReading] = useState('')
   const [currentReading, setCurrentReading] = useState('')
@@ -34,6 +35,7 @@ export default function AdminElectricPage() {
     loadCampers()
     loadReadings()
     loadPumpOuts()
+    loadSiteServiceCharges()
   }, [])
 
   async function loadCampers() {
@@ -59,6 +61,17 @@ export default function AdminElectricPage() {
       .order('requested_at', { ascending: true })
 
     setPumpOuts(data || [])
+  }
+
+  async function loadSiteServiceCharges() {
+    const { data } = await supabase
+      .from('site_service_charges')
+      .select('*')
+      .is('billed_at', null)
+      .is('cancelled_at', null)
+      .order('performed_at', { ascending: true })
+
+    setSiteServiceCharges(data || [])
   }
 
   const filteredReadings = useMemo(() => {
@@ -97,7 +110,9 @@ const liveAmount =
 const selectedWaterTrashFee = includeWaterTrash ? Number(waterTrashFee || 0) : 0
 const selectedPumpOuts = pumpOuts.filter((request) => request.camper_id === camperId)
 const pumpOutChargeTotal = selectedPumpOuts.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
-const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
+const selectedSiteServices = siteServiceCharges.filter((charge) => charge.camper_id === camperId)
+const siteServiceChargeTotal = selectedSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0)
+const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal + siteServiceChargeTotal
 
   async function saveElectricAndCreateInvoice() {
     setMessage('')
@@ -195,7 +210,24 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
 
     const activePumpOuts = freshPumpOuts || []
     const pumpOutTotal = Number(activePumpOuts.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0).toFixed(2))
-    const totalDue = Number((amountDue + waterTrashAmount + pumpOutTotal).toFixed(2))
+
+    const { data: freshSiteServices, error: siteServiceLookupError } = await supabase
+      .from('site_service_charges')
+      .select('*')
+      .eq('camper_id', camperId)
+      .is('billed_at', null)
+      .is('cancelled_at', null)
+      .order('performed_at', { ascending: true })
+
+    if (siteServiceLookupError) {
+      setMessage(siteServiceLookupError.message)
+      setSaving(false)
+      return
+    }
+
+    const activeSiteServices = freshSiteServices || []
+    const siteServiceTotal = Number(activeSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0).toFixed(2))
+    const totalDue = Number((amountDue + waterTrashAmount + pumpOutTotal + siteServiceTotal).toFixed(2))
 
     const selectedCamper = campers.find((c) => c.id === camperId)
     const invoiceNumber = `ELECTRIC-${selectedCamper?.lot_number || 'UNKNOWN'}-${Date.now()}`
@@ -209,6 +241,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
           'Electric',
           includeWaterTrash ? 'Water/Trash' : '',
           pumpOutTotal > 0 ? 'Sewer Pump-Out' : '',
+          siteServiceTotal > 0 ? 'Site Services' : '',
         ].filter(Boolean).join(' + '),
         subtotal: totalDue,
         late_fee: 0,
@@ -252,6 +285,16 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
         quantity: activePumpOuts.length,
         unit_price: activePumpOuts.length ? Number((pumpOutTotal / activePumpOuts.length).toFixed(2)) : 10,
         total: pumpOutTotal,
+      })
+    }
+
+    for (const charge of activeSiteServices) {
+      invoiceItems.push({
+        invoice_id: invoice.id,
+        description: `${charge.service_label} - ${new Date(charge.performed_at).toLocaleDateString()}`,
+        quantity: 1,
+        unit_price: Number(charge.charge_amount || 0),
+        total: Number(charge.charge_amount || 0),
       })
     }
 
@@ -300,6 +343,23 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       }
     }
 
+    if (activeSiteServices.length > 0) {
+      const { error: siteServiceBillingError } = await supabase
+        .from('site_service_charges')
+        .update({
+          billed_invoice_id: invoice.id,
+          billed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .in('id', activeSiteServices.map((charge) => charge.id))
+
+      if (siteServiceBillingError) {
+        setMessage(`Electric invoice was created, but site service charges were not marked billed: ${siteServiceBillingError.message}`)
+        setSaving(false)
+        return
+      }
+    }
+
     let resultMessage = `Electric invoice created. Electric: ${kwhUsed} kWh × $${rateNumber.toFixed(2)} = $${amountDue.toFixed(2)}`
 
     if (includeWaterTrash) {
@@ -308,6 +368,10 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
 
     if (pumpOutTotal > 0) {
       resultMessage += ` + Sewer Pump-Outs: ${activePumpOuts.length} × $10.00 = $${pumpOutTotal.toFixed(2)}`
+    }
+
+    if (siteServiceTotal > 0) {
+      resultMessage += ` + Site Services: ${activeSiteServices.length} charge${activeSiteServices.length === 1 ? '' : 's'} = $${siteServiceTotal.toFixed(2)}`
     }
 
     resultMessage += ` — Total due: $${totalDue.toFixed(2)} by ${dueDate}.`
@@ -332,6 +396,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     setSearchText('')
     loadReadings()
     loadPumpOuts()
+    loadSiteServiceCharges()
     setSaving(false)
   }
 
@@ -461,9 +526,16 @@ setTimeout(() => {
           <strong>${pumpOutChargeTotal.toFixed(2)}</strong>
         </p>
       )}
+
+      {siteServiceChargeTotal > 0 && (
+        <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+          <span>{selectedSiteServices.length} site service charge{selectedSiteServices.length === 1 ? '' : 's'}</span>
+          <strong>${siteServiceChargeTotal.toFixed(2)}</strong>
+        </p>
+      )}
     </div>
 
-    {(includeWaterTrash || pumpOutChargeTotal > 0) && (
+    {(includeWaterTrash || pumpOutChargeTotal > 0 || siteServiceChargeTotal > 0) && (
       <>
         <h2>
           ${liveInvoiceTotal.toFixed(2)}
@@ -472,6 +544,7 @@ setTimeout(() => {
           Estimated Total
           {includeWaterTrash ? ' with Water/Trash' : ''}
           {pumpOutChargeTotal > 0 ? ` + ${selectedPumpOuts.length} sewer pump-out${selectedPumpOuts.length === 1 ? '' : 's'}` : ''}
+          {siteServiceChargeTotal > 0 ? ` + ${selectedSiteServices.length} site service charge${selectedSiteServices.length === 1 ? '' : 's'}` : ''}
         </p>
       </>
     )}
@@ -570,6 +643,35 @@ setTimeout(() => {
                   ? `${selectedPumpOuts.length} unbilled pump-out request${selectedPumpOuts.length === 1 ? '' : 's'} will be added automatically: $${pumpOutChargeTotal.toFixed(2)}.`
                   : 'No unbilled sewer pump-outs for this camper.'}
               </p>
+            </section>
+          )}
+
+          {camperId && (
+            <section
+              style={{
+                marginBottom: '14px',
+                padding: '16px',
+                border: siteServiceChargeTotal > 0 ? '2px solid #b97721' : '1px solid #d8ded5',
+                borderRadius: '14px',
+                background: siteServiceChargeTotal > 0 ? '#fff8e8' : '#f8faf7',
+              }}
+            >
+              <strong>Site service charges</strong>
+              <p className="muted" style={{ marginBottom: siteServiceChargeTotal > 0 ? '10px' : 0 }}>
+                {siteServiceChargeTotal > 0
+                  ? `${selectedSiteServices.length} unbilled site service charge${selectedSiteServices.length === 1 ? '' : 's'} will be added automatically: $${siteServiceChargeTotal.toFixed(2)}.`
+                  : 'No unbilled weed eating, spraying, or pressure washing charges for this camper.'}
+              </p>
+              {siteServiceChargeTotal > 0 && (
+                <div style={{ display: 'grid', gap: '6px' }}>
+                  {selectedSiteServices.map((charge) => (
+                    <p key={charge.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0, fontSize: '13px' }}>
+                      <span>{charge.service_label}</span>
+                      <strong>${Number(charge.charge_amount || 0).toFixed(2)}</strong>
+                    </p>
+                  ))}
+                </div>
+              )}
             </section>
           )}
 

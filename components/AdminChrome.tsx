@@ -26,6 +26,7 @@ const pageNames: Record<string, string> = {
   directory: 'Camper Directory',
   'archived-campers': 'Camper Archive',
   'individual-invoices': 'Individual Invoices',
+  'site-services': 'Site Services',
 }
 
 export default function AdminChrome({ children }: { children: React.ReactNode }) {
