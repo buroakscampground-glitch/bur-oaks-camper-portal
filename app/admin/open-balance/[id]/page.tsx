@@ -65,6 +65,38 @@ export default function CamperBalancePage() {
 
   alert("Invoice marked paid!")
 }
+
+async function deleteInvoice(invoice: any) {
+  const confirmed = window.confirm(
+    `Delete invoice #${invoice.invoice_number} permanently?\n\nThis removes the invoice and its itemized charge lines.`
+  )
+
+  if (!confirmed) return
+
+  const { error: itemError } = await supabase
+    .from("invoice_items")
+    .delete()
+    .eq("invoice_id", invoice.id)
+
+  if (itemError) {
+    alert(itemError.message)
+    return
+  }
+
+  const { error } = await supabase
+    .from("invoices")
+    .delete()
+    .eq("id", invoice.id)
+
+  if (error) {
+    alert(error.message)
+    return
+  }
+
+  await loadData()
+  alert("Invoice deleted.")
+}
+
 function sendReminder() {
   const message = `
 Hello ${camper?.first_name || ""},
@@ -200,6 +232,10 @@ Bur Oaks Campground
             <th style={{ padding: "12px" }}>
               Status
             </th>
+
+            <th style={{ padding: "12px" }}>
+              Actions
+            </th>
           </tr>
         </thead>
 
@@ -240,6 +276,23 @@ Bur Oaks Campground
     Mark Paid
   </button>
 </td>
+
+              <td style={{ padding: "12px" }}>
+                <button
+                  onClick={() => deleteInvoice(invoice)}
+                  style={{
+                    background: "#dc2626",
+                    color: "white",
+                    border: "none",
+                    padding: "6px 10px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    fontWeight: "bold",
+                  }}
+                >
+                  Delete
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
