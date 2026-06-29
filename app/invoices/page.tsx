@@ -444,6 +444,9 @@ export default function InvoicesPage() {
             {smsMessage && <p className="autopay-message">{smsMessage}</p>}
 
             <div className="autopay-security account-sms-note"><LockKeyhole size={15} /><span>Your phone number is not shared with the camper directory unless you choose that separately.</span></div>
+            <div className="account-sms-obligation-note">
+              Text alerts are courtesy reminders only. Turning texts off does not remove payment obligations, campground rules, lease notices, or other account responsibilities.
+            </div>
 
             <div className="account-side-divider" />
 

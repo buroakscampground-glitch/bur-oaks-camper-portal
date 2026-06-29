@@ -788,9 +788,11 @@ export default function CamperPortalPage() {
               </div>
             ) : (
               <div className="portal-feed">
-                {announcements.map((announcement, index) => (
-                  <article className={index === 0 ? 'featured' : ''} key={announcement.id}>
-                    {index === 0 && <span className="portal-new-pill">LATEST</span>}
+                {[...announcements]
+                  .sort((a, b) => Number(Boolean(b.is_urgent)) - Number(Boolean(a.is_urgent)))
+                  .map((announcement, index) => (
+                  <article className={`${index === 0 ? 'featured' : ''} ${announcement.is_urgent ? 'urgent' : ''}`} key={announcement.id}>
+                    {(index === 0 || announcement.is_urgent) && <span className={`portal-new-pill ${announcement.is_urgent ? 'urgent' : ''}`}>{announcement.is_urgent ? 'URGENT' : 'LATEST'}</span>}
                     <h3>{announcement.title}</h3>
                     <p>{announcement.message}</p>
                   </article>

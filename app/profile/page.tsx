@@ -297,6 +297,9 @@ export default function ProfilePage() {
           <div className="directory-safety-note">
             <ShieldCheck size={16} /> Text alerts are separate from the camper directory. Your phone number is not shared publicly.
           </div>
+          <div className="directory-safety-note warning">
+            <ShieldCheck size={16} /> Text alerts are courtesy reminders only. Turning texts off does not remove payment obligations, campground rules, lease notices, or other account responsibilities.
+          </div>
 
           <div style={{ marginTop: '16px' }}>
             <button onClick={saveProfile} disabled={saving}>
