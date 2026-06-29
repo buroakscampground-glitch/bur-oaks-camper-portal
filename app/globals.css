@@ -211,7 +211,7 @@ button:hover {
   position: relative;
   display: flex;
   align-items: center;
-  background: url('/campground.jpg') center 53% / cover no-repeat;
+  background: url('/site-photos/IMG_8008.jpeg') center 53% / cover no-repeat;
   color: white;
 }
 
@@ -450,6 +450,10 @@ button:hover {
 .public-image-story li { display: flex; align-items: center; gap: 11px; font-weight: 700; }
 .public-image-story li svg { color: #b08b47; }
 .public-dark-button { background: var(--forest); color: white; }
+
+.public-real-photo-band{display:grid;grid-template-columns:minmax(0,.72fr) minmax(0,1.28fr);gap:34px;align-items:center;padding-top:42px}.public-real-photo-band h2{margin:10px 0 14px;font-size:clamp(34px,4vw,58px);font-weight:500;line-height:1}.public-real-photo-band p{color:#657168;line-height:1.65}.public-real-photo-strip{display:grid;grid-template-columns:1.1fr .9fr;grid-auto-rows:210px;gap:12px}.public-real-photo-strip figure{position:relative;overflow:hidden;margin:0;border-radius:22px;background:#d8d3c7;box-shadow:0 18px 45px rgba(34,54,38,.12)}.public-real-photo-strip figure:first-child{grid-row:span 2}.public-real-photo-strip img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}.public-real-photo-strip figure:hover img{transform:scale(1.035)}.public-real-photo-strip figcaption,.public-about-photo-row figcaption{position:absolute;left:14px;bottom:13px;padding:7px 11px;border:1px solid rgba(255,255,255,.24);border-radius:999px;background:rgba(8,31,19,.76);color:#fff;font-size:11px;font-weight:800;backdrop-filter:blur(8px)}
+
+.public-about-photo-row{display:grid;grid-template-columns:1.2fr .8fr 1fr;gap:14px;padding-top:0}.public-about-photo-row figure{position:relative;overflow:hidden;min-height:310px;margin:0;border-radius:24px;background:#d8d3c7;box-shadow:0 18px 45px rgba(34,54,38,.11)}.public-about-photo-row figure:nth-child(2){transform:translateY(34px)}.public-about-photo-row img{width:100%;height:100%;object-fit:cover}
 
 .public-events-preview { border-top: 1px solid rgba(21,61,42,.15); }
 .public-section-heading { margin-bottom: 42px; display: flex; align-items: end; justify-content: space-between; gap: 30px; }
@@ -926,6 +930,7 @@ button:hover {
   .public-new-camper-invite a { justify-self: start; }
   .public-intro,
   .public-image-story,
+  .public-real-photo-band,
   .public-editorial,
   .public-contact,
   .public-availability,
@@ -956,6 +961,9 @@ button:hover {
   .public-image-stack { min-height: 530px; }
   .public-image-stack img:first-child { height: 470px; }
   .public-image-stack img:nth-child(2) { height: 270px; }
+  .public-real-photo-strip { grid-auto-rows: 180px; }
+  .public-about-photo-row { grid-template-columns: 1fr 1fr; }
+  .public-about-photo-row figure:nth-child(2) { transform: none; }
   .public-section-heading { align-items: flex-start; flex-direction: column; }
   .public-cta { align-items: flex-start; flex-direction: column; }
   .public-cta > div:last-child { width: 100%; flex-wrap: wrap; }
@@ -1002,6 +1010,10 @@ button:hover {
   .public-image-stack img:first-child { width: 88%; height: 405px; }
   .public-image-stack img:nth-child(2) { width: 52%; height: 225px; border-width: 8px; }
   .public-image-stack > span { left: 10px; bottom: 20px; }
+  .public-real-photo-strip,
+  .public-about-photo-row { grid-template-columns: 1fr; }
+  .public-real-photo-strip figure:first-child { grid-row: span 1; }
+  .public-about-photo-row figure { min-height: 240px; }
   .public-amenity-grid,
   .public-values { grid-template-columns: 1fr; }
   .public-note-card { padding: 40px 24px; }

@@ -3,12 +3,12 @@ import EventFlyerShowcase from '../components/EventFlyerShowcase'
 import { PublicShell } from '../components/PublicSite'
 
 const gallery = [
-  '/campground.jpg',
-  '/gallery-1.jpg',
-  '/gallery-2.jpg',
-  '/gallery-3.jpg',
-  '/gallery-4.jpg',
-  '/gallery-5.jpg',
+  '/site-photos/IMG_8008.jpeg',
+  '/site-photos/IMG_8010.jpeg',
+  '/site-photos/IMG_8004.jpeg',
+  '/site-photos/IMG_8012.jpeg',
+  '/site-photos/IMG_8006.jpeg',
+  '/site-photos/IMG_8007.jpeg',
 ]
 
 export default function HomePage() {
@@ -43,10 +43,10 @@ export default function HomePage() {
             <a href="/gallery">Explore the full gallery <ArrowRight size={16} /></a>
           </div>
           <div className="public-first-look-grid">
-            <figure className="public-first-look-main"><img src={gallery[3]} alt="A peaceful summer day at Bur Oaks" /><figcaption>Room to slow down</figcaption></figure>
-            <figure><img src={gallery[1]} alt="Bur Oaks campground scenery" /><figcaption>Nature close by</figcaption></figure>
-            <figure><img src={gallery[4]} alt="Evening at Bur Oaks" /><figcaption>Evenings that linger</figcaption></figure>
-            <figure className="public-first-look-wide"><img src={gallery[5]} alt="Seasonal camping at Bur Oaks" /><figcaption>Your seasonal home base</figcaption></figure>
+            <figure className="public-first-look-main"><img src={gallery[0]} alt="Bur Oaks lake and clubhouse" /><figcaption>The lake at the heart of Bur Oaks</figcaption></figure>
+            <figure><img src={gallery[2]} alt="Shaded campground road at Bur Oaks" /><figcaption>Sites tucked under mature oaks</figcaption></figure>
+            <figure><img src={gallery[3]} alt="Bur Oaks fountain on the lake" /><figcaption>Quiet water views</figcaption></figure>
+            <figure className="public-first-look-wide"><img src={gallery[1]} alt="Bur Oaks lakefront seasonal campground" /><figcaption>Your seasonal home base</figcaption></figure>
           </div>
           <div className="public-new-camper-invite">
             <div><span>New to Bur Oaks?</span><h3>Come walk the campground before choosing your site.</h3></div>
@@ -74,8 +74,8 @@ export default function HomePage() {
 
         <section className="public-image-story public-section">
           <div className="public-image-stack">
-            <img src={gallery[1]} alt="A peaceful day at Bur Oaks" />
-            <img src={gallery[2]} alt="Campground scenery" />
+            <img src={gallery[4]} alt="A peaceful day at Bur Oaks" />
+            <img src={gallery[5]} alt="Campground scenery" />
             <span><Sparkles size={18} /> Unhurried by nature</span>
           </div>
           <div>
@@ -88,6 +88,27 @@ export default function HomePage() {
               <li><Leaf /> Family-friendly outdoor setting</li>
             </ul>
             <a href="/gallery" className="public-dark-button">View the gallery <ArrowRight size={17} /></a>
+          </div>
+        </section>
+
+        <section className="public-real-photo-band public-section">
+          <div>
+            <span className="public-kicker">Real Bur Oaks views</span>
+            <h2>Not stock photos. This is the actual place.</h2>
+            <p>From shady seasonal sites to the lakefront, these views show the easygoing pace campers come back to all season long.</p>
+          </div>
+          <div className="public-real-photo-strip">
+            {[
+              ['/site-photos/IMG_7997.jpeg', 'Campground moments'],
+              ['/site-photos/IMG_8002.jpeg', 'Room to relax'],
+              ['/site-photos/IMG_8014.jpeg', 'Summer scenery'],
+              ['/site-photos/IMG_8019.jpeg', 'Life around Bur Oaks'],
+            ].map(([src, caption]) => (
+              <figure key={src}>
+                <img src={src} alt={caption} />
+                <figcaption>{caption}</figcaption>
+              </figure>
+            ))}
           </div>
         </section>
 

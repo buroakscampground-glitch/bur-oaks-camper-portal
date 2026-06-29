@@ -10,6 +10,11 @@ export default function AboutPage() {
           <div><span className="public-kicker">A site to remember</span><h2>Built for summers that matter.</h2></div>
           <div><p>Bur Oaks Resort provides annual site rentals within a private, gated community in Alhambra, Illinois. For generations, families have come here to step away from the ordinary and make room for what matters most.</p><p>Our campground is warm, welcoming, and grounded in a simple idea: the best places do more than give you somewhere to stay. They give you a sense of belonging.</p></div>
         </section>
+        <section className="public-about-photo-row public-section">
+          <figure><img src="/site-photos/IMG_8008.jpeg" alt="Bur Oaks lake and clubhouse" /><figcaption>Lakefront views</figcaption></figure>
+          <figure><img src="/site-photos/IMG_8004.jpeg" alt="Seasonal sites under mature trees" /><figcaption>Shaded seasonal sites</figcaption></figure>
+          <figure><img src="/site-photos/IMG_8010.jpeg" alt="Bur Oaks lake reflections" /><figcaption>Quiet days outdoors</figcaption></figure>
+        </section>
         <section className="public-values public-section">
           <article><Leaf /><h3>Rooted in nature</h3><p>Mature trees, peaceful water, and the freedom to spend your days outside.</p></article>
           <article><Users /><h3>Made for community</h3><p>A place where familiar faces become good friends and everyone feels welcome.</p></article>
