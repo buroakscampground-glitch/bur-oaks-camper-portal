@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -315,6 +316,20 @@ export default function InvoicesPage() {
           <div><span className="account-summary-icon green"><CheckCircle2 size={21} /></span><span><small>Paid invoices</small><strong>{paidInvoices.length}</strong></span></div>
           <div><span className="account-summary-icon blue"><FileText size={21} /></span><span><small>Total history</small><strong>{invoices.length}</strong></span></div>
           <div><span className="account-summary-icon plum"><CreditCard size={21} /></span><span><small>AutoPay</small><strong>{autoPayStatus.enabled ? 'Active' : 'Not enrolled'}</strong></span></div>
+        </section>
+
+        <section className="account-trust-strip" aria-label="Secure payment information">
+          <div>
+            <span><ShieldCheck size={18} /></span>
+            <strong>Secure Stripe checkout</strong>
+            <small>Card payments open in Stripe. Bur Oaks does not store your full card number.</small>
+          </div>
+          <div>
+            <span><FileText size={18} /></span>
+            <strong>Itemized invoices</strong>
+            <small>Electric, water/trash, pump-outs, site services, and credits are shown line by line.</small>
+          </div>
+          <a href="/messages">Question about a bill? Message the office <ArrowRight size={15} /></a>
         </section>
 
         <div className="account-layout">

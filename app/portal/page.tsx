@@ -323,6 +323,9 @@ export default function CamperPortalPage() {
       document.signature_status !== 'signed' &&
       document.signature_status !== 'not_required'
   )
+  const insuranceOnFile = documents.some(
+    (document) => document.document_type === 'Golf Cart Insurance'
+  )
   const activeMaintenance = maintenanceTickets.filter(
     (ticket) => ticket.status !== 'Completed'
   )
@@ -349,8 +352,8 @@ export default function CamperPortalPage() {
   const profileCompletion = Math.round((completedProfileFields / profileFields.length) * 100)
   const firstLoginTasks = [
     {
-      label: 'Review profile',
-      complete: profileCompletion >= 80,
+      label: 'Confirm contact info',
+      complete: Boolean(camper?.email || camper?.secondary_email) && Boolean(camper?.phone),
       href: '/profile',
     },
     {
@@ -364,7 +367,17 @@ export default function CamperPortalPage() {
       href: '/invoices',
     },
     {
-      label: 'RSVP for events',
+      label: 'Upload insurance',
+      complete: insuranceOnFile,
+      href: '/profile',
+    },
+    {
+      label: 'Text alerts',
+      complete: camper?.sms_opt_in === true,
+      href: '/invoices',
+    },
+    {
+      label: 'Plan next event',
       complete: !nextEvent,
       href: '/calendar',
     },
@@ -415,6 +428,72 @@ export default function CamperPortalPage() {
   const portalMood = urgentCount
     ? `${urgentCount} thing${urgentCount === 1 ? '' : 's'} need attention`
     : 'Your portal is all caught up'
+  const urgentAnnouncement = announcements.find((announcement) => announcement.is_urgent)
+  const whatIsNew = [
+    ...(unreadOfficeMessages > 0
+      ? [{
+          href: '/messages',
+          label: 'Office message',
+          title: `${unreadOfficeMessages} unread message${unreadOfficeMessages === 1 ? '' : 's'}`,
+          tone: 'urgent',
+          icon: MessageCircle,
+        }]
+      : []),
+    ...(urgentAnnouncement
+      ? [{
+          href: '/portal',
+          label: 'Urgent notice',
+          title: urgentAnnouncement.title,
+          tone: 'urgent',
+          icon: Megaphone,
+        }]
+      : []),
+    ...(documentsNeedingSignature.length
+      ? [{
+          href: '/documents',
+          label: 'Signature needed',
+          title: `${documentsNeedingSignature.length} document${documentsNeedingSignature.length === 1 ? '' : 's'} waiting`,
+          tone: 'attention',
+          icon: FileText,
+        }]
+      : []),
+    ...(openInvoices.length
+      ? [{
+          href: '/invoices',
+          label: 'Payment ready',
+          title: `$${openBalance.toFixed(2)} open balance`,
+          tone: 'attention',
+          icon: ReceiptText,
+        }]
+      : []),
+    ...(activeMaintenance.length
+      ? [{
+          href: '/maintenance',
+          label: 'Maintenance',
+          title: maintenanceHeadline,
+          tone: 'attention',
+          icon: Wrench,
+        }]
+      : []),
+    ...(nextDinner
+      ? [{
+          href: `/dinners?date=${nextDinner.date}`,
+          label: 'Saturday dinner',
+          title: `${nextDinner.month} ${nextDinner.day}: ${nextDinner.menu}`,
+          tone: 'good',
+          icon: Soup,
+        }]
+      : []),
+    ...(nextEvent
+      ? [{
+          href: '/calendar',
+          label: 'Next event',
+          title: `${nextEvent.title} · ${formatDate(nextEvent.event_date)}`,
+          tone: 'good',
+          icon: CalendarDays,
+        }]
+      : []),
+  ].slice(0, 5)
 
   return (
     <main className="camper-portal-page">
@@ -508,6 +587,43 @@ export default function CamperPortalPage() {
               <strong>{nextDinner ? `${nextDinner.month} ${nextDinner.day}` : 'Menu'}</strong>
               <em>{nextDinner?.menu || 'View schedule'}</em>
             </a>
+          </div>
+        </section>
+
+        <section className="portal-command-center" aria-label="What is new at Bur Oaks">
+          <div className="portal-command-heading">
+            <div>
+              <span><Bell size={16} /> WHAT’S NEW</span>
+              <h2>Your quick check before you head out.</h2>
+            </div>
+            <a href="/messages">Message office <ArrowRight size={16} /></a>
+          </div>
+
+          <div className="portal-command-grid">
+            {whatIsNew.length === 0 ? (
+              <article className="portal-command-item good">
+                <CheckCircle2 size={20} />
+                <span>
+                  <small>All clear</small>
+                  <strong>No new action items right now</strong>
+                </span>
+              </article>
+            ) : (
+              whatIsNew.map((item) => {
+                const Icon = item.icon
+
+                return (
+                  <a className={`portal-command-item ${item.tone}`} href={item.href} key={`${item.label}-${item.title}`}>
+                    <Icon size={20} />
+                    <span>
+                      <small>{item.label}</small>
+                      <strong>{item.title}</strong>
+                    </span>
+                    <ChevronRight size={18} />
+                  </a>
+                )
+              })
+            )}
           </div>
         </section>
 
@@ -873,12 +989,15 @@ export default function CamperPortalPage() {
           <div>
             <span><Home size={16} /> MY SITE</span>
             <h2>Lot {camper?.lot_number || '—'} at a glance.</h2>
-            <p>One page for your site details, documents, insurance, payments, electric history, and maintenance requests.</p>
+            <p>One calm place for contact info, second profile details, vehicles, documents, insurance, payments, electric history, and maintenance requests.</p>
           </div>
           <div className="portal-site-command-grid">
             <article><small>Camper</small><strong>{camper?.first_name || ''} {camper?.last_name || ''}</strong></article>
             <article><small>Latest electric</small><strong>{latestElectric ? `${latestElectric.kwh_used || 0} kWh` : 'No reading'}</strong></article>
             <article><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong></article>
+            <article><small>Insurance</small><strong>{insuranceOnFile ? 'On file' : 'Needed'}</strong></article>
+            <article><small>Text alerts</small><strong>{camper?.sms_opt_in ? 'On' : 'Off'}</strong></article>
+            <article><small>Office messages</small><strong>{unreadOfficeMessages ? `${unreadOfficeMessages} unread` : 'Clear'}</strong></article>
           </div>
           <a href="/site">Open My Site <ArrowRight size={16} /></a>
         </section>
