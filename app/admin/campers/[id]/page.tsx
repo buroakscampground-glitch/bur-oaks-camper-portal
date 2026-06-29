@@ -50,6 +50,8 @@ type Camper = {
   golf_cart_color: string | null
   directory_opt_in: boolean | null
   directory_show_phone: boolean | null
+  sms_opt_in: boolean | null
+  sms_opt_in_at: string | null
   office_notes: string | null
 }
 
@@ -78,6 +80,8 @@ const emptyCamper: Camper = {
   golf_cart_color: '',
   directory_opt_in: false,
   directory_show_phone: false,
+  sms_opt_in: false,
+  sms_opt_in_at: null,
   office_notes: '',
 }
 
@@ -172,6 +176,10 @@ export default function CamperDetailPage() {
         golf_cart_color: camper.golf_cart_color?.trim() || null,
         directory_opt_in: Boolean(camper.directory_opt_in),
         directory_show_phone: Boolean(camper.directory_opt_in && camper.directory_show_phone),
+        sms_opt_in: Boolean(camper.sms_opt_in),
+        sms_opt_in_at: camper.sms_opt_in
+          ? camper.sms_opt_in_at || new Date().toISOString()
+          : null,
         office_notes: camper.office_notes?.trim() || null,
       })
       .eq('id', camperId)
@@ -360,6 +368,19 @@ export default function CamperDetailPage() {
             <Field label="Primary email address" type="email" value={camper.email} onChange={(value) => updateField('email', value)} icon={<Mail />} />
             <Field label="Second email address" type="email" value={camper.secondary_email} onChange={(value) => updateField('secondary_email', value)} icon={<Mail />} />
             <Field label="Profile 1 phone number" type="tel" value={camper.phone} onChange={(value) => updateField('phone', value)} icon={<Phone />} />
+          </div>
+          <div className="admin-camper-directory-options sms">
+            <label>
+              <input
+                type="checkbox"
+                checked={Boolean(camper.sms_opt_in)}
+                onChange={(event) => {
+                  updateField('sms_opt_in', event.target.checked)
+                  updateField('sms_opt_in_at', event.target.checked ? camper.sms_opt_in_at || new Date().toISOString() : null)
+                }}
+              />
+              <span><strong>Camper agreed to receive text alerts</strong><small>Use only after they have given permission. Texts use the profile 1 phone number.</small></span>
+            </label>
           </div>
         </ProfileSection>
 

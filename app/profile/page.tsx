@@ -70,6 +70,10 @@ export default function ProfilePage() {
       vehicle_2_license_plate: camper.vehicle_2_license_plate,
       golf_cart_make: camper.golf_cart_make,
       golf_cart_color: camper.golf_cart_color,
+      sms_opt_in: Boolean(camper.sms_opt_in),
+      sms_opt_in_at: camper.sms_opt_in
+        ? camper.sms_opt_in_at || new Date().toISOString()
+        : null,
     }
 
     const { error } = await supabase
@@ -83,10 +87,16 @@ export default function ProfilePage() {
       })
       .eq('id', camper.id)
 
-    if (error && /directory_(opt_in|show_phone)/i.test(error.message)) {
+    if (error && /(directory_(opt_in|show_phone)|sms_opt_in)/i.test(error.message)) {
+      const {
+        sms_opt_in,
+        sms_opt_in_at,
+        ...fallbackUpdates
+      } = profileUpdates
+
       const { error: fallbackError } = await supabase
         .from('campers')
-        .update(profileUpdates)
+        .update(fallbackUpdates)
         .eq('id', camper.id)
 
       setMessage(
@@ -180,6 +190,7 @@ export default function ProfilePage() {
     { label: 'Emergency contact', complete: Boolean(camper.emergency_contact_name && camper.emergency_contact_phone) },
     { label: 'Vehicle information', complete: Boolean(camper.vehicle_make && camper.vehicle_model && camper.license_plate) },
     { label: 'Directory choice', complete: camper.directory_opt_in !== null && camper.directory_opt_in !== undefined },
+    { label: 'Text alert choice', complete: camper.sms_opt_in !== null && camper.sms_opt_in !== undefined },
     { label: 'Golf cart insurance', complete: insuranceDocuments.length > 0 },
   ]
   const completeItems = profileChecklist.filter((item) => item.complete).length
@@ -228,6 +239,49 @@ export default function ProfilePage() {
                 {item.label}
               </span>
             ))}
+          </div>
+        </section>
+
+        <section className="card directory-preferences" style={{ marginBottom: '25px' }}>
+          <div className="directory-preferences-heading">
+            <span><ShieldCheck size={22} /></span>
+            <div>
+              <h2>Text Alerts</h2>
+              <p className="muted">
+                Choose whether the office can text important alerts to your saved phone number.
+              </p>
+            </div>
+          </div>
+
+          <label className="privacy-toggle">
+            <input
+              type="checkbox"
+              checked={Boolean(camper.sms_opt_in)}
+              onChange={(event) =>
+                setCamper({
+                  ...camper,
+                  sms_opt_in: event.target.checked,
+                  sms_opt_in_at: event.target.checked
+                    ? camper.sms_opt_in_at || new Date().toISOString()
+                    : null,
+                })
+              }
+            />
+            <span>
+              <strong>Send me Bur Oaks text alerts</strong>
+              <small>Used for bills due, weather alerts, announcements, and campground updates. Message/data rates may apply. Reply STOP to opt out.</small>
+            </span>
+          </label>
+
+          <div className="directory-safety-note">
+            <ShieldCheck size={16} /> Text alerts are separate from the camper directory. Your phone number is not shared publicly.
+          </div>
+
+          <div style={{ marginTop: '16px' }}>
+            <button onClick={saveProfile} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Text Alert Preference'}
+            </button>
+            {message && <p style={{ marginBottom: 0 }}>{message}</p>}
           </div>
         </section>
 
