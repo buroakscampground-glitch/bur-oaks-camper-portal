@@ -20,6 +20,7 @@ import {
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { applyAvailableCreditsToInvoice, formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../lib/account-credits'
+import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 import AdminQuickText from '../../../components/AdminQuickText'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
@@ -150,6 +151,13 @@ export default function AdminInvoicesPage() {
         } catch (error: any) {
           resultMessage += ` AutoPay was not completed: ${error.message}`
         }
+      }
+
+      try {
+        const textResult = await notifyInvoiceCreated(invoice.id)
+        resultMessage += invoiceTextSummary(textResult)
+      } catch (error: any) {
+        resultMessage += ` Text alert failed: ${error.message || 'unknown error'}.`
       }
 
       setMessage(resultMessage)

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { applyAvailableCreditsToInvoice, formatCreditMoney } from '../../../lib/account-credits'
+import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 
 export default function AdminElectricPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -414,6 +415,13 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       } catch (error: any) {
         resultMessage += ` — AutoPay was not completed: ${error.message}`
       }
+    }
+
+    try {
+      const textResult = await notifyInvoiceCreated(invoice.id)
+      resultMessage += invoiceTextSummary(textResult)
+    } catch (error: any) {
+      resultMessage += ` Text alert failed: ${error.message || 'unknown error'}.`
     }
 
     setMessage(resultMessage)

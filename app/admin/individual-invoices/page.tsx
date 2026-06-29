@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { applyAvailableCreditsToInvoice } from '../../../lib/account-credits'
+import { notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 
 export default function BulkInvoicesPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -39,6 +40,9 @@ export default function BulkInvoicesPage() {
     let autoPaid = 0
     let creditPaid = 0
     let creditApplied = 0
+    let textSent = 0
+    let textSkipped = 0
+    let textFailed = 0
     const {
       data: { user },
     } = await supabase.auth.getUser()
@@ -99,11 +103,21 @@ export default function BulkInvoicesPage() {
         console.error('Credit or AutoPay attempt failed:', error)
       }
 
+      try {
+        const textResult = await notifyInvoiceCreated(invoice.id)
+        if (textResult.status === 'sent') textSent++
+        else if (textResult.status === 'failed') textFailed++
+        else textSkipped++
+      } catch (error) {
+        console.error('Invoice text alert failed:', error)
+        textFailed++
+      }
+
       created++
     }
 
     setMessage(
-      `Created ${created} invoices successfully. ${creditApplied} used account credits, ${creditPaid} fully covered by credit, ${autoPaid} paid automatically.`
+      `Created ${created} invoices successfully. ${creditApplied} used account credits, ${creditPaid} fully covered by credit, ${autoPaid} paid automatically. Text alerts: ${textSent} sent, ${textSkipped} skipped, ${textFailed} failed.`
     )
   }
 
