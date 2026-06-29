@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { BellRing, CheckCheck, CircleDollarSign, Droplets, MessageCircle, MessageSquareWarning, PartyPopper, Search, Soup, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import AdminQuickText from '../../../components/AdminQuickText'
 
 const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   maintenance_request: { label: 'Maintenance', icon: Wrench, href: '/admin/maintenance' },
@@ -81,6 +82,14 @@ export default function AdminNotificationsPage() {
         <article><small>Payments</small><strong>{notifications.filter((item) => item.type === 'payment_received' && !item.read_at).length}</strong></article>
         <article><small>RSVPs</small><strong>{notifications.filter((item) => item.type === 'event_rsvp' && !item.read_at).length}</strong></article>
       </section>
+
+      <AdminQuickText
+        title="Campground-wide quick alert"
+        description="Use this for fast storm updates, breakfast is ready, dinner time, gate notices, or urgent announcements."
+        defaultTarget="all_opted_in"
+        defaultType="Weather Alert"
+        defaultMessage="Weather is moving into the area. Please secure awnings, outdoor items, and check your campsite."
+      />
 
       <section className="admin-notification-toolbar">
         <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, lot, or message" /></label>

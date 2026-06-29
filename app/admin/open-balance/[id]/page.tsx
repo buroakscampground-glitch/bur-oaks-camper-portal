@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2, ClipboardCopy, Printer, ReceiptText, Trash2, W
 import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
 import { restoreCreditsForDeletedInvoice } from "../../../../lib/account-credits"
+import AdminQuickText from "../../../../components/AdminQuickText"
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString("en-US", {
@@ -175,6 +176,16 @@ Bur Oaks Campground
         <article><small>Oldest due date</small><strong>{formatDate(oldestDue)}</strong><em>First unpaid due date</em></article>
         <article className={lateInvoices.length ? "attention" : ""}><small>Past due</small><strong>{lateInvoices.length}</strong><em>{lateInvoices.length ? "Needs attention" : "None past due"}</em></article>
       </section>
+
+      {camper?.id && (
+        <AdminQuickText
+          camperId={camper.id}
+          title="Text bill reminder"
+          description={`Send a direct billing reminder to ${camperName} at Lot ${camper?.lot_number || "—"}.`}
+          defaultType="Invoice Reminder"
+          defaultMessage={`Your Bur Oaks account currently has an outstanding balance of ${formatMoney(totalDue)}. Please check your camper portal or contact the office with questions.`}
+        />
+      )}
 
       <section className="admin-open-statement-card">
         <div className="admin-open-statement-heading">

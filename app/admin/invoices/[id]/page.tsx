@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../../lib/account-credits'
+import AdminQuickText from '../../../../components/AdminQuickText'
 
 export default function InvoiceDetailPage() {
   const params = useParams()
@@ -22,6 +23,7 @@ export default function InvoiceDetailPage() {
       .select(`
         *,
         campers (
+          id,
           first_name,
           last_name,
           lot_number
@@ -276,6 +278,16 @@ async function deleteInvoice() {
       🗑 Delete Invoice
   </button>
 </div>
+
+{invoice?.campers?.id && (
+  <AdminQuickText
+    camperId={invoice.campers.id}
+    title="Text invoice reminder"
+    description={`Send a payment reminder to Lot ${invoice.campers?.lot_number || '—'}.`}
+    defaultType="Invoice Reminder"
+    defaultMessage={`You have invoice #${invoice.invoice_number} due for ${Number(invoice.total_due || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}. Please check your Bur Oaks camper portal or contact the office with questions.`}
+  />
+)}
     </main>
   )
 }

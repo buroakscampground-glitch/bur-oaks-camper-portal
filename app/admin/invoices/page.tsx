@@ -20,6 +20,7 @@ import {
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { applyAvailableCreditsToInvoice, formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../lib/account-credits'
+import AdminQuickText from '../../../components/AdminQuickText'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -304,6 +305,17 @@ export default function AdminInvoicesPage() {
             </button>
             {message && <p className={`admin-invoice-message ${message.toLowerCase().includes('success') || message.toLowerCase().includes('paid automatically') ? 'success' : ''}`}>{message}</p>}
           </div>
+
+          {selectedCamper && (
+            <AdminQuickText
+              compact
+              camperId={selectedCamper.id}
+              title="Text this camper"
+              description={`Send a quick billing note to Lot ${selectedCamper.lot_number}.`}
+              defaultType="Invoice Reminder"
+              defaultMessage={`You have a balance due on your Bur Oaks account. Please check your camper portal or contact the office with questions.`}
+            />
+          )}
         </aside>
 
         <section className="admin-invoice-history-panel">

@@ -12,6 +12,7 @@ import {
   FileText,
   Leaf,
   LockKeyhole,
+  MessageSquareText,
   ReceiptText,
   ShieldCheck,
   Sparkles,
@@ -69,6 +70,9 @@ export default function InvoicesPage() {
   const [autoPayConsent, setAutoPayConsent] = useState(false)
   const [autoPayLoading, setAutoPayLoading] = useState(false)
   const [autoPayMessage, setAutoPayMessage] = useState('')
+  const [smsOptIn, setSmsOptIn] = useState(false)
+  const [smsSaving, setSmsSaving] = useState(false)
+  const [smsMessage, setSmsMessage] = useState('')
 
   useEffect(() => {
     async function loadAccount() {
@@ -89,6 +93,7 @@ export default function InvoicesPage() {
       }
 
       setCamper(camperData)
+      setSmsOptIn(Boolean(camperData.sms_opt_in))
 
       const [invoiceResult, creditResult] = await Promise.all([
         supabase
@@ -164,6 +169,33 @@ export default function InvoicesPage() {
     } finally {
       setAutoPayLoading(false)
     }
+  }
+
+  async function saveSmsPreference(nextValue = smsOptIn) {
+    if (!camper?.id) return
+
+    setSmsSaving(true)
+    setSmsMessage('')
+
+    const { data, error } = await supabase
+      .from('campers')
+      .update({
+        sms_opt_in: Boolean(nextValue),
+        sms_opt_in_at: nextValue ? camper.sms_opt_in_at || new Date().toISOString() : null,
+      })
+      .eq('id', camper.id)
+      .select('*')
+      .single()
+
+    if (error) {
+      setSmsMessage(error.message)
+    } else {
+      setCamper(data)
+      setSmsOptIn(Boolean(data.sms_opt_in))
+      setSmsMessage(data.sms_opt_in ? 'Text alerts are turned on.' : 'Text alerts are turned off.')
+    }
+
+    setSmsSaving(false)
   }
 
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
@@ -389,6 +421,32 @@ export default function InvoicesPage() {
           </section>
 
           <aside className="account-panel account-autopay">
+            <div className="autopay-heading account-sms-heading">
+              <span><MessageSquareText size={20} /></span>
+              <div><small>TEXT ALERTS</small><h2>Fast campground updates</h2></div>
+            </div>
+
+            <p className="autopay-intro">Get quick texts for bills due, storm alerts, breakfast, dinner, gate updates, and campground announcements.</p>
+
+            <label className="autopay-consent account-sms-consent">
+              <input
+                type="checkbox"
+                checked={smsOptIn}
+                onChange={(event) => {
+                  setSmsOptIn(event.target.checked)
+                  saveSmsPreference(event.target.checked)
+                }}
+                disabled={smsSaving}
+              />
+              <span><strong>Send me Bur Oaks text alerts</strong><small>Uses the phone number saved in your profile. Message/data rates may apply. Reply STOP to opt out.</small></span>
+            </label>
+
+            {smsMessage && <p className="autopay-message">{smsMessage}</p>}
+
+            <div className="autopay-security account-sms-note"><LockKeyhole size={15} /><span>Your phone number is not shared with the camper directory unless you choose that separately.</span></div>
+
+            <div className="account-side-divider" />
+
             <div className="autopay-heading">
               <span><Sparkles size={20} /></span>
               <div><small>AUTOPAY</small><h2>{autoPayStatus.enabled ? 'You’re enrolled' : 'Make payments effortless'}</h2></div>
