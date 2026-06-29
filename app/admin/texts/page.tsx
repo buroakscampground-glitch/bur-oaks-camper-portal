@@ -28,6 +28,7 @@ export default function AdminTextsPage() {
   const [searchText, setSearchText] = useState('')
   const [sending, setSending] = useState(false)
   const [twilioConfigured, setTwilioConfigured] = useState(false)
+  const [sendResults, setSendResults] = useState<any[]>([])
 
   useEffect(() => {
     loadData()
@@ -64,6 +65,7 @@ export default function AdminTextsPage() {
 
   async function sendAlert() {
     setStatus('')
+    setSendResults([])
 
     if (!message.trim()) {
       setStatus('Please type a message first.')
@@ -115,7 +117,10 @@ export default function AdminTextsPage() {
         return
       }
 
-      setStatus(`Sent ${result.sentCount} text(s). ${result.failedCount ? `${result.failedCount} failed.` : ''}`)
+      setSendResults(result.results || [])
+      setStatus(
+        `Twilio accepted ${result.sentCount} text(s). ${result.failedCount ? `${result.failedCount} failed.` : 'If a phone does not receive it, check Twilio message logs / carrier delivery.'}`
+      )
       setMessage('')
       await loadData()
     } catch (error: any) {
@@ -255,6 +260,19 @@ export default function AdminTextsPage() {
             <p className="admin-texts-warning">Add the three Twilio environment variables in Vercel before texts can send.</p>
           )}
           {status && <p className="admin-texts-status">{status}</p>}
+          {sendResults.length > 0 && (
+            <div className="admin-texts-send-results">
+              {sendResults.map((result) => (
+                <article key={`${result.camperId}-${result.phone || result.status}`}>
+                  <strong>Lot {result.lotNumber || '—'} · {result.camperName}</strong>
+                  <span className={result.status === 'sent' ? 'ready' : 'blocked'}>{result.status}</span>
+                  <small>{result.phone || 'No phone used'}</small>
+                  {result.providerMessageId && <em>Twilio ID: {result.providerMessageId}</em>}
+                  {result.error && <p>{result.error}</p>}
+                </article>
+              ))}
+            </div>
+          )}
         </article>
 
         <article className="admin-texts-card">

@@ -15,6 +15,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [insuranceMessage, setInsuranceMessage] = useState('')
+  const [currentLoginEmail, setCurrentLoginEmail] = useState('')
 
   useEffect(() => {
     loadProfile()
@@ -29,6 +30,8 @@ export default function ProfilePage() {
       window.location.href = '/login'
       return
     }
+
+    setCurrentLoginEmail(String(user.email || '').trim().toLowerCase())
 
     const data = await getCurrentCamper()
 
@@ -53,9 +56,27 @@ export default function ProfilePage() {
     setSaving(true)
     setMessage('')
 
+    const primaryEmail = String(camper.email || '').trim().toLowerCase()
+    const secondaryEmail = String(camper.secondary_email || '').trim().toLowerCase()
+    const loginEmail = currentLoginEmail.trim().toLowerCase()
+
+    if (!primaryEmail) {
+      setSaving(false)
+      setMessage('Please enter your primary email address.')
+      return
+    }
+
+    if (loginEmail && primaryEmail !== loginEmail && secondaryEmail !== loginEmail) {
+      setSaving(false)
+      setMessage('For safety, keep your current login email in either Profile 1 email or Profile 2 email. The office can create a new portal login for a new email.')
+      return
+    }
+
     const profileUpdates = {
       first_name: camper.first_name,
       last_name: camper.last_name,
+      email: primaryEmail,
+      secondary_email: secondaryEmail || null,
       phone: camper.phone,
       second_profile_first_name: camper.second_profile_first_name,
       second_profile_last_name: camper.second_profile_last_name,
@@ -386,14 +407,20 @@ export default function ProfilePage() {
           />
 
           <input
+            placeholder="Profile 1 Email"
             value={camper.email || ''}
-            disabled
-            style={{
-              width: '100%',
-              marginBottom: '12px',
-              background: '#f3f4f6',
-            }}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                email: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
           />
+
+          <p style={{ marginTop: '-6px', marginBottom: '12px', color: '#66736a', fontSize: '12px' }}>
+            Current login email: {currentLoginEmail || camper.email || '—'}. Keep this email in Profile 1 or Profile 2 until the office creates a new portal login.
+          </p>
 
           <input
             value={camper.lot_number || ''}
@@ -449,13 +476,15 @@ export default function ProfilePage() {
           />
 
           <input
-            value={camper.secondary_email || 'Second portal email not added yet'}
-            disabled
-            style={{
-              width: '100%',
-              marginBottom: '12px',
-              background: '#f3f4f6',
-            }}
+            placeholder="Profile 2 email"
+            value={camper.secondary_email || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                secondary_email: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
           />
 
         </section>

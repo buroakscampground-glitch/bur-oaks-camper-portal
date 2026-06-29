@@ -123,6 +123,7 @@ export async function POST(request: Request) {
       camperName: camperName(camper),
       phone,
       status: result.sent ? 'sent' : 'failed',
+      providerMessageId: result.sent ? result.providerMessageId : null,
       error: result.sent ? null : result.error,
     })
   }
