@@ -16,6 +16,11 @@ export default function AdminElectricPage() {
   const [previousReading, setPreviousReading] = useState('')
   const [currentReading, setCurrentReading] = useState('')
   const [rate, setRate] = useState('0.23')
+  const [includeSecondMeter, setIncludeSecondMeter] = useState(false)
+  const [secondMeterReason, setSecondMeterReason] = useState('Meter replaced or site move')
+  const [secondPreviousReading, setSecondPreviousReading] = useState('')
+  const [secondCurrentReading, setSecondCurrentReading] = useState('')
+  const [secondRate, setSecondRate] = useState('')
   const [readingDate, setReadingDate] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [includeWaterTrash, setIncludeWaterTrash] = useState(false)
@@ -108,13 +113,22 @@ const liveAmount =
   liveUsage > 0
     ? liveUsage * Number(rate || 0)
     : 0
+const liveSecondUsage =
+  includeSecondMeter
+    ? Number(secondCurrentReading || 0) - Number(secondPreviousReading || 0)
+    : 0
+const liveSecondRate = Number(secondRate || rate || 0)
+const liveSecondAmount =
+  includeSecondMeter && liveSecondUsage > 0
+    ? liveSecondUsage * liveSecondRate
+    : 0
 
 const selectedWaterTrashFee = includeWaterTrash ? Number(waterTrashFee || 0) : 0
 const selectedPumpOuts = pumpOuts.filter((request) => request.camper_id === camperId)
 const pumpOutChargeTotal = selectedPumpOuts.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
 const selectedSiteServices = siteServiceCharges.filter((charge) => charge.camper_id === camperId)
 const siteServiceChargeTotal = selectedSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0)
-const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal + siteServiceChargeTotal
+const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee + pumpOutChargeTotal + siteServiceChargeTotal
 
   async function saveElectricAndCreateInvoice() {
     setMessage('')
@@ -129,9 +143,14 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     const previous = Number(previousReading)
     const current = Number(currentReading)
     const rateNumber = Number(rate)
+    const secondPrevious = Number(secondPreviousReading)
+    const secondCurrent = Number(secondCurrentReading)
+    const secondRateNumber = Number(secondRate || rate)
     const waterTrashAmount = includeWaterTrash ? Number(waterTrashFee) : 0
     const kwhUsed = current - previous
     const amountDue = Number((kwhUsed * rateNumber).toFixed(2))
+    const secondKwhUsed = includeSecondMeter ? secondCurrent - secondPrevious : 0
+    const secondAmountDue = includeSecondMeter ? Number((secondKwhUsed * secondRateNumber).toFixed(2)) : 0
 
     if (!Number.isFinite(previous) || !Number.isFinite(current) || !Number.isFinite(rateNumber) || !Number.isFinite(waterTrashAmount)) {
       setMessage('Please enter valid numeric values for readings and rate.')
@@ -139,7 +158,19 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       return
     }
 
-    if (previous < 0 || current < 0 || rateNumber <= 0 || waterTrashAmount < 0) {
+    if (includeSecondMeter && (!secondPreviousReading || !secondCurrentReading)) {
+      setMessage('Please enter both second meter readings, or turn off the second meter option.')
+      setSaving(false)
+      return
+    }
+
+    if (includeSecondMeter && (!Number.isFinite(secondPrevious) || !Number.isFinite(secondCurrent) || !Number.isFinite(secondRateNumber))) {
+      setMessage('Please enter valid numeric values for the second meter.')
+      setSaving(false)
+      return
+    }
+
+    if (previous < 0 || current < 0 || rateNumber <= 0 || waterTrashAmount < 0 || (includeSecondMeter && (secondPrevious < 0 || secondCurrent < 0 || secondRateNumber <= 0))) {
       setMessage('Readings and rate must be positive values.')
       setSaving(false)
       return
@@ -153,6 +184,12 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
 
     if (current <= previous) {
       setMessage('Current reading must be greater than previous reading.')
+      setSaving(false)
+      return
+    }
+
+    if (includeSecondMeter && secondCurrent <= secondPrevious) {
+      setMessage('Second meter current reading must be greater than the second meter previous reading.')
       setSaving(false)
       return
     }
@@ -182,6 +219,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       .select('id')
       .eq('camper_id', camperId)
       .eq('reading_date', readingDate)
+      .limit(1)
       .maybeSingle()
 
     if (existingError) {
@@ -229,7 +267,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
 
     const activeSiteServices = freshSiteServices || []
     const siteServiceTotal = Number(activeSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0).toFixed(2))
-    const totalDue = Number((amountDue + waterTrashAmount + pumpOutTotal + siteServiceTotal).toFixed(2))
+    const totalDue = Number((amountDue + secondAmountDue + waterTrashAmount + pumpOutTotal + siteServiceTotal).toFixed(2))
 
     const selectedCamper = campers.find((c) => c.id === camperId)
     const invoiceNumber = `ELECTRIC-${selectedCamper?.lot_number || 'UNKNOWN'}-${Date.now()}`
@@ -241,6 +279,7 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
         invoice_number: invoiceNumber,
         invoice_type: [
           'Electric',
+          includeSecondMeter ? 'Second Meter' : '',
           includeWaterTrash ? 'Water/Trash' : '',
           pumpOutTotal > 0 ? 'Sewer Pump-Out' : '',
           siteServiceTotal > 0 ? 'Site Services' : '',
@@ -263,12 +302,22 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     const invoiceItems = [
       {
         invoice_id: invoice.id,
-        description: `Electric Usage - ${kwhUsed} kWh used @ $${rateNumber.toFixed(2)}/kWh`,
+        description: `Electric Usage - Main meter - ${kwhUsed} kWh used @ $${rateNumber.toFixed(2)}/kWh`,
         quantity: kwhUsed,
         unit_price: rateNumber,
         total: amountDue,
       },
     ]
+
+    if (includeSecondMeter) {
+      invoiceItems.push({
+        invoice_id: invoice.id,
+        description: `${secondMeterReason || 'Second meter'} - ${secondKwhUsed} kWh used @ $${secondRateNumber.toFixed(2)}/kWh`,
+        quantity: secondKwhUsed,
+        unit_price: secondRateNumber,
+        total: secondAmountDue,
+      })
+    }
 
     if (includeWaterTrash) {
       invoiceItems.push({
@@ -309,16 +358,33 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       return
     }
 
-    const { error: readingError } = await supabase.from('electric_readings').insert({
-      camper_id: camperId,
-      reading_date: readingDate,
-      previous_reading: previous,
-      current_reading: current,
-      kwh_used: kwhUsed,
-      rate_per_kwh: rateNumber,
-      amount_due: amountDue,
-      invoice_id: invoice.id,
-    })
+    const readingRows = [
+      {
+        camper_id: camperId,
+        reading_date: readingDate,
+        previous_reading: previous,
+        current_reading: current,
+        kwh_used: kwhUsed,
+        rate_per_kwh: rateNumber,
+        amount_due: amountDue,
+        invoice_id: invoice.id,
+      },
+    ]
+
+    if (includeSecondMeter) {
+      readingRows.push({
+        camper_id: camperId,
+        reading_date: readingDate,
+        previous_reading: secondPrevious,
+        current_reading: secondCurrent,
+        kwh_used: secondKwhUsed,
+        rate_per_kwh: secondRateNumber,
+        amount_due: secondAmountDue,
+        invoice_id: invoice.id,
+      })
+    }
+
+    const { error: readingError } = await supabase.from('electric_readings').insert(readingRows)
 
     if (readingError) {
       await supabase.from('invoice_items').delete().eq('invoice_id', invoice.id)
@@ -381,7 +447,11 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       return
     }
 
-    let resultMessage = `Electric invoice created. Electric: ${kwhUsed} kWh × $${rateNumber.toFixed(2)} = $${amountDue.toFixed(2)}`
+    let resultMessage = `Electric invoice created. Main meter: ${kwhUsed} kWh × $${rateNumber.toFixed(2)} = $${amountDue.toFixed(2)}`
+
+    if (includeSecondMeter) {
+      resultMessage += ` + ${secondMeterReason || 'Second meter'}: ${secondKwhUsed} kWh × $${secondRateNumber.toFixed(2)} = $${secondAmountDue.toFixed(2)}`
+    }
 
     if (includeWaterTrash) {
       resultMessage += ` + Water/Trash: $${waterTrashAmount.toFixed(2)}`
@@ -427,6 +497,11 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
     setMessage(resultMessage)
     setPreviousReading('')
     setCurrentReading('')
+    setIncludeSecondMeter(false)
+    setSecondMeterReason('Meter replaced or site move')
+    setSecondPreviousReading('')
+    setSecondCurrentReading('')
+    setSecondRate('')
     setReadingDate('')
     setDueDate('')
     setIncludeWaterTrash(false)
@@ -551,6 +626,13 @@ setTimeout(() => {
         <strong>${liveAmount.toFixed(2)}</strong>
       </p>
 
+      {includeSecondMeter && liveSecondUsage > 0 && (
+        <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+          <span>{secondMeterReason || 'Second meter'}: {liveSecondUsage} kWh × ${liveSecondRate.toFixed(2)}</span>
+          <strong>${liveSecondAmount.toFixed(2)}</strong>
+        </p>
+      )}
+
       {includeWaterTrash && (
         <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
           <span>Water/Trash fee</span>
@@ -573,13 +655,14 @@ setTimeout(() => {
       )}
     </div>
 
-    {(includeWaterTrash || pumpOutChargeTotal > 0 || siteServiceChargeTotal > 0) && (
+    {(includeSecondMeter || includeWaterTrash || pumpOutChargeTotal > 0 || siteServiceChargeTotal > 0) && (
       <>
         <h2>
           ${liveInvoiceTotal.toFixed(2)}
         </h2>
         <p className="muted">
           Estimated Total
+          {includeSecondMeter ? ' with second meter' : ''}
           {includeWaterTrash ? ' with Water/Trash' : ''}
           {pumpOutChargeTotal > 0 ? ` + ${selectedPumpOuts.length} sewer pump-out${selectedPumpOuts.length === 1 ? '' : 's'}` : ''}
           {siteServiceChargeTotal > 0 ? ` + ${selectedSiteServices.length} site service charge${selectedSiteServices.length === 1 ? '' : 's'}` : ''}
@@ -589,6 +672,88 @@ setTimeout(() => {
   </section>
 )}
           <input placeholder="Rate per kWh" value={rate} onChange={(e) => setRate(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
+
+          <section
+            style={{
+              marginBottom: '14px',
+              padding: '16px',
+              border: includeSecondMeter ? '2px solid #2f5d3a' : '1px solid #d8ded5',
+              borderRadius: '14px',
+              background: includeSecondMeter ? '#eef6eb' : '#f8faf7',
+            }}
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+              }}
+            >
+              <input
+                checked={includeSecondMeter}
+                onChange={(e) => setIncludeSecondMeter(e.target.checked)}
+                style={{ marginTop: '3px' }}
+                type="checkbox"
+              />
+              <span>
+                Add a second meter reading
+                <small
+                  style={{
+                    display: 'block',
+                    marginTop: '4px',
+                    color: '#6b7280',
+                    fontWeight: 'normal',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Use this only if a meter was replaced, broke, or the camper moved sites during this billing period.
+                </small>
+              </span>
+            </label>
+
+            {includeSecondMeter && (
+              <div style={{ display: 'grid', gap: '12px', marginTop: '14px' }}>
+                <label style={{ display: 'grid', gap: '6px' }}>
+                  <span style={{ fontWeight: 800 }}>Reason shown on invoice</span>
+                  <select value={secondMeterReason} onChange={(e) => setSecondMeterReason(e.target.value)}>
+                    <option>Meter replaced or site move</option>
+                    <option>Old meter before replacement</option>
+                    <option>New meter after replacement</option>
+                    <option>Moved sites during billing period</option>
+                    <option>Backup meter reading</option>
+                  </select>
+                </label>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+                  <input
+                    placeholder="Second previous reading"
+                    value={secondPreviousReading}
+                    onChange={(e) => setSecondPreviousReading(e.target.value)}
+                  />
+                  <input
+                    placeholder="Second current reading"
+                    value={secondCurrentReading}
+                    onChange={(e) => setSecondCurrentReading(e.target.value)}
+                  />
+                </div>
+
+                <input
+                  placeholder={`Second meter rate, blank uses $${Number(rate || 0).toFixed(2)}`}
+                  value={secondRate}
+                  onChange={(e) => setSecondRate(e.target.value)}
+                />
+
+                {liveSecondUsage > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', padding: '12px', borderRadius: '12px', background: '#ffffff' }}>
+                    <span>{liveSecondUsage} kWh second meter charge</span>
+                    <strong>${liveSecondAmount.toFixed(2)}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
           <section
             style={{

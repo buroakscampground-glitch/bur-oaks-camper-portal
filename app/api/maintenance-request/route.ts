@@ -37,6 +37,7 @@ export async function POST(request: Request) {
         description,
         category,
         status: 'Open',
+        camper_id: context.camper.id,
         reported_by: reporterName,
         lot_number: context.camper.lot_number || '',
         admin_approved: false,
