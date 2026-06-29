@@ -21,6 +21,11 @@ export default function PrivacyPage() {
         <h2>Your choices</h2>
         <p>You may update your profile, directory preference, and AutoPay enrollment through the portal. Contact the campground office to request access, correction, or deletion of other account information, subject to legal and operational recordkeeping requirements.</p>
 
+        <h2>Text messaging privacy</h2>
+        <p>If you opt in to SMS text alerts, we use your phone number to send campground operational messages such as invoice notices, payment reminders, maintenance updates, event updates, meal updates, safety alerts, and office messages.</p>
+        <p>We do not sell or share SMS opt-in information, phone numbers, or text messaging consent with third parties for their marketing or promotional purposes. Service providers may process messages only as needed to deliver campground communications.</p>
+        <p>You can opt out of text messages at any time by replying <strong>STOP</strong>. You can request help by replying <strong>HELP</strong>.</p>
+
         <h2>Security and retention</h2>
         <p>We use access controls and service providers to protect portal data. Information is retained only as long as reasonably needed for campground operations, accounting, safety, and legal obligations.</p>
       </article>

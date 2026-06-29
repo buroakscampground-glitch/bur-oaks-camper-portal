@@ -18,6 +18,11 @@ export default function TermsPage() {
         <h2>Campground information</h2>
         <p>Announcements, events, alerts, and maintenance statuses are provided for convenience and may change. Emergency or safety matters should be reported directly to the appropriate campground contact or emergency service.</p>
 
+        <h2>SMS text alerts</h2>
+        <p>Bur Oaks Campground may send opted-in campers text messages about invoices, payment reminders, maintenance updates, campground alerts, events, meal updates, office messages, and other account or campground operational notices.</p>
+        <p>Message frequency varies based on campground activity and your account. Message and data rates may apply. Reply <strong>HELP</strong> for help. Reply <strong>STOP</strong> to opt out of future text messages.</p>
+        <p>SMS consent is not a condition of staying at the campground or using the camper portal. You may manage your text opt-in preference in the portal or by contacting the campground office.</p>
+
         <h2>Acceptable use</h2>
         <p>Do not attempt to access another camper’s records, disrupt the portal, upload harmful material, or use directory information for advertising or unsolicited contact.</p>
 
