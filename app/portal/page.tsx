@@ -31,7 +31,6 @@ import {
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import PortalWeather, { PortalWeatherMini } from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
-import AppInstallPrompt from '../../components/AppInstallPrompt'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 
 const serviceLinks = [
@@ -563,8 +562,6 @@ export default function CamperPortalPage() {
             </span>
           </a>
         </section>
-
-        <AppInstallPrompt />
 
         <section className="portal-weekend-planner">
           <div className="portal-planner-main">
