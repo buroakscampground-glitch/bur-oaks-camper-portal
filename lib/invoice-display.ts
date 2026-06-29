@@ -14,6 +14,14 @@ export function invoiceLineDetails(item: any) {
   const total = Number(item?.total ?? quantity * unitPrice)
   const countLabel = quantity.toLocaleString('en-US')
 
+  if (lower.includes('account credit') || total < 0) {
+    return {
+      title: 'Account credit applied',
+      explanation: 'A credit on your account was used to reduce this invoice.',
+      amount: total,
+    }
+  }
+
   if (lower.includes('electric') || lower.includes('kwh')) {
     return {
       title: 'Electric usage',

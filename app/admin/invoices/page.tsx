@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
+import { applyAvailableCreditsToInvoice, formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../lib/account-credits'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -123,13 +124,31 @@ export default function AdminInvoicesPage() {
 
       if (itemError) throw itemError
 
-      let resultMessage = 'Invoice created successfully.'
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-      try {
-        const autoPay = await attemptAutoPay(invoice.id)
-        if (autoPay.charged) resultMessage = 'Invoice created and paid automatically.'
-      } catch (error: any) {
-        resultMessage = `Invoice created. AutoPay was not completed: ${error.message}`
+      const creditResult = await applyAvailableCreditsToInvoice({
+        client: supabase,
+        camperId,
+        invoiceId: invoice.id,
+        invoiceTotal: total,
+        appliedBy: user?.email || null,
+      })
+
+      let resultMessage = creditResult.appliedTotal > 0
+        ? `Invoice created. Applied ${formatCreditMoney(creditResult.appliedTotal)} account credit.`
+        : 'Invoice created successfully.'
+
+      if (creditResult.paidInFull) {
+        resultMessage += ' Credit covered the full invoice.'
+      } else {
+        try {
+          const autoPay = await attemptAutoPay(invoice.id)
+          if (autoPay.charged) resultMessage += ' Remaining balance paid automatically.'
+        } catch (error: any) {
+          resultMessage += ` AutoPay was not completed: ${error.message}`
+        }
       }
 
       setMessage(resultMessage)
@@ -157,6 +176,8 @@ export default function AdminInvoicesPage() {
     setMessage('')
 
     try {
+      const restoreResult = await restoreCreditsForDeletedInvoice(supabase, invoice.id)
+
       const { error: itemError } = await supabase
         .from('invoice_items')
         .delete()
@@ -171,7 +192,11 @@ export default function AdminInvoicesPage() {
 
       if (error) throw error
 
-      setMessage(`Invoice #${invoice.invoice_number} deleted.`)
+      setMessage(
+        restoreResult.restoredTotal > 0
+          ? `Invoice #${invoice.invoice_number} deleted. ${formatCreditMoney(restoreResult.restoredTotal)} account credit was returned.`
+          : `Invoice #${invoice.invoice_number} deleted.`
+      )
       await loadInvoices()
     } catch (error: any) {
       setMessage(error.message || 'Unable to delete invoice.')

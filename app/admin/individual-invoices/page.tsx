@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
+import { applyAvailableCreditsToInvoice } from '../../../lib/account-credits'
 
 export default function BulkInvoicesPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -36,6 +37,11 @@ export default function BulkInvoicesPage() {
     const total = Number(amount)
     let created = 0
     let autoPaid = 0
+    let creditPaid = 0
+    let creditApplied = 0
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
 
     for (const camper of campers) {
       const invoiceNumber = `${invoiceType.replace(/\s+/g, '-').toUpperCase()}-${camper.lot_number}-${Date.now()}`
@@ -74,17 +80,30 @@ export default function BulkInvoicesPage() {
       }
 
       try {
-        const autoPay = await attemptAutoPay(invoice.id)
-        if (autoPay.charged) autoPaid++
+        const creditResult = await applyAvailableCreditsToInvoice({
+          client: supabase,
+          camperId: camper.id,
+          invoiceId: invoice.id,
+          invoiceTotal: total,
+          appliedBy: user?.email || null,
+        })
+
+        if (creditResult.appliedTotal > 0) creditApplied++
+        if (creditResult.paidInFull) {
+          creditPaid++
+        } else {
+          const autoPay = await attemptAutoPay(invoice.id)
+          if (autoPay.charged) autoPaid++
+        }
       } catch (error) {
-        console.error('AutoPay attempt failed:', error)
+        console.error('Credit or AutoPay attempt failed:', error)
       }
 
       created++
     }
 
     setMessage(
-      `Created ${created} invoices successfully. ${autoPaid} paid automatically.`
+      `Created ${created} invoices successfully. ${creditApplied} used account credits, ${creditPaid} fully covered by credit, ${autoPaid} paid automatically.`
     )
   }
 

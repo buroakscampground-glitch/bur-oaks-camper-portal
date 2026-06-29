@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
+import { formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../../lib/account-credits'
 
 export default function InvoiceDetailPage() {
   const params = useParams()
@@ -37,6 +38,14 @@ async function deleteInvoice() {
     return
   }
 
+  let restoreResult = { restoredTotal: 0 }
+  try {
+    restoreResult = await restoreCreditsForDeletedInvoice(supabase, invoice.id)
+  } catch (error: any) {
+    alert(error.message || 'Unable to restore account credit before deleting this invoice.')
+    return
+  }
+
   const { error: itemError } = await supabase
     .from('invoice_items')
     .delete()
@@ -57,7 +66,11 @@ async function deleteInvoice() {
     return
   }
 
-  alert('Invoice deleted')
+  alert(
+    restoreResult.restoredTotal > 0
+      ? `Invoice deleted. ${formatCreditMoney(restoreResult.restoredTotal)} account credit was returned.`
+      : 'Invoice deleted'
+  )
 
   router.push('/admin/invoices')
 }

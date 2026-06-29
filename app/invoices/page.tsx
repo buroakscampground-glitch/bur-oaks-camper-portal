@@ -15,6 +15,7 @@ import {
   ReceiptText,
   ShieldCheck,
   Sparkles,
+  WalletCards,
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { checkoutItems } from '../../lib/stripe'
@@ -62,6 +63,7 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [processingInvoiceId, setProcessingInvoiceId] = useState('')
+  const [creditBalance, setCreditBalance] = useState(0)
   const [autoPayStatus, setAutoPayStatus] = useState<any>({ enabled: false })
   const [autoPayPreference, setAutoPayPreference] = useState<AutoPayPreference>('both')
   const [autoPayConsent, setAutoPayConsent] = useState(false)
@@ -88,13 +90,24 @@ export default function InvoicesPage() {
 
       setCamper(camperData)
 
-      const { data } = await supabase
-        .from('invoices')
-        .select('*, invoice_items(*)')
-        .eq('camper_id', camperData.id)
-        .order('due_date', { ascending: false })
+      const [invoiceResult, creditResult] = await Promise.all([
+        supabase
+          .from('invoices')
+          .select('*, invoice_items(*)')
+          .eq('camper_id', camperData.id)
+          .order('due_date', { ascending: false }),
+        supabase
+          .from('account_credits')
+          .select('remaining_amount,status')
+          .eq('camper_id', camperData.id)
+          .eq('status', 'active')
+          .gt('remaining_amount', 0),
+      ])
 
-      setInvoices(data || [])
+      setInvoices(invoiceResult.data || [])
+      setCreditBalance(
+        (creditResult.data || []).reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0)
+      )
       await refreshAutoPayStatus()
 
       if (new URLSearchParams(window.location.search).get('autopay') === 'success') {
@@ -266,6 +279,7 @@ export default function InvoicesPage() {
 
         <section className="account-summary" aria-label="Account summary">
           <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>Amount due</small><strong>{formatMoney(openTotal)}</strong></span></div>
+          <div><span className="account-summary-icon green"><WalletCards size={21} /></span><span><small>Account credit</small><strong>{formatMoney(creditBalance)}</strong></span></div>
           <div><span className="account-summary-icon green"><CheckCircle2 size={21} /></span><span><small>Paid invoices</small><strong>{paidInvoices.length}</strong></span></div>
           <div><span className="account-summary-icon blue"><FileText size={21} /></span><span><small>Total history</small><strong>{invoices.length}</strong></span></div>
           <div><span className="account-summary-icon plum"><CreditCard size={21} /></span><span><small>AutoPay</small><strong>{autoPayStatus.enabled ? 'Active' : 'Not enrolled'}</strong></span></div>

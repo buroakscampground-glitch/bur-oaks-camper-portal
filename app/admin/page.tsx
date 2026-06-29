@@ -25,6 +25,7 @@ import {
   UserRoundSearch,
   Users,
   UsersRound,
+  WalletCards,
   Wrench,
   Zap,
 } from 'lucide-react'
@@ -42,6 +43,8 @@ type AdminStats = {
   waitlist: number
   unpaidInvoices: number
   totalRevenue: number
+  activeCreditBalance: number
+  activeCredits: number
   openMaintenance: number
   inProgressMaintenance: number
   emergencyMaintenance: number
@@ -70,6 +73,8 @@ const emptyStats: AdminStats = {
   waitlist: 0,
   unpaidInvoices: 0,
   totalRevenue: 0,
+  activeCreditBalance: 0,
+  activeCredits: 0,
   openMaintenance: 0,
   inProgressMaintenance: 0,
   emergencyMaintenance: 0,
@@ -135,6 +140,7 @@ export default function AdminPage() {
       documentResult,
       pumpOutResult,
       siteServiceResult,
+      creditResult,
       messageResult,
     ] = await Promise.all([
       supabase.from('campers').select('id').eq('active', true),
@@ -150,6 +156,7 @@ export default function AdminPage() {
       supabase.from('documents').select('id,document_type,signature_status,camper_id'),
       supabase.from('sewer_pump_out_requests').select('id,status,billed_at'),
       supabase.from('site_service_charges').select('id,billed_at,cancelled_at'),
+      supabase.from('account_credits').select('id,status,remaining_amount'),
       supabase.from('office_messages').select('id').eq('sender_role', 'camper').is('read_by_admin_at', null),
     ])
 
@@ -157,6 +164,7 @@ export default function AdminPage() {
     const maintenance = maintenanceResult.data || []
     const notifications = notificationResult.data || []
     const documents = documentResult.data || []
+    const activeCredits = (creditResult.data || []).filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)
     const insuredCamperIds = new Set(
       documents
         .filter((document) => document.document_type === 'Golf Cart Insurance')
@@ -178,6 +186,8 @@ export default function AdminPage() {
       totalRevenue: invoices
         .filter((invoice) => invoice.status === 'paid')
         .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+      activeCreditBalance: activeCredits.reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+      activeCredits: activeCredits.length,
       openMaintenance: maintenance.filter(
         (ticket) => ticket.status === 'Open' && ticket.admin_approved === true
       ).length,
@@ -252,6 +262,14 @@ export default function AdminPage() {
       alertType: 'payment_received',
       icon: ReceiptText,
       tone: 'gold',
+    },
+    {
+      href: '/admin/credits',
+      title: 'Account Credits',
+      description: 'Add overpayment credits and future billing adjustments.',
+      detail: `$${stats.activeCreditBalance.toFixed(2)} active`,
+      icon: WalletCards,
+      tone: 'green',
     },
     {
       href: '/admin/electric',

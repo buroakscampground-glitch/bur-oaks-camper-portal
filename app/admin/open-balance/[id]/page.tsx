@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ArrowLeft, CheckCircle2, ClipboardCopy, Printer, ReceiptText, Trash2, WalletCards } from "lucide-react"
 import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
+import { restoreCreditsForDeletedInvoice } from "../../../../lib/account-credits"
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString("en-US", {
@@ -88,6 +89,16 @@ export default function CamperBalancePage() {
 
     setBusyInvoiceId(invoice.id)
 
+    let restoredTotal = 0
+    try {
+      const restoreResult = await restoreCreditsForDeletedInvoice(supabase, invoice.id)
+      restoredTotal = restoreResult.restoredTotal
+    } catch (error: any) {
+      setBusyInvoiceId("")
+      setMessage(error.message || "Unable to restore account credit before deleting this invoice.")
+      return
+    }
+
     const { error: itemError } = await supabase
       .from("invoice_items")
       .delete()
@@ -111,7 +122,11 @@ export default function CamperBalancePage() {
       return
     }
 
-    setMessage("Invoice deleted.")
+    setMessage(
+      restoredTotal > 0
+        ? `Invoice deleted. ${formatMoney(restoredTotal)} account credit was returned.`
+        : "Invoice deleted."
+    )
     await loadData()
   }
 

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
+import { applyAvailableCreditsToInvoice, formatCreditMoney } from '../../../lib/account-credits'
 
 export default function AdminElectricPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -360,6 +361,25 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       }
     }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
+    let creditResult = { appliedTotal: 0, remainingDue: totalDue, paidInFull: false }
+    try {
+      creditResult = await applyAvailableCreditsToInvoice({
+        client: supabase,
+        camperId,
+        invoiceId: invoice.id,
+        invoiceTotal: totalDue,
+        appliedBy: user?.email || null,
+      })
+    } catch (creditError: any) {
+      setMessage(`Electric invoice was created, but account credit could not be applied: ${creditError.message}`)
+      setSaving(false)
+      return
+    }
+
     let resultMessage = `Electric invoice created. Electric: ${kwhUsed} kWh × $${rateNumber.toFixed(2)} = $${amountDue.toFixed(2)}`
 
     if (includeWaterTrash) {
@@ -374,16 +394,26 @@ const liveInvoiceTotal = liveAmount + selectedWaterTrashFee + pumpOutChargeTotal
       resultMessage += ` + Site Services: ${activeSiteServices.length} charge${activeSiteServices.length === 1 ? '' : 's'} = $${siteServiceTotal.toFixed(2)}`
     }
 
-    resultMessage += ` — Total due: $${totalDue.toFixed(2)} by ${dueDate}.`
+    resultMessage += ` — Total before credit: $${totalDue.toFixed(2)}.`
 
-    try {
-      const autoPay = await attemptAutoPay(invoice.id)
+    if (creditResult.appliedTotal > 0) {
+      resultMessage += ` Account credit applied: ${formatCreditMoney(creditResult.appliedTotal)}.`
+    }
 
-      if (autoPay.charged) {
-        resultMessage += ' — paid automatically.'
+    resultMessage += ` Remaining due: ${formatCreditMoney(creditResult.remainingDue)} by ${dueDate}.`
+
+    if (creditResult.paidInFull) {
+      resultMessage += ' Credit covered the full invoice.'
+    } else {
+      try {
+        const autoPay = await attemptAutoPay(invoice.id)
+
+        if (autoPay.charged) {
+          resultMessage += ' — paid automatically.'
+        }
+      } catch (error: any) {
+        resultMessage += ` — AutoPay was not completed: ${error.message}`
       }
-    } catch (error: any) {
-      resultMessage += ` — AutoPay was not completed: ${error.message}`
     }
 
     setMessage(resultMessage)
