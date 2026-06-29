@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { nextSaturdayDinner } from '../../../lib/saturday-dinners'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { ownerTextAlertConfigured } from '../../../lib/owner-alert-sms'
 
 export const runtime = 'nodejs'
 
@@ -127,6 +128,15 @@ export async function GET(request: Request) {
       status: notifications.length ? 'warning' : 'ready',
       detail: notifications.length ? `${notifications.length} unread alert${notifications.length === 1 ? '' : 's'} waiting.` : 'No unread admin alerts right now.',
       href: '/admin/notifications',
+    }),
+    item({
+      id: 'owner-text-alerts',
+      label: 'Owner text alerts',
+      status: ownerTextAlertConfigured() ? 'ready' : 'warning',
+      detail: ownerTextAlertConfigured()
+        ? 'Owner text alerts are connected for important camper activity.'
+        : 'Add OWNER_ALERT_PHONE in Vercel if you want important alerts texted directly to you.',
+      href: '/admin/texts',
     }),
   ]
 

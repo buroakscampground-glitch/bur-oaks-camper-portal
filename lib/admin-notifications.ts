@@ -1,3 +1,5 @@
+import { sendOwnerTextAlert } from './owner-alert-sms'
+
 type NotificationInput = {
   type: 'maintenance_request' | 'payment_received' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message'
   title: string
@@ -26,6 +28,13 @@ export async function createAdminNotification(admin: any, input: NotificationInp
   if (error) {
     throw error
   }
+
+  sendOwnerTextAlert({
+    type: input.type,
+    title: input.title,
+    message: input.message,
+    lotNumber: input.lot_number,
+  }).catch((textError) => console.error('Owner text alert failed:', textError))
 
   return { created: true }
 }
