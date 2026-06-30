@@ -4,6 +4,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, CalendarDays, Download, FileSpreadsheet, Printer, ReceiptText, Search } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
+const categoryColors: Record<string, string> = {
+  Electric: '#2f6fad',
+  'Water/Trash': '#268b8f',
+  'Sewer pump-outs': '#9f4f1f',
+  'Site services': '#7b8f35',
+  'Lot rent': '#315f3d',
+  'Processing fees': '#8b6f2f',
+  'Account credits applied': '#b54b42',
+  'Other campground charges': '#6f7280',
+}
+
 function monthInputValue(date = new Date()) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 }
@@ -64,6 +75,29 @@ function categoryForItem(item: any, invoice: any) {
   if (text.includes('processing') || text.includes('card fee')) return 'Processing fees'
 
   return invoice?.invoice_type || 'Other campground charges'
+}
+
+function colorForCategory(label: string) {
+  return categoryColors[label] || '#6f7280'
+}
+
+function donutSegmentPath(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
+  const start = polarPoint(cx, cy, radius, endAngle)
+  const end = polarPoint(cx, cy, radius, startAngle)
+  const largeArcFlag = endAngle - startAngle <= 180 ? 0 : 1
+
+  return [
+    'M', start.x, start.y,
+    'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y,
+  ].join(' ')
+}
+
+function polarPoint(cx: number, cy: number, radius: number, angle: number) {
+  const radians = (angle - 90) * Math.PI / 180
+  return {
+    x: cx + radius * Math.cos(radians),
+    y: cy + radius * Math.sin(radians),
+  }
 }
 
 function csvEscape(value: unknown) {
@@ -191,6 +225,24 @@ export default function AdminMonthlyReportsPage() {
     return Array.from(grouped.values()).sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
   }, [lineItems])
 
+  const positiveCategoryTotals = categoryTotals.filter((row) => row.total > 0)
+  const categoryGrandTotal = positiveCategoryTotals.reduce((sum, row) => sum + row.total, 0)
+  const topCategory = positiveCategoryTotals[0]
+  let runningAngle = 0
+  const donutSegments = positiveCategoryTotals.map((row) => {
+    const percentage = categoryGrandTotal > 0 ? row.total / categoryGrandTotal : 0
+    const startAngle = runningAngle
+    const endAngle = runningAngle + percentage * 360
+    runningAngle = endAngle
+
+    return {
+      ...row,
+      percentage,
+      path: donutSegmentPath(120, 120, 88, startAngle, endAngle),
+      color: colorForCategory(row.label),
+    }
+  })
+
   function exportCsv() {
     const rows = [
       [
@@ -311,6 +363,54 @@ export default function AdminMonthlyReportsPage() {
                 placeholder="Search lot, camper, invoice, item, or method"
               />
             </label>
+          </div>
+
+          <div className="admin-report-money-map">
+            <div className="admin-report-donut-card">
+              <div className="admin-report-donut-wrap">
+                <svg viewBox="0 0 240 240" className="admin-report-donut" aria-label="Revenue by charge type chart">
+                  <circle cx="120" cy="120" r="88" className="admin-report-donut-bg" />
+                  {donutSegments.map((segment) => (
+                    <path
+                      d={segment.path}
+                      key={segment.label}
+                      stroke={segment.color}
+                      strokeWidth="34"
+                      strokeLinecap="butt"
+                      fill="none"
+                    />
+                  ))}
+                  <circle cx="120" cy="120" r="58" className="admin-report-donut-hole" />
+                </svg>
+                <div className="admin-report-donut-center">
+                  <small>Top bucket</small>
+                  <strong>{topCategory?.label || 'No data'}</strong>
+                  <span>{topCategory ? `${Math.round((topCategory.total / categoryGrandTotal) * 100)}%` : '—'}</span>
+                </div>
+              </div>
+              <p>
+                This shows the positive money buckets only. Credits are tracked separately so they do not muddy the revenue pie.
+              </p>
+            </div>
+
+            <div className="admin-report-category-cards">
+              {positiveCategoryTotals.length ? positiveCategoryTotals.map((row) => {
+                const percentage = categoryGrandTotal > 0 ? row.total / categoryGrandTotal : 0
+                return (
+                  <article key={row.label}>
+                    <span style={{ background: colorForCategory(row.label) }} />
+                    <div>
+                      <strong>{row.label}</strong>
+                      <small>{row.count} line{row.count === 1 ? '' : 's'} · {Math.round(percentage * 100)}% of received categories</small>
+                      <i><b style={{ width: `${Math.max(4, percentage * 100)}%`, background: colorForCategory(row.label) }} /></i>
+                    </div>
+                    <em>{formatMoney(row.total)}</em>
+                  </article>
+                )
+              }) : (
+                <p className="admin-report-empty">No revenue categories found for this month.</p>
+              )}
+            </div>
           </div>
 
           <div className="admin-report-breakdowns">
