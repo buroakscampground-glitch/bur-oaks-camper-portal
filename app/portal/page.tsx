@@ -234,6 +234,7 @@ export default function CamperPortalPage() {
               .select('id', { count: 'exact', head: true })
               .eq('camper_id', camperData.id)
               .eq('sender_role', 'admin')
+              .is('camper_archived_at', null)
               .is('read_by_camper_at', null),
           ])
 
@@ -242,7 +243,14 @@ export default function CamperPortalPage() {
         setDocuments(documentResult.data || [])
         setEvents(eventResult.data || [])
         setAnnouncements(announcementResult.data || [])
-        setAlerts(alertResult.data || [])
+        let dismissedAlertIds = new Set<string>()
+        try {
+          const saved = window.localStorage.getItem(`bur-oaks-dismissed-alerts-${camperData.id}`)
+          dismissedAlertIds = new Set((JSON.parse(saved || '[]') || []).map((id: unknown) => String(id)))
+        } catch {
+          dismissedAlertIds = new Set()
+        }
+        setAlerts((alertResult.data || []).filter((alert: any) => !dismissedAlertIds.has(String(alert.id))))
         setMaintenanceTickets(maintenanceResult.data || [])
         setUnreadOfficeMessages(messageResult.count || 0)
       } catch (error) {
@@ -269,6 +277,38 @@ export default function CamperPortalPage() {
   async function handleLogout() {
     await supabase.auth.signOut()
     window.location.href = '/login'
+  }
+
+  function dismissPortalAlert(alertId: string) {
+    if (!camper?.id) return
+    const key = `bur-oaks-dismissed-alerts-${camper.id}`
+    let existing: string[] = []
+
+    try {
+      existing = JSON.parse(window.localStorage.getItem(key) || '[]') || []
+    } catch {
+      existing = []
+    }
+
+    const next = Array.from(new Set([...existing, String(alertId)])).slice(-100)
+    window.localStorage.setItem(key, JSON.stringify(next))
+    setAlerts((current) => current.filter((alert) => String(alert.id) !== String(alertId)))
+  }
+
+  function dismissAllPortalAlerts() {
+    if (!camper?.id || alerts.length === 0) return
+    const key = `bur-oaks-dismissed-alerts-${camper.id}`
+    let existing: string[] = []
+
+    try {
+      existing = JSON.parse(window.localStorage.getItem(key) || '[]') || []
+    } catch {
+      existing = []
+    }
+
+    const next = Array.from(new Set([...existing, ...alerts.map((alert) => String(alert.id))])).slice(-100)
+    window.localStorage.setItem(key, JSON.stringify(next))
+    setAlerts([])
   }
 
   async function requestSewerPumpOut() {
@@ -1048,7 +1088,14 @@ export default function CamperPortalPage() {
                 <span>STAY INFORMED</span>
                 <h2>Recent alerts</h2>
               </div>
-              <Bell size={22} />
+              <div className="portal-alert-heading-actions">
+                {alerts.length > 0 && (
+                  <button type="button" onClick={dismissAllPortalAlerts}>
+                    Clear all
+                  </button>
+                )}
+                <Bell size={22} />
+              </div>
             </div>
 
             {alerts.length === 0 ? (
@@ -1065,6 +1112,13 @@ export default function CamperPortalPage() {
                       <h3>{alert.reminder_type || 'Campground update'}</h3>
                       <p>{alert.message}</p>
                     </div>
+                    <button
+                      type="button"
+                      className="portal-alert-dismiss"
+                      onClick={() => dismissPortalAlert(alert.id)}
+                    >
+                      Clear
+                    </button>
                   </article>
                 ))}
               </div>

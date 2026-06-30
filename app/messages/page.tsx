@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Bell, CheckCircle2, MessageCircle, Send, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Bell, CheckCircle2, MessageCircle, Send, ShieldCheck, Trash2 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 
 function formatMessageTime(value?: string) {
@@ -88,6 +88,51 @@ export default function CamperMessagesPage() {
     setSending(false)
   }
 
+  async function clearMessages(mode: 'read' | 'all') {
+    const readMessageIds = messages
+      .filter((message) => message.sender_role === 'camper' || message.read_by_camper_at)
+      .map((message) => message.id)
+
+    const idsToClear = mode === 'all' ? messages.map((message) => message.id) : readMessageIds
+
+    if (idsToClear.length === 0) {
+      setNotice('No read messages to clear yet.')
+      return
+    }
+
+    const confirmed = window.confirm(
+      mode === 'all'
+        ? 'Clear this whole conversation from your portal view? The office will still keep its record.'
+        : 'Clear read messages from your portal view? The office will still keep its record.'
+    )
+
+    if (!confirmed) return
+
+    setNotice('')
+
+    const response = await fetch('/api/messages', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await authHeaders()),
+      },
+      body: JSON.stringify(mode === 'all' ? { archiveAll: true } : { messageIds: idsToClear }),
+    })
+    const result = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      setNotice(result.error || 'Unable to clear messages.')
+      return
+    }
+
+    setMessages((current) =>
+      mode === 'all'
+        ? []
+        : current.filter((message) => !idsToClear.includes(message.id))
+    )
+    setNotice(mode === 'all' ? 'Conversation cleared from your portal view.' : 'Read messages cleared from your portal view.')
+  }
+
   return (
     <main className="office-inbox-page">
       <section className="office-inbox-hero camper">
@@ -119,7 +164,15 @@ export default function CamperMessagesPage() {
               <small>Lot {camper?.lot_number || '—'}</small>
               <h2>{camper?.first_name || 'Camper'} {camper?.last_name || ''}</h2>
             </div>
-            <span><CheckCircle2 size={16} /> Secure portal messages</span>
+            <div className="office-inbox-thread-actions">
+              <span><CheckCircle2 size={16} /> Secure portal messages</span>
+              <button type="button" onClick={() => clearMessages('read')} disabled={loading || messages.length === 0}>
+                <Trash2 size={14} /> Clear read
+              </button>
+              <button type="button" onClick={() => clearMessages('all')} disabled={loading || messages.length === 0}>
+                Clear all
+              </button>
+            </div>
           </div>
 
           <div className="office-message-list">

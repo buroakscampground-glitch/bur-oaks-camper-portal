@@ -73,11 +73,17 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Choose a camper conversation first.' }, { status: 400 })
   }
 
-  const { data: messages, error } = await context.admin
+  let messageQuery = context.admin
     .from('office_messages')
     .select('*')
     .eq('camper_id', camperId)
     .order('created_at', { ascending: true })
+
+  if (!isAdmin) {
+    messageQuery = messageQuery.is('camper_archived_at', null)
+  }
+
+  const { data: messages, error } = await messageQuery
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -107,6 +113,52 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({ success: true, messages: messages || [] })
+}
+
+export async function DELETE(request: Request) {
+  const context = await getAuthenticatedContext(request)
+
+  if (!context) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+
+  const role = String(context.camper.role || '').toLowerCase()
+  const isAdmin = role === 'admin'
+
+  if (isAdmin) {
+    return NextResponse.json({ error: 'Admins keep the office message history.' }, { status: 403 })
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const messageIds = Array.isArray(body.messageIds)
+    ? body.messageIds.map((id: unknown) => String(id || '').trim()).filter(Boolean)
+    : []
+  const archiveAll = body.archiveAll === true
+
+  if (!archiveAll && messageIds.length === 0) {
+    return NextResponse.json({ error: 'Choose at least one message to clear.' }, { status: 400 })
+  }
+
+  let query = context.admin
+    .from('office_messages')
+    .update({
+      camper_archived_at: new Date().toISOString(),
+      read_by_camper_at: new Date().toISOString(),
+    })
+    .eq('camper_id', context.camper.id)
+    .is('camper_archived_at', null)
+
+  if (!archiveAll) {
+    query = query.in('id', Array.from(new Set(messageIds)).slice(0, 100))
+  }
+
+  const { error } = await query
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  return NextResponse.json({ success: true })
 }
 
 export async function POST(request: Request) {
