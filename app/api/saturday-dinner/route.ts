@@ -24,7 +24,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, signups: data || [] })
+  const { data: publicData, error: publicError } = await context.admin
+    .from('saturday_dinner_signups')
+    .select('id,dinner_date,lot_number,camper_name,attending_status,bringing,guest_count,updated_at')
+    .order('dinner_date', { ascending: true })
+    .order('updated_at', { ascending: false })
+
+  if (publicError) {
+    return NextResponse.json({ error: publicError.message }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    success: true,
+    signups: data || [],
+    publicSignups: (publicData || []).map((signup: any) => ({
+      id: signup.id,
+      dinner_date: signup.dinner_date,
+      lot_number: signup.lot_number,
+      camper_name: signup.camper_name,
+      attending_status: signup.attending_status,
+      bringing: signup.bringing,
+      guest_count: signup.guest_count,
+      updated_at: signup.updated_at,
+    })),
+  })
 }
 
 export async function POST(request: Request) {

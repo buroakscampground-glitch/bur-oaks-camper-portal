@@ -44,6 +44,48 @@ export const saturdayDinners2026: SaturdayDinner[] = [
   { id: '2026-10-31', date: '2026-10-31', month: 'October', day: 31, menu: 'Chili', theme: 'Halloween' },
 ]
 
+const commonDinnerSuggestions = [
+  'Dessert',
+  'Fruit tray',
+  'Veggie tray',
+  'Chips',
+  'Dip',
+  'Salad',
+  'Pasta salad',
+  'Potato salad',
+  'Macaroni salad',
+  'Baked beans',
+  'Corn',
+  'Rolls or buns',
+  'Condiments',
+  'Paper plates',
+  'Napkins',
+  'Plastic silverware',
+  'Cups',
+  'Drinks',
+  'Ice',
+]
+
+const menuSuggestionMap: Array<{ match: RegExp; items: string[] }> = [
+  { match: /hot dog|brat|sausage|burger/i, items: ['Buns', 'Chips', 'Dip', 'Baked beans', 'Potato salad', 'Macaroni salad', 'Condiments', 'Dessert', 'Drinks', 'Ice'] },
+  { match: /taco|nacho/i, items: ['Tortilla chips', 'Salsa', 'Queso', 'Lettuce', 'Tomatoes', 'Sour cream', 'Guacamole', 'Refried beans', 'Mexican rice', 'Dessert', 'Drinks'] },
+  { match: /lasagna|spaghetti|pasta|alfredo/i, items: ['Garlic bread', 'Salad', 'Dressing', 'Vegetable side', 'Dessert', 'Drinks', 'Paper plates', 'Napkins'] },
+  { match: /pulled pork|hog roast|meatball/i, items: ['Buns', 'BBQ sauce', 'Coleslaw', 'Baked beans', 'Potato salad', 'Chips', 'Dessert', 'Drinks'] },
+  { match: /fish|seafood/i, items: ['Coleslaw', 'Hush puppies', 'French fries', 'Tartar sauce', 'Lemon wedges', 'Salad', 'Dessert', 'Drinks'] },
+  { match: /fried chicken|chicken/i, items: ['Mashed potatoes', 'Gravy', 'Green beans', 'Corn', 'Rolls', 'Salad', 'Dessert', 'Drinks'] },
+  { match: /chili|soup/i, items: ['Crackers', 'Cornbread', 'Shredded cheese', 'Sour cream', 'Onions', 'Salad', 'Dessert', 'Drinks'] },
+  { match: /potato/i, items: ['Shredded cheese', 'Sour cream', 'Bacon bits', 'Broccoli', 'Chives', 'Salad', 'Dessert', 'Drinks'] },
+  { match: /ham/i, items: ['Green beans', 'Corn', 'Mac and cheese', 'Rolls', 'Salad', 'Dessert', 'Drinks'] },
+  { match: /crock pot/i, items: ['Crock pot side', 'Bread or rolls', 'Salad', 'Dessert', 'Drinks', 'Paper bowls', 'Spoons'] },
+  { match: /jambalaya/i, items: ['Cornbread', 'Salad', 'Vegetable side', 'Dessert', 'Drinks', 'Paper bowls', 'Spoons'] },
+]
+
+export function dinnerBringSuggestions(menu = '') {
+  const matched = menuSuggestionMap.find((item) => item.match.test(menu))
+  const combined = [...(matched?.items || []), ...commonDinnerSuggestions]
+  return Array.from(new Set(combined))
+}
+
 export function nextSaturdayDinner(today = new Date()) {
   const current = today.toISOString().slice(0, 10)
   return saturdayDinners2026.find((dinner) => dinner.date >= current && !dinner.closed) || saturdayDinners2026.find((dinner) => !dinner.closed)

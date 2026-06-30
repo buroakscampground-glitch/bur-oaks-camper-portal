@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CalendarDays, CheckCircle2, Clock, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
-import { saturdayDinners2026 } from '../../lib/saturday-dinners'
+import { dinnerBringSuggestions, saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 
 const months = ['March', 'April', 'May', 'June', 'July', 'August', 'Sept', 'October']
@@ -11,9 +11,11 @@ const months = ['March', 'April', 'May', 'June', 'July', 'August', 'Sept', 'Octo
 export default function SaturdayDinnersPage() {
   const searchParams = useSearchParams()
   const [signups, setSignups] = useState<any[]>([])
+  const [publicSignups, setPublicSignups] = useState<any[]>([])
   const [selectedDate, setSelectedDate] = useState('')
   const [status, setStatus] = useState('Going')
-  const [bringing, setBringing] = useState('')
+  const [bringChoice, setBringChoice] = useState('')
+  const [customBringing, setCustomBringing] = useState('')
   const [guestCount, setGuestCount] = useState(1)
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
@@ -35,7 +37,10 @@ export default function SaturdayDinnersPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
     const result = await response.json().catch(() => null)
-    if (response.ok) setSignups(result?.signups || [])
+    if (response.ok) {
+      setSignups(result?.signups || [])
+      setPublicSignups(result?.publicSignups || [])
+    }
   }
 
   const nextDinner = useMemo(() => {
@@ -49,6 +54,21 @@ export default function SaturdayDinnersPage() {
   const monthDinners = saturdayDinners2026.filter((dinner) => dinner.month === currentMonth)
   const openMonthDinners = monthDinners.filter((dinner) => !dinner.closed)
   const remainingMonthDinners = monthDinners.filter((dinner) => dinner.date >= new Date().toISOString().slice(0, 10) && !dinner.closed)
+  const selectedDinnerSignups = publicSignups.filter((signup) => signup.dinner_date === selectedDinner?.date)
+  const visibleDinnerSignups = selectedDinnerSignups.filter((signup) => signup.attending_status !== 'Not Going')
+  const selectedDinnerSuggestions = dinnerBringSuggestions(selectedDinner?.menu || '')
+  const normalizedCurrentBringing = String(
+    bringChoice === 'Other' ? customBringing : bringChoice
+  ).trim().toLowerCase()
+  const claimedBringItems = new Set(
+    visibleDinnerSignups
+      .map((signup) => String(signup.bringing || '').trim().toLowerCase())
+      .filter(Boolean)
+  )
+  const availableBringSuggestions = selectedDinnerSuggestions.filter((item) => {
+    const normalized = item.toLowerCase()
+    return !claimedBringItems.has(normalized) || normalized === normalizedCurrentBringing
+  })
 
   useEffect(() => {
     const requestedDate = searchParams.get('date')
@@ -67,17 +87,28 @@ export default function SaturdayDinnersPage() {
 
   useEffect(() => {
     const existing = selectedDate ? signupByDate.get(selectedDate) : null
+    const suggestions = dinnerBringSuggestions(selectedDinner?.menu || '')
     if (existing) {
       setStatus(existing.attending_status || 'Going')
-      setBringing(existing.bringing || '')
+      if (existing.bringing && suggestions.includes(existing.bringing)) {
+        setBringChoice(existing.bringing)
+        setCustomBringing('')
+      } else if (existing.bringing) {
+        setBringChoice('Other')
+        setCustomBringing(existing.bringing)
+      } else {
+        setBringChoice('')
+        setCustomBringing('')
+      }
       setGuestCount(existing.guest_count || 1)
     } else {
       setStatus('Going')
-      setBringing('')
+      setBringChoice('')
+      setCustomBringing('')
       setGuestCount(1)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, signups.length])
+  }, [selectedDate, selectedDinner?.menu, signups.length])
 
   async function saveDinnerSignup() {
     const { data } = await supabase.auth.getSession()
@@ -86,6 +117,7 @@ export default function SaturdayDinnersPage() {
 
     setSaving(true)
     setMessage('Saving your dinner response…')
+    const bringing = bringChoice === 'Other' ? customBringing.trim() : bringChoice.trim()
     const response = await fetch('/api/saturday-dinner', {
       method: 'POST',
       headers: {
@@ -217,13 +249,50 @@ export default function SaturdayDinnersPage() {
           </label>
           <label className="bring-field">
             <span>What are you bringing?</span>
-            <input value={bringing} onChange={(event) => setBringing(event.target.value)} placeholder="Example: dessert, salad, chips, nothing this week" />
+            <select value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
+              <option value="">Nothing / not sure yet</option>
+              {availableBringSuggestions.map((item) => (
+                <option value={item} key={item}>{item}</option>
+              ))}
+              <option value="Other">Other — I will type it in</option>
+            </select>
           </label>
+          {bringChoice === 'Other' && (
+            <label className="bring-field">
+              <span>Other item</span>
+              <input value={customBringing} onChange={(event) => setCustomBringing(event.target.value)} placeholder="Example: brownies, fruit salad, lemonade" />
+            </label>
+          )}
           <button type="button" onClick={saveDinnerSignup} disabled={saving || selectedDinner?.closed}>
             <Send size={16} /> {saving ? 'Saving…' : 'Save dinner response'}
           </button>
         </div>
         {message && <p className="saturday-dinner-message">{message}</p>}
+
+        <div className="saturday-dinner-bringing-board">
+          <div>
+            <small>WHO IS BRINGING WHAT</small>
+            <h3>{selectedDinner?.month} {selectedDinner?.day} potluck list</h3>
+            <p>Claimed suggested items disappear from the dropdown so everyone can spread things out.</p>
+          </div>
+          {visibleDinnerSignups.length > 0 ? (
+            <div className="saturday-dinner-bringing-list">
+              {visibleDinnerSignups.map((signup) => (
+                <article key={signup.id}>
+                  <span>Lot {signup.lot_number || '—'}</span>
+                  <strong>{signup.camper_name || 'Camper'}</strong>
+                  <p>
+                    {signup.attending_status}
+                    {signup.guest_count ? ` · ${signup.guest_count} ${Number(signup.guest_count) === 1 ? 'person' : 'people'}` : ''}
+                  </p>
+                  <em>{signup.bringing || 'Nothing listed yet'}</em>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="saturday-dinner-empty-small">No one has added what they are bringing yet.</p>
+          )}
+        </div>
       </section>
 
       <section className="saturday-menu-board">
