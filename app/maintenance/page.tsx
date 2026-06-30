@@ -35,6 +35,7 @@ export default function MaintenanceRequestPage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('General')
+  const [treeResponsibilityAcknowledged, setTreeResponsibilityAcknowledged] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -43,6 +44,7 @@ export default function MaintenanceRequestPage() {
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [expandedTicketId, setExpandedTicketId] = useState('')
   const router = useRouter()
+  const isTreeGroundsRequest = category === 'Tree / Grounds'
 
   useEffect(() => {
     loadPage()
@@ -101,6 +103,11 @@ export default function MaintenanceRequestPage() {
       return
     }
 
+    if (isTreeGroundsRequest && !treeResponsibilityAcknowledged) {
+      setMessage('Please acknowledge the tree and natural-vegetation responsibility notice before submitting this request.')
+      return
+    }
+
     setSubmitting(true)
     setMessage('Submitting your request…')
 
@@ -155,7 +162,9 @@ export default function MaintenanceRequestPage() {
       },
       body: JSON.stringify({
         title,
-        description,
+        description: isTreeGroundsRequest
+          ? `${description}\n\nCamper acknowledgement: Camper selected Tree / Grounds and acknowledged that trees, limbs, branches, natural vegetation, and related debris may remain camper responsibility under the seasonal agreement. Camper also acknowledged that submitting this request does not transfer responsibility to Bur Oaks and that any review or action is determined solely by Bur Oaks.`
+          : description,
         category,
         photoUrls: uploadedPaths,
       }),
@@ -181,6 +190,7 @@ export default function MaintenanceRequestPage() {
     setTitle('')
     setDescription('')
     setCategory('General')
+    setTreeResponsibilityAcknowledged(false)
     setPhotoFiles([])
     setMessage(`✅ Maintenance request submitted. The office will review it before work is assigned.${alertMessage}`)
     setSubmitting(false)
@@ -244,7 +254,12 @@ export default function MaintenanceRequestPage() {
 
           <label>
             <span>Category</span>
-            <select value={category} onChange={(event) => setCategory(event.target.value)}>
+            <select value={category} onChange={(event) => {
+              setCategory(event.target.value)
+              if (event.target.value !== 'Tree / Grounds') {
+                setTreeResponsibilityAcknowledged(false)
+              }
+            }}>
               <option>General</option>
               <option>Electric</option>
               <option>Water</option>
@@ -255,6 +270,25 @@ export default function MaintenanceRequestPage() {
               <option>Tree / Grounds</option>
             </select>
           </label>
+
+          {isTreeGroundsRequest && (
+            <div className="camper-maintenance-responsibility-notice">
+              <strong>Tree / limb responsibility notice</strong>
+              <p>
+                The seasonal agreement says trees, limbs, branches, natural vegetation, and related debris are natural campground conditions
+                and may remain the camper&apos;s responsibility. You may submit this for office review, but submitting this request does not
+                transfer responsibility to Bur Oaks or guarantee that work will be assigned.
+              </p>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={treeResponsibilityAcknowledged}
+                  onChange={(event) => setTreeResponsibilityAcknowledged(event.target.checked)}
+                />
+                <span>I understand Bur Oaks will review this request and decide whether any action will be taken.</span>
+              </label>
+            </div>
+          )}
 
           <label>
             <span>Description</span>
