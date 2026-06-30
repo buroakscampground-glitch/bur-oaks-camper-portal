@@ -6,6 +6,7 @@ import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { applyAvailableCreditsToInvoice, formatCreditMoney } from '../../../lib/account-credits'
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
+import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 
 export default function AdminElectricPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -26,6 +27,7 @@ export default function AdminElectricPage() {
   const [dueDate, setDueDate] = useState('')
   const [includeWaterTrash, setIncludeWaterTrash] = useState(false)
   const [waterTrashFee, setWaterTrashFee] = useState('20')
+  const [waterTrashFeeOptions, setWaterTrashFeeOptions] = useState(defaultCampgroundBillingSettings.waterTrashFees)
   const [newCreditAmount, setNewCreditAmount] = useState('')
   const [newCreditReason, setNewCreditReason] = useState('Electric billing credit')
   const [newCreditNotes, setNewCreditNotes] = useState('')
@@ -48,7 +50,15 @@ export default function AdminElectricPage() {
     loadPumpOuts()
     loadSiteServiceCharges()
     loadAccountCredits()
+    loadSettings()
   }, [])
+
+  async function loadSettings() {
+    const settings = await loadCampgroundBillingSettings(supabase)
+    setRate(String(settings.electricDefaultRate))
+    setWaterTrashFeeOptions(settings.waterTrashFees)
+    setWaterTrashFee(String(settings.waterTrashFees[0] || 0))
+  }
 
   async function loadCampers() {
     const { data } = await supabase.from('campers').select('*').order('lot_number')
@@ -199,8 +209,8 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
       return
     }
 
-    if (includeWaterTrash && ![20, 25].includes(waterTrashAmount)) {
-      setMessage('Please choose a $20 or $25 water/trash fee.')
+    if (includeWaterTrash && !waterTrashFeeOptions.includes(waterTrashAmount)) {
+      setMessage('Please choose an approved water/trash fee.')
       setSaving(false)
       return
     }
@@ -874,7 +884,7 @@ setTimeout(() => {
                   marginTop: '14px',
                 }}
               >
-                {[20, 25].map((fee) => (
+                {waterTrashFeeOptions.map((fee) => (
                   <label
                     key={fee}
                     style={{

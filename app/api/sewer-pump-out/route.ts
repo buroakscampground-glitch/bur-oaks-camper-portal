@@ -2,10 +2,9 @@ import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 
 export const runtime = 'nodejs'
-
-const pumpCharge = 10
 
 export async function GET(request: Request) {
   const context = await getAuthenticatedContext(request)
@@ -38,6 +37,8 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const notes = String(body.notes || '').trim().slice(0, 500)
   const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'Camper'
+  const billingSettings = await loadCampgroundBillingSettings(context.admin)
+  const pumpCharge = billingSettings.sewerPumpOutFee
 
   const { data: requestRow, error } = await context.admin
     .from('sewer_pump_out_requests')

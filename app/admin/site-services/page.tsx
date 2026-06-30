@@ -3,15 +3,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Search, Sparkles, SprayCan, Waves, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 
-const serviceOptions = [
-  { type: 'full_weed_eat', label: 'Full weed eat', amount: 45 },
-  { type: 'half_weed_eat', label: 'Half weed eat', amount: 20 },
-  { type: 'spray_weeds', label: 'Spray weeds', amount: 45 },
-  { type: 'half_spray_weeds', label: 'Half spray weeds', amount: 20 },
-  { type: 'pressure_wash', label: 'Pressure wash', amount: 20 },
-  { type: 'misc_service', label: 'Misc custom charge', amount: 0 },
-]
+const miscServiceOption = { type: 'misc_service', label: 'Misc custom charge', amount: 0 }
 
 function camperName(camper: any) {
   return `${camper?.first_name || ''} ${camper?.last_name || ''}`.trim() || 'Camper'
@@ -21,7 +15,7 @@ export default function AdminSiteServicesPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [charges, setCharges] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
-  const [serviceType, setServiceType] = useState(serviceOptions[0].type)
+  const [serviceType, setServiceType] = useState(defaultCampgroundBillingSettings.siteServices[0].type)
   const [customLabel, setCustomLabel] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [performedAt, setPerformedAt] = useState('')
@@ -31,6 +25,7 @@ export default function AdminSiteServicesPage() {
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [savingId, setSavingId] = useState('')
+  const [serviceOptions, setServiceOptions] = useState([...defaultCampgroundBillingSettings.siteServices, miscServiceOption])
 
   useEffect(() => {
     const today = new Date()
@@ -38,7 +33,13 @@ export default function AdminSiteServicesPage() {
     setPerformedAt(localToday.toISOString().slice(0, 10))
     loadCampers()
     loadCharges()
+    loadSettings()
   }, [])
+
+  async function loadSettings() {
+    const settings = await loadCampgroundBillingSettings(supabase)
+    setServiceOptions([...settings.siteServices, miscServiceOption])
+  }
 
   async function loadCampers() {
     const { data, error } = await supabase
