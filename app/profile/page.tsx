@@ -72,15 +72,32 @@ export default function ProfilePage() {
       return
     }
 
+    if (
+      !String(camper.mailing_address_line1 || '').trim() ||
+      !String(camper.mailing_city || '').trim() ||
+      !String(camper.mailing_state || '').trim() ||
+      !String(camper.mailing_zip || '').trim()
+    ) {
+      setSaving(false)
+      setMessage('Please add your full mailing address. This is required so Bur Oaks can mail paper notices if needed.')
+      return
+    }
+
     const profileUpdates = {
       first_name: camper.first_name,
       last_name: camper.last_name,
       email: primaryEmail,
       secondary_email: secondaryEmail || null,
       phone: camper.phone,
+      alternate_phone: camper.alternate_phone,
       second_profile_first_name: camper.second_profile_first_name,
       second_profile_last_name: camper.second_profile_last_name,
       second_profile_phone: camper.second_profile_phone,
+      mailing_address_line1: camper.mailing_address_line1,
+      mailing_address_line2: camper.mailing_address_line2,
+      mailing_city: camper.mailing_city,
+      mailing_state: camper.mailing_state,
+      mailing_zip: camper.mailing_zip,
       emergency_contact_name: camper.emergency_contact_name,
       emergency_contact_phone: camper.emergency_contact_phone,
       vehicle_make: camper.vehicle_make,
@@ -207,6 +224,8 @@ export default function ProfilePage() {
 
   const profileChecklist = [
     { label: 'Phone number', complete: Boolean(camper.phone) },
+    { label: 'Second phone number', complete: Boolean(camper.alternate_phone || camper.second_profile_phone) },
+    { label: 'Mailing address required', complete: Boolean(camper.mailing_address_line1 && camper.mailing_city && camper.mailing_state && camper.mailing_zip) },
     { label: 'Second profile optional', complete: Boolean(camper.second_profile_first_name || camper.secondary_email) },
     { label: 'Emergency contact', complete: Boolean(camper.emergency_contact_name && camper.emergency_contact_phone) },
     { label: 'Vehicle information', complete: Boolean(camper.vehicle_make && camper.vehicle_model && camper.license_plate) },
@@ -410,6 +429,18 @@ export default function ProfilePage() {
           />
 
           <input
+            placeholder="Second phone number"
+            value={camper.alternate_phone || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                alternate_phone: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
             placeholder="Profile 1 Email"
             value={camper.email || ''}
             onChange={(e) =>
@@ -434,6 +465,75 @@ export default function ProfilePage() {
               background: '#f3f4f6',
             }}
           />
+        </section>
+
+        <section className="card" style={{ marginBottom: '25px' }}>
+          <h2>Mailing Address Required</h2>
+          <p style={{ marginTop: '-4px', color: '#66736a' }}>
+            Required so Bur Oaks can mail paper notices, leases, billing items, or other campground documents if needed.
+          </p>
+
+          <input
+            placeholder="Street address"
+            value={camper.mailing_address_line1 || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                mailing_address_line1: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <input
+            placeholder="Apartment, unit, PO box, or address line 2"
+            value={camper.mailing_address_line2 || ''}
+            onChange={(e) =>
+              setCamper({
+                ...camper,
+                mailing_address_line2: e.target.value,
+              })
+            }
+            style={{ width: '100%', marginBottom: '12px' }}
+          />
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
+            <input
+              placeholder="City"
+              value={camper.mailing_city || ''}
+              onChange={(e) =>
+                setCamper({
+                  ...camper,
+                  mailing_city: e.target.value,
+                })
+              }
+              style={{ width: '100%', marginBottom: '12px' }}
+            />
+
+            <input
+              placeholder="State"
+              value={camper.mailing_state || ''}
+              onChange={(e) =>
+                setCamper({
+                  ...camper,
+                  mailing_state: e.target.value,
+                })
+              }
+              style={{ width: '100%', marginBottom: '12px' }}
+            />
+
+            <input
+              placeholder="ZIP"
+              value={camper.mailing_zip || ''}
+              onChange={(e) =>
+                setCamper({
+                  ...camper,
+                  mailing_zip: e.target.value,
+                })
+              }
+              style={{ width: '100%', marginBottom: '12px' }}
+            />
+          </div>
         </section>
 
         <section className="card" style={{ marginBottom: '25px' }}>

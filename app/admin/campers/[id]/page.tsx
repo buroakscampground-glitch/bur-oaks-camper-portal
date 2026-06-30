@@ -33,9 +33,15 @@ type Camper = {
   email: string | null
   secondary_email: string | null
   phone: string | null
+  alternate_phone: string | null
   second_profile_first_name: string | null
   second_profile_last_name: string | null
   second_profile_phone: string | null
+  mailing_address_line1: string | null
+  mailing_address_line2: string | null
+  mailing_city: string | null
+  mailing_state: string | null
+  mailing_zip: string | null
   role: string | null
   active: boolean | null
   emergency_contact_name: string | null
@@ -63,9 +69,15 @@ const emptyCamper: Camper = {
   email: '',
   secondary_email: '',
   phone: '',
+  alternate_phone: '',
   second_profile_first_name: '',
   second_profile_last_name: '',
   second_profile_phone: '',
+  mailing_address_line1: '',
+  mailing_address_line2: '',
+  mailing_city: '',
+  mailing_state: '',
+  mailing_zip: '',
   role: 'camper',
   active: true,
   emergency_contact_name: '',
@@ -145,6 +157,16 @@ export default function CamperDetailPage() {
       return
     }
 
+    if (
+      !camper.mailing_address_line1?.trim() ||
+      !camper.mailing_city?.trim() ||
+      !camper.mailing_state?.trim() ||
+      !camper.mailing_zip?.trim()
+    ) {
+      setMessage('Mailing address is required so Bur Oaks can send paper items if needed.')
+      return
+    }
+
     setSaving(true)
     setMessage('Saving camper profile…')
 
@@ -159,9 +181,15 @@ export default function CamperDetailPage() {
           ? camper.secondary_email.trim().toLowerCase()
           : null,
         phone: camper.phone?.trim() || null,
+        alternate_phone: camper.alternate_phone?.trim() || null,
         second_profile_first_name: camper.second_profile_first_name?.trim() || null,
         second_profile_last_name: camper.second_profile_last_name?.trim() || null,
         second_profile_phone: camper.second_profile_phone?.trim() || null,
+        mailing_address_line1: camper.mailing_address_line1?.trim() || null,
+        mailing_address_line2: camper.mailing_address_line2?.trim() || null,
+        mailing_city: camper.mailing_city?.trim() || null,
+        mailing_state: camper.mailing_state?.trim() || null,
+        mailing_zip: camper.mailing_zip?.trim() || null,
         role: camper.role || 'camper',
         active: camper.active !== false,
         emergency_contact_name: camper.emergency_contact_name?.trim() || null,
@@ -368,6 +396,7 @@ export default function CamperDetailPage() {
             <Field label="Primary email address" type="email" value={camper.email} onChange={(value) => updateField('email', value)} icon={<Mail />} />
             <Field label="Second email address" type="email" value={camper.secondary_email} onChange={(value) => updateField('secondary_email', value)} icon={<Mail />} />
             <Field label="Profile 1 phone number" type="tel" value={camper.phone} onChange={(value) => updateField('phone', value)} icon={<Phone />} />
+            <Field label="Second phone number" type="tel" value={camper.alternate_phone} onChange={(value) => updateField('alternate_phone', value)} icon={<Phone />} />
           </div>
           <div className="admin-camper-directory-options sms">
             <label>
@@ -381,6 +410,21 @@ export default function CamperDetailPage() {
               />
               <span><strong>Camper agreed to receive text alerts</strong><small>Use only after they have given permission. Texts use the profile 1 phone number.</small></span>
             </label>
+          </div>
+        </ProfileSection>
+
+        <ProfileSection icon={<MapPin />} kicker="REQUIRED" title="Mailing address">
+          <p className="admin-camper-panel-note">
+            Required so Bur Oaks can mail paper notices, leases, billing items, or other campground documents if needed.
+          </p>
+          <div className="admin-camper-form-grid">
+            <Field label="Street address" value={camper.mailing_address_line1} onChange={(value) => updateField('mailing_address_line1', value)} />
+            <Field label="Address line 2" value={camper.mailing_address_line2} onChange={(value) => updateField('mailing_address_line2', value)} />
+          </div>
+          <div className="admin-camper-form-grid three">
+            <Field label="City" value={camper.mailing_city} onChange={(value) => updateField('mailing_city', value)} />
+            <Field label="State" value={camper.mailing_state} onChange={(value) => updateField('mailing_state', value)} />
+            <Field label="ZIP" value={camper.mailing_zip} onChange={(value) => updateField('mailing_zip', value)} />
           </div>
         </ProfileSection>
 
