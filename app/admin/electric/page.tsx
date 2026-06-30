@@ -12,6 +12,7 @@ export default function AdminElectricPage() {
   const [readings, setReadings] = useState<any[]>([])
   const [pumpOuts, setPumpOuts] = useState<any[]>([])
   const [siteServiceCharges, setSiteServiceCharges] = useState<any[]>([])
+  const [accountCredits, setAccountCredits] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
   const [previousReading, setPreviousReading] = useState('')
   const [currentReading, setCurrentReading] = useState('')
@@ -25,6 +26,9 @@ export default function AdminElectricPage() {
   const [dueDate, setDueDate] = useState('')
   const [includeWaterTrash, setIncludeWaterTrash] = useState(false)
   const [waterTrashFee, setWaterTrashFee] = useState('20')
+  const [newCreditAmount, setNewCreditAmount] = useState('')
+  const [newCreditReason, setNewCreditReason] = useState('Electric billing credit')
+  const [newCreditNotes, setNewCreditNotes] = useState('')
   const [searchText, setSearchText] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
@@ -43,6 +47,7 @@ export default function AdminElectricPage() {
     loadReadings()
     loadPumpOuts()
     loadSiteServiceCharges()
+    loadAccountCredits()
   }, [])
 
   async function loadCampers() {
@@ -79,6 +84,17 @@ export default function AdminElectricPage() {
       .order('performed_at', { ascending: true })
 
     setSiteServiceCharges(data || [])
+  }
+
+  async function loadAccountCredits() {
+    const { data } = await supabase
+      .from('account_credits')
+      .select('*')
+      .eq('status', 'active')
+      .gt('remaining_amount', 0)
+      .order('created_at', { ascending: true })
+
+    setAccountCredits(data || [])
   }
 
   const filteredReadings = useMemo(() => {
@@ -128,7 +144,13 @@ const selectedPumpOuts = pumpOuts.filter((request) => request.camper_id === camp
 const pumpOutChargeTotal = selectedPumpOuts.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
 const selectedSiteServices = siteServiceCharges.filter((charge) => charge.camper_id === camperId)
 const siteServiceChargeTotal = selectedSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0)
+const selectedAccountCredits = accountCredits.filter((credit) => credit.camper_id === camperId)
+const availableCreditTotal = selectedAccountCredits.reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0)
+const newCreditValue = Number(newCreditAmount || 0)
+const estimatedCreditTotal =
+  availableCreditTotal + (Number.isFinite(newCreditValue) && newCreditValue > 0 ? newCreditValue : 0)
 const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee + pumpOutChargeTotal + siteServiceChargeTotal
+const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTotal)
 
   async function saveElectricAndCreateInvoice() {
     setMessage('')
@@ -147,6 +169,7 @@ const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee +
     const secondCurrent = Number(secondCurrentReading)
     const secondRateNumber = Number(secondRate || rate)
     const waterTrashAmount = includeWaterTrash ? Number(waterTrashFee) : 0
+    const creditAmountToAdd = Number(newCreditAmount || 0)
     const kwhUsed = current - previous
     const amountDue = Number((kwhUsed * rateNumber).toFixed(2))
     const secondKwhUsed = includeSecondMeter ? secondCurrent - secondPrevious : 0
@@ -190,6 +213,18 @@ const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee +
 
     if (includeSecondMeter && secondCurrent <= secondPrevious) {
       setMessage('Second meter current reading must be greater than the second meter previous reading.')
+      setSaving(false)
+      return
+    }
+
+    if (newCreditAmount.trim() && (!Number.isFinite(creditAmountToAdd) || creditAmountToAdd <= 0)) {
+      setMessage('Please enter a valid credit amount, or leave the credit box blank.')
+      setSaving(false)
+      return
+    }
+
+    if (creditAmountToAdd > 0 && !newCreditReason.trim()) {
+      setMessage('Please enter a reason for the credit.')
       setSaving(false)
       return
     }
@@ -432,6 +467,26 @@ const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee +
       data: { user },
     } = await supabase.auth.getUser()
 
+    if (creditAmountToAdd > 0) {
+      const camperName = `${selectedCamper?.first_name || ''} ${selectedCamper?.last_name || ''}`.trim() || 'Camper'
+      const { error: creditInsertError } = await supabase.from('account_credits').insert({
+        camper_id: camperId,
+        lot_number: selectedCamper?.lot_number || null,
+        camper_name: camperName,
+        original_amount: Number(creditAmountToAdd.toFixed(2)),
+        remaining_amount: Number(creditAmountToAdd.toFixed(2)),
+        reason: newCreditReason.trim(),
+        notes: newCreditNotes.trim() || null,
+        created_by: user?.email || null,
+      })
+
+      if (creditInsertError) {
+        setMessage(`Electric invoice was created, but the new account credit could not be added: ${creditInsertError.message}`)
+        setSaving(false)
+        return
+      }
+    }
+
     let creditResult = { appliedTotal: 0, remainingDue: totalDue, paidInFull: false }
     try {
       creditResult = await applyAvailableCreditsToInvoice({
@@ -466,6 +521,10 @@ const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee +
     }
 
     resultMessage += ` — Total before credit: $${totalDue.toFixed(2)}.`
+
+    if (creditAmountToAdd > 0) {
+      resultMessage += ` New credit added: ${formatCreditMoney(creditAmountToAdd)}.`
+    }
 
     if (creditResult.appliedTotal > 0) {
       resultMessage += ` Account credit applied: ${formatCreditMoney(creditResult.appliedTotal)}.`
@@ -506,10 +565,14 @@ const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee +
     setDueDate('')
     setIncludeWaterTrash(false)
     setWaterTrashFee('20')
+    setNewCreditAmount('')
+    setNewCreditReason('Electric billing credit')
+    setNewCreditNotes('')
     setSearchText('')
     loadReadings()
     loadPumpOuts()
     loadSiteServiceCharges()
+    loadAccountCredits()
     setSaving(false)
   }
 
@@ -653,15 +716,22 @@ setTimeout(() => {
           <strong>${siteServiceChargeTotal.toFixed(2)}</strong>
         </p>
       )}
+
+      {estimatedCreditTotal > 0 && (
+        <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0, color: '#2f5d3a' }}>
+          <span>Account credit{newCreditValue > 0 ? ' including new credit' : ''}</span>
+          <strong>-{formatCreditMoney(Math.min(estimatedCreditTotal, liveInvoiceTotal))}</strong>
+        </p>
+      )}
     </div>
 
-    {(includeSecondMeter || includeWaterTrash || pumpOutChargeTotal > 0 || siteServiceChargeTotal > 0) && (
+    {(includeSecondMeter || includeWaterTrash || pumpOutChargeTotal > 0 || siteServiceChargeTotal > 0 || estimatedCreditTotal > 0) && (
       <>
         <h2>
-          ${liveInvoiceTotal.toFixed(2)}
+          ${liveInvoiceAfterCredits.toFixed(2)}
         </h2>
         <p className="muted">
-          Estimated Total
+          Estimated Total After Credits
           {includeSecondMeter ? ' with second meter' : ''}
           {includeWaterTrash ? ' with Water/Trash' : ''}
           {pumpOutChargeTotal > 0 ? ` + ${selectedPumpOuts.length} sewer pump-out${selectedPumpOuts.length === 1 ? '' : 's'}` : ''}
@@ -873,6 +943,73 @@ setTimeout(() => {
                       <strong>${Number(charge.charge_amount || 0).toFixed(2)}</strong>
                     </p>
                   ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {camperId && (
+            <section
+              style={{
+                marginBottom: '14px',
+                padding: '16px',
+                border: estimatedCreditTotal > 0 ? '2px solid #2f5d3a' : '1px solid #d8ded5',
+                borderRadius: '14px',
+                background: estimatedCreditTotal > 0 ? '#eef6eb' : '#f8faf7',
+              }}
+            >
+              <strong>Account credits for this electric bill</strong>
+              <p className="muted" style={{ marginBottom: '12px' }}>
+                Existing credits apply automatically. You can also add a one-time credit here before creating this electric invoice.
+              </p>
+
+              {availableCreditTotal > 0 && (
+                <div style={{ marginBottom: '12px', padding: '12px', borderRadius: '12px', background: '#fff' }}>
+                  <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+                    <span>Existing available credit</span>
+                    <strong>{formatCreditMoney(availableCreditTotal)}</strong>
+                  </p>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <input
+                  placeholder="Add new credit amount, optional"
+                  value={newCreditAmount}
+                  onChange={(e) => setNewCreditAmount(e.target.value)}
+                  inputMode="decimal"
+                />
+
+                <select value={newCreditReason} onChange={(e) => setNewCreditReason(e.target.value)}>
+                  <option>Electric billing credit</option>
+                  <option>Overpayment credit</option>
+                  <option>Billing adjustment</option>
+                  <option>Courtesy credit</option>
+                  <option>Manual correction</option>
+                </select>
+
+                <textarea
+                  placeholder="Credit notes, optional"
+                  value={newCreditNotes}
+                  onChange={(e) => setNewCreditNotes(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              {estimatedCreditTotal > 0 && (
+                <div style={{ display: 'grid', gap: '6px', marginTop: '12px', padding: '12px', borderRadius: '12px', background: '#fff' }}>
+                  <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+                    <span>Estimated invoice before credits</span>
+                    <strong>${liveInvoiceTotal.toFixed(2)}</strong>
+                  </p>
+                  <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0, color: '#2f5d3a' }}>
+                    <span>Estimated credit applied</span>
+                    <strong>-{formatCreditMoney(Math.min(estimatedCreditTotal, liveInvoiceTotal))}</strong>
+                  </p>
+                  <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+                    <span>Estimated amount camper will owe</span>
+                    <strong>{formatCreditMoney(liveInvoiceAfterCredits)}</strong>
+                  </p>
                 </div>
               )}
             </section>
