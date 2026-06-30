@@ -114,7 +114,12 @@ export async function POST(request: Request) {
     if (intent.status === 'succeeded') {
       await context.admin
         .from('invoices')
-        .update({ status: 'paid' })
+        .update({
+          status: 'paid',
+          paid_at: new Date().toISOString(),
+          payment_method: 'AutoPay',
+          payment_reference: intent.id,
+        })
         .eq('id', invoice.id)
 
       const alertResult = await sendPaymentReceivedAlert({

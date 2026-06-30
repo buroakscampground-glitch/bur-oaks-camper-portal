@@ -387,7 +387,7 @@ export default function InvoicesPage() {
                   <span>{formatMoney(selectedTotal)}</span>
                   {selectedInvoices.length > 0 && (
                     <small className="account-processing-fee-note">
-                      + {formatMoney(selectedProcessingFee)} card fee · total {formatMoney(selectedChargeTotal)}
+                      Invoice balance {formatMoney(selectedTotal)} + card processing fee {formatMoney(selectedProcessingFee)} = pay today {formatMoney(selectedChargeTotal)}
                     </small>
                   )}
                 </div>
@@ -472,7 +472,11 @@ export default function InvoicesPage() {
                       <div className="account-invoice-total">
                         <strong>{formatMoney(invoice.total_due)}</strong>
                         <span className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</span>
-                        {!isPaid && <small>Pay by card: {formatMoney(payToday)}</small>}
+                        {!isPaid && (
+                          <small>
+                            Pay today: {formatMoney(invoice.total_due)} + {formatMoney(processingFee)} card fee = {formatMoney(payToday)}
+                          </small>
+                        )}
                       </div>
                       <div className="account-invoice-action">
                         <a className="account-view-invoice" href={`/invoices/${invoice.id}`}>

@@ -112,6 +112,13 @@ export async function applyAvailableCreditsToInvoice({
       .update({
         total_due: remainingDue,
         status: remainingDue <= 0 ? 'paid' : 'sent',
+        ...(remainingDue <= 0
+          ? {
+              paid_at: new Date().toISOString(),
+              payment_method: 'Account credit',
+              payment_reference: `Credit applied: ${formatCreditMoney(appliedTotal)}`,
+            }
+          : {}),
       })
       .eq('id', invoiceId)
 

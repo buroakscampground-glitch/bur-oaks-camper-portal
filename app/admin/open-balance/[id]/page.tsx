@@ -67,7 +67,12 @@ export default function CamperBalancePage() {
     setBusyInvoiceId(invoiceId)
     const { error } = await supabase
       .from("invoices")
-      .update({ status: "paid" })
+      .update({
+        status: "paid",
+        paid_at: new Date().toISOString(),
+        payment_method: "Manual office payment",
+        payment_reference: "Marked paid by admin",
+      })
       .eq("id", invoiceId)
 
     setBusyInvoiceId("")
@@ -97,6 +102,17 @@ export default function CamperBalancePage() {
     } catch (error: any) {
       setBusyInvoiceId("")
       setMessage(error.message || "Unable to restore account credit before deleting this invoice.")
+      return
+    }
+
+    const { error: reminderError } = await supabase
+      .from("text_reminders")
+      .delete()
+      .eq("invoice_id", invoice.id)
+
+    if (reminderError && !["42P01", "PGRST205"].includes(reminderError.code || "")) {
+      setBusyInvoiceId("")
+      setMessage(reminderError.message)
       return
     }
 

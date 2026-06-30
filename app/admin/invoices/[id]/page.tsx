@@ -48,6 +48,16 @@ async function deleteInvoice() {
     return
   }
 
+  const { error: reminderError } = await supabase
+    .from('text_reminders')
+    .delete()
+    .eq('invoice_id', invoice.id)
+
+  if (reminderError && !['42P01', 'PGRST205'].includes(reminderError.code || '')) {
+    alert(reminderError.message)
+    return
+  }
+
   const { error: itemError } = await supabase
     .from('invoice_items')
     .delete()
@@ -88,6 +98,9 @@ async function deleteInvoice() {
     .from('invoices')
     .update({
       status: 'paid',
+      paid_at: new Date().toISOString(),
+      payment_method: 'Manual office payment',
+      payment_reference: 'Marked paid by admin',
     })
     .eq('id', invoice.id)
 

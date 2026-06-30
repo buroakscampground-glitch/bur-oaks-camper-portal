@@ -187,6 +187,13 @@ export default function AdminInvoicesPage() {
     try {
       const restoreResult = await restoreCreditsForDeletedInvoice(supabase, invoice.id)
 
+      const { error: reminderError } = await supabase
+        .from('text_reminders')
+        .delete()
+        .eq('invoice_id', invoice.id)
+
+      if (reminderError && !['42P01', 'PGRST205'].includes(reminderError.code || '')) throw reminderError
+
       const { error: itemError } = await supabase
         .from('invoice_items')
         .delete()

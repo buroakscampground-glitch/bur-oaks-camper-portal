@@ -10,6 +10,7 @@ import {
   ClipboardList,
   Droplets,
   FileText,
+  FileSpreadsheet,
   Gauge,
   KeyRound,
   LogOut,
@@ -262,6 +263,14 @@ export default function AdminPage() {
       alertType: 'payment_received',
       icon: ReceiptText,
       tone: 'gold',
+    },
+    {
+      href: '/admin/reports',
+      title: 'Monthly Reports',
+      description: 'See detailed money received by month, camper, payment method, and charge type.',
+      detail: 'Bookkeeping view',
+      icon: FileSpreadsheet,
+      tone: 'blue',
     },
     {
       href: '/admin/credits',

@@ -117,7 +117,12 @@ export async function POST(request: Request) {
 
           const { error: updateError } = await supabaseAdmin
             .from('invoices')
-            .update({ status: 'paid' })
+            .update({
+              status: 'paid',
+              paid_at: new Date().toISOString(),
+              payment_method: 'Online card',
+              payment_reference: String(session.payment_intent || session.id),
+            })
             .in('id', invoiceIds)
 
           if (updateError) throw updateError
@@ -156,7 +161,12 @@ export async function POST(request: Request) {
 
         const { error } = await supabaseAdmin
           .from('invoices')
-          .update({ status: 'paid' })
+          .update({
+            status: 'paid',
+            paid_at: new Date().toISOString(),
+            payment_method: 'AutoPay',
+            payment_reference: intent.id,
+          })
           .eq('id', invoiceId)
 
         if (error) throw error
