@@ -389,7 +389,7 @@ export default function InvoicesPage() {
                   <span>{formatMoney(selectedTotal)}</span>
                   {selectedInvoices.length > 0 && (
                     <small className="account-processing-fee-note">
-                      Invoice balance {formatMoney(selectedTotal)} + card processing fee {formatMoney(selectedProcessingFee)} = pay today {formatMoney(selectedChargeTotal)}
+                      Card checkout only: invoice balance {formatMoney(selectedTotal)} + card fee {formatMoney(selectedProcessingFee)} = card total {formatMoney(selectedChargeTotal)}
                     </small>
                   )}
                 </div>
@@ -407,8 +407,9 @@ export default function InvoicesPage() {
               <div className="account-processing-fee-disclosure">
                 <strong>{feeSettings.label}</strong>
                 <span>
-                  Online card payments include a clearly shown processing/convenience fee.
-                  You will see the invoice balance, fee, and total before checkout opens.
+                  This fee is only added if you choose to pay online by card through Stripe.
+                  Cash, check, and office-posted payments do not include this card checkout fee.
+                  You will see the invoice balance, card fee, and total before checkout opens.
                 </span>
               </div>
             )}
@@ -476,7 +477,7 @@ export default function InvoicesPage() {
                         <span className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</span>
                         {!isPaid && (
                           <small>
-                            Pay today: {formatMoney(invoice.total_due)} + {formatMoney(processingFee)} card fee = {formatMoney(payToday)}
+                            Card checkout: {formatMoney(invoice.total_due)} invoice + {formatMoney(processingFee)} card fee = {formatMoney(payToday)}
                           </small>
                         )}
                       </div>

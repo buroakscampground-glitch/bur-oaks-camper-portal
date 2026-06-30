@@ -88,7 +88,7 @@ export async function POST(request: Request) {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: feeSettings.label,
+            name: `${feeSettings.label} — online card checkout only`,
           },
           unit_amount: processingFeeCents,
         },

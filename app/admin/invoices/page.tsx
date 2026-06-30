@@ -321,7 +321,7 @@ export default function AdminInvoicesPage() {
               <span>Invoice total</span><strong>{formatMoney(amount)}</strong>
               {previewInvoiceAmount > 0 && (
                 <small>
-                  If paid by card: {formatMoney(previewInvoiceAmount)} invoice + {formatMoney(previewProcessingFee)} processing fee = {formatMoney(previewCardTotal)}
+                  Card checkout only: {formatMoney(previewInvoiceAmount)} invoice + {formatMoney(previewProcessingFee)} card fee = {formatMoney(previewCardTotal)}. Cash/check/manual payments stay at the invoice total.
                 </small>
               )}
             </div>
@@ -390,7 +390,7 @@ export default function AdminInvoicesPage() {
                         <small>
                           Card pay total: {formatMoney(cardTotal)}
                           <br />
-                          Includes {formatMoney(processingFee)} processing fee
+                          Includes {formatMoney(processingFee)} card checkout fee only if paid through Stripe
                         </small>
                       )}
                     </span>

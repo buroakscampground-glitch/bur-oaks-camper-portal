@@ -228,7 +228,7 @@ async function deleteInvoice() {
       <h4>Card Pay Total</h4>
       <h1>{formatMoney(cardPayTotal)}</h1>
       <p style={{ margin: 0, color: '#6b7280', fontSize: '13px', lineHeight: 1.45 }}>
-        {formatMoney(invoice.total_due)} invoice + {formatMoney(cardProcessingFee)} processing fee
+        {formatMoney(invoice.total_due)} invoice + {formatMoney(cardProcessingFee)} card checkout fee. Cash/check/manual payments stay at the invoice total.
       </p>
     </div>
   )}

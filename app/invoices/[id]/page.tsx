@@ -199,7 +199,7 @@ export default function CamperInvoiceDetailPage() {
                 <p><span>{feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>
                 <p className="grand-total"><span>Total charged by card today</span><strong>{formatMoney(payToday)}</strong></p>
                 <small className="camper-invoice-processing-note">
-                  Online card payments include a processing/convenience fee. Bur Oaks does not store your full card number.
+                  This fee is only added when you choose online card checkout through Stripe. Cash, check, and office-posted payments do not include this card checkout fee. Bur Oaks does not store your full card number.
                 </small>
               </>
             )}

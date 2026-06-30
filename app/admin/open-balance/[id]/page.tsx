@@ -237,7 +237,7 @@ Bur Oaks Campground
                   <small>
                     Card pay total: {formatMoney(Number(invoice.total_due || 0) + calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings))}
                     <br />
-                    Includes {formatMoney(calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings))} processing fee
+                    Includes {formatMoney(calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings))} card checkout fee only if paid through Stripe
                   </small>
                 </div>
                 <div className="admin-open-invoice-actions">

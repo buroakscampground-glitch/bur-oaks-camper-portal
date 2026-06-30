@@ -97,7 +97,7 @@ export default function AdminSettingsPage() {
         <a href="/admin"><ArrowLeft size={17} /> Back to Dashboard</a>
         <span><ShieldCheck size={16} /> Campground settings</span>
         <h1>Payment settings without the headache.</h1>
-        <p>Adjust the card processing fee campers see before Stripe checkout. Changes apply to new checkout attempts immediately after saving.</p>
+        <p>Adjust the card checkout fee campers see before Stripe checkout. This only applies to online card payments, not cash, check, or office-posted payments.</p>
       </section>
 
       <section className="admin-settings-grid">
@@ -107,7 +107,7 @@ export default function AdminSettingsPage() {
             <div>
               <small>ONLINE CARD PAYMENTS</small>
               <h2>Card processing fee</h2>
-              <p>This is passed through at checkout. The invoice balance stays clean, and the card total shows the fee separately.</p>
+              <p>This is passed through only at Stripe checkout. The invoice balance stays clean, and the card total shows the fee separately.</p>
             </div>
           </div>
 
@@ -157,7 +157,7 @@ export default function AdminSettingsPage() {
             That is why a $500 invoice at 3% + 30¢ is a little more than $15.30.
           </p>
           <p>
-            If Stripe changes pricing, update the percentage and cents here. Campers will see the new fee before they pay.
+            If Stripe changes pricing, update the percentage and cents here. Campers will see the card-only fee before they pay online.
           </p>
         </aside>
       </section>
