@@ -18,6 +18,15 @@ function formatDate(value?: string) {
   })
 }
 
+const creditReasons = [
+  'Overpayment credit',
+  'Maintenance credit',
+  'Electric billing credit',
+  'Billing adjustment',
+  'Courtesy credit',
+  'Manual correction',
+]
+
 export default function AdminCreditsPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [credits, setCredits] = useState<any[]>([])
@@ -175,7 +184,11 @@ export default function AdminCreditsPage() {
 
         <label>
           <span>Reason</span>
-          <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Overpayment credit" />
+          <select value={reason} onChange={(event) => setReason(event.target.value)}>
+            {creditReasons.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
         </label>
 
         <label className="admin-credit-notes">

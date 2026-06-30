@@ -992,6 +992,7 @@ setTimeout(() => {
 
                 <select value={newCreditReason} onChange={(e) => setNewCreditReason(e.target.value)}>
                   <option>Electric billing credit</option>
+                  <option>Maintenance credit</option>
                   <option>Overpayment credit</option>
                   <option>Billing adjustment</option>
                   <option>Courtesy credit</option>
