@@ -51,6 +51,32 @@ function formatDate(value?: string) {
   })
 }
 
+function invoiceStatusBadge(invoice: any) {
+  if (invoice.status === 'paid') {
+    return { label: 'Paid', className: 'paid', detail: 'Thank you — this invoice is complete.' }
+  }
+
+  if (!invoice.due_date) {
+    return { label: 'Open', className: 'open', detail: 'Open invoice with no due date listed.' }
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dueDate = new Date(`${invoice.due_date}T12:00:00`)
+  const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (daysUntilDue < 0) {
+    const daysLate = Math.abs(daysUntilDue)
+    return { label: `${daysLate} day${daysLate === 1 ? '' : 's'} late`, className: 'past-due', detail: 'Past due — please review when you can.' }
+  }
+
+  if (daysUntilDue <= 3) {
+    return { label: daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`, className: 'due-soon', detail: 'Coming up soon.' }
+  }
+
+  return { label: `Due in ${daysUntilDue} days`, className: 'open', detail: 'Scheduled and ready to review.' }
+}
+
 function planLabel(preference?: AutoPayPreference | null) {
   if (preference === 'electric') return 'Electric bills'
   if (preference === 'rent') return 'Quarterly lot rent'
@@ -377,6 +403,7 @@ export default function InvoicesPage() {
                 {visibleInvoices.map((invoice) => {
                   const isPaid = invoice.status === 'paid'
                   const isSelected = selectedInvoices.includes(invoice.id)
+                  const statusBadge = invoiceStatusBadge(invoice)
                   const invoiceItems = Array.isArray(invoice.invoice_items)
                     ? invoice.invoice_items
                     : []
@@ -413,6 +440,13 @@ export default function InvoicesPage() {
                           </div>
                         </div>
                         <div className="account-due-date"><CalendarDays size={15} /><span><small>Due date</small><strong>{formatDate(invoice.due_date)}</strong></span></div>
+                        <div className={`account-invoice-timeline ${statusBadge.className}`}>
+                          <span />
+                          <div>
+                            <strong>{statusBadge.label}</strong>
+                            <small>{statusBadge.detail}</small>
+                          </div>
+                        </div>
                       </div>
                       <div className="account-invoice-total">
                         <strong>{formatMoney(invoice.total_due)}</strong>

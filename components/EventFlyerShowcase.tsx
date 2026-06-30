@@ -1,6 +1,6 @@
 'use client'
 
-import { CalendarDays, Sparkles } from 'lucide-react'
+import { CalendarDays, CheckCircle2, Sparkles } from 'lucide-react'
 import { eventFlyers2026 } from '../lib/event-flyers'
 
 type EventFlyerShowcaseProps = {
@@ -73,6 +73,12 @@ export default function EventFlyerShowcase({
                 <h3>{event.title}</h3>
                 {event.time && <small>{event.time}</small>}
                 <p>{event.description}</p>
+                {context === 'portal' && (
+                  <div className="event-flyer-rsvp-prompt">
+                    <CheckCircle2 size={14} />
+                    Tap to view details and choose Going / Maybe / Not Going
+                  </div>
+                )}
               </div>
             </article>
           </a>

@@ -14,6 +14,21 @@ function getMaintenanceDisplayStatus(ticket?: any) {
   return ticket.status || 'Open'
 }
 
+function getMaintenanceSteps(ticket: any) {
+  const status = String(ticket?.status || 'Open').toLowerCase()
+  const approved = ticket?.admin_approved === true
+  const inProgress = approved && ['in progress', 'waiting parts', 'completed'].includes(status)
+  const completed = status === 'completed'
+
+  return [
+    { label: 'Submitted', complete: true },
+    { label: 'Office review', complete: approved },
+    { label: 'Approved', complete: approved },
+    { label: status === 'waiting parts' ? 'Waiting parts' : 'In progress', complete: inProgress },
+    { label: 'Completed', complete: completed },
+  ]
+}
+
 export default function MaintenanceRequestPage() {
   const [camper, setCamper] = useState<any>(null)
   const [tickets, setTickets] = useState<any[]>([])
@@ -317,6 +332,14 @@ export default function MaintenanceRequestPage() {
                   Current status: <strong>{getMaintenanceDisplayStatus(ticket)}</strong>
                   {ticket.completed_at ? ` · Completed ${new Date(ticket.completed_at).toLocaleDateString()}` : ''}
                 </p>
+                <div className="camper-maintenance-progress" aria-label={`Progress for ${ticket.title}`}>
+                  {getMaintenanceSteps(ticket).map((step) => (
+                    <span className={step.complete ? 'complete' : ''} key={step.label}>
+                      <i>{step.complete ? '✓' : ''}</i>
+                      {step.label}
+                    </span>
+                  ))}
+                </div>
                 <MaintenancePhotos paths={ticket.photo_urls} />
                 <button
                   className="camper-maintenance-note-toggle"

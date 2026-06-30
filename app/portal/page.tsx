@@ -134,6 +134,15 @@ function formatFriendlyToday() {
   })
 }
 
+function getPortalSeason() {
+  const month = new Date().getMonth()
+
+  if (month >= 2 && month <= 4) return 'spring'
+  if (month >= 5 && month <= 7) return 'summer'
+  if (month >= 8 && month <= 10) return 'fall'
+  return 'winter'
+}
+
 export default function CamperPortalPage() {
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
@@ -428,7 +437,44 @@ export default function CamperPortalPage() {
   const portalMood = urgentCount
     ? `${urgentCount} thing${urgentCount === 1 ? '' : 's'} need attention`
     : 'Your portal is all caught up'
+  const portalSeason = getPortalSeason()
   const urgentAnnouncement = announcements.find((announcement) => announcement.is_urgent)
+  const campgroundPulse = [
+    {
+      label: 'Next dinner',
+      value: nextDinner ? `${nextDinner.month} ${nextDinner.day}` : 'Menu',
+      detail: nextDinner?.menu || 'View schedule',
+      href: nextDinner ? `/dinners?date=${nextDinner.date}` : '/dinners',
+      icon: Soup,
+    },
+    {
+      label: 'Next event',
+      value: nextEvent?.title || 'Calendar',
+      detail: nextEvent ? formatDate(nextEvent.event_date) : 'See what is coming up',
+      href: '/calendar',
+      icon: CalendarDays,
+    },
+    {
+      label: 'Office notes',
+      value: announcements.length ? announcements.length : 'Clear',
+      detail: urgentAnnouncement ? 'Urgent notice posted' : latestAnnouncement?.title || 'No new announcements',
+      href: '/portal',
+      icon: Megaphone,
+    },
+    {
+      label: 'Weather plan',
+      value: 'Live forecast',
+      detail: 'Check the weekend before you pack',
+      href: '#weather',
+      icon: Sparkles,
+    },
+  ]
+  const camperInitials = `${camper?.first_name?.[0] || ''}${camper?.last_name?.[0] || ''}`.toUpperCase() || 'BO'
+  const identityBadges = [
+    { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
+    { label: 'Insurance', value: insuranceOnFile ? 'On file' : 'Needed', complete: insuranceOnFile },
+    { label: 'Texts', value: camper?.sms_opt_in ? 'On' : 'Off', complete: camper?.sms_opt_in === true },
+  ]
   const whatIsNew = [
     ...(unreadOfficeMessages > 0
       ? [{
@@ -498,7 +544,7 @@ export default function CamperPortalPage() {
   return (
     <main className="camper-portal-page">
       <div className="portal-shell">
-        <section className="portal-hero">
+        <section className={`portal-hero portal-season-${portalSeason}`}>
           <nav className="portal-topbar" aria-label="Camper portal navigation">
             <a className="portal-brand" href="/portal">
               <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
@@ -532,6 +578,23 @@ export default function CamperPortalPage() {
             </p>
 
             <PortalWeatherMini variant="hero" />
+
+            <section className="portal-identity-card" aria-label="Camper site badge">
+              <div className="portal-identity-avatar">{camperInitials}</div>
+              <div>
+                <small>My Bur Oaks site</small>
+                <strong>Lot {camper?.lot_number || '—'}</strong>
+                <span>{camper?.first_name || ''} {camper?.last_name || ''}</span>
+              </div>
+              <div className="portal-identity-badges">
+                {identityBadges.map((badge) => (
+                  <a className={badge.complete ? 'complete' : 'attention'} href={badge.label === 'Texts' ? '/invoices' : '/profile'} key={badge.label}>
+                    {badge.complete ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                    <span>{badge.label}: {badge.value}</span>
+                  </a>
+                ))}
+              </div>
+            </section>
 
             <div className="portal-hero-actions">
               <a className="portal-primary-action" href="/invoices">
@@ -627,6 +690,27 @@ export default function CamperPortalPage() {
           </div>
         </section>
 
+        <section className="portal-pulse-card" aria-label="Campground pulse">
+          <div>
+            <span><Sparkles size={16} /> CAMPGROUND PULSE</span>
+            <h2>What’s happening around Bur Oaks.</h2>
+          </div>
+          <div className="portal-pulse-grid">
+            {campgroundPulse.map((item) => {
+              const Icon = item.icon
+
+              return (
+                <a href={item.href} key={item.label}>
+                  <Icon size={20} />
+                  <small>{item.label}</small>
+                  <strong>{item.value}</strong>
+                  <em>{item.detail}</em>
+                </a>
+              )
+            })}
+          </div>
+        </section>
+
         <section className="portal-pumpout-alert">
           <div>
             <span><Droplets size={18} /> SEWER PUMP-OUT</span>
@@ -639,7 +723,9 @@ export default function CamperPortalPage() {
           </button>
         </section>
 
-        <PortalWeather />
+        <div id="weather">
+          <PortalWeather />
+        </div>
 
         <section className="portal-quick-actions" aria-label="Camper quick actions">
           <a className={openInvoices.length ? 'attention' : ''} href="/invoices">
@@ -929,9 +1015,9 @@ export default function CamperPortalPage() {
             </div>
 
             {events.length === 0 ? (
-              <div className="portal-empty-state horizontal">
+              <div className="portal-empty-state horizontal portal-campfire-empty">
                 <CalendarDays size={26} />
-                <p>No upcoming events are scheduled.</p>
+                <p>The calendar is quiet for the moment — enjoy the peace, or check Saturday dinners.</p>
               </div>
             ) : (
               <div className="portal-event-list">
@@ -947,6 +1033,7 @@ export default function CamperPortalPage() {
                       <div>
                         <h3>{event.title}</h3>
                         <p>{event.description || 'More details will be shared soon.'}</p>
+                        <a className="portal-event-action" href="/calendar">RSVP / details <ArrowRight size={13} /></a>
                       </div>
                     </article>
                   )
@@ -965,9 +1052,9 @@ export default function CamperPortalPage() {
             </div>
 
             {alerts.length === 0 ? (
-              <div className="portal-empty-state horizontal">
+              <div className="portal-empty-state horizontal portal-campfire-empty">
                 <Bell size={26} />
-                <p>You’re all caught up. No recent alerts.</p>
+                <p>You’re all caught up — no recent alerts, no smoke signals, no surprises.</p>
               </div>
             ) : (
               <div className="portal-alert-list">
