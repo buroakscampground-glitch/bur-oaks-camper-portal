@@ -163,7 +163,7 @@ export default function MaintenanceRequestPage() {
       body: JSON.stringify({
         title,
         description: isTreeGroundsRequest
-          ? `${description}\n\nCamper acknowledgement: Camper selected Tree / Grounds and acknowledged that trees, limbs, branches, natural vegetation, and related debris may remain camper responsibility under the seasonal agreement. Camper also acknowledged that submitting this request does not transfer responsibility to Bur Oaks and that any review or action is determined solely by Bur Oaks.`
+          ? `${description}\n\nCamper acknowledgement: Camper selected Tree / Grounds and acknowledged that trees, limbs, branches, natural vegetation, and related debris are natural campground conditions addressed by the seasonal agreement. Camper acknowledged that they assume risk for these natural conditions as stated in the agreement; that Bur Oaks has no duty to inspect, monitor, remove, trim, or prevent trees, limbs, branches, or natural debris except as determined solely by Bur Oaks; and that submitting this request does not transfer responsibility, create a duty, waive any lease term, or guarantee that work will be approved, assigned, or performed.`
           : description,
         category,
         photoUrls: uploadedPaths,
@@ -273,11 +273,15 @@ export default function MaintenanceRequestPage() {
 
           {isTreeGroundsRequest && (
             <div className="camper-maintenance-responsibility-notice">
-              <strong>Tree / limb responsibility notice</strong>
+              <strong>Tree, limb, and natural-vegetation notice</strong>
               <p>
-                The seasonal agreement says trees, limbs, branches, natural vegetation, and related debris are natural campground conditions
-                and may remain the camper&apos;s responsibility. You may submit this for office review, but submitting this request does not
-                transfer responsibility to Bur Oaks or guarantee that work will be assigned.
+                Under the seasonal agreement, trees, limbs, branches, natural vegetation, and related debris are natural campground
+                conditions. Campers assume the risk of those natural conditions. Bur Oaks has no duty to inspect, monitor, trim, remove,
+                or prevent trees, limbs, branches, or natural debris except as determined solely by Bur Oaks.
+              </p>
+              <p>
+                You may submit this item for office review, but submitting it does not transfer responsibility to Bur Oaks, create a duty
+                for Bur Oaks, waive any lease term, or guarantee that work will be approved, assigned, or performed.
               </p>
               <label>
                 <input
@@ -285,7 +289,7 @@ export default function MaintenanceRequestPage() {
                   checked={treeResponsibilityAcknowledged}
                   onChange={(event) => setTreeResponsibilityAcknowledged(event.target.checked)}
                 />
-                <span>I understand Bur Oaks will review this request and decide whether any action will be taken.</span>
+                <span>I understand and acknowledge this notice. Bur Oaks will decide, in its sole discretion, whether any action will be taken.</span>
               </label>
             </div>
           )}
