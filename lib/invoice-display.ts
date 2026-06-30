@@ -70,6 +70,14 @@ export function invoiceLineDetails(item: any) {
     }
   }
 
+  if (lower.includes('misc') || lower.includes('custom')) {
+    return {
+      title: description || 'Misc service charge',
+      explanation: 'Custom site service charge added by the office and included on this bill.',
+      amount: total,
+    }
+  }
+
   if (lower.includes('rent') || lower.includes('lot')) {
     return {
       title: 'Lot rent',

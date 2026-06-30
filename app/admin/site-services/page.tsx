@@ -10,6 +10,7 @@ const serviceOptions = [
   { type: 'spray_weeds', label: 'Spray weeds', amount: 45 },
   { type: 'half_spray_weeds', label: 'Half spray weeds', amount: 20 },
   { type: 'pressure_wash', label: 'Pressure wash', amount: 20 },
+  { type: 'misc_service', label: 'Misc custom charge', amount: 0 },
 ]
 
 function camperName(camper: any) {
@@ -21,6 +22,8 @@ export default function AdminSiteServicesPage() {
   const [charges, setCharges] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
   const [serviceType, setServiceType] = useState(serviceOptions[0].type)
+  const [customLabel, setCustomLabel] = useState('')
+  const [customAmount, setCustomAmount] = useState('')
   const [performedAt, setPerformedAt] = useState('')
   const [notes, setNotes] = useState('')
   const [filter, setFilter] = useState('active')
@@ -62,9 +65,22 @@ export default function AdminSiteServicesPage() {
     setMessage('')
     const selectedCamper = campers.find((camper) => camper.id === camperId)
     const selectedService = serviceOptions.find((service) => service.type === serviceType)
+    const isCustomService = serviceType === 'misc_service'
+    const finalServiceLabel = isCustomService ? customLabel.trim() : selectedService?.label || ''
+    const finalServiceAmount = isCustomService ? Number(customAmount) : Number(selectedService?.amount || 0)
 
     if (!selectedCamper || !selectedService || !performedAt) {
       setMessage('Choose a camper, service, and date first.')
+      return
+    }
+
+    if (isCustomService && !finalServiceLabel) {
+      setMessage('Add a description for the misc charge.')
+      return
+    }
+
+    if (!Number.isFinite(finalServiceAmount) || finalServiceAmount <= 0) {
+      setMessage('Enter a charge amount greater than $0.')
       return
     }
 
@@ -79,8 +95,8 @@ export default function AdminSiteServicesPage() {
       lot_number: selectedCamper.lot_number || null,
       camper_name: camperName(selectedCamper),
       service_type: selectedService.type,
-      service_label: selectedService.label,
-      charge_amount: selectedService.amount,
+      service_label: finalServiceLabel,
+      charge_amount: finalServiceAmount,
       notes: notes.trim() || null,
       performed_at: `${performedAt}T12:00:00`,
       created_by: user?.email || null,
@@ -93,7 +109,9 @@ export default function AdminSiteServicesPage() {
       return
     }
 
-    setMessage(`${selectedService.label} added for Lot ${selectedCamper.lot_number || '—'}. It will attach to the next electric bill.`)
+    setMessage(`${finalServiceLabel} added for Lot ${selectedCamper.lot_number || '—'}. It will attach to the next electric bill.`)
+    setCustomLabel('')
+    setCustomAmount('')
     setNotes('')
     loadCharges()
   }
@@ -123,6 +141,10 @@ export default function AdminSiteServicesPage() {
   }
 
   const selectedService = serviceOptions.find((service) => service.type === serviceType) || serviceOptions[0]
+  const isCustomService = selectedService.type === 'misc_service'
+  const buttonLabel = isCustomService
+    ? `Add misc charge${Number(customAmount) > 0 ? ` · $${Number(customAmount).toFixed(2)}` : ''}`
+    : `Add ${selectedService.label} · $${selectedService.amount}`
   const activeCharges = charges.filter((charge) => !charge.billed_at && !charge.cancelled_at)
   const billedCharges = charges.filter((charge) => charge.billed_at)
   const pendingTotal = activeCharges.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0)
@@ -183,11 +205,32 @@ export default function AdminSiteServicesPage() {
           <select value={serviceType} onChange={(event) => setServiceType(event.target.value)}>
             {serviceOptions.map((service) => (
               <option key={service.type} value={service.type}>
-                {service.label} — ${service.amount}
+                {service.amount > 0 ? `${service.label} — $${service.amount}` : service.label}
               </option>
             ))}
           </select>
         </label>
+
+        {isCustomService && (
+          <>
+            <label>
+              <span>Misc description</span>
+              <input value={customLabel} onChange={(event) => setCustomLabel(event.target.value)} placeholder="Example: Extra cleanup, gravel, special repair" />
+            </label>
+
+            <label>
+              <span>Misc amount</span>
+              <input
+                min="0"
+                step="0.01"
+                type="number"
+                value={customAmount}
+                onChange={(event) => setCustomAmount(event.target.value)}
+                placeholder="0.00"
+              />
+            </label>
+          </>
+        )}
 
         <label>
           <span>Date done</span>
@@ -200,7 +243,7 @@ export default function AdminSiteServicesPage() {
         </label>
 
         <button type="button" onClick={addCharge} disabled={saving}>
-          <CheckCircle2 size={16} /> {saving ? 'Adding…' : `Add ${selectedService.label} · $${selectedService.amount}`}
+          <CheckCircle2 size={16} /> {saving ? 'Adding…' : buttonLabel}
         </button>
       </section>
 
