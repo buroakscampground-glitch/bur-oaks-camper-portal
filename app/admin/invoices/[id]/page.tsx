@@ -4,7 +4,15 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../../lib/account-credits'
+import { calculateCardProcessingFee } from '../../../../lib/payment-fees'
 import AdminQuickText from '../../../../components/AdminQuickText'
+
+function formatMoney(value: unknown) {
+  return Number(value || 0).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  })
+}
 
 export default function InvoiceDetailPage() {
   const params = useParams()
@@ -121,6 +129,9 @@ async function deleteInvoice() {
     return <div style={{ padding: '20px' }}>Invoice not found</div>
   }
 
+  const cardProcessingFee = calculateCardProcessingFee(Number(invoice.total_due || 0))
+  const cardPayTotal = Number(invoice.total_due || 0) + cardProcessingFee
+
   return (
     <main style={{ padding: '40px', maxWidth: '900px', margin: '0 auto' }}>
       <button
@@ -197,9 +208,27 @@ async function deleteInvoice() {
   >
     <h4>Amount Due</h4>
     <h1>
-      ${Number(invoice.total_due).toFixed(2)}
+      {formatMoney(invoice.total_due)}
     </h1>
   </div>
+
+  {invoice.status !== 'paid' && (
+    <div
+      style={{
+        background: '#fff',
+        padding: '20px',
+        borderRadius: '12px',
+        boxShadow: '0 2px 8px rgba(0,0,0,.08)',
+        borderLeft: '6px solid #8b6f2f',
+      }}
+    >
+      <h4>Card Pay Total</h4>
+      <h1>{formatMoney(cardPayTotal)}</h1>
+      <p style={{ margin: 0, color: '#6b7280', fontSize: '13px', lineHeight: 1.45 }}>
+        {formatMoney(invoice.total_due)} invoice + {formatMoney(cardProcessingFee)} processing fee
+      </p>
+    </div>
+  )}
 
   <div
     style={{

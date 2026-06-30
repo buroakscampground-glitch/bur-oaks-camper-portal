@@ -21,6 +21,7 @@ import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { applyAvailableCreditsToInvoice, formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../lib/account-credits'
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
+import { calculateCardProcessingFee } from '../../../lib/payment-fees'
 import AdminQuickText from '../../../components/AdminQuickText'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
@@ -225,6 +226,9 @@ export default function AdminInvoicesPage() {
   const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid')
   const openBalance = openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const collectedRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const previewInvoiceAmount = Number(amount || 0)
+  const previewProcessingFee = calculateCardProcessingFee(previewInvoiceAmount)
+  const previewCardTotal = previewInvoiceAmount + previewProcessingFee
   const normalizedSearch = searchText.trim().toLowerCase()
   const visibleInvoices = invoices.filter((invoice) => {
     const matchesStatus =
@@ -312,6 +316,11 @@ export default function AdminInvoicesPage() {
 
             <div className="admin-invoice-preview">
               <span>Invoice total</span><strong>{formatMoney(amount)}</strong>
+              {previewInvoiceAmount > 0 && (
+                <small>
+                  If paid by card: {formatMoney(previewInvoiceAmount)} invoice + {formatMoney(previewProcessingFee)} processing fee = {formatMoney(previewCardTotal)}
+                </small>
+              )}
             </div>
 
             <button className="admin-create-invoice-button" type="button" onClick={createInvoice} disabled={creating}>
@@ -358,6 +367,8 @@ export default function AdminInvoicesPage() {
             <div className="admin-invoice-records">
               {visibleInvoices.map((invoice) => {
                 const isPaid = invoice.status === 'paid'
+                const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0))
+                const cardTotal = Number(invoice.total_due || 0) + processingFee
                 return (
                   <article className="admin-invoice-record" key={invoice.id}>
                     <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : 'open'}`}>
@@ -369,7 +380,17 @@ export default function AdminInvoicesPage() {
                       <em>{invoice.invoice_type || 'Campground charge'}</em>
                     </span>
                     <span className="admin-invoice-record-date"><CalendarDays size={14} /><span><small>Due</small><strong>{formatDate(invoice.due_date)}</strong></span></span>
-                    <span className="admin-invoice-record-total"><strong>{formatMoney(invoice.total_due)}</strong><em className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</em></span>
+                    <span className="admin-invoice-record-total">
+                      <strong>{formatMoney(invoice.total_due)}</strong>
+                      <em className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</em>
+                      {!isPaid && (
+                        <small>
+                          Card pay total: {formatMoney(cardTotal)}
+                          <br />
+                          Includes {formatMoney(processingFee)} processing fee
+                        </small>
+                      )}
+                    </span>
                     <span className="admin-invoice-record-actions">
                       <a href={`/admin/invoices/${invoice.id}`}>View <ArrowRight size={14} /></a>
                       <button type="button" onClick={() => deleteInvoice(invoice)} disabled={deletingInvoiceId === invoice.id}>

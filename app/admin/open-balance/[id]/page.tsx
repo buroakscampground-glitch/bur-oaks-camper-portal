@@ -5,6 +5,7 @@ import { ArrowLeft, CheckCircle2, ClipboardCopy, Printer, ReceiptText, Trash2, W
 import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
 import { restoreCreditsForDeletedInvoice } from "../../../../lib/account-credits"
+import { calculateCardProcessingFee } from "../../../../lib/payment-fees"
 import AdminQuickText from "../../../../components/AdminQuickText"
 
 function formatMoney(value: unknown) {
@@ -231,6 +232,11 @@ Bur Oaks Campground
                 <div className="admin-open-invoice-amount">
                   <strong>{formatMoney(invoice.total_due)}</strong>
                   <span>{invoice.status || "sent"}</span>
+                  <small>
+                    Card pay total: {formatMoney(Number(invoice.total_due || 0) + calculateCardProcessingFee(Number(invoice.total_due || 0)))}
+                    <br />
+                    Includes {formatMoney(calculateCardProcessingFee(Number(invoice.total_due || 0)))} processing fee
+                  </small>
                 </div>
                 <div className="admin-open-invoice-actions">
                   <button type="button" onClick={() => markPaid(invoice.id)} disabled={busyInvoiceId === invoice.id}>
