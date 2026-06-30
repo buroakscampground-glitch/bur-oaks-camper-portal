@@ -103,10 +103,12 @@ export async function POST(request: Request) {
             (sum, invoice) => sum + Math.round(Number(invoice.total_due || 0) * 100),
             0
           )
+          const processingFeeCents = Math.max(0, Math.round(Number(session.metadata?.processing_fee_cents || 0)))
+          const expectedStripeTotal = expectedAmount + processingFeeCents
           const camperIds = new Set(invoices.map((invoice) => String(invoice.camper_id)))
 
           if (
-            expectedAmount !== session.amount_total ||
+            expectedStripeTotal !== session.amount_total ||
             camperIds.size !== 1 ||
             (session.metadata?.camper_id && !camperIds.has(session.metadata.camper_id))
           ) {

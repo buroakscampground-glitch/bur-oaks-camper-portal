@@ -14,6 +14,7 @@ import { useParams } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../../lib/supabase'
 import { checkoutItems } from '../../../lib/stripe'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../lib/invoice-display'
+import { calculateCardProcessingFee, cardProcessingFeeSettings } from '../../../lib/payment-fees'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -124,6 +125,9 @@ export default function CamperInvoiceDetailPage() {
 
   const isPaid = invoice.status === 'paid'
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
+  const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0))
+  const payToday = Number(invoice.total_due || 0) + processingFee
+  const feeSettings = cardProcessingFeeSettings()
   const visibleItemLines = items.length
     ? items.map((item) => ({
         key: item.id || item.description,
@@ -188,6 +192,15 @@ export default function CamperInvoiceDetailPage() {
             <p><span>Subtotal</span><strong>{formatMoney(subtotal || invoice.subtotal || invoice.total_due)}</strong></p>
             <p><span>Late fee</span><strong>{formatMoney(invoice.late_fee)}</strong></p>
             <p className="grand-total"><span>Total due</span><strong>{formatMoney(invoice.total_due)}</strong></p>
+            {!isPaid && (
+              <>
+                <p><span>{feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>
+                <p className="grand-total"><span>Total charged by card today</span><strong>{formatMoney(payToday)}</strong></p>
+                <small className="camper-invoice-processing-note">
+                  Online card payments include a processing/convenience fee. Bur Oaks does not store your full card number.
+                </small>
+              </>
+            )}
           </div>
 
           <div className="camper-invoice-detail-actions">
@@ -195,7 +208,7 @@ export default function CamperInvoiceDetailPage() {
               <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice is paid</span>
             ) : (
               <button type="button" onClick={payInvoice} disabled={paying}>
-                <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : 'Pay this invoice'} <ChevronRight size={16} />
+                <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : `Pay ${formatMoney(payToday)}`} <ChevronRight size={16} />
               </button>
             )}
             {message && <p>{message}</p>}

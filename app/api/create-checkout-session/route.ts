@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { calculateCardProcessingFeeCents, cardProcessingFeeSettings } from '../../../lib/payment-fees'
 
 export const runtime = 'nodejs'
 
@@ -57,6 +58,12 @@ export async function POST(request: Request) {
       )
     }
 
+    const invoiceSubtotalCents = invoices.reduce((sum, invoice) => {
+      return sum + Math.round(Number(invoice.total_due || 0) * 100)
+    }, 0)
+    const processingFeeCents = calculateCardProcessingFeeCents(invoiceSubtotalCents)
+    const feeSettings = cardProcessingFeeSettings()
+
     const lineItems = invoices.map((invoice) => {
       const amount = Math.round(Number(invoice.total_due || 0) * 100)
 
@@ -75,6 +82,19 @@ export async function POST(request: Request) {
         quantity: 1,
       }
     })
+
+    if (processingFeeCents > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: feeSettings.label,
+          },
+          unit_amount: processingFeeCents,
+        },
+        quantity: 1,
+      })
+    }
 
     const key = process.env.STRIPE_SECRET_KEY
 
@@ -96,12 +116,16 @@ export async function POST(request: Request) {
         invoice_ids: JSON.stringify(verifiedInvoiceIds),
         camper_id: String(context.camper.id),
         purpose: 'invoice_payment',
+        invoice_subtotal_cents: String(invoiceSubtotalCents),
+        processing_fee_cents: String(processingFeeCents),
       },
       payment_intent_data: {
         metadata: {
           invoice_ids: JSON.stringify(verifiedInvoiceIds),
           camper_id: String(context.camper.id),
           purpose: 'invoice_payment',
+          invoice_subtotal_cents: String(invoiceSubtotalCents),
+          processing_fee_cents: String(processingFeeCents),
         },
       },
     })
