@@ -26,6 +26,27 @@ export default function RoleGuard({
       }
 
       const userEmail = user.email.trim().toLowerCase()
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+
+      if (token) {
+        const response = await fetch('/api/login-destination', {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const result = await response.json().catch(() => null)
+        const role = String(result?.role || '').toLowerCase()
+
+        if (response.ok && allowedRolesKey.split(',').includes(role)) {
+          setAllowed(true)
+          return
+        }
+
+        if (response.ok && role) {
+          window.location.replace(role === 'camper' ? '/portal' : '/login')
+          return
+        }
+      }
+
       const { data: camper } = await supabase
         .from('campers')
         .select('role,active')

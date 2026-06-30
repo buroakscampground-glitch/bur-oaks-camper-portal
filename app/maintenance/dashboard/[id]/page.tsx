@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { ArrowLeft, CheckCircle2, ClipboardList, Save, Wrench } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
@@ -16,6 +17,8 @@ export default function TicketDetailPage() {
 
   const [status, setStatus] = useState('')
   const [assignedTo, setAssignedTo] = useState('')
+  const [completionNotes, setCompletionNotes] = useState('')
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     loadTicket()
@@ -32,6 +35,7 @@ export default function TicketDetailPage() {
 
     setStatus(data?.status || 'Open')
     setAssignedTo(data?.assigned_to || 'Open')
+    setCompletionNotes(data?.completion_notes || '')
 
     setLoading(false)
   }
@@ -40,6 +44,7 @@ export default function TicketDetailPage() {
     const updates: any = {
       status,
       assigned_to: assignedTo,
+      completion_notes: completionNotes.trim() || null,
     }
 
     if (status === 'Completed' && !ticket.completed_at) {
@@ -58,14 +63,15 @@ export default function TicketDetailPage() {
       .single()
 
     if (error) {
-      alert(error.message)
+      setMessage(error.message)
       return
     }
 
     setTicket(data)
     setStatus(data?.status || 'Open')
     setAssignedTo(data?.assigned_to || 'Open')
-    alert('Changes Saved')
+    setCompletionNotes(data?.completion_notes || '')
+    setMessage('Saved. Admin and camper views will update automatically.')
   }
 
   if (loading) {
@@ -77,21 +83,15 @@ export default function TicketDetailPage() {
   }
 
   return (
-    <main className="page">
-      <div className="container">
-        <button
-          onClick={() =>
-            router.push('/maintenance/dashboard')
-          }
-          style={{
-            marginBottom: '20px',
-          }}
-        >
-          ← Back
+    <main className="maintenance-staff-page">
+      <section className="maintenance-staff-detail-hero">
+        <button type="button" onClick={() => router.push('/maintenance/dashboard')}>
+          <ArrowLeft size={16} /> Back to work orders
         </button>
-
-        <section className="card">
-          <h1>{ticket.title}</h1>
+        <span><Wrench size={17} /> APPROVED WORK ORDER</span>
+        <h1>{ticket.title}</h1>
+        <p>{ticket.work_order ? 'Office-created work order' : `Lot ${ticket.lot_number || 'N/A'} request`} · Update progress here so the office and camper stay in sync.</p>
+      </section>
 
           <div className="maintenance-approved-work-notice">
             <strong>✓ Admin Approved Work Order</strong>
@@ -101,109 +101,99 @@ export default function TicketDetailPage() {
             </span>
           </div>
 
-          <p>
-            <MaintenanceBadge kind="status" value={ticket.status} />{' '}
+      <section className="maintenance-staff-detail-grid">
+        <article className="maintenance-staff-detail-card">
+          <div className="maintenance-staff-detail-heading">
+            <ClipboardList size={20} />
+            <div>
+              <small>REQUEST DETAILS</small>
+              <h2>What needs done</h2>
+            </div>
+          </div>
+          <div className="maintenance-staff-badges">
+            <MaintenanceBadge kind="status" value={ticket.status} />
             <MaintenanceBadge kind="priority" value={ticket.priority} />
-          </p>
+          </div>
+          <dl className="maintenance-staff-detail-list">
+            <div><dt>Lot</dt><dd>{ticket.lot_number || 'N/A'}</dd></div>
+            <div><dt>Reported by</dt><dd>{ticket.reported_by || 'Office'}</dd></div>
+            <div><dt>Assigned to</dt><dd>{ticket.assigned_to || 'Open'}</dd></div>
+          </dl>
+          <h3>Description</h3>
+          <p>{ticket.description}</p>
+          <MaintenancePhotos paths={ticket.photo_urls} />
+        </article>
 
-          <p>
-            <strong>Lot:</strong> {ticket.lot_number}
-          </p>
+        <article className="maintenance-staff-detail-card">
+          <div className="maintenance-staff-detail-heading">
+            <CheckCircle2 size={20} />
+            <div>
+              <small>UPDATE WORK</small>
+              <h2>Progress</h2>
+            </div>
+          </div>
 
-          <p>
-            <strong>Reported By:</strong> {ticket.reported_by}
-          </p>
-
-          <div style={{ marginBottom: '20px' }}>
-            <strong>Status</strong>
-
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              style={{
-                display: 'block',
-                marginTop: '8px',
-                padding: '10px',
-                width: '250px',
-              }}
-            >
+          <label className="maintenance-staff-field">
+            <span>Status</span>
+            <select value={status} onChange={(e) => setStatus(e.target.value)}>
               <option>Open</option>
               <option>In Progress</option>
               <option>Waiting Parts</option>
               <option>Completed</option>
             </select>
-          </div>
+          </label>
 
-          <div style={{ marginBottom: '20px' }}>
-            <strong>Assigned To</strong>
-
-            <select
-              value={assignedTo}
-              onChange={(e) => setAssignedTo(e.target.value)}
-              style={{
-                display: 'block',
-                marginTop: '8px',
-                padding: '10px',
-                width: '250px',
-              }}
-            >
+          <label className="maintenance-staff-field">
+            <span>Assigned To</span>
+            <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)}>
               <option>Open</option>
               <option>Anthony Finley</option>
               <option>Dawn Finley</option>
               <option>Charlie Kimball</option>
               <option>Rachel Finley</option>
               <option>Joe Johnson</option>
+              <option>Maintenance Staff</option>
             </select>
-          </div>
+          </label>
 
-          <button
-            onClick={saveChanges}
-            style={{
-              marginBottom: '20px',
-            }}
-          >
-            Save Changes
+          <label className="maintenance-staff-field">
+            <span>Completion / progress notes</span>
+            <textarea
+              value={completionNotes}
+              onChange={(e) => setCompletionNotes(e.target.value)}
+              placeholder="Example: Replaced breaker, cleaned area, waiting on part, completed repair..."
+            />
+          </label>
+
+          <button className="maintenance-staff-save" onClick={saveChanges}>
+            <Save size={16} /> Save update
           </button>
 
-          <p>
-            <strong>Priority:</strong>{' '}
-            <MaintenanceBadge kind="priority" value={ticket.priority} />
-          </p>
-
-          <hr />
-
-          <h3>Description</h3>
-
-          <p>{ticket.description}</p>
-
-          <MaintenancePhotos paths={ticket.photo_urls} />
-
-          <MaintenanceConversation
-            ticketId={ticket.id}
-            camperId={ticket.camper_id}
-            authorName="Maintenance Staff"
-            authorRole="maintenance"
-          />
-
-          {ticket.completion_notes && (
-            <>
-              <hr />
-              <h3>Completion Notes</h3>
-              <p>{ticket.completion_notes}</p>
-            </>
-          )}
+          {message && <p className="maintenance-submit-message">{message}</p>}
 
           {ticket.completed_at && (
-            <>
-              <hr />
-              <p>
-                <strong>Completed:</strong>{' '}
-                {new Date(ticket.completed_at).toLocaleString()}
-              </p>
-            </>
+            <p className="maintenance-staff-completed">
+              Completed: {new Date(ticket.completed_at).toLocaleString()}
+            </p>
           )}
-        </section>
-      </div>
+        </article>
+      </section>
+
+      <section className="maintenance-staff-detail-card maintenance-staff-notes-card">
+        <div className="maintenance-staff-detail-heading">
+          <ClipboardList size={20} />
+          <div>
+            <small>NOTES</small>
+            <h2>Work order conversation</h2>
+          </div>
+        </div>
+        <MaintenanceConversation
+          ticketId={ticket.id}
+          camperId={ticket.camper_id}
+          authorName="Maintenance Staff"
+          authorRole="maintenance"
+        />
+      </section>
     </main>
   )
 }

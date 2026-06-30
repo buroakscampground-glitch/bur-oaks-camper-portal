@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, ListChecks, PlusCircle, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 
@@ -101,6 +102,31 @@ export default function MaintenanceDashboard() {
     loadTickets()
   }
 
+  async function updateTicket(id: string, updates: any, successMessage: string) {
+    const { error } = await supabase
+      .from('maintenance_tickets')
+      .update(updates)
+      .eq('id', id)
+
+    setSubmitMessage(error ? error.message : successMessage)
+    if (!error) loadTickets()
+  }
+
+  async function completeTicket(id: string) {
+    const notes = prompt('Completion notes — what was done?')
+    if (notes === null) return
+
+    await updateTicket(
+      id,
+      {
+        status: 'Completed',
+        completion_notes: notes.trim() || 'Completed by maintenance team.',
+        completed_at: new Date().toISOString(),
+      },
+      'Work order marked completed. The camper/admin side will update automatically.'
+    )
+  }
+
   const openTickets = tickets.filter(
     (t) => t.status === 'Open'
   ).length
@@ -130,86 +156,47 @@ export default function MaintenanceDashboard() {
   }
 
   return (
-    <main className="page">
-      <div className="container">
-        <section
-          className="card"
-          style={{
-            marginBottom: '25px',
-            background:
-              'linear-gradient(135deg, #ffffff 0%, #eef4ea 100%)',
-          }}
-        >
-          <p className="muted">BUR OAKS CAMPGROUND</p>
+    <main className="maintenance-staff-page">
+      <section className="maintenance-staff-hero">
+        <div>
+          <span><Wrench size={17} /> MAINTENANCE TEAM</span>
+          <h1>Approved work orders only.</h1>
+          <p>Use this screen in the field. New items you enter go to the office first. Only approved work shows in your queue.</p>
+        </div>
+        <Link href="/maintenance/history">Completed history →</Link>
+      </section>
 
-          <h1>🔧 Maintenance Dashboard</h1>
+      <section className="maintenance-staff-steps">
+        <article><ClipboardList size={20} /><strong>1. Pick approved work</strong><span>Open a ticket from the queue below.</span></article>
+        <article><Clock3 size={20} /><strong>2. Update progress</strong><span>Mark in progress or waiting parts as you work.</span></article>
+        <article><CheckCircle2 size={20} /><strong>3. Complete with notes</strong><span>Add what was done before closing it.</span></article>
+      </section>
 
-          <p className="muted">
-            Submit issues for review, then work only from the admin-approved queue.
-          </p>
+      <section className="maintenance-staff-stats">
+        <article><small>Open</small><strong>{openTickets}</strong></article>
+        <article><small>In progress</small><strong>{inProgressTickets}</strong></article>
+        <article className={emergencyTickets ? 'urgent' : ''}><small>Emergency</small><strong>{emergencyTickets}</strong></article>
+      </section>
 
-          <div className="maintenance-approval-notice">
-            <strong>Admin approval required</strong>
-            <span>New requests cannot be assigned, started, or completed until an administrator approves the work.</span>
-          </div>
-
-          <Link href="/maintenance/history">
-            View Maintenance History →
-          </Link>
-        </section>
-
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns:
-              'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '20px',
-            marginBottom: '25px',
-          }}
-        >
-          <div className="card">
-            <h3>Open Tickets</h3>
-            <h1>{openTickets}</h1>
-          </div>
-
-          <div className="card">
-            <h3>In Progress</h3>
-            <h1>{inProgressTickets}</h1>
-          </div>
-
-          <div className="card">
-            <h3>Emergency</h3>
-            <h1>{emergencyTickets}</h1>
-          </div>
+      <section className="maintenance-staff-request">
+        <div>
+          <span><PlusCircle size={16} /> Need office approval?</span>
+          <h2>Submit a work request</h2>
+          <p>This does not go into the crew queue until an admin approves it.</p>
         </div>
 
-        <section
-          className="card"
-          style={{ marginBottom: '25px' }}
-        >
-          <h2>➕ Submit Work Request</h2>
-
           <input
-            placeholder="Work Order Title"
+            placeholder="Short title — example: Gate keypad light out"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            style={{
-              width: '100%',
-              marginBottom: '10px',
-            }}
           />
 
           <textarea
-            placeholder="Description"
+            placeholder="Describe what you saw, where it is, and anything the office should know."
             value={newDescription}
             onChange={(e) =>
               setNewDescription(e.target.value)
             }
-            style={{
-              width: '100%',
-              minHeight: '100px',
-              marginBottom: '10px',
-            }}
           />
 
           <select
@@ -217,10 +204,6 @@ export default function MaintenanceDashboard() {
             onChange={(e) =>
               setNewPriority(e.target.value)
             }
-            style={{
-              width: '100%',
-              marginBottom: '10px',
-            }}
           >
             <option>Low</option>
             <option>Normal</option>
@@ -233,158 +216,86 @@ export default function MaintenanceDashboard() {
           </button>
 
           {submitMessage && <p className="maintenance-submit-message">{submitMessage}</p>}
-        </section>
+      </section>
 
-        <section className="card">
-          <h2>Approved Work Orders</h2>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: '10px',
-              marginBottom: '20px',
-            }}
-          >
-            <button onClick={() => setFilter('Active')}>
-              Active
-            </button>
-
-            <button onClick={() => setFilter('Completed')}>
-              Completed
-            </button>
-
-            <button onClick={() => setFilter('All')}>
-              All
-            </button>
+      <section className="maintenance-staff-board">
+        <div className="maintenance-staff-board-heading">
+          <div>
+            <span><ListChecks size={17} /> APPROVED QUEUE</span>
+            <h2>Work orders</h2>
+            <p>Tap “Open details” when you need photos, notes, or the full request.</p>
           </div>
+          <div className="maintenance-staff-filter">
+            {['Active', 'Completed', 'All'].map((item) => (
+              <button className={filter === item ? 'selected' : ''} onClick={() => setFilter(item)} key={item}>
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
 
           {filteredTickets.length === 0 && (
-            <p>No maintenance tickets found.</p>
+            <div className="maintenance-staff-empty">
+              <CheckCircle2 size={32} />
+              <h3>No work orders found</h3>
+              <p>Nothing in this view right now.</p>
+            </div>
           )}
 
+        <div className="maintenance-staff-ticket-list">
           {filteredTickets.map((ticket) => (
-            <div
+            <article
               key={ticket.id}
-              style={{
-                padding: '15px',
-                borderBottom: '1px solid #ddd',
-              }}
+              className={ticket.priority === 'Emergency' && ticket.status !== 'Completed' ? 'urgent' : ''}
             >
-              <strong>
-                Lot {ticket.lot_number}
-              </strong>
-
               <div>
-                <Link
-                  href={`/maintenance/dashboard/${ticket.id}`}
-                  style={{
-                    textDecoration: 'none',
-                    color: '#2f5d3a',
-                    fontWeight: 'bold',
-                    fontSize: '18px',
-                  }}
-                >
-                  {ticket.title}
-                </Link>
+                <small>{ticket.work_order ? 'Work order' : `Lot ${ticket.lot_number || 'N/A'}`}</small>
+                <h3>{ticket.title}</h3>
+                <p>{ticket.description}</p>
               </div>
 
-              <div
-                style={{
-                  marginTop: '8px',
-                  color: '#555',
-                }}
-              >
-                {ticket.description}
-              </div>
-
-              <div>
-                Status:{' '}
+              <div className="maintenance-staff-badges">
                 <MaintenanceBadge kind="status" value={ticket.status} />
-              </div>
-
-              <div>
-                Priority:{' '}
                 <MaintenanceBadge kind="priority" value={ticket.priority} />
+                {ticket.priority === 'Emergency' && ticket.status !== 'Completed' && (
+                  <span className="maintenance-staff-alert"><AlertTriangle size={13} /> Emergency</span>
+                )}
               </div>
 
-              <div
-                style={{
-                  marginTop: '10px',
-                  display: 'flex',
-                  gap: '10px',
-                  flexWrap: 'wrap',
-                }}
-              >
+              <div className="maintenance-staff-ticket-actions">
+                <Link href={`/maintenance/dashboard/${ticket.id}`}>
+                  <Eye size={15} /> Open details
+                </Link>
                 <button
-                  onClick={async () => {
-                    await supabase
-                      .from('maintenance_tickets')
-                      .update({
-                        assigned_to:
-                          'Maintenance Staff',
-                      })
-                      .eq('id', ticket.id)
-
-                    loadTickets()
-                  }}
+                  onClick={() => updateTicket(ticket.id, { assigned_to: 'Maintenance Staff' }, 'Assigned to maintenance staff.')}
                 >
                   Assign To Me
                 </button>
 
                 <button
-                  onClick={async () => {
-                    await supabase
-                      .from('maintenance_tickets')
-                      .update({
-                        status: 'In Progress',
-                        completed_at: null,
-                      })
-                      .eq('id', ticket.id)
-
-                    loadTickets()
-                  }}
+                  onClick={() => updateTicket(ticket.id, { status: 'In Progress', completed_at: null }, 'Work order marked in progress.')}
                 >
                   Mark In Progress
                 </button>
 
                 <button
-                  onClick={async () => {
-                    const notes = prompt(
-                      'Completion Notes'
-                    )
-
-                    await supabase
-                      .from('maintenance_tickets')
-                      .update({
-                        status: 'Completed',
-                        completion_notes: notes,
-                        completed_at:
-                          new Date().toISOString(),
-                      })
-                      .eq('id', ticket.id)
-
-                    loadTickets()
-                  }}
+                  onClick={() => completeTicket(ticket.id)}
                 >
                   Mark Completed
                 </button>
               </div>
 
               {ticket.assigned_to && (
-                <div style={{ marginTop: '10px' }}>
-                  Assigned To: {ticket.assigned_to}
-                </div>
+                <p className="maintenance-staff-assigned">Assigned to: {ticket.assigned_to}</p>
               )}
 
               {ticket.completion_notes && (
-                <div style={{ marginTop: '10px' }}>
-                  Notes: {ticket.completion_notes}
-                </div>
+                <p className="maintenance-staff-notes">Notes: {ticket.completion_notes}</p>
               )}
-            </div>
+            </article>
           ))}
-        </section>
-      </div>
+        </div>
+      </section>
     </main>
   )
 }
