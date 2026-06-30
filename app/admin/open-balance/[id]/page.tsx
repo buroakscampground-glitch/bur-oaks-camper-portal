@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2, ClipboardCopy, Printer, ReceiptText, Trash2, W
 import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
 import { restoreCreditsForDeletedInvoice } from "../../../../lib/account-credits"
-import { calculateCardProcessingFee } from "../../../../lib/payment-fees"
+import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from "../../../../lib/payment-fees"
 import AdminQuickText from "../../../../components/AdminQuickText"
 
 function formatMoney(value: unknown) {
@@ -33,6 +33,7 @@ export default function CamperBalancePage() {
   const [totalDue, setTotalDue] = useState(0)
   const [message, setMessage] = useState("")
   const [busyInvoiceId, setBusyInvoiceId] = useState("")
+  const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
 
   useEffect(() => {
     loadData()
@@ -59,6 +60,7 @@ export default function CamperBalancePage() {
     const openInvoices = invoiceData || []
     setInvoices(openInvoices)
     setTotalDue(openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0))
+    setFeeSettings(await loadPaymentFeeSettings(supabase))
   }
 
   async function markPaid(invoiceId: string) {
@@ -233,9 +235,9 @@ Bur Oaks Campground
                   <strong>{formatMoney(invoice.total_due)}</strong>
                   <span>{invoice.status || "sent"}</span>
                   <small>
-                    Card pay total: {formatMoney(Number(invoice.total_due || 0) + calculateCardProcessingFee(Number(invoice.total_due || 0)))}
+                    Card pay total: {formatMoney(Number(invoice.total_due || 0) + calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings))}
                     <br />
-                    Includes {formatMoney(calculateCardProcessingFee(Number(invoice.total_due || 0)))} processing fee
+                    Includes {formatMoney(calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings))} processing fee
                   </small>
                 </div>
                 <div className="admin-open-invoice-actions">

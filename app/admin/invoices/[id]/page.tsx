@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '../../../../lib/supabase'
 import { formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../../lib/account-credits'
-import { calculateCardProcessingFee } from '../../../../lib/payment-fees'
+import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
 import AdminQuickText from '../../../../components/AdminQuickText'
 
 function formatMoney(value: unknown) {
@@ -20,6 +20,7 @@ export default function InvoiceDetailPage() {
 
   const [invoice, setInvoice] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
 
   useEffect(() => {
     loadInvoice()
@@ -40,6 +41,8 @@ export default function InvoiceDetailPage() {
       .eq('id', params.id)
       .single()
 
+    const paymentFeeSettings = await loadPaymentFeeSettings(supabase)
+    setFeeSettings(paymentFeeSettings)
     setInvoice(data)
     setLoading(false)
   }
@@ -129,7 +132,7 @@ async function deleteInvoice() {
     return <div style={{ padding: '20px' }}>Invoice not found</div>
   }
 
-  const cardProcessingFee = calculateCardProcessingFee(Number(invoice.total_due || 0))
+  const cardProcessingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
   const cardPayTotal = Number(invoice.total_due || 0) + cardProcessingFee
 
   return (

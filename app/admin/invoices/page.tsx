@@ -21,7 +21,7 @@ import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { applyAvailableCreditsToInvoice, formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../lib/account-credits'
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
-import { calculateCardProcessingFee } from '../../../lib/payment-fees'
+import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import AdminQuickText from '../../../components/AdminQuickText'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
@@ -54,6 +54,7 @@ export default function AdminInvoicesPage() {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [deletingInvoiceId, setDeletingInvoiceId] = useState('')
+  const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
 
   async function loadInvoices() {
     const { data } = await supabase
@@ -75,12 +76,14 @@ export default function AdminInvoicesPage() {
 
   useEffect(() => {
     async function loadWorkspace() {
-      const [, camperResult] = await Promise.all([
+      const [, camperResult, paymentFeeSettings] = await Promise.all([
         loadInvoices(),
         supabase.from('campers').select('*').eq('active', true).order('lot_number'),
+        loadPaymentFeeSettings(supabase),
       ])
 
       setCampers(camperResult.data || [])
+      setFeeSettings(paymentFeeSettings)
       setLoading(false)
     }
 
@@ -227,7 +230,7 @@ export default function AdminInvoicesPage() {
   const openBalance = openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const collectedRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const previewInvoiceAmount = Number(amount || 0)
-  const previewProcessingFee = calculateCardProcessingFee(previewInvoiceAmount)
+  const previewProcessingFee = calculateCardProcessingFee(previewInvoiceAmount, feeSettings)
   const previewCardTotal = previewInvoiceAmount + previewProcessingFee
   const normalizedSearch = searchText.trim().toLowerCase()
   const visibleInvoices = invoices.filter((invoice) => {
@@ -367,7 +370,7 @@ export default function AdminInvoicesPage() {
             <div className="admin-invoice-records">
               {visibleInvoices.map((invoice) => {
                 const isPaid = invoice.status === 'paid'
-                const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0))
+                const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
                 const cardTotal = Number(invoice.total_due || 0) + processingFee
                 return (
                   <article className="admin-invoice-record" key={invoice.id}>

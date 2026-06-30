@@ -14,7 +14,7 @@ import { useParams } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../../lib/supabase'
 import { checkoutItems } from '../../../lib/stripe'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../lib/invoice-display'
-import { calculateCardProcessingFee, cardProcessingFeeSettings } from '../../../lib/payment-fees'
+import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -45,6 +45,7 @@ export default function CamperInvoiceDetailPage() {
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [message, setMessage] = useState('')
+  const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
 
   useEffect(() => {
     async function loadInvoice() {
@@ -65,6 +66,8 @@ export default function CamperInvoiceDetailPage() {
         .maybeSingle()
 
       if (error) setMessage(error.message)
+      const paymentFeeSettings = await loadPaymentFeeSettings(supabase)
+      setFeeSettings(paymentFeeSettings)
       setInvoice(data || null)
       setItems(Array.isArray(data?.invoice_items) ? data.invoice_items : [])
       setLoading(false)
@@ -125,9 +128,8 @@ export default function CamperInvoiceDetailPage() {
 
   const isPaid = invoice.status === 'paid'
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
-  const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0))
+  const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
   const payToday = Number(invoice.total_due || 0) + processingFee
-  const feeSettings = cardProcessingFeeSettings()
   const visibleItemLines = items.length
     ? items.map((item) => ({
         key: item.id || item.description,

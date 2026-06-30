@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
-import { calculateCardProcessingFeeCents, cardProcessingFeeSettings } from '../../../lib/payment-fees'
+import { calculateCardProcessingFeeCents, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 
 export const runtime = 'nodejs'
 
@@ -61,8 +61,8 @@ export async function POST(request: Request) {
     const invoiceSubtotalCents = invoices.reduce((sum, invoice) => {
       return sum + Math.round(Number(invoice.total_due || 0) * 100)
     }, 0)
-    const processingFeeCents = calculateCardProcessingFeeCents(invoiceSubtotalCents)
-    const feeSettings = cardProcessingFeeSettings()
+    const feeSettings = await loadPaymentFeeSettings(context.admin)
+    const processingFeeCents = calculateCardProcessingFeeCents(invoiceSubtotalCents, feeSettings)
 
     const lineItems = invoices.map((invoice) => {
       const amount = Math.round(Number(invoice.total_due || 0) * 100)

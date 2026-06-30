@@ -22,7 +22,7 @@ import {
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { checkoutItems } from '../../lib/stripe'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../lib/invoice-display'
-import { calculateCardProcessingFee, cardProcessingFeeSettings } from '../../lib/payment-fees'
+import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../lib/payment-fees'
 import {
   createAutoPayEnrollment,
   disableAutoPay,
@@ -101,6 +101,7 @@ export default function InvoicesPage() {
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [smsSaving, setSmsSaving] = useState(false)
   const [smsMessage, setSmsMessage] = useState('')
+  const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
 
   useEffect(() => {
     async function loadAccount() {
@@ -123,7 +124,7 @@ export default function InvoicesPage() {
       setCamper(camperData)
       setSmsOptIn(Boolean(camperData.sms_opt_in))
 
-      const [invoiceResult, creditResult] = await Promise.all([
+      const [invoiceResult, creditResult, paymentFeeSettings] = await Promise.all([
         supabase
           .from('invoices')
           .select('*, invoice_items(*)')
@@ -135,9 +136,11 @@ export default function InvoicesPage() {
           .eq('camper_id', camperData.id)
           .eq('status', 'active')
           .gt('remaining_amount', 0),
+        loadPaymentFeeSettings(supabase),
       ])
 
       setInvoices(invoiceResult.data || [])
+      setFeeSettings(paymentFeeSettings)
       setCreditBalance(
         (creditResult.data || []).reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0)
       )
@@ -235,9 +238,8 @@ export default function InvoicesPage() {
   const selectedTotal = openInvoices
     .filter((invoice) => selectedInvoices.includes(invoice.id))
     .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-  const selectedProcessingFee = selectedInvoices.length ? calculateCardProcessingFee(selectedTotal) : 0
+  const selectedProcessingFee = selectedInvoices.length ? calculateCardProcessingFee(selectedTotal, feeSettings) : 0
   const selectedChargeTotal = selectedTotal + selectedProcessingFee
-  const feeSettings = cardProcessingFeeSettings()
   const visibleInvoices = invoices.filter((invoice) => {
     if (filter === 'open') return invoice.status !== 'paid'
     if (filter === 'paid') return invoice.status === 'paid'
@@ -423,7 +425,7 @@ export default function InvoicesPage() {
                   const isPaid = invoice.status === 'paid'
                   const isSelected = selectedInvoices.includes(invoice.id)
                   const statusBadge = invoiceStatusBadge(invoice)
-                  const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0))
+                  const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
                   const payToday = Number(invoice.total_due || 0) + processingFee
                   const invoiceItems = Array.isArray(invoice.invoice_items)
                     ? invoice.invoice_items
