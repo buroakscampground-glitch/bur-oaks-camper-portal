@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
+import MaintenanceLogoutButton from '../../../components/MaintenanceLogoutButton'
 
 export default function MaintenanceHistoryPage() {
   const [tickets, setTickets] = useState<any[]>([])
@@ -66,6 +67,7 @@ export default function MaintenanceHistoryPage() {
 
   return (
     <main className="page">
+      <MaintenanceLogoutButton />
       <div className="container">
         <Link
           href="/maintenance/dashboard"
