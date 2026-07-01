@@ -166,6 +166,19 @@ export default function AdminCampersPage() {
     router.push(`/admin/campers/${camper.id}`)
   }
 
+  function cleanEmail(value: unknown) {
+    return String(value || '').trim().toLowerCase()
+  }
+
+  function getPortalStatus(camper: any) {
+    const primaryStatus = portalStatuses[cleanEmail(camper.email)]
+    const secondaryStatus = portalStatuses[cleanEmail(camper.secondary_email)]
+
+    if (primaryStatus === 'accepted' || secondaryStatus === 'accepted') return 'accepted'
+    if (primaryStatus === 'pending' || secondaryStatus === 'pending') return 'pending'
+    return 'none'
+  }
+
   async function archiveCamper(id: string) {
     const confirmArchive = confirm(
       'Are you sure you want to archive this camper?'
@@ -451,6 +464,7 @@ export default function AdminCampersPage() {
   .map((camper) => (
     (() => {
       const health = camperHealth[camper.id] || {}
+      const portalStatus = getPortalStatus(camper)
       const needsAttention =
         health.openInvoices ||
         health.unsignedDocs ||
@@ -480,9 +494,9 @@ export default function AdminCampersPage() {
     </strong>
     {camper.email?.endsWith('@no-email.buroaks.local') ? (
       <span className="portal-account-status none">Not Set Up</span>
-    ) : portalStatuses[camper.email?.toLowerCase()] === 'accepted' ? (
+    ) : portalStatus === 'accepted' ? (
       <span className="portal-account-status accepted">Accepted</span>
-    ) : portalStatuses[camper.email?.toLowerCase()] === 'pending' ? (
+    ) : portalStatus === 'pending' ? (
       <span className="portal-account-status pending">Invite Pending</span>
     ) : (
       <span className="portal-account-status none">Not Set Up</span>
@@ -502,8 +516,8 @@ export default function AdminCampersPage() {
   <div>{camper.phone || 'No phone on file'}</div>
 
   <div className="admin-camper-health-strip">
-    <span className={portalStatuses[camper.email?.toLowerCase()] === 'accepted' ? 'good' : 'warn'}>
-      Portal {portalStatuses[camper.email?.toLowerCase()] === 'accepted' ? 'accepted' : 'not accepted'}
+    <span className={portalStatus === 'accepted' ? 'good' : 'warn'}>
+      Portal {portalStatus === 'accepted' ? 'accepted' : 'not accepted'}
     </span>
     <span className={health.openInvoices ? 'warn' : 'good'}>
       {health.openInvoices ? `$${Number(health.openBalance || 0).toFixed(2)} open` : 'Balance clear'}

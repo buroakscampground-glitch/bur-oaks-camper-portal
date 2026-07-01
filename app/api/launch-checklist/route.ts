@@ -95,7 +95,7 @@ export async function GET(request: Request) {
     const { data } = await context.admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
     acceptedPortalUsers = (data.users || []).filter((user) => {
       const completedSetup = user.user_metadata?.portal_setup_complete === true
-      const establishedUser = Boolean(user.email_confirmed_at && user.last_sign_in_at && !user.invited_at)
+      const establishedUser = Boolean(user.email_confirmed_at || user.last_sign_in_at)
       return completedSetup || establishedUser
     }).length
   } catch {

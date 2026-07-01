@@ -22,10 +22,11 @@ export async function GET(request: Request) {
   for (const user of data.users) {
     if (!user.email) continue
 
+    const email = user.email.trim().toLowerCase()
     const completedSetup = user.user_metadata?.portal_setup_complete === true
-    const establishedUser = Boolean(user.email_confirmed_at && user.last_sign_in_at && !user.invited_at)
+    const establishedUser = Boolean(user.email_confirmed_at || user.last_sign_in_at)
 
-    statuses[user.email.toLowerCase()] = completedSetup || establishedUser
+    statuses[email] = completedSetup || establishedUser
       ? 'accepted'
       : 'pending'
   }

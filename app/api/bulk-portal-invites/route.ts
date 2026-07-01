@@ -100,8 +100,8 @@ export async function POST(request: Request) {
     for (const user of users?.users || []) {
       if (!user.email) continue
       const completedSetup = user.user_metadata?.portal_setup_complete === true
-      const establishedUser = Boolean(user.email_confirmed_at && user.last_sign_in_at && !user.invited_at)
-      if (completedSetup || establishedUser) acceptedEmails.add(user.email.toLowerCase())
+      const establishedUser = Boolean(user.email_confirmed_at || user.last_sign_in_at)
+      if (completedSetup || establishedUser) acceptedEmails.add(cleanEmail(user.email))
     }
 
     const recentlySentEmails = new Set(
