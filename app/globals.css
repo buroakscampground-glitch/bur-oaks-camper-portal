@@ -4212,6 +4212,86 @@ button:hover {
   font-style: normal;
 }
 
+.admin-camper-scan-upload {
+  display: grid;
+  gap: 13px;
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid #e1ded2;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #fffdf7, #f3f6ef);
+}
+
+.admin-camper-document-upload-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.admin-camper-document-upload-row > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: #2f5b3b;
+  color: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.admin-camper-document-upload-row > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.admin-camper-document-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.admin-camper-document-list small {
+  color: #7c877f;
+  font-size: 10px;
+}
+
+.admin-camper-document-list button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #d9e2d6;
+  border-radius: 12px;
+  background: #fff;
+  color: #304a38;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-camper-document-list button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.admin-camper-document-list button em {
+  color: #879087;
+  font-size: 9px;
+  font-style: normal;
+  white-space: nowrap;
+}
+
 .camper-insurance-upload-box {
   display: grid;
   gap: 13px;

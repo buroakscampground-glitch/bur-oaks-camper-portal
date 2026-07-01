@@ -104,9 +104,14 @@ export default function CamperDetailPage() {
 
   const [camper, setCamper] = useState<Camper>(emptyCamper)
   const [invoices, setInvoices] = useState<any[]>([])
+  const [camperDocuments, setCamperDocuments] = useState<any[]>([])
   const [insuranceDocuments, setInsuranceDocuments] = useState<any[]>([])
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null)
   const [uploadingInsurance, setUploadingInsurance] = useState(false)
+  const [scannedDocumentFile, setScannedDocumentFile] = useState<File | null>(null)
+  const [scannedDocumentName, setScannedDocumentName] = useState('')
+  const [scannedDocumentType, setScannedDocumentType] = useState('Signed Lease')
+  const [uploadingScannedDocument, setUploadingScannedDocument] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -120,14 +125,14 @@ export default function CamperDetailPage() {
     setLoading(true)
     setMessage('')
 
-    const [camperResult, invoiceResult, insuranceResult] = await Promise.all([
+    const [camperResult, invoiceResult, documentResult] = await Promise.all([
       supabase.from('campers').select('*').eq('id', camperId).single(),
       supabase.from('invoices').select('*').eq('camper_id', camperId),
       supabase
         .from('documents')
         .select('*')
         .eq('camper_id', camperId)
-        .eq('document_type', 'Golf Cart Insurance')
+        .order('created_at', { ascending: false })
     ])
 
     if (camperResult.error || !camperResult.data) {
@@ -138,7 +143,9 @@ export default function CamperDetailPage() {
 
     setCamper({ ...emptyCamper, ...camperResult.data })
     setInvoices(invoiceResult.data || [])
-    setInsuranceDocuments(insuranceResult.data || [])
+    const documents = documentResult.data || []
+    setCamperDocuments(documents)
+    setInsuranceDocuments(documents.filter((document) => document.document_type === 'Golf Cart Insurance'))
     setLoading(false)
   }
 
@@ -240,6 +247,17 @@ export default function CamperDetailPage() {
     )
   }
 
+  function scannedDocumentDefaultName(file: File) {
+    const cleanBaseName = file.name
+      .replace(/\.(pdf|docx|doc|png|jpe?g|webp|heic)$/i, '')
+      .replace(/[-_]+/g, ' ')
+      .trim()
+
+    if (cleanBaseName) return cleanBaseName
+
+    return `${scannedDocumentType} - ${camper.first_name || ''} ${camper.last_name || ''}`.trim()
+  }
+
   async function uploadGolfCartInsurance() {
     if (!insuranceFile) {
       setMessage('Choose a golf cart insurance file first.')
@@ -292,6 +310,69 @@ export default function CamperDetailPage() {
       setMessage(error.message || 'Unable to upload golf cart insurance.')
     } finally {
       setUploadingInsurance(false)
+    }
+  }
+
+  async function uploadScannedDocument() {
+    if (!scannedDocumentFile) {
+      setMessage('Choose a scanned document first.')
+      return
+    }
+
+    if (!isAllowedInsuranceFile(scannedDocumentFile)) {
+      setMessage('Scanned camper documents must be a PDF, Word document, or image.')
+      return
+    }
+
+    if (scannedDocumentFile.size > MAX_INSURANCE_SIZE) {
+      setMessage('Scanned camper documents must be 20 MB or smaller.')
+      return
+    }
+
+    const cleanDocumentName = (scannedDocumentName.trim() || scannedDocumentDefaultName(scannedDocumentFile)).trim()
+    if (!cleanDocumentName) {
+      setMessage('Add a document name before uploading.')
+      return
+    }
+
+    setUploadingScannedDocument(true)
+    setMessage('Uploading scanned camper document…')
+
+    const safeName = scannedDocumentFile.name.replace(/[^a-zA-Z0-9._-]/g, '-')
+    const filePath = `${camperId}/scanned-documents/${crypto.randomUUID()}-${safeName}`
+
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from('camper-documents')
+        .upload(filePath, scannedDocumentFile, {
+          contentType: scannedDocumentFile.type || undefined,
+          upsert: false,
+        })
+
+      if (uploadError) throw uploadError
+
+      const { error: rowError } = await supabase.from('documents').insert({
+        camper_id: camperId,
+        document_name: cleanDocumentName,
+        document_type: scannedDocumentType,
+        file_url: filePath,
+        signature_status: 'not_required',
+      })
+
+      if (rowError) {
+        await supabase.storage.from('camper-documents').remove([filePath])
+        throw rowError
+      }
+
+      setScannedDocumentFile(null)
+      setScannedDocumentName('')
+      setScannedDocumentType('Signed Lease')
+      setMessage('Scanned document uploaded to this camper’s portal documents.')
+      await loadCamper()
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to upload scanned camper document.')
+    } finally {
+      setUploadingScannedDocument(false)
     }
   }
 
@@ -513,6 +594,74 @@ export default function CamperDetailPage() {
               placeholder="Examples: prefers text, call before entering site, lease notes, special billing notes..."
             />
           </label>
+        </ProfileSection>
+
+        <ProfileSection icon={<FileUp />} kicker="SCANNED COPIES" title="Upload signed camper documents">
+          <p className="admin-camper-panel-note">
+            Add scanned leases, signed renewals, paper forms, or other camper-specific documents here.
+            They will appear in this camper’s portal document center as completed copies.
+          </p>
+
+          <div className="admin-camper-scan-upload">
+            <div className="admin-camper-form-grid two">
+              <label className="admin-camper-field">
+                <span>Document name</span>
+                <input
+                  value={scannedDocumentName}
+                  onChange={(event) => setScannedDocumentName(event.target.value)}
+                  placeholder="Example: 2026 Signed Seasonal Lease"
+                />
+              </label>
+              <label className="admin-camper-field">
+                <span>Document type</span>
+                <select value={scannedDocumentType} onChange={(event) => setScannedDocumentType(event.target.value)}>
+                  <option value="Signed Lease">Signed Lease</option>
+                  <option value="Signed Renewal">Signed Renewal</option>
+                  <option value="Campground Form">Campground Form</option>
+                  <option value="Paper Notice">Paper Notice</option>
+                  <option value="Camper Upload">Camper Upload</option>
+                  <option value="Other Document">Other Document</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="admin-camper-document-upload-row">
+              <label className="admin-camper-insurance-upload">
+                <FileUp size={18} />
+                <span>{scannedDocumentFile ? scannedDocumentFile.name : 'Choose scanned document'}</span>
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.heic,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null
+                    setScannedDocumentFile(file)
+                    if (file && !scannedDocumentName.trim()) {
+                      setScannedDocumentName(scannedDocumentDefaultName(file))
+                    }
+                  }}
+                />
+              </label>
+
+              <button type="button" onClick={uploadScannedDocument} disabled={uploadingScannedDocument || !scannedDocumentFile}>
+                {uploadingScannedDocument ? <LoaderCircle className="admin-spin" size={16} /> : <FileUp size={16} />}
+                {uploadingScannedDocument ? 'Uploading…' : 'Upload to Camper Portal'}
+              </button>
+            </div>
+          </div>
+
+          <div className="admin-camper-document-list">
+            {camperDocuments.length === 0 ? (
+              <small>No documents are saved for this camper yet.</small>
+            ) : (
+              camperDocuments.map((document) => (
+                <button key={document.id} type="button" onClick={() => openInsuranceDocument(document)}>
+                  <Eye size={15} />
+                  <span>{document.document_name}</span>
+                  <em>{document.document_type || 'Document'} · {document.created_at ? new Date(document.created_at).toLocaleDateString() : 'Saved'}</em>
+                </button>
+              ))
+            )}
+          </div>
         </ProfileSection>
       </div>
 
