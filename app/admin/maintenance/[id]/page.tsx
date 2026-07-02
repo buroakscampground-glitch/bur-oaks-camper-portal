@@ -8,6 +8,7 @@ import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
 import MaintenanceConversation from '../../../../components/MaintenanceConversation'
 import { markAdminAlertsSeen } from '../../../../lib/admin-alert-actions'
+import MaintenancePartsPanel from '../../../../components/MaintenancePartsPanel'
 
 export default function MaintenanceTicketPage() {
   const params = useParams()
@@ -285,6 +286,10 @@ export default function MaintenanceTicketPage() {
             authorName="Bur Oaks Admin"
             authorRole="admin"
           />
+
+          <hr style={{ margin: '20px 0' }} />
+
+          <MaintenancePartsPanel ticketId={ticket.id} mode="admin" />
 
           <hr style={{ margin: '20px 0' }} />
 

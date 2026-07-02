@@ -7,6 +7,7 @@ import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
 import MaintenanceConversation from '../../../../components/MaintenanceConversation'
+import MaintenancePartsPanel from '../../../../components/MaintenancePartsPanel'
 
 export default function TicketDetailPage() {
   const params = useParams()
@@ -177,6 +178,10 @@ export default function TicketDetailPage() {
             </p>
           )}
         </article>
+      </section>
+
+      <section className="maintenance-staff-detail-card maintenance-staff-notes-card">
+        <MaintenancePartsPanel ticketId={ticket.id} mode="maintenance" />
       </section>
 
       <section className="maintenance-staff-detail-card maintenance-staff-notes-card">

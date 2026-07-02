@@ -181,7 +181,10 @@ export default function MaintenancePage() {
         <span><Wrench size={17} /> Maintenance operations</span>
         <h1>Work orders that are clear, approved, and easy to track.</h1>
         <p>Review camper-submitted requests, approve work for the maintenance crew, and keep every repair moving.</p>
-        <a href="/maintenance/history">View completed maintenance history <ArrowRight size={16} /></a>
+        <div className="admin-maintenance-hero-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: 11 }}>
+          <a href="/maintenance/history">View completed maintenance history <ArrowRight size={16} /></a>
+          <a href="/admin/maintenance/inventory">Manage inventory & receipts <ArrowRight size={16} /></a>
+        </div>
       </section>
 
       <section className="admin-maintenance-stats">

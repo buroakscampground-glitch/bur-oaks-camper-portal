@@ -169,7 +169,7 @@ export default function MaintenanceDashboard() {
       <section className="maintenance-staff-steps">
         <article><ClipboardList size={20} /><strong>1. Pick approved work</strong><span>Open a ticket from the queue below.</span></article>
         <article><Clock3 size={20} /><strong>2. Update progress</strong><span>Mark in progress or waiting parts as you work.</span></article>
-        <article><CheckCircle2 size={20} /><strong>3. Complete with notes</strong><span>Add what was done before closing it.</span></article>
+        <article><CheckCircle2 size={20} /><strong>3. Parts, receipts, notes</strong><span>Open details to record parts used, receipt photos, and what was done.</span></article>
       </section>
 
       <section className="maintenance-staff-stats">
