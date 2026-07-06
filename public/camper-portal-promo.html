@@ -636,13 +636,16 @@
       background:
         radial-gradient(circle at 50% 82%, rgba(227,111,49,.34), transparent 22%),
         linear-gradient(135deg, rgba(8,26,14,.94), rgba(18,58,32,.9));
-      transition: opacity .45s ease, visibility .45s ease;
-    }
-
-    body.promo-playing .audio-launch {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
+      transition: opacity .45s ease, visibility .45s ease;
+    }
+
+    body.sound-needed .audio-launch {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
     }
 
     .audio-launch-card {
@@ -759,10 +762,10 @@
     <div class="audio-launch-card">
       <img src="bur-oaks-logo.png" alt="Bur Oaks logo" />
       <span class="eyebrow">Camper portal launch video</span>
-      <h1>Ready to blow their socks off?</h1>
-      <p>Tap start for the full promo with narration and a soft campfire feel.</p>
-      <button class="sound-button" id="startPromo" type="button">▶ Start promo with sound</button>
-      <span class="sound-note">Sound starts after you tap because browsers block auto-play audio.</span>
+      <h1>Sound is one tap away.</h1>
+      <p>The promo already started. Tap anywhere to turn on narration and the campfire sound.</p>
+      <button class="sound-button" id="startPromo" type="button">🔊 Turn sound on</button>
+      <span class="sound-note">Some phones block automatic sound until the first tap.</span>
     </div>
   </div>
 
@@ -977,11 +980,13 @@
       }
     ];
 
+    const launchOverlay = document.getElementById("audioLaunch");
     const startButton = document.getElementById("startPromo");
     const caption = document.getElementById("narrationCaption");
     let audioContext;
     let fireTimer;
     let narrationTimers = [];
+    let hasUserStartedSound = false;
 
     function chooseVoice() {
       const voices = window.speechSynthesis?.getVoices?.() || [];
@@ -1006,11 +1011,19 @@
       window.speechSynthesis.speak(utterance);
     }
 
-    function startCampfireAmbience() {
+    async function startCampfireAmbience() {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
+      if (!AudioContext) return false;
 
       audioContext = new AudioContext();
+      if (audioContext.state === "suspended") {
+        try {
+          await audioContext.resume();
+        } catch {
+          return false;
+        }
+      }
+
       const master = audioContext.createGain();
       master.gain.value = 0.045;
       master.connect(audioContext.destination);
@@ -1046,6 +1059,8 @@
         crackle.start(now);
         crackle.stop(now + 0.09);
       }, 145);
+
+      return audioContext.state === "running";
     }
 
     function resetSpeechAndTimers() {
@@ -1056,13 +1071,18 @@
       if (audioContext) audioContext.close();
     }
 
-    function startPromo() {
+    async function startPromo({ userStartedSound = false } = {}) {
+      if (userStartedSound) {
+        hasUserStartedSound = true;
+        document.body.classList.remove("sound-needed");
+      }
+
       resetSpeechAndTimers();
       document.body.classList.remove("promo-playing");
       void document.body.offsetWidth;
       document.body.classList.add("promo-playing");
-      startButton.textContent = "▶ Restart promo with sound";
-      startCampfireAmbience();
+      startButton.textContent = "🔊 Turn sound on";
+      const audioStarted = await startCampfireAmbience();
 
       narration.forEach((item) => {
         narrationTimers.push(window.setTimeout(() => speak(item.text), item.at * 1000));
@@ -1071,12 +1091,29 @@
       narrationTimers.push(window.setTimeout(() => {
         caption.textContent = "Replay anytime — and welcome to the new Bur Oaks camper portal.";
       }, 71000));
+
+      if (!userStartedSound && !audioStarted) {
+        window.setTimeout(() => {
+          if (!hasUserStartedSound) {
+            document.body.classList.add("sound-needed");
+            caption.textContent = "The promo is playing. Tap anywhere to turn on sound.";
+          }
+        }, 1200);
+      }
     }
 
-    startButton.addEventListener("click", startPromo);
+    startButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      startPromo({ userStartedSound: true });
+    });
+    launchOverlay.addEventListener("click", () => startPromo({ userStartedSound: true }));
     if ("speechSynthesis" in window) {
       window.speechSynthesis.onvoiceschanged = chooseVoice;
     }
+
+    window.addEventListener("load", () => {
+      startPromo({ userStartedSound: false });
+    });
   </script>
 </body>
 </html>

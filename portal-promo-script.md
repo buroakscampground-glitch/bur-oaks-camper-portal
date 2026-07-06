@@ -1,9 +1,9 @@
 # Bur Oaks Camper Portal Promo Video Script
 
 Length: about 72 seconds  
-Use: open `/camper-portal-promo.html`, tap **Start promo with sound**, then record it full-screen for Facebook, the website, or a launch text/email.
+Use: open `/camper-portal-promo.html`; it starts automatically. If the browser blocks sound, tap anywhere when prompted, then record it full-screen for Facebook, the website, or a launch text/email.
 
-The page includes browser-generated narration and a soft campfire ambience. Browsers block automatic sound, so the start button is required.
+The page includes browser-generated narration and a soft campfire ambience. It tries to start sound automatically, with a one-tap fallback for phones/browsers that block auto-play audio.
 
 ## Scene 1 — Opening
 
