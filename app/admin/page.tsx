@@ -32,6 +32,7 @@ import {
   Zap,
 } from 'lucide-react'
 import AdminWeather from '../../components/AdminWeather'
+import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 
 type AdminStats = {
@@ -62,6 +63,16 @@ type AdminStats = {
   siteServices: number
   messageAlerts: number
   totalUnreadAlerts: number
+  pastDueInvoices: number
+  dueSoonInvoices: number
+  almostDueAmount: number
+  pendingDinnerResponses: number
+  nextDinnerGoing: number
+  nextDinnerMaybe: number
+  nextDinnerGuests: number
+  nextDinnerDishes: number
+  nextEventRsvps: number
+  needsContactInfo: number
 }
 
 const emptyStats: AdminStats = {
@@ -92,6 +103,16 @@ const emptyStats: AdminStats = {
   siteServices: 0,
   messageAlerts: 0,
   totalUnreadAlerts: 0,
+  pastDueInvoices: 0,
+  dueSoonInvoices: 0,
+  almostDueAmount: 0,
+  pendingDinnerResponses: 0,
+  nextDinnerGoing: 0,
+  nextDinnerMaybe: 0,
+  nextDinnerGuests: 0,
+  nextDinnerDishes: 0,
+  nextEventRsvps: 0,
+  needsContactInfo: 0,
 }
 
 export default function AdminPage() {
@@ -144,13 +165,14 @@ export default function AdminPage() {
       siteServiceResult,
       creditResult,
       messageResult,
+      dinnerResult,
     ] = await Promise.all([
-      supabase.from('campers').select('id').eq('active', true),
+      supabase.from('campers').select('id,email,secondary_email,phone,mailing_address_line1,mailing_city,mailing_state,mailing_zip').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
       supabase.from('invoices').select('*'),
-      supabase.from('events').select('id'),
+      supabase.from('events').select('id,event_date'),
       supabase.from('announcements').select('id').eq('is_active', true),
-      supabase.from('event_rsvps').select('id'),
+      supabase.from('event_rsvps').select('id,event_id'),
       supabase.from('electric_readings').select('id'),
       supabase.from('maintenance_tickets').select('*'),
       supabase.from('waitlist').select('id'),
@@ -160,12 +182,39 @@ export default function AdminPage() {
       supabase.from('site_service_charges').select('id,billed_at,cancelled_at'),
       supabase.from('account_credits').select('id,status,remaining_amount'),
       supabase.from('office_messages').select('id').eq('sender_role', 'camper').is('read_by_admin_at', null),
+      supabase.from('saturday_dinner_signups').select('*'),
     ])
 
     const invoices = invoicesResult.data || []
     const maintenance = maintenanceResult.data || []
     const notifications = notificationResult.data || []
     const documents = documentResult.data || []
+    const campers = campersResult.data || []
+    const rsvps = rsvpsResult.data || []
+    const dinnerSignups = dinnerResult.data || []
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const dueSoonCutoff = new Date(today)
+    dueSoonCutoff.setDate(today.getDate() + 7)
+    const todayIso = today.toISOString().slice(0, 10)
+    const nextDinner = saturdayDinners2026.find((dinner) => dinner.date >= todayIso && !dinner.closed) || saturdayDinners2026.find((dinner) => !dinner.closed)
+    const nextDinnerSignups = dinnerSignups.filter((signup) => signup.dinner_date === nextDinner?.date)
+    const nextDinnerGoing = nextDinnerSignups.filter((signup) => signup.attending_status === 'Going')
+    const nextDinnerMaybe = nextDinnerSignups.filter((signup) => signup.attending_status === 'Maybe')
+    const upcomingEventIds = new Set((eventsResult.data || [])
+      .filter((event: any) => !event.event_date || event.event_date >= todayIso)
+      .map((event: any) => String(event.id)))
+    const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
+    const pastDueInvoices = openInvoices.filter((invoice) => {
+      if (!invoice.due_date) return false
+      const dueDate = new Date(`${invoice.due_date}T12:00:00`)
+      return !Number.isNaN(dueDate.getTime()) && dueDate < today
+    })
+    const dueSoonInvoices = openInvoices.filter((invoice) => {
+      if (!invoice.due_date) return false
+      const dueDate = new Date(`${invoice.due_date}T12:00:00`)
+      return !Number.isNaN(dueDate.getTime()) && dueDate >= today && dueDate <= dueSoonCutoff
+    })
     const activeCredits = (creditResult.data || []).filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)
     const insuredCamperIds = new Set(
       documents
@@ -212,10 +261,27 @@ export default function AdminPage() {
         const status = String(document.signature_status || '').toLowerCase()
         return status !== 'signed' && status !== 'not_required'
       }).length,
-      insuranceMissing: (campersResult.data || []).filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
+      insuranceMissing: campers.filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
       pumpOuts: (pumpOutResult.data || []).filter((request) => request.status !== 'cancelled' && !request.billed_at).length,
       siteServices: (siteServiceResult.data || []).filter((charge) => !charge.cancelled_at && !charge.billed_at).length,
       totalUnreadAlerts: notifications.length,
+      pastDueInvoices: pastDueInvoices.length,
+      dueSoonInvoices: dueSoonInvoices.length,
+      almostDueAmount: dueSoonInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+      pendingDinnerResponses: nextDinner ? Math.max(0, campers.length - nextDinnerSignups.length) : 0,
+      nextDinnerGoing: nextDinnerGoing.length,
+      nextDinnerMaybe: nextDinnerMaybe.length,
+      nextDinnerGuests: nextDinnerGoing.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0),
+      nextDinnerDishes: nextDinnerSignups.filter((signup) => String(signup.bringing || '').trim()).length,
+      nextEventRsvps: rsvps.filter((rsvp) => upcomingEventIds.has(String(rsvp.event_id))).length,
+      needsContactInfo: campers.filter((camper) =>
+        !camper.phone ||
+        !camper.email ||
+        !camper.mailing_address_line1 ||
+        !camper.mailing_city ||
+        !camper.mailing_state ||
+        !camper.mailing_zip
+      ).length,
     })
   }
 
@@ -353,6 +419,102 @@ export default function AdminPage() {
     { href: '/admin/archived-campers', title: 'Archive', detail: `${stats.archivedCampers} records`, icon: Archive },
   ]
 
+  const toDoTotal =
+    stats.totalUnreadAlerts +
+    stats.pendingMaintenance +
+    stats.pastDueInvoices +
+    stats.dueSoonInvoices +
+    stats.pumpOuts +
+    stats.siteServices +
+    stats.documentActions +
+    stats.messageAlerts +
+    stats.pendingDinnerResponses +
+    stats.insuranceMissing +
+    stats.needsContactInfo
+
+  const toDoItems = [
+    {
+      href: '/admin/maintenance',
+      title: 'Maintenance approvals',
+      count: stats.pendingMaintenance,
+      detail: `${stats.openMaintenance + stats.inProgressMaintenance} approved active · ${stats.emergencyMaintenance} emergency`,
+      icon: Wrench,
+      urgent: stats.emergencyMaintenance > 0 || stats.pendingMaintenance > 0,
+    },
+    {
+      href: '/admin/open-balance',
+      title: 'Past due invoices',
+      count: stats.pastDueInvoices,
+      detail: stats.pastDueInvoices ? 'Needs follow-up now' : 'No past-due invoices',
+      icon: ReceiptText,
+      urgent: stats.pastDueInvoices > 0,
+    },
+    {
+      href: '/admin/open-balance',
+      title: 'Due in next 7 days',
+      count: stats.dueSoonInvoices,
+      detail: stats.dueSoonInvoices ? `$${stats.almostDueAmount.toFixed(2)} coming due` : 'Nothing almost due',
+      icon: CalendarDays,
+      urgent: stats.dueSoonInvoices > 0,
+    },
+    {
+      href: '/admin/pump-outs',
+      title: 'Pump-outs to handle',
+      count: stats.pumpOuts,
+      detail: 'Requested or not yet billed',
+      icon: Droplets,
+      urgent: stats.pumpOuts > 0,
+    },
+    {
+      href: '/admin/site-services',
+      title: 'Site services to bill',
+      count: stats.siteServices,
+      detail: 'Weed, spray, pressure wash, misc',
+      icon: SprayCan,
+      urgent: stats.siteServices > 0,
+    },
+    {
+      href: '/admin/dinners',
+      title: 'Saturday dinner',
+      count: stats.nextDinnerGoing,
+      detail: `${stats.nextDinnerGuests} plates · ${stats.nextDinnerDishes} bringing food · ${stats.pendingDinnerResponses} no response`,
+      icon: Soup,
+      urgent: stats.pendingDinnerResponses > 0,
+    },
+    {
+      href: '/admin/rsvps',
+      title: 'Event RSVPs',
+      count: stats.nextEventRsvps,
+      detail: stats.rsvpAlerts ? `${stats.rsvpAlerts} new RSVP alerts` : 'Upcoming event responses',
+      icon: UsersRound,
+      urgent: stats.rsvpAlerts > 0,
+    },
+    {
+      href: '/admin/documents',
+      title: 'Documents to sign',
+      count: stats.documentActions,
+      detail: 'Leases, renewals, forms waiting',
+      icon: FileText,
+      urgent: stats.documentActions > 0,
+    },
+    {
+      href: '/admin/messages',
+      title: 'Unread office messages',
+      count: stats.messageAlerts,
+      detail: 'Camper messages needing reply',
+      icon: MessageCircle,
+      urgent: stats.messageAlerts > 0,
+    },
+    {
+      href: '/admin/campers',
+      title: 'Camper records to clean up',
+      count: stats.needsContactInfo,
+      detail: `${stats.insuranceMissing} missing golf cart insurance`,
+      icon: Users,
+      urgent: stats.needsContactInfo > 0 || stats.insuranceMissing > 0,
+    },
+  ]
+
   return (
     <main className="admin-command-page">
       <div className="admin-command-shell">
@@ -426,54 +588,44 @@ export default function AdminPage() {
 
         <AdminWeather />
 
-        <section className="admin-command-panel admin-today-panel">
+        <section className="admin-command-panel admin-today-panel admin-todo-panel">
           <div className="admin-command-heading">
-            <div><span>TODAY COMMAND CENTER</span><h2>What needs attention first</h2></div>
+            <div><span>TO BE DONE</span><h2>Everything that needs your attention</h2></div>
             <a href="/admin/notifications">Open notifications <ArrowRight size={16} /></a>
           </div>
-          <div className="admin-today-grid">
+          <div className={toDoTotal ? 'admin-todo-summary attention' : 'admin-todo-summary'}>
+            <div>
+              <small>Today’s pressure gauge</small>
+              <strong>{toDoTotal ? `${toDoTotal} things to watch` : 'All clear'}</strong>
+              <p>
+                {toDoTotal
+                  ? 'This board pulls the campground’s scattered loose ends into one place.'
+                  : 'No urgent admin items are showing right now. Suspiciously peaceful, but we’ll take it.'}
+              </p>
+            </div>
+            <a href="/admin/launch">Open launch monitor <ArrowRight size={16} /></a>
+          </div>
+
+          <div className="admin-todo-board">
             <a href="/admin/notifications" className={stats.totalUnreadAlerts ? 'attention' : ''}>
-              <BellRing size={21} />
-              <small>New alerts</small>
-              <strong>{stats.totalUnreadAlerts || 'Clear'}</strong>
-              <p>{stats.totalUnreadAlerts ? 'Review new campground activity.' : 'No unread alerts right now.'}</p>
+              <BellRing size={22} />
+              <span><small>Unread alerts</small><strong>{stats.totalUnreadAlerts || 'Clear'}</strong><em>{stats.totalUnreadAlerts ? 'New activity to review' : 'No new alerts'}</em></span>
+              <ArrowRight size={17} />
             </a>
-            <a href="/admin/maintenance" className={stats.pendingMaintenance ? 'attention' : ''}>
-              <Wrench size={21} />
-              <small>Pending approvals</small>
-              <strong>{stats.pendingMaintenance || 'None'}</strong>
-              <p>{stats.pendingMaintenance ? 'Maintenance is waiting for admin approval.' : 'No work orders waiting.'}</p>
-            </a>
-            <a href="/admin/documents" className={stats.documentActions ? 'attention' : ''}>
-              <FileText size={21} />
-              <small>Unsigned documents</small>
-              <strong>{stats.documentActions || 'Clear'}</strong>
-              <p>{stats.documentActions ? 'Leases or renewals still need signatures.' : 'No pending signatures found.'}</p>
-            </a>
-            <a href="/admin/pump-outs" className={stats.pumpOuts ? 'attention' : ''}>
-              <Droplets size={21} />
-              <small>Sewer pump-outs</small>
-              <strong>{stats.pumpOuts || 'Clear'}</strong>
-              <p>{stats.pumpOuts ? 'Campers are waiting for pump-out service or billing.' : 'No pump-outs waiting.'}</p>
-            </a>
-            <a href="/admin/site-services" className={stats.siteServices ? 'attention' : ''}>
-              <SprayCan size={21} />
-              <small>Site services</small>
-              <strong>{stats.siteServices || 'Clear'}</strong>
-              <p>{stats.siteServices ? 'Weed eating, spraying, or pressure washing charges are waiting for billing.' : 'No site service charges waiting.'}</p>
-            </a>
-            <a href="/admin/open-balance" className={stats.unpaidInvoices ? 'attention' : ''}>
-              <ReceiptText size={21} />
-              <small>Open balances</small>
-              <strong>{stats.unpaidInvoices || 'Clear'}</strong>
-              <p>{stats.unpaidInvoices ? `$${stats.balance.toFixed(2)} still open across invoices.` : 'No unpaid invoices right now.'}</p>
-            </a>
-            <a href="/admin/campers" className={stats.insuranceMissing ? 'attention' : ''}>
-              <ShieldCheck size={21} />
-              <small>Insurance missing</small>
-              <strong>{stats.insuranceMissing || 'Clear'}</strong>
-              <p>{stats.insuranceMissing ? 'Campers missing golf cart insurance on file.' : 'Insurance records look good.'}</p>
-            </a>
+            {toDoItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <a href={item.href} className={item.urgent ? 'attention' : ''} key={item.title}>
+                  <Icon size={22} />
+                  <span>
+                    <small>{item.title}</small>
+                    <strong>{item.count || 'Clear'}</strong>
+                    <em>{item.detail}</em>
+                  </span>
+                  <ArrowRight size={17} />
+                </a>
+              )
+            })}
           </div>
         </section>
 
