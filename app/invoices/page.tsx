@@ -27,6 +27,7 @@ import {
   createAutoPayEnrollment,
   disableAutoPay,
   getAutoPayStatus,
+  type AutoPayPaymentMethod,
   type AutoPayPreference,
 } from '../../lib/autopay'
 
@@ -95,6 +96,7 @@ export default function InvoicesPage() {
   const [creditBalance, setCreditBalance] = useState(0)
   const [autoPayStatus, setAutoPayStatus] = useState<any>({ enabled: false })
   const [autoPayPreference, setAutoPayPreference] = useState<AutoPayPreference>('both')
+  const [autoPayPaymentMethod, setAutoPayPaymentMethod] = useState<AutoPayPaymentMethod>('card')
   const [autoPayConsent, setAutoPayConsent] = useState(false)
   const [autoPayLoading, setAutoPayLoading] = useState(false)
   const [autoPayMessage, setAutoPayMessage] = useState('')
@@ -147,7 +149,7 @@ export default function InvoicesPage() {
       await refreshAutoPayStatus()
 
       if (new URLSearchParams(window.location.search).get('autopay') === 'success') {
-        setAutoPayMessage('Your card was saved. AutoPay will be active shortly.')
+        setAutoPayMessage('Your payment method was saved. AutoPay will be active shortly.')
         window.setTimeout(refreshAutoPayStatus, 1500)
       }
 
@@ -162,6 +164,9 @@ export default function InvoicesPage() {
       const status = await getAutoPayStatus()
       setAutoPayStatus(status)
       if (status.preference) setAutoPayPreference(status.preference)
+      if (status.paymentMethod === 'ach' || status.paymentMethod === 'card') {
+        setAutoPayPaymentMethod(status.paymentMethod)
+      }
     } catch (error: any) {
       setAutoPayMessage(error.message)
     }
@@ -177,7 +182,7 @@ export default function InvoicesPage() {
     setAutoPayMessage('')
 
     try {
-      const result = await createAutoPayEnrollment(autoPayPreference)
+      const result = await createAutoPayEnrollment(autoPayPreference, autoPayPaymentMethod)
       if (!result.url) throw new Error('Stripe enrollment link is unavailable.')
       window.location.href = result.url
     } catch (error: any) {
@@ -539,7 +544,7 @@ export default function InvoicesPage() {
                 <div><strong>AutoPay is active</strong><small>{planLabel(autoPayStatus.preference)}</small></div>
               </div>
             ) : (
-              <p className="autopay-intro">Save a card securely with Stripe and eligible invoices can be paid automatically when issued.</p>
+              <p className="autopay-intro">Save a card or bank account securely with Stripe and eligible invoices can be paid automatically when issued.</p>
             )}
 
             {autoPayStatus.card && (
@@ -547,6 +552,14 @@ export default function InvoicesPage() {
                 <CreditCard size={23} />
                 <div><small>{String(autoPayStatus.card.brand).toUpperCase()}</small><strong>•••• {autoPayStatus.card.last4}</strong></div>
                 <span>{autoPayStatus.card.expMonth}/{autoPayStatus.card.expYear}</span>
+              </div>
+            )}
+
+            {autoPayStatus.bank && (
+              <div className="autopay-card-preview">
+                <WalletCards size={23} />
+                <div><small>ACH BANK ACCOUNT</small><strong>{autoPayStatus.bank.bankName || 'Bank account'} •••• {autoPayStatus.bank.last4}</strong></div>
+                <span>{autoPayStatus.bank.accountType || 'ACH'}</span>
               </div>
             )}
 
@@ -559,9 +572,24 @@ export default function InvoicesPage() {
               </select>
             </label>
 
+            <label className="autopay-field">
+              <span>Choose AutoPay method</span>
+              <select value={autoPayPaymentMethod} onChange={(event) => { setAutoPayPaymentMethod(event.target.value as AutoPayPaymentMethod); setAutoPayConsent(false) }}>
+                <option value="card">Credit / debit card</option>
+                <option value="ach">Bank account / ACH</option>
+              </select>
+            </label>
+
             <label className="autopay-consent">
               <input type="checkbox" checked={autoPayConsent} onChange={(event) => setAutoPayConsent(event.target.checked)} />
-              <span><strong>Authorize future charges</strong><small>I authorize charges for the plan above. Electric usage varies and lot rent uses my current rate.</small></span>
+              <span>
+                <strong>Authorize future charges</strong>
+                <small>
+                  {autoPayPaymentMethod === 'ach'
+                    ? 'I authorize Bur Oaks to debit my bank account for eligible invoices under the plan above. ACH payments can take several business days to confirm.'
+                    : 'I authorize card charges for the plan above. Electric usage varies and lot rent uses my current rate.'}
+                </small>
+              </span>
             </label>
 
             <button type="button" className="autopay-primary" onClick={enrollInAutoPay} disabled={autoPayLoading}>
@@ -571,7 +599,7 @@ export default function InvoicesPage() {
             {autoPayStatus.enabled && <button type="button" className="autopay-disable" onClick={turnOffAutoPay} disabled={autoPayLoading}>Turn off AutoPay</button>}
             {autoPayMessage && <p className="autopay-message">{autoPayMessage}</p>}
 
-            <div className="autopay-security"><LockKeyhole size={15} /><span>Payments and card details are handled securely by Stripe.</span></div>
+            <div className="autopay-security"><LockKeyhole size={15} /><span>Payment details are handled securely by Stripe. Bank AutoPay may require bank verification and is marked paid after Stripe confirms it.</span></div>
           </aside>
         </div>
 

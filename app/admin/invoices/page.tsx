@@ -152,6 +152,7 @@ export default function AdminInvoicesPage() {
         try {
           const autoPay = await attemptAutoPay(invoice.id)
           if (autoPay.charged) resultMessage += ' Remaining balance paid automatically.'
+          if (autoPay.initiated) resultMessage += ` ${autoPay.message || 'AutoPay was started and is waiting for Stripe confirmation.'}`
         } catch (error: any) {
           resultMessage += ` AutoPay was not completed: ${error.message}`
         }

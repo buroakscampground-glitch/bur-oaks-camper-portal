@@ -6,6 +6,7 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 export const runtime = 'nodejs'
 
 const preferences = new Set(['electric', 'rent', 'both'])
+const paymentMethods = new Set(['card', 'ach'])
 
 function getStripe() {
   const key = process.env.STRIPE_SECRET_KEY
@@ -60,9 +61,14 @@ export async function POST(request: Request) {
 
       const defaultMethod = customer.invoice_settings.default_payment_method
       let card = null
+      let bank = null
+      let methodType: 'card' | 'ach' | null = null
+      let methodLabel = null
 
       if (typeof defaultMethod === 'string') {
         const paymentMethod = await stripe.paymentMethods.retrieve(defaultMethod)
+        methodType = paymentMethod.type === 'us_bank_account' ? 'ach' : paymentMethod.type === 'card' ? 'card' : null
+        methodLabel = methodType === 'ach' ? 'ACH bank account' : methodType === 'card' ? 'Card' : null
         card = paymentMethod.card
           ? {
               brand: paymentMethod.card.brand,
@@ -71,12 +77,22 @@ export async function POST(request: Request) {
               expYear: paymentMethod.card.exp_year,
             }
           : null
+        bank = paymentMethod.us_bank_account
+          ? {
+              bankName: paymentMethod.us_bank_account.bank_name,
+              last4: paymentMethod.us_bank_account.last4,
+              accountType: paymentMethod.us_bank_account.account_type,
+            }
+          : null
       }
 
       return NextResponse.json({
         enabled: customer.metadata.autopay_enabled === 'true',
         preference: customer.metadata.autopay_preference || null,
+        paymentMethod: customer.metadata.autopay_payment_method || methodType,
+        methodLabel,
         card,
+        bank,
       })
     }
 
@@ -100,6 +116,13 @@ export async function POST(request: Request) {
       )
     }
 
+    const autopayPaymentMethod = paymentMethods.has(body.paymentMethod)
+      ? body.paymentMethod
+      : 'card'
+    const stripePaymentMethodTypes = autopayPaymentMethod === 'ach'
+      ? ['us_bank_account' as const]
+      : ['card' as const]
+
     const name = [context.camper.first_name, context.camper.last_name]
       .filter(Boolean)
       .join(' ')
@@ -113,6 +136,7 @@ export async function POST(request: Request) {
           camper_id: String(context.camper.id),
           autopay_enabled: 'false',
           autopay_preference: body.preference,
+          autopay_payment_method: autopayPaymentMethod,
         },
       })
     } else {
@@ -124,6 +148,7 @@ export async function POST(request: Request) {
           supabase_user_id: context.user.id,
           camper_id: String(context.camper.id),
           autopay_preference: body.preference,
+          autopay_payment_method: autopayPaymentMethod,
         },
       })
     }
@@ -133,18 +158,20 @@ export async function POST(request: Request) {
       mode: 'setup',
       currency: 'usd',
       customer: customer.id,
-      payment_method_types: ['card'],
+      payment_method_types: stripePaymentMethodTypes,
       success_url: `${origin}/invoices?autopay=success`,
       cancel_url: `${origin}/invoices?autopay=cancelled`,
       metadata: {
         purpose: 'autopay_enrollment',
         autopay_preference: body.preference,
+        autopay_payment_method: autopayPaymentMethod,
         camper_id: String(context.camper.id),
       },
       setup_intent_data: {
         metadata: {
           purpose: 'autopay_enrollment',
           autopay_preference: body.preference,
+          autopay_payment_method: autopayPaymentMethod,
           camper_id: String(context.camper.id),
         },
       },

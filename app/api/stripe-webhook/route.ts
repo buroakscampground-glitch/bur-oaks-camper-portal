@@ -64,6 +64,12 @@ export async function POST(request: Request) {
         const paymentMethod = setupIntent.payment_method
 
         if (setupIntent.status === 'succeeded' && typeof paymentMethod === 'string') {
+          const savedPaymentMethod = await stripe.paymentMethods.retrieve(paymentMethod)
+          const autopayPaymentMethod = savedPaymentMethod.type === 'us_bank_account'
+            ? 'ach'
+            : savedPaymentMethod.type === 'card'
+              ? 'card'
+              : savedPaymentMethod.type
           const customer = await stripe.customers.retrieve(session.customer)
 
           if (!customer.deleted) {
@@ -73,6 +79,7 @@ export async function POST(request: Request) {
                 ...customer.metadata,
                 autopay_enabled: 'true',
                 autopay_preference: session.metadata.autopay_preference || 'both',
+                autopay_payment_method: autopayPaymentMethod,
               },
             })
           }
@@ -164,7 +171,11 @@ export async function POST(request: Request) {
           .update({
             status: 'paid',
             paid_at: new Date().toISOString(),
-            payment_method: 'AutoPay',
+            payment_method: intent.metadata.autopay_payment_method === 'us_bank_account' || intent.metadata.autopay_payment_method === 'ach'
+              ? 'AutoPay ACH'
+              : intent.metadata.autopay_payment_method === 'card'
+                ? 'AutoPay card'
+                : 'AutoPay',
             payment_reference: intent.id,
           })
           .eq('id', invoiceId)

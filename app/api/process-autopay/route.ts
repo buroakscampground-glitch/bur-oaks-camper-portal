@@ -14,6 +14,12 @@ function invoiceCategory(invoiceType: string) {
   return null
 }
 
+function autoPayMethodLabel(paymentMethod: Stripe.PaymentMethod) {
+  if (paymentMethod.type === 'us_bank_account') return 'AutoPay ACH'
+  if (paymentMethod.type === 'card') return 'AutoPay card'
+  return 'AutoPay'
+}
+
 export async function POST(request: Request) {
   const rateLimit = checkRateLimit(request, 'process-autopay', 60, 60_000)
   if (!rateLimit.allowed) {
@@ -85,6 +91,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ charged: false, reason: 'not_enrolled' })
     }
 
+    const savedPaymentMethod = await stripe.paymentMethods.retrieve(paymentMethod)
+    const paymentMethodLabel = autoPayMethodLabel(savedPaymentMethod)
+
     const amount = Math.round(Number(invoice.total_due || 0) * 100)
 
     if (!Number.isInteger(amount) || amount < 50) {
@@ -106,6 +115,7 @@ export async function POST(request: Request) {
           invoice_id: String(invoice.id),
           invoice_number: String(invoice.invoice_number),
           camper_id: String(camper.id),
+          autopay_payment_method: savedPaymentMethod.type,
         },
       },
       { idempotencyKey: `autopay-invoice-${invoice.id}` }
@@ -117,7 +127,7 @@ export async function POST(request: Request) {
         .update({
           status: 'paid',
           paid_at: new Date().toISOString(),
-          payment_method: 'AutoPay',
+          payment_method: paymentMethodLabel,
           payment_reference: intent.id,
         })
         .eq('id', invoice.id)
@@ -134,6 +144,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ charged: true, paymentIntentId: intent.id, ...alertResult })
     }
 
+    if (intent.status === 'processing') {
+      return NextResponse.json({
+        charged: false,
+        initiated: true,
+        paymentIntentId: intent.id,
+        reason: 'processing',
+        message: 'ACH AutoPay was started. The invoice will be marked paid after Stripe confirms the bank payment.',
+      })
+    }
+
     return NextResponse.json({ charged: false, reason: intent.status })
   } catch (error: any) {
     console.error('PROCESS AUTOPAY ERROR:', error)
@@ -142,7 +162,7 @@ export async function POST(request: Request) {
         charged: false,
         error:
           error.code === 'authentication_required'
-            ? 'The saved card requires customer verification. The invoice remains open.'
+            ? 'The saved payment method requires customer verification. The invoice remains open.'
             : error.message || 'AutoPay charge failed. The invoice remains open.',
       },
       { status: 500 }

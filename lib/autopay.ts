@@ -1,6 +1,7 @@
 import { supabase } from './supabase'
 
 export type AutoPayPreference = 'electric' | 'rent' | 'both'
+export type AutoPayPaymentMethod = 'card' | 'ach'
 
 async function authenticatedRequest(path: string, body: object) {
   const { data } = await supabase.auth.getSession()
@@ -32,10 +33,14 @@ export function getAutoPayStatus() {
   return authenticatedRequest('/api/autopay', { action: 'status' })
 }
 
-export function createAutoPayEnrollment(preference: AutoPayPreference) {
+export function createAutoPayEnrollment(
+  preference: AutoPayPreference,
+  paymentMethod: AutoPayPaymentMethod = 'card'
+) {
   return authenticatedRequest('/api/autopay', {
     action: 'enroll',
     preference,
+    paymentMethod,
   })
 }
 

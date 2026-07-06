@@ -551,6 +551,10 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
         if (autoPay.charged) {
           resultMessage += ' — paid automatically.'
         }
+
+        if (autoPay.initiated) {
+          resultMessage += ` — ${autoPay.message || 'AutoPay was started and is waiting for Stripe confirmation.'}`
+        }
       } catch (error: any) {
         resultMessage += ` — AutoPay was not completed: ${error.message}`
       }
