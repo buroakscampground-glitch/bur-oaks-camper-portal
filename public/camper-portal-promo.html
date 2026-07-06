@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bur Oaks Camper Portal Promo</title>
+  <style>
+    :root {
+      --forest: #11351f;
+      --pine: #245a35;
+      --sage: #dde9d8;
+      --cream: #f8f1e4;
+      --gold: #e8bd5f;
+      --ember: #e36f31;
+      --red: #c94231;
+      --ink: #1c3324;
+      --white: #fffdf7;
+    }
+
+    * { box-sizing: border-box; }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #0d2014;
+      color: var(--white);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .stage {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      isolation: isolate;
+      background:
+        radial-gradient(circle at 20% 82%, rgba(227, 111, 49, .32), transparent 20%),
+        radial-gradient(circle at 82% 18%, rgba(232, 189, 95, .22), transparent 24%),
+        linear-gradient(135deg, #0a1d12, #173e25 48%, #0d2416);
+    }
+
+    .stage::before,
+    .stage::after {
+      content: "";
+      position: absolute;
+      inset: -14%;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    .stage::before {
+      background:
+        radial-gradient(circle at 50% 102%, rgba(255, 112, 35, .45), transparent 20%),
+        radial-gradient(circle at 42% 105%, rgba(255, 198, 72, .34), transparent 14%),
+        radial-gradient(circle at 56% 108%, rgba(212, 54, 32, .24), transparent 16%);
+      mix-blend-mode: screen;
+      animation: fireGlow 3.2s ease-in-out infinite alternate;
+    }
+
+    .stage::after {
+      background:
+        linear-gradient(90deg, rgba(0,0,0,.42), transparent 22%, transparent 78%, rgba(0,0,0,.34)),
+        radial-gradient(circle at 50% 52%, transparent 42%, rgba(0,0,0,.28));
+      z-index: 2;
+    }
+
+    @keyframes fireGlow {
+      from { opacity: .48; transform: translateY(1.2%) scale(1); }
+      to { opacity: .84; transform: translateY(-.6%) scale(1.03); }
+    }
+
+    .sparks {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      background-image:
+        radial-gradient(circle, rgba(255, 215, 127, .88) 0 1px, transparent 2px),
+        radial-gradient(circle, rgba(255, 144, 74, .64) 0 1px, transparent 2px);
+      background-size: 180px 180px, 240px 240px;
+      animation: sparks 16s linear infinite;
+      animation-play-state: paused;
+      opacity: .38;
+    }
+
+    body.promo-playing .sparks {
+      animation-play-state: running;
+    }
+
+    @keyframes sparks {
+      from { background-position: 0 100%, 120px 100%; }
+      to { background-position: 40px -120%, 160px -110%; }
+    }
+
+    .scene {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(28px, 4vw, 70px);
+      opacity: 0;
+      transform: scale(1.035);
+      animation: sceneShow 72s linear infinite;
+      animation-play-state: paused;
+      z-index: 5;
+    }
+
+    body.promo-playing .scene {
+      animation-play-state: running;
+    }
+
+    .scene:nth-child(1) { animation-delay: 0s; }
+    .scene:nth-child(2) { animation-delay: 9s; }
+    .scene:nth-child(3) { animation-delay: 18s; }
+    .scene:nth-child(4) { animation-delay: 27s; }
+    .scene:nth-child(5) { animation-delay: 36s; }
+    .scene:nth-child(6) { animation-delay: 45s; }
+    .scene:nth-child(7) { animation-delay: 54s; }
+    .scene:nth-child(8) { animation-delay: 63s; }
+
+    @keyframes sceneShow {
+      0% { opacity: 0; transform: scale(1.04) translateY(10px); }
+      1.5% { opacity: 1; transform: scale(1) translateY(0); }
+      10.3% { opacity: 1; transform: scale(1) translateY(0); }
+      12.5% { opacity: 0; transform: scale(.992) translateY(-10px); }
+      100% { opacity: 0; transform: scale(.992) translateY(-10px); }
+    }
+
+    .photo-bg {
+      position: absolute;
+      inset: -5%;
+      background-position: center;
+      background-size: cover;
+      filter: saturate(1.08) contrast(1.05);
+      animation: photoDrift 9s ease-in-out infinite alternate;
+      animation-play-state: paused;
+      z-index: -3;
+    }
+
+    body.promo-playing .photo-bg {
+      animation-play-state: running;
+    }
+
+    @keyframes photoDrift {
+      from { transform: scale(1.02) translate3d(-1%, 0, 0); }
+      to { transform: scale(1.1) translate3d(1.5%, -1%, 0); }
+    }
+
+    .scene::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(7, 24, 13, .94), rgba(7, 24, 13, .62) 48%, rgba(7, 24, 13, .26)),
+        radial-gradient(circle at 78% 22%, rgba(232, 189, 95, .18), transparent 30%);
+      z-index: -2;
+    }
+
+    .content {
+      width: min(1180px, 100%);
+      display: grid;
+      gap: clamp(24px, 4vw, 48px);
+      align-items: center;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr);
+    }
+
+    .content.center {
+      max-width: 980px;
+      grid-template-columns: 1fr;
+      justify-items: center;
+      text-align: center;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      width: max-content;
+      padding: 10px 14px;
+      border: 1px solid rgba(255, 255, 255, .24);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .13);
+      color: #f6d37e;
+      font-size: 12px;
+      font-weight: 950;
+      letter-spacing: .17em;
+      text-transform: uppercase;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 16px 34px rgba(0,0,0,.12);
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      color: #fff;
+      font-family: Georgia, "Times New Roman", serif;
+      font-weight: 500;
+      letter-spacing: -.057em;
+      line-height: .93;
+      text-wrap: balance;
+      text-shadow: 0 20px 48px rgba(0, 0, 0, .34);
+    }
+
+    h1 { font-size: clamp(58px, 8vw, 132px); }
+    h2 { font-size: clamp(48px, 6.2vw, 102px); }
+
+    p {
+      max-width: 760px;
+      margin: 0;
+      color: rgba(255, 255, 255, .88);
+      font-size: clamp(19px, 2.1vw, 30px);
+      line-height: 1.35;
+      text-wrap: balance;
+    }
+
+    .gold { color: var(--gold); }
+
+    .copy {
+      display: grid;
+      gap: 22px;
+      align-content: center;
+    }
+
+    .logo-card {
+      display: grid;
+      justify-items: center;
+      gap: 20px;
+      padding: clamp(28px, 4vw, 54px);
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 36px;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(232, 189, 95, .24), transparent 46%),
+        rgba(255, 255, 255, .13);
+      box-shadow: 0 32px 90px rgba(0, 0, 0, .3);
+      backdrop-filter: blur(22px);
+    }
+
+    .logo-card img {
+      width: min(285px, 46vw);
+      filter: drop-shadow(0 18px 35px rgba(0, 0, 0, .3));
+    }
+
+    .logo-card strong {
+      color: #fff;
+      font: 500 clamp(32px, 4vw, 54px) Georgia, serif;
+      text-align: center;
+      letter-spacing: -.04em;
+    }
+
+    .screen-stack {
+      position: relative;
+      min-height: 560px;
+      display: grid;
+      place-items: center;
+    }
+
+    .desktop {
+      width: min(620px, 92vw);
+      border-radius: 28px;
+      overflow: hidden;
+      background: #f8f4ea;
+      color: var(--ink);
+      box-shadow: 0 34px 92px rgba(0,0,0,.34);
+      border: 1px solid rgba(255,255,255,.8);
+      transform: rotate(-2deg);
+    }
+
+    .desktop-bar {
+      height: 46px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 18px;
+      background: #fffdf8;
+      border-bottom: 1px solid rgba(32,51,40,.12);
+    }
+
+    .dot { width: 11px; height: 11px; border-radius: 50%; background: #e36f31; }
+    .dot:nth-child(2) { background: #e8bd5f; }
+    .dot:nth-child(3) { background: #245a35; }
+
+    .desktop-body {
+      display: grid;
+      grid-template-columns: 1.1fr .9fr;
+      gap: 16px;
+      min-height: 390px;
+      padding: 20px;
+      background:
+        radial-gradient(circle at 78% 0%, rgba(232,189,95,.22), transparent 28%),
+        linear-gradient(180deg, #164323 0 46%, #f8f4ea 46% 100%);
+    }
+
+    .hero-panel {
+      grid-column: 1 / -1;
+      min-height: 155px;
+      padding: 22px;
+      border-radius: 24px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.08)),
+        rgba(18, 54, 30, .58);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,.18);
+    }
+
+    .hero-panel strong {
+      display: block;
+      font: 500 40px/.95 Georgia, serif;
+      letter-spacing: -.05em;
+      margin-bottom: 12px;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .mini-card,
+    .feature-card {
+      border-radius: 18px;
+      background: #fffdf8;
+      border: 1px solid rgba(32,51,40,.1);
+      box-shadow: 0 10px 24px rgba(32,51,40,.08);
+      padding: 15px;
+    }
+
+    .mini-card small,
+    .feature-card small {
+      display: block;
+      color: #a27622;
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .mini-card b {
+      display: block;
+      color: var(--ink);
+      font-size: 17px;
+      line-height: 1.1;
+    }
+
+    .phone {
+      position: absolute;
+      right: -6px;
+      bottom: -6px;
+      width: min(275px, 42vw);
+      min-height: 500px;
+      padding: 13px;
+      border-radius: 38px;
+      background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(238,243,235,.94));
+      color: var(--ink);
+      box-shadow: 0 30px 82px rgba(0, 0, 0, .36);
+      border: 1px solid rgba(255,255,255,.8);
+      overflow: hidden;
+      transform: rotate(5deg);
+    }
+
+    .phone::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 74px;
+      height: 18px;
+      border-radius: 999px;
+      background: #17291c;
+      transform: translateX(-50%);
+      z-index: 3;
+    }
+
+    .phone-screen {
+      min-height: 475px;
+      padding: 34px 14px 14px;
+      border-radius: 28px;
+      background:
+        radial-gradient(circle at 80% 4%, rgba(232,189,95,.28), transparent 34%),
+        linear-gradient(180deg, #174021 0 37%, #f8f5ed 37% 100%);
+      overflow: hidden;
+    }
+
+    .phone h3 {
+      margin: 0 0 8px;
+      color: #fff;
+      font: 500 31px/.94 Georgia, serif;
+      letter-spacing: -.05em;
+    }
+
+    .phone small {
+      display: block;
+      color: rgba(255,255,255,.72);
+      font-weight: 850;
+    }
+
+    .portal-chip-row {
+      display: grid;
+      gap: 9px;
+      margin-top: 22px;
+    }
+
+    .portal-chip {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 9px;
+      align-items: center;
+      padding: 11px;
+      border: 1px solid rgba(43, 79, 52, .12);
+      border-radius: 17px;
+      background: #fff;
+      box-shadow: 0 12px 26px rgba(27, 55, 34, .09);
+    }
+
+    .icon {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: #e7f0e2;
+      font-size: 18px;
+    }
+
+    .portal-chip b {
+      display: block;
+      color: var(--ink);
+      font-size: 13px;
+    }
+
+    .portal-chip span {
+      color: #637267;
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .pill {
+      padding: 6px 9px;
+      border-radius: 999px;
+      background: #245a35;
+      color: white;
+      font-size: 10px;
+      font-weight: 950;
+      white-space: nowrap;
+    }
+
+    .portal-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .feature-card {
+      min-height: 160px;
+      display: grid;
+      align-content: space-between;
+      padding: 20px;
+      background:
+        radial-gradient(circle at 90% 0%, rgba(232,189,95,.18), transparent 32%),
+        #fffdf7;
+    }
+
+    .feature-card strong {
+      display: block;
+      color: var(--ink);
+      font: 500 clamp(24px, 2.8vw, 38px)/.96 Georgia, serif;
+      letter-spacing: -.045em;
+    }
+
+    .feature-card p {
+      color: #526658;
+      font-size: 14px;
+      line-height: 1.35;
+      margin-top: 10px;
+    }
+
+    .flyer-wall {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      transform: rotate(2deg);
+    }
+
+    .flyer {
+      min-height: 260px;
+      border-radius: 24px;
+      background-position: center;
+      background-size: cover;
+      box-shadow: 0 28px 62px rgba(0,0,0,.32);
+      border: 8px solid rgba(255,253,247,.92);
+      animation: bob 4s ease-in-out infinite;
+      animation-play-state: paused;
+    }
+
+    body.promo-playing .flyer {
+      animation-play-state: running;
+    }
+
+    .flyer:nth-child(2) {
+      transform: translateY(34px) rotate(-4deg);
+      animation-delay: .7s;
+    }
+
+    .flyer:nth-child(3) {
+      transform: translateY(-10px) rotate(3deg);
+      animation-delay: 1.2s;
+    }
+
+    @keyframes bob {
+      0%, 100% { translate: 0 0; }
+      50% { translate: 0 -10px; }
+    }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 8px;
+    }
+
+    .metric {
+      padding: 15px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.2);
+      backdrop-filter: blur(18px);
+    }
+
+    .metric b {
+      display: block;
+      font: 500 30px/.9 Georgia, serif;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .metric span {
+      color: rgba(255,255,255,.74);
+      font-size: 12px;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: max-content;
+      margin-top: 4px;
+      padding: 16px 22px;
+      border-radius: 999px;
+      background: #fffdf7;
+      color: var(--ink);
+      box-shadow: 0 18px 44px rgba(0,0,0,.25);
+      font-weight: 950;
+    }
+
+    .burst {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      width: min(700px, 100%);
+    }
+
+    .burst div {
+      padding: 18px 20px;
+      border-radius: 22px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.19);
+      box-shadow: 0 20px 54px rgba(0,0,0,.18);
+      backdrop-filter: blur(18px);
+      color: #fff;
+      font-weight: 950;
+      font-size: clamp(16px, 1.8vw, 23px);
+    }
+
+    .big-final {
+      display: grid;
+      gap: 22px;
+      justify-items: center;
+    }
+
+    .big-final h1 {
+      max-width: 980px;
+    }
+
+    .final-card {
+      width: min(820px, 100%);
+      padding: clamp(22px, 3vw, 34px);
+      border-radius: 32px;
+      background: rgba(255,255,255,.14);
+      border: 1px solid rgba(255,255,255,.2);
+      box-shadow: 0 30px 80px rgba(0,0,0,.28);
+      backdrop-filter: blur(20px);
+    }
+
+    .final-card p {
+      margin-inline: auto;
+      font-size: clamp(18px, 2vw, 27px);
+    }
+
+    .watermark {
+      position: absolute;
+      right: clamp(18px, 3vw, 42px);
+      bottom: clamp(14px, 2vw, 32px);
+      z-index: 8;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.18);
+      color: rgba(255,255,255,.76);
+      font-size: 12px;
+      font-weight: 850;
+      backdrop-filter: blur(16px);
+    }
+
+    .watermark img {
+      width: 26px;
+      height: 26px;
+      object-fit: contain;
+    }
+
+    .audio-launch {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+      background:
+        radial-gradient(circle at 50% 82%, rgba(227,111,49,.34), transparent 22%),
+        linear-gradient(135deg, rgba(8,26,14,.94), rgba(18,58,32,.9));
+      transition: opacity .45s ease, visibility .45s ease;
+    }
+
+    body.promo-playing .audio-launch {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .audio-launch-card {
+      width: min(760px, 100%);
+      display: grid;
+      justify-items: center;
+      gap: 18px;
+      padding: clamp(28px, 5vw, 56px);
+      border-radius: 38px;
+      text-align: center;
+      background:
+        radial-gradient(circle at 50% 0%, rgba(232,189,95,.24), transparent 42%),
+        rgba(255,255,255,.13);
+      border: 1px solid rgba(255,255,255,.22);
+      box-shadow: 0 34px 90px rgba(0,0,0,.34);
+      backdrop-filter: blur(22px);
+    }
+
+    .audio-launch-card img {
+      width: min(210px, 44vw);
+      filter: drop-shadow(0 18px 35px rgba(0,0,0,.28));
+    }
+
+    .audio-launch-card h1 {
+      font-size: clamp(42px, 6vw, 84px);
+    }
+
+    .audio-launch-card p {
+      max-width: 600px;
+      font-size: clamp(17px, 2vw, 24px);
+    }
+
+    .sound-button {
+      appearance: none;
+      border: 0;
+      cursor: pointer;
+      margin-top: 6px;
+      padding: 17px 24px;
+      border-radius: 999px;
+      background: #fffdf7;
+      color: var(--ink);
+      box-shadow: 0 20px 50px rgba(0,0,0,.25);
+      font: 950 16px/1 Inter, ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: .02em;
+    }
+
+    .sound-note {
+      color: rgba(255,255,255,.74);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .narration-caption {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(20px, 3vw, 38px);
+      z-index: 9;
+      width: min(820px, calc(100vw - 36px));
+      transform: translateX(-50%);
+      padding: 15px 18px;
+      border-radius: 22px;
+      background: rgba(8, 26, 14, .58);
+      color: rgba(255,255,255,.9);
+      border: 1px solid rgba(255,255,255,.17);
+      box-shadow: 0 18px 48px rgba(0,0,0,.22);
+      backdrop-filter: blur(18px);
+      font-size: clamp(14px, 1.5vw, 18px);
+      line-height: 1.35;
+      text-align: center;
+      opacity: 0;
+      transition: opacity .3s ease;
+    }
+
+    body.promo-playing .narration-caption {
+      opacity: 1;
+    }
+
+    @media (max-width: 860px) {
+      .content {
+        grid-template-columns: 1fr;
+      }
+
+      .screen-stack {
+        min-height: 470px;
+      }
+
+      .desktop {
+        width: 100%;
+      }
+
+      .phone {
+        width: 230px;
+        min-height: 430px;
+        right: 2px;
+        bottom: -18px;
+      }
+
+      .phone-screen {
+        min-height: 405px;
+      }
+
+      .flyer-wall {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .flyer:nth-child(3) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="audio-launch" id="audioLaunch">
+    <div class="audio-launch-card">
+      <img src="bur-oaks-logo.png" alt="Bur Oaks logo" />
+      <span class="eyebrow">Camper portal launch video</span>
+      <h1>Ready to blow their socks off?</h1>
+      <p>Tap start for the full promo with narration and a soft campfire feel.</p>
+      <button class="sound-button" id="startPromo" type="button">▶ Start promo with sound</button>
+      <span class="sound-note">Sound starts after you tap because browsers block auto-play audio.</span>
+    </div>
+  </div>
+
+  <main class="stage" aria-label="Bur Oaks Camper Portal promotional video">
+    <section class="scene">
+      <div class="photo-bg" style="background-image:url('site-photos/IMG_8002.jpeg')"></div>
+      <div class="content center">
+        <div class="logo-card">
+          <img src="bur-oaks-logo.png" alt="Bur Oaks logo" />
+          <span class="eyebrow">New for Bur Oaks campers</span>
+          <strong>Camp life just got a serious upgrade.</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="photo-bg" style="background-image:url('site-photos/IMG_8019.jpeg')"></div>
+      <div class="content">
+        <div class="copy">
+          <span class="eyebrow">Your private camper portal</span>
+          <h1>Everything for your stay. <span class="gold">One easy place.</span></h1>
+          <p>Invoices, AutoPay, ACH bank payments, weather, documents, electric history, maintenance requests, dinner signups, camper directory, messages, and alerts — right from your phone.</p>
+        </div>
+        <div class="screen-stack">
+          <div class="desktop">
+            <div class="desktop-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+            <div class="desktop-body">
+              <div class="hero-panel">
+                <strong>Welcome back, Rachel.</strong>
+                <span>Lot 1001 is ready for the weekend.</span>
+              </div>
+              <div class="mini-grid">
+                <div class="mini-card"><small>Account</small><b>$0.00 open balance</b></div>
+                <div class="mini-card"><small>Weather</small><b>Hot weekend ahead</b></div>
+                <div class="mini-card"><small>Dinner</small><b>Saturday at 6 PM</b></div>
+                <div class="mini-card"><small>Office</small><b>2 new messages</b></div>
+              </div>
+            </div>
+          </div>
+          <div class="phone">
+            <div class="phone-screen">
+              <small>BUR OAKS PORTAL</small>
+              <h3>Plan your weekend</h3>
+              <div class="portal-chip-row">
+                <div class="portal-chip"><i class="icon">🌤️</i><div><b>Full forecast</b><span>Know before you tow</span></div><em class="pill">Live</em></div>
+                <div class="portal-chip"><i class="icon">💳</i><div><b>Invoices + AutoPay</b><span>Card or low-fee ACH</span></div><em class="pill">Easy</em></div>
+                <div class="portal-chip"><i class="icon">🍽️</i><div><b>Saturday dinner</b><span>Tell us who’s coming</span></div><em class="pill">6 PM</em></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="photo-bg" style="background-image:url('site-photos/IMG_7996.jpeg')"></div>
+      <div class="content">
+        <div class="copy">
+          <span class="eyebrow">Less guessing. More camping.</span>
+          <h2>Built around real Bur Oaks life.</h2>
+          <p>Lot rent, electric, water/trash, pump-outs, AutoPay, ACH, documents, profile updates, gate notices, weekend meals, and events all live together.</p>
+          <div class="metric-row">
+            <div class="metric"><b>24/7</b><span>Portal access</span></div>
+            <div class="metric"><b>ACH</b><span>Less card fees</span></div>
+            <div class="metric"><b>kWh</b><span>Usage history</span></div>
+          </div>
+        </div>
+        <div class="portal-grid">
+          <div class="feature-card"><small>Billing</small><strong>Clear itemized invoices</strong><p>See electric, water/trash, pump-outs, credits, and fees broken out before paying.</p></div>
+          <div class="feature-card"><small>AutoPay + ACH</small><strong>Less check writing</strong><p>Set up automatic payments and use bank payments with next-to-no card fees.</p></div>
+          <div class="feature-card"><small>Electric history</small><strong>Track your kWh</strong><p>View current and past readings, total usage, and your electric history over time.</p></div>
+          <div class="feature-card"><small>Camper directory</small><strong>Keep connections strong</strong><p>Opt in so other campers can find you and stay connected around the campground.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="photo-bg" style="background-image:url('site-photos/IMG_8008.jpeg')"></div>
+      <div class="content">
+        <div class="copy">
+          <span class="eyebrow">Campground happenings</span>
+          <h2>Events finally feel easy to follow.</h2>
+          <p>Tap flyers, see the details, RSVP, and keep up with what’s next without digging through Facebook posts or old messages.</p>
+          <span class="cta">Open flyer → RSVP → show up</span>
+        </div>
+        <div class="flyer-wall" aria-label="Bur Oaks event flyers">
+          <div class="flyer" style="background-image:url('events-2026/2026-07-04-fourth-of-july.jpg')"></div>
+          <div class="flyer" style="background-image:url('events-2026/2026-summer-3-bag-series.jpg')"></div>
+          <div class="flyer" style="background-image:url('events-2026/2026-10-24-buroakstober-fest.jpg')"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="photo-bg" style="background-image:url('site-photos/IMG_8014.jpeg')"></div>
+      <div class="content">
+        <div class="copy">
+          <span class="eyebrow">Saturday night at 6</span>
+          <h2>Dinner planning without the group-text chaos.</h2>
+          <p>Campers can say if they’re going, add guests, and pick what they’re bringing — so the office can see the whole night at a glance.</p>
+        </div>
+        <div class="screen-stack">
+          <div class="desktop" style="transform:rotate(2deg)">
+            <div class="desktop-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
+            <div class="desktop-body" style="grid-template-columns:1fr;background:linear-gradient(180deg,#174021 0 36%,#f8f4ea 36% 100%)">
+              <div class="hero-panel">
+                <strong>Next Saturday Dinner</strong>
+                <span>July 11 • Taco Table • Eating time 6 PM</span>
+              </div>
+              <div class="mini-grid">
+                <div class="mini-card"><small>Going</small><b>28 campers</b></div>
+                <div class="mini-card"><small>Guests</small><b>9 friends</b></div>
+                <div class="mini-card"><small>Bringing</small><b>Desserts, chips, sides</b></div>
+                <div class="mini-card"><small>Office view</small><b>One clean list</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="photo-bg" style="background-image:url('site-photos/IMG_8004.jpeg')"></div>
+      <div class="content">
+        <div class="copy">
+          <span class="eyebrow">Important notices</span>
+          <h2>When the office needs everyone, campers know fast.</h2>
+        <p>Portal messages, email alerts, and text alerts help keep campground updates from getting buried — and campers can keep their phone, email, address, vehicle, and insurance details current.</p>
+        </div>
+        <div class="burst">
+          <div>⚠️ Storm alerts</div>
+          <div>💬 Office messages</div>
+          <div>💳 Bill reminders</div>
+          <div>🚧 Maintenance updates</div>
+          <div>🔌 Electric usage</div>
+          <div>🏕️ Camper directory</div>
+          <div>🍳 Breakfast is ready</div>
+          <div>🍽️ Dinner at 6</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="photo-bg" style="background-image:url('site-photos/IMG_7997.jpeg')"></div>
+      <div class="content">
+        <div class="copy">
+          <span class="eyebrow">Made for this campground</span>
+          <h2>Not some generic app. <span class="gold">Bur Oaks, our way.</span></h2>
+          <p>Seasonal sites, AutoPay, ACH, electric billing, kWh history, pump-outs, leases, Saturday dinners, events, maintenance, camper profiles, directory opt-in, and real campground rhythm — all built around how Bur Oaks actually runs.</p>
+        </div>
+        <div class="portal-grid">
+          <div class="feature-card"><small>Camper tools</small><strong>Know what matters</strong><p>Balances, AutoPay, weather, documents, requests, dinners, messages, and electric usage.</p></div>
+          <div class="feature-card"><small>Office tools</small><strong>Less chasing</strong><p>Cleaner records, alerts, reports, billing, credits, documents, and assignment tracking.</p></div>
+          <div class="feature-card"><small>Maintenance</small><strong>Clear work orders</strong><p>Requests can be reviewed, approved, assigned, updated, photographed, and closed.</p></div>
+          <div class="feature-card"><small>Campground life</small><strong>More connected</strong><p>Opt-in directory, meals, events, reminders, and “we’re ready for the weekend.”</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="photo-bg" style="background-image:url('site-photos/IMG_8010.jpeg')"></div>
+      <div class="content center big-final">
+        <span class="eyebrow">Launch season</span>
+        <h1>Your Bur Oaks camper portal is ready.</h1>
+        <div class="final-card">
+          <p>Watch for your invite, set your password, update your profile, choose alerts, set up AutoPay if you want it, and start using the portal built just for Bur Oaks campers.</p>
+        </div>
+        <span class="cta">Less paperwork. Less guessing. More camping.</span>
+      </div>
+    </section>
+
+    <div class="sparks"></div>
+    <div class="watermark">
+      <img src="bur-oaks-logo.png" alt="" />
+      Bur Oaks Campground
+    </div>
+    <div class="narration-caption" id="narrationCaption">Tap start to begin the camper portal promo.</div>
+  </main>
+  <script>
+    const narration = [
+      {
+        at: 0,
+        text: "Bur Oaks campers, the new camper portal is here — and camp life just got a serious upgrade."
+      },
+      {
+        at: 9,
+        text: "Invoices, AutoPay, ACH bank payments, weather, documents, electric history, maintenance requests, dinner signups, the camper directory, office messages, and important alerts — all from your phone."
+      },
+      {
+        at: 18,
+        text: "See clear itemized invoices, set up AutoPay, use low-fee ACH instead of writing checks, view assigned documents, and track current and past electric kilowatt usage."
+      },
+      {
+        at: 27,
+        text: "Tap event flyers, see the details, RSVP, and stay connected to what’s happening next at Bur Oaks."
+      },
+      {
+        at: 36,
+        text: "For Saturday night dinners, you can let us know who’s coming, how many guests you’re bringing, and what you’d like to bring."
+      },
+      {
+        at: 45,
+        text: "Storm alerts, bill reminders, office messages, dinner updates, maintenance notices, electric updates, and urgent campground updates can all be sent through the portal."
+      },
+      {
+        at: 54,
+        text: "This was built around the way Bur Oaks really works — seasonal sites, AutoPay, ACH, electric billing, kilowatt history, pump-outs, leases, events, meals, maintenance, directory opt-in, and real campground life."
+      },
+      {
+        at: 63,
+        text: "Watch for your invite, set your password, update your profile, turn on alerts, set up AutoPay if you want it, and start using the portal built just for Bur Oaks campers. Less paperwork. Less guessing. More camping."
+      }
+    ];
+
+    const startButton = document.getElementById("startPromo");
+    const caption = document.getElementById("narrationCaption");
+    let audioContext;
+    let fireTimer;
+    let narrationTimers = [];
+
+    function chooseVoice() {
+      const voices = window.speechSynthesis?.getVoices?.() || [];
+      return voices.find((voice) => /Samantha|Ava|Allison|Karen|Serena|Jenny|Aria/i.test(voice.name))
+        || voices.find((voice) => voice.lang?.startsWith("en"))
+        || null;
+    }
+
+    function speak(text) {
+      if (!("speechSynthesis" in window)) {
+        caption.textContent = text;
+        return;
+      }
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      const voice = chooseVoice();
+      if (voice) utterance.voice = voice;
+      utterance.rate = 0.92;
+      utterance.pitch = 0.94;
+      utterance.volume = 1;
+      caption.textContent = text;
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function startCampfireAmbience() {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+
+      audioContext = new AudioContext();
+      const master = audioContext.createGain();
+      master.gain.value = 0.045;
+      master.connect(audioContext.destination);
+
+      const low = audioContext.createOscillator();
+      const lowGain = audioContext.createGain();
+      low.type = "sine";
+      low.frequency.value = 82;
+      lowGain.gain.value = 0.08;
+      low.connect(lowGain);
+      lowGain.connect(master);
+      low.start();
+
+      fireTimer = window.setInterval(() => {
+        const now = audioContext.currentTime;
+        const crackle = audioContext.createBufferSource();
+        const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.08, audioContext.sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < data.length; i += 1) {
+          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2);
+        }
+        const gain = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        filter.type = "bandpass";
+        filter.frequency.value = 650 + Math.random() * 1400;
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.13 + Math.random() * 0.11, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        crackle.buffer = buffer;
+        crackle.connect(filter);
+        filter.connect(gain);
+        gain.connect(master);
+        crackle.start(now);
+        crackle.stop(now + 0.09);
+      }, 145);
+    }
+
+    function resetSpeechAndTimers() {
+      narrationTimers.forEach((timer) => window.clearTimeout(timer));
+      narrationTimers = [];
+      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+      if (fireTimer) window.clearInterval(fireTimer);
+      if (audioContext) audioContext.close();
+    }
+
+    function startPromo() {
+      resetSpeechAndTimers();
+      document.body.classList.remove("promo-playing");
+      void document.body.offsetWidth;
+      document.body.classList.add("promo-playing");
+      startButton.textContent = "▶ Restart promo with sound";
+      startCampfireAmbience();
+
+      narration.forEach((item) => {
+        narrationTimers.push(window.setTimeout(() => speak(item.text), item.at * 1000));
+      });
+
+      narrationTimers.push(window.setTimeout(() => {
+        caption.textContent = "Replay anytime — and welcome to the new Bur Oaks camper portal.";
+      }, 71000));
+    }
+
+    startButton.addEventListener("click", startPromo);
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = chooseVoice;
+    }
+  </script>
+</body>
+</html>
