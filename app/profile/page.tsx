@@ -288,7 +288,7 @@ export default function ProfilePage() {
             <div>
               <h2>Text Alerts</h2>
               <p className="muted">
-                Choose whether the office can text important alerts to your saved phone number.
+                Choose whether the office can text important account and campground alerts to your saved phone number.
               </p>
             </div>
           </div>
@@ -308,8 +308,10 @@ export default function ProfilePage() {
               }
             />
             <span>
-              <strong>Send me Bur Oaks text alerts</strong>
-              <small>Used for bills due, weather alerts, announcements, and campground updates. Message/data rates may apply. Reply STOP to opt out.</small>
+              <strong>I agree to receive Bur Oaks Campground text alerts</strong>
+              <small>
+                By checking this box, I agree to receive SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, events, dinner reminders, gate notices, office messages, and urgent campground or weather alerts. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out.
+              </small>
             </span>
           </label>
 
@@ -317,7 +319,7 @@ export default function ProfilePage() {
             <ShieldCheck size={16} /> Text alerts are separate from the camper directory. Your phone number is not shared publicly.
           </div>
           <div className="directory-safety-note warning">
-            <ShieldCheck size={16} /> Text alerts are courtesy reminders only. Turning texts off does not remove payment obligations, campground rules, lease notices, or other account responsibilities.
+            <ShieldCheck size={16} /> SMS consent is optional and is not required to stay at Bur Oaks or use the camper portal. Text alerts are courtesy reminders only. Turning texts off does not remove payment obligations, campground rules, lease notices, or other account responsibilities.
           </div>
 
           <div style={{ marginTop: '16px' }}>

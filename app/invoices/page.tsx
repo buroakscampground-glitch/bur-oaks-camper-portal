@@ -509,7 +509,7 @@ export default function InvoicesPage() {
               <div><small>TEXT ALERTS</small><h2>Fast campground updates</h2></div>
             </div>
 
-            <p className="autopay-intro">Get quick texts for bills due, storm alerts, breakfast, dinner, gate updates, and campground announcements.</p>
+            <p className="autopay-intro">Get quick texts for invoices, payment reminders, storm alerts, breakfast, dinner, gate updates, maintenance updates, and campground announcements.</p>
 
             <label className="autopay-consent account-sms-consent">
               <input
@@ -521,14 +521,19 @@ export default function InvoicesPage() {
                 }}
                 disabled={smsSaving}
               />
-              <span><strong>Send me Bur Oaks text alerts</strong><small>Uses the phone number saved in your profile. Message/data rates may apply. Reply STOP to opt out.</small></span>
+              <span>
+                <strong>I agree to receive Bur Oaks Campground text alerts</strong>
+                <small>
+                  By checking this box, I agree to receive SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, events, dinner reminders, gate notices, office messages, and urgent campground or weather alerts. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out.
+                </small>
+              </span>
             </label>
 
             {smsMessage && <p className="autopay-message">{smsMessage}</p>}
 
             <div className="autopay-security account-sms-note"><LockKeyhole size={15} /><span>Your phone number is not shared with the camper directory unless you choose that separately.</span></div>
             <div className="account-sms-obligation-note">
-              Text alerts are courtesy reminders only. Turning texts off does not remove payment obligations, campground rules, lease notices, or other account responsibilities.
+              SMS consent is optional and is not required to stay at Bur Oaks or use the camper portal. Text alerts are courtesy reminders only. Turning texts off does not remove payment obligations, campground rules, lease notices, or other account responsibilities.
             </div>
 
             <div className="account-side-divider" />

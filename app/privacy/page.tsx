@@ -4,7 +4,7 @@ export default function PrivacyPage() {
       <article className="legal-card">
         <p className="legal-kicker">BUR OAKS CAMPGROUND</p>
         <h1>Privacy Notice</h1>
-        <p className="muted">Last updated June 22, 2026</p>
+        <p className="muted">Last updated July 6, 2026</p>
 
         <h2>Information we use</h2>
         <p>We use camper account, contact, billing, vehicle, emergency-contact, maintenance, event, and electric-usage information to operate the campground and provide portal services.</p>
@@ -25,6 +25,11 @@ export default function PrivacyPage() {
         <p>If you opt in to SMS text alerts, we use your phone number to send campground operational messages such as invoice notices, payment reminders, maintenance updates, event updates, meal updates, safety alerts, and office messages.</p>
         <p>We do not sell or share SMS opt-in information, phone numbers, or text messaging consent with third parties for their marketing or promotional purposes. Service providers may process messages only as needed to deliver campground communications.</p>
         <p>You can opt out of text messages at any time by replying <strong>STOP</strong>. You can request help by replying <strong>HELP</strong>.</p>
+
+        <h2>How SMS consent is collected</h2>
+        <p>Campers opt in only after signing into the Bur Oaks Camper Portal. The opt-in checkbox appears on the camper Profile page and the Invoices page near the saved phone number and text-alert settings. A public explanation of the SMS consent process is available at <strong>www.buroakscampground.com/sms-consent</strong>.</p>
+        <p>The checkbox states that by checking it, the camper agrees to receive SMS messages from Bur Oaks Campground about invoices, payment reminders, account notices, maintenance updates, events, dinner reminders, gate notices, office messages, and urgent campground or weather alerts. The checkbox also states that message frequency varies, message and data rates may apply, campers can reply <strong>HELP</strong> for help, and campers can reply <strong>STOP</strong> to opt out.</p>
+        <p>SMS consent is optional and is not required to stay at Bur Oaks or use the camper portal.</p>
 
         <h2>Security and retention</h2>
         <p>We use access controls and service providers to protect portal data. Information is retained only as long as reasonably needed for campground operations, accounting, safety, and legal obligations.</p>
