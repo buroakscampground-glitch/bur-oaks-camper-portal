@@ -6,15 +6,17 @@
   <title>Bur Oaks Camper Portal Promo</title>
   <style>
     :root {
-      --forest: #11351f;
-      --pine: #245a35;
-      --sage: #dde9d8;
-      --cream: #f8f1e4;
-      --gold: #e8bd5f;
-      --ember: #e36f31;
-      --red: #c94231;
-      --ink: #1c3324;
-      --white: #fffdf7;
+      --forest: #0d2a18;
+      --pine: #174526;
+      --moss: #2f6a40;
+      --cream: #fff7e7;
+      --paper: #f8f1e2;
+      --gold: #efc96f;
+      --ember: #ef7b38;
+      --rose: #ffcfb2;
+      --ink: #163321;
+      --muted: #698072;
+      --white: #fffdfa;
     }
 
     * { box-sizing: border-box; }
@@ -25,171 +27,189 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: #0d2014;
+      background: #08170d;
       color: var(--white);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    .stage {
+    button { font: inherit; }
+
+    .film {
       position: relative;
       width: 100vw;
       height: 100vh;
       overflow: hidden;
       isolation: isolate;
       background:
-        radial-gradient(circle at 20% 82%, rgba(227, 111, 49, .32), transparent 20%),
-        radial-gradient(circle at 82% 18%, rgba(232, 189, 95, .22), transparent 24%),
-        linear-gradient(135deg, #0a1d12, #173e25 48%, #0d2416);
+        radial-gradient(circle at 18% 88%, rgba(239, 123, 56, .34), transparent 26%),
+        radial-gradient(circle at 84% 12%, rgba(239, 201, 111, .2), transparent 28%),
+        linear-gradient(135deg, #07140c, #153d23 52%, #0b2113);
     }
 
-    .stage::before,
-    .stage::after {
+    .film::before,
+    .film::after {
       content: "";
       position: absolute;
-      inset: -14%;
+      inset: -8%;
       pointer-events: none;
-      z-index: 3;
+      z-index: 4;
     }
 
-    .stage::before {
+    .film::before {
       background:
-        radial-gradient(circle at 50% 102%, rgba(255, 112, 35, .45), transparent 20%),
-        radial-gradient(circle at 42% 105%, rgba(255, 198, 72, .34), transparent 14%),
-        radial-gradient(circle at 56% 108%, rgba(212, 54, 32, .24), transparent 16%);
+        radial-gradient(circle at 48% 112%, rgba(255, 125, 41, .54), transparent 19%),
+        radial-gradient(circle at 56% 108%, rgba(255, 216, 105, .34), transparent 16%),
+        radial-gradient(circle at 42% 112%, rgba(198, 51, 30, .25), transparent 18%);
       mix-blend-mode: screen;
-      animation: fireGlow 3.2s ease-in-out infinite alternate;
+      animation: emberGlow 3.8s ease-in-out infinite alternate;
     }
 
-    .stage::after {
+    .film::after {
       background:
-        linear-gradient(90deg, rgba(0,0,0,.42), transparent 22%, transparent 78%, rgba(0,0,0,.34)),
-        radial-gradient(circle at 50% 52%, transparent 42%, rgba(0,0,0,.28));
-      z-index: 2;
+        linear-gradient(90deg, rgba(0,0,0,.58), transparent 20%, transparent 80%, rgba(0,0,0,.44)),
+        radial-gradient(circle at 50% 50%, transparent 32%, rgba(0,0,0,.26) 72%, rgba(0,0,0,.46));
     }
 
-    @keyframes fireGlow {
-      from { opacity: .48; transform: translateY(1.2%) scale(1); }
-      to { opacity: .84; transform: translateY(-.6%) scale(1.03); }
+    @keyframes emberGlow {
+      from { opacity: .42; transform: translateY(1.6%) scale(1); }
+      to { opacity: .86; transform: translateY(-.4%) scale(1.04); }
+    }
+
+    .bg-photo {
+      position: absolute;
+      inset: -6%;
+      z-index: 0;
+      background-position: center;
+      background-size: cover;
+      opacity: 0;
+      filter: saturate(1.05) contrast(1.06) brightness(.76);
+      transform: scale(1.08);
+      animation: photoCut 88s linear infinite;
+      animation-play-state: paused;
+    }
+
+    body.promo-playing .bg-photo { animation-play-state: running; }
+    .bg-photo:nth-child(1) { animation-delay: 0s; }
+    .bg-photo:nth-child(2) { animation-delay: 11s; }
+    .bg-photo:nth-child(3) { animation-delay: 22s; }
+    .bg-photo:nth-child(4) { animation-delay: 33s; }
+    .bg-photo:nth-child(5) { animation-delay: 44s; }
+    .bg-photo:nth-child(6) { animation-delay: 55s; }
+    .bg-photo:nth-child(7) { animation-delay: 66s; }
+    .bg-photo:nth-child(8) { animation-delay: 77s; }
+
+    @keyframes photoCut {
+      0%, 100% { opacity: 0; transform: scale(1.1) translate3d(0, 0, 0); }
+      1.6%, 11.2% { opacity: 1; }
+      12.5% { opacity: 0; transform: scale(1.02) translate3d(1.4%, -1%, 0); }
+    }
+
+    .grain {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      pointer-events: none;
+      opacity: .16;
+      background-image:
+        radial-gradient(circle, rgba(255,255,255,.8) 0 .8px, transparent 1px),
+        radial-gradient(circle, rgba(255,230,170,.6) 0 .7px, transparent 1px);
+      background-size: 90px 90px, 140px 140px;
+      animation: grainMove 14s steps(8) infinite;
+    }
+
+    @keyframes grainMove {
+      0% { transform: translate3d(0,0,0); }
+      100% { transform: translate3d(-70px, 50px,0); }
     }
 
     .sparks {
       position: absolute;
       inset: 0;
-      z-index: 4;
+      z-index: 6;
       pointer-events: none;
+      opacity: .42;
       background-image:
-        radial-gradient(circle, rgba(255, 215, 127, .88) 0 1px, transparent 2px),
-        radial-gradient(circle, rgba(255, 144, 74, .64) 0 1px, transparent 2px);
-      background-size: 180px 180px, 240px 240px;
-      animation: sparks 16s linear infinite;
+        radial-gradient(circle, rgba(255,216,127,.95) 0 1px, transparent 2px),
+        radial-gradient(circle, rgba(255,128,62,.7) 0 1px, transparent 2px);
+      background-size: 210px 210px, 280px 280px;
+      animation: sparks 18s linear infinite;
       animation-play-state: paused;
-      opacity: .38;
     }
 
-    body.promo-playing .sparks {
-      animation-play-state: running;
-    }
+    body.promo-playing .sparks { animation-play-state: running; }
 
     @keyframes sparks {
-      from { background-position: 0 100%, 120px 100%; }
-      to { background-position: 40px -120%, 160px -110%; }
+      from { background-position: 0 100%, 110px 110%; }
+      to { background-position: 34px -120%, 150px -140%; }
     }
 
     .scene {
       position: absolute;
       inset: 0;
+      z-index: 8;
       display: grid;
-      place-items: center;
-      padding: clamp(28px, 4vw, 70px);
-      opacity: 0;
-      transform: scale(1.035);
-      animation: sceneShow 72s linear infinite;
-      animation-play-state: paused;
-      z-index: 5;
-    }
-
-    body.promo-playing .scene {
-      animation-play-state: running;
-    }
-
-    .scene:nth-child(1) { animation-delay: 0s; }
-    .scene:nth-child(2) { animation-delay: 9s; }
-    .scene:nth-child(3) { animation-delay: 18s; }
-    .scene:nth-child(4) { animation-delay: 27s; }
-    .scene:nth-child(5) { animation-delay: 36s; }
-    .scene:nth-child(6) { animation-delay: 45s; }
-    .scene:nth-child(7) { animation-delay: 54s; }
-    .scene:nth-child(8) { animation-delay: 63s; }
-
-    @keyframes sceneShow {
-      0% { opacity: 0; transform: scale(1.04) translateY(10px); }
-      1.5% { opacity: 1; transform: scale(1) translateY(0); }
-      10.3% { opacity: 1; transform: scale(1) translateY(0); }
-      12.5% { opacity: 0; transform: scale(.992) translateY(-10px); }
-      100% { opacity: 0; transform: scale(.992) translateY(-10px); }
-    }
-
-    .photo-bg {
-      position: absolute;
-      inset: -5%;
-      background-position: center;
-      background-size: cover;
-      filter: saturate(1.08) contrast(1.05);
-      animation: photoDrift 9s ease-in-out infinite alternate;
-      animation-play-state: paused;
-      z-index: -3;
-    }
-
-    body.promo-playing .photo-bg {
-      animation-play-state: running;
-    }
-
-    @keyframes photoDrift {
-      from { transform: scale(1.02) translate3d(-1%, 0, 0); }
-      to { transform: scale(1.1) translate3d(1.5%, -1%, 0); }
-    }
-
-    .scene::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background:
-        linear-gradient(90deg, rgba(7, 24, 13, .94), rgba(7, 24, 13, .62) 48%, rgba(7, 24, 13, .26)),
-        radial-gradient(circle at 78% 22%, rgba(232, 189, 95, .18), transparent 30%);
-      z-index: -2;
-    }
-
-    .content {
-      width: min(1180px, 100%);
-      display: grid;
-      gap: clamp(24px, 4vw, 48px);
       align-items: center;
-      grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr);
+      padding: clamp(26px, 4vw, 66px);
+      opacity: 0;
+      transform: translateY(18px) scale(1.012);
+      animation: sceneCut 88s cubic-bezier(.2,.7,.22,1) infinite;
+      animation-play-state: paused;
     }
 
-    .content.center {
-      max-width: 980px;
+    body.promo-playing .scene { animation-play-state: running; }
+    .scene:nth-of-type(1) { animation-delay: 0s; }
+    .scene:nth-of-type(2) { animation-delay: 11s; }
+    .scene:nth-of-type(3) { animation-delay: 22s; }
+    .scene:nth-of-type(4) { animation-delay: 33s; }
+    .scene:nth-of-type(5) { animation-delay: 44s; }
+    .scene:nth-of-type(6) { animation-delay: 55s; }
+    .scene:nth-of-type(7) { animation-delay: 66s; }
+    .scene:nth-of-type(8) { animation-delay: 77s; }
+
+    @keyframes sceneCut {
+      0%, 100% { opacity: 0; transform: translateY(22px) scale(1.015); filter: blur(6px); }
+      1.8%, 10.8% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+      12.4% { opacity: 0; transform: translateY(-18px) scale(.99); filter: blur(5px); }
+    }
+
+    .layout {
+      width: min(1220px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(330px, .96fr);
+      gap: clamp(24px, 4vw, 58px);
+      align-items: center;
+    }
+
+    .layout.center {
+      max-width: 1050px;
       grid-template-columns: 1fr;
-      justify-items: center;
       text-align: center;
+      justify-items: center;
+    }
+
+    .copy {
+      display: grid;
+      gap: clamp(16px, 2vw, 24px);
+      align-content: center;
+      text-shadow: 0 22px 60px rgba(0,0,0,.38);
     }
 
     .eyebrow {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
       width: max-content;
+      gap: 10px;
       padding: 10px 14px;
-      border: 1px solid rgba(255, 255, 255, .24);
       border-radius: 999px;
-      background: rgba(255, 255, 255, .13);
-      color: #f6d37e;
+      border: 1px solid rgba(255,255,255,.24);
+      background: rgba(255,255,255,.13);
+      color: var(--gold);
       font-size: 12px;
       font-weight: 950;
       letter-spacing: .17em;
       text-transform: uppercase;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 16px 34px rgba(0,0,0,.12);
+      backdrop-filter: blur(20px);
     }
 
     h1,
@@ -198,403 +218,451 @@
       color: #fff;
       font-family: Georgia, "Times New Roman", serif;
       font-weight: 500;
-      letter-spacing: -.057em;
-      line-height: .93;
+      letter-spacing: -.06em;
+      line-height: .91;
       text-wrap: balance;
-      text-shadow: 0 20px 48px rgba(0, 0, 0, .34);
     }
 
-    h1 { font-size: clamp(58px, 8vw, 132px); }
-    h2 { font-size: clamp(48px, 6.2vw, 102px); }
+    h1 { font-size: clamp(64px, 9vw, 145px); }
+    h2 { font-size: clamp(50px, 6.6vw, 104px); }
 
     p {
-      max-width: 760px;
       margin: 0;
-      color: rgba(255, 255, 255, .88);
-      font-size: clamp(19px, 2.1vw, 30px);
-      line-height: 1.35;
+      max-width: 780px;
+      color: rgba(255,255,255,.88);
+      font-size: clamp(18px, 2.05vw, 29px);
+      line-height: 1.34;
       text-wrap: balance;
     }
 
     .gold { color: var(--gold); }
 
-    .copy {
-      display: grid;
-      gap: 22px;
-      align-content: center;
-    }
-
-    .logo-card {
+    .hero-mark {
       display: grid;
       justify-items: center;
       gap: 20px;
-      padding: clamp(28px, 4vw, 54px);
-      border: 1px solid rgba(255, 255, 255, .2);
-      border-radius: 36px;
+      padding: clamp(30px, 5vw, 60px);
+      border-radius: 46px;
+      border: 1px solid rgba(255,255,255,.2);
       background:
-        radial-gradient(circle at 50% 0%, rgba(232, 189, 95, .24), transparent 46%),
-        rgba(255, 255, 255, .13);
-      box-shadow: 0 32px 90px rgba(0, 0, 0, .3);
-      backdrop-filter: blur(22px);
+        radial-gradient(circle at 50% 0, rgba(239,201,111,.32), transparent 44%),
+        linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.08));
+      box-shadow: 0 38px 120px rgba(0,0,0,.36);
+      backdrop-filter: blur(26px);
     }
 
-    .logo-card img {
-      width: min(285px, 46vw);
-      filter: drop-shadow(0 18px 35px rgba(0, 0, 0, .3));
+    .hero-mark img {
+      width: min(320px, 58vw);
+      filter: drop-shadow(0 25px 42px rgba(0,0,0,.28));
     }
 
-    .logo-card strong {
+    .hero-mark strong {
       color: #fff;
-      font: 500 clamp(32px, 4vw, 54px) Georgia, serif;
-      text-align: center;
-      letter-spacing: -.04em;
+      max-width: 760px;
+      font: 500 clamp(40px, 6vw, 82px)/.92 Georgia, "Times New Roman", serif;
+      letter-spacing: -.06em;
+      text-wrap: balance;
     }
 
-    .screen-stack {
+    .device-stage {
       position: relative;
-      min-height: 560px;
+      min-height: 580px;
       display: grid;
       place-items: center;
+      perspective: 1100px;
     }
 
-    .desktop {
-      width: min(620px, 92vw);
-      border-radius: 28px;
+    .halo {
+      position: absolute;
+      inset: 6% 0 0 4%;
+      border-radius: 999px;
+      background:
+        radial-gradient(circle, rgba(239,201,111,.22), transparent 54%),
+        radial-gradient(circle, rgba(239,123,56,.18), transparent 64%);
+      filter: blur(6px);
+    }
+
+    .dashboard {
+      position: relative;
+      width: min(650px, 92vw);
+      min-height: 455px;
       overflow: hidden;
-      background: #f8f4ea;
+      border-radius: 34px;
+      border: 1px solid rgba(255,255,255,.76);
+      background: var(--paper);
       color: var(--ink);
-      box-shadow: 0 34px 92px rgba(0,0,0,.34);
-      border: 1px solid rgba(255,255,255,.8);
-      transform: rotate(-2deg);
+      box-shadow: 0 34px 100px rgba(0,0,0,.38);
+      transform: rotateY(-8deg) rotateX(3deg) rotateZ(-1.5deg);
     }
 
-    .desktop-bar {
+    .dashboard::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at 86% 0, rgba(239,201,111,.25), transparent 26%),
+        linear-gradient(180deg, #12391f 0 38%, transparent 38% 100%);
+      pointer-events: none;
+    }
+
+    .browser-bar {
+      position: relative;
+      z-index: 1;
       height: 46px;
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 0 18px;
-      background: #fffdf8;
-      border-bottom: 1px solid rgba(32,51,40,.12);
+      background: rgba(255,253,247,.9);
+      border-bottom: 1px solid rgba(22,51,33,.12);
     }
 
-    .dot { width: 11px; height: 11px; border-radius: 50%; background: #e36f31; }
-    .dot:nth-child(2) { background: #e8bd5f; }
-    .dot:nth-child(3) { background: #245a35; }
-
-    .desktop-body {
-      display: grid;
-      grid-template-columns: 1.1fr .9fr;
-      gap: 16px;
-      min-height: 390px;
-      padding: 20px;
-      background:
-        radial-gradient(circle at 78% 0%, rgba(232,189,95,.22), transparent 28%),
-        linear-gradient(180deg, #164323 0 46%, #f8f4ea 46% 100%);
+    .dot { width: 11px; height: 11px; border-radius: 50%; background: #ef7b38; }
+    .dot:nth-child(2) { background: #efc96f; }
+    .dot:nth-child(3) { background: #2f6a40; }
+    .url {
+      margin-left: 8px;
+      flex: 1;
+      height: 25px;
+      border-radius: 999px;
+      background: #eef3e8;
+      color: #718071;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      font-size: 11px;
+      font-weight: 850;
     }
 
-    .hero-panel {
-      grid-column: 1 / -1;
-      min-height: 155px;
+    .dashboard-inner {
+      position: relative;
+      z-index: 1;
       padding: 22px;
-      border-radius: 24px;
-      background:
-        linear-gradient(135deg, rgba(255,255,255,.2), rgba(255,255,255,.08)),
-        rgba(18, 54, 30, .58);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,.18);
-    }
-
-    .hero-panel strong {
-      display: block;
-      font: 500 40px/.95 Georgia, serif;
-      letter-spacing: -.05em;
-      margin-bottom: 12px;
-    }
-
-    .mini-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
+      gap: 16px;
     }
 
-    .mini-card,
-    .feature-card {
-      border-radius: 18px;
-      background: #fffdf8;
-      border: 1px solid rgba(32,51,40,.1);
-      box-shadow: 0 10px 24px rgba(32,51,40,.08);
-      padding: 15px;
+    .portal-hero {
+      min-height: 150px;
+      border-radius: 27px;
+      padding: 23px;
+      color: #fff;
+      background:
+        radial-gradient(circle at 88% 16%, rgba(239,201,111,.28), transparent 32%),
+        linear-gradient(135deg, rgba(47,106,64,.84), rgba(16,53,30,.92));
+      border: 1px solid rgba(255,255,255,.18);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.16);
     }
 
-    .mini-card small,
-    .feature-card small {
+    .portal-hero span,
+    .card small,
+    .tiny small {
       display: block;
-      color: #a27622;
-      font-size: 10px;
+      color: rgba(255,255,255,.72);
+      font-size: 11px;
       font-weight: 950;
       letter-spacing: .12em;
       text-transform: uppercase;
+    }
+
+    .portal-hero b {
+      display: block;
+      max-width: 460px;
+      margin-top: 8px;
+      font: 500 43px/.92 Georgia, "Times New Roman", serif;
+      letter-spacing: -.055em;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .card,
+    .tiny {
+      border-radius: 20px;
+      background: #fffdf8;
+      border: 1px solid rgba(22,51,33,.1);
+      box-shadow: 0 14px 34px rgba(22,51,33,.08);
+    }
+
+    .card {
+      min-height: 118px;
+      padding: 15px;
+    }
+
+    .card small,
+    .tiny small {
+      color: #a27622;
       margin-bottom: 8px;
     }
 
-    .mini-card b {
+    .card b {
       display: block;
-      color: var(--ink);
       font-size: 17px;
-      line-height: 1.1;
+      line-height: 1.12;
     }
 
     .phone {
       position: absolute;
-      right: -6px;
-      bottom: -6px;
-      width: min(275px, 42vw);
-      min-height: 500px;
+      right: -4px;
+      bottom: -18px;
+      width: min(286px, 43vw);
+      min-height: 530px;
       padding: 13px;
-      border-radius: 38px;
-      background: linear-gradient(145deg, rgba(255,255,255,.96), rgba(238,243,235,.94));
+      border-radius: 42px;
+      background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(229,238,225,.95));
+      box-shadow: 0 30px 92px rgba(0,0,0,.42);
+      border: 1px solid rgba(255,255,255,.78);
+      transform: rotateY(8deg) rotateZ(4deg);
       color: var(--ink);
-      box-shadow: 0 30px 82px rgba(0, 0, 0, .36);
-      border: 1px solid rgba(255,255,255,.8);
-      overflow: hidden;
-      transform: rotate(5deg);
     }
 
     .phone::before {
       content: "";
       position: absolute;
-      top: 8px;
+      top: 9px;
       left: 50%;
-      width: 74px;
+      width: 78px;
       height: 18px;
       border-radius: 999px;
-      background: #17291c;
+      background: #102317;
       transform: translateX(-50%);
       z-index: 3;
     }
 
     .phone-screen {
-      min-height: 475px;
-      padding: 34px 14px 14px;
-      border-radius: 28px;
-      background:
-        radial-gradient(circle at 80% 4%, rgba(232,189,95,.28), transparent 34%),
-        linear-gradient(180deg, #174021 0 37%, #f8f5ed 37% 100%);
+      min-height: 504px;
+      border-radius: 31px;
+      padding: 38px 14px 15px;
       overflow: hidden;
-    }
-
-    .phone h3 {
-      margin: 0 0 8px;
-      color: #fff;
-      font: 500 31px/.94 Georgia, serif;
-      letter-spacing: -.05em;
+      background:
+        radial-gradient(circle at 82% 3%, rgba(239,201,111,.3), transparent 30%),
+        linear-gradient(180deg, #153d23 0 34%, #f8f1e2 34% 100%);
     }
 
     .phone small {
       display: block;
-      color: rgba(255,255,255,.72);
-      font-weight: 850;
+      color: rgba(255,255,255,.7);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: .12em;
+      text-transform: uppercase;
     }
 
-    .portal-chip-row {
+    .phone h3 {
+      margin: 8px 0 18px;
+      color: #fff;
+      font: 500 31px/.94 Georgia, "Times New Roman", serif;
+      letter-spacing: -.05em;
+    }
+
+    .phone-list {
       display: grid;
-      gap: 9px;
-      margin-top: 22px;
+      gap: 10px;
     }
 
-    .portal-chip {
+    .tiny {
       display: grid;
       grid-template-columns: auto 1fr auto;
-      gap: 9px;
+      gap: 10px;
       align-items: center;
-      padding: 11px;
-      border: 1px solid rgba(43, 79, 52, .12);
-      border-radius: 17px;
-      background: #fff;
-      box-shadow: 0 12px 26px rgba(27, 55, 34, .09);
+      padding: 12px;
     }
 
-    .icon {
-      width: 36px;
-      height: 36px;
+    .tiny i {
+      width: 38px;
+      height: 38px;
       display: grid;
       place-items: center;
-      border-radius: 13px;
-      background: #e7f0e2;
+      border-radius: 14px;
+      background: #e8f1e2;
+      font-style: normal;
       font-size: 18px;
     }
 
-    .portal-chip b {
+    .tiny b {
       display: block;
       color: var(--ink);
       font-size: 13px;
+      line-height: 1.1;
     }
 
-    .portal-chip span {
-      color: #637267;
-      font-size: 11px;
-      font-weight: 750;
-    }
-
-    .pill {
+    .tiny em {
       padding: 6px 9px;
       border-radius: 999px;
-      background: #245a35;
+      background: var(--moss);
       color: white;
       font-size: 10px;
       font-weight: 950;
+      font-style: normal;
       white-space: nowrap;
     }
 
-    .portal-grid {
+    .feature-wall {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 16px;
     }
 
-    .feature-card {
-      min-height: 160px;
-      display: grid;
-      align-content: space-between;
-      padding: 20px;
+    .feature {
+      min-height: 166px;
+      padding: 21px;
+      border-radius: 27px;
       background:
-        radial-gradient(circle at 90% 0%, rgba(232,189,95,.18), transparent 32%),
-        #fffdf7;
-    }
-
-    .feature-card strong {
-      display: block;
+        radial-gradient(circle at 96% 0, rgba(239,201,111,.2), transparent 34%),
+        rgba(255,253,248,.94);
       color: var(--ink);
-      font: 500 clamp(24px, 2.8vw, 38px)/.96 Georgia, serif;
-      letter-spacing: -.045em;
+      border: 1px solid rgba(255,255,255,.64);
+      box-shadow: 0 22px 64px rgba(0,0,0,.18);
     }
 
-    .feature-card p {
-      color: #526658;
+    .feature small {
+      display: block;
+      color: #a27622;
+      font-size: 11px;
+      font-weight: 950;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      margin-bottom: 11px;
+    }
+
+    .feature strong {
+      display: block;
+      font: 500 clamp(25px, 3vw, 40px)/.94 Georgia, "Times New Roman", serif;
+      letter-spacing: -.05em;
+    }
+
+    .feature p {
+      margin-top: 10px;
+      color: #566b5b;
       font-size: 14px;
       line-height: 1.35;
-      margin-top: 10px;
     }
 
-    .flyer-wall {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      transform: rotate(2deg);
-    }
-
-    .flyer {
-      min-height: 260px;
-      border-radius: 24px;
-      background-position: center;
-      background-size: cover;
-      box-shadow: 0 28px 62px rgba(0,0,0,.32);
-      border: 8px solid rgba(255,253,247,.92);
-      animation: bob 4s ease-in-out infinite;
-      animation-play-state: paused;
-    }
-
-    body.promo-playing .flyer {
-      animation-play-state: running;
-    }
-
-    .flyer:nth-child(2) {
-      transform: translateY(34px) rotate(-4deg);
-      animation-delay: .7s;
-    }
-
-    .flyer:nth-child(3) {
-      transform: translateY(-10px) rotate(3deg);
-      animation-delay: 1.2s;
-    }
-
-    @keyframes bob {
-      0%, 100% { translate: 0 0; }
-      50% { translate: 0 -10px; }
-    }
-
-    .metric-row {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
+    .ticker {
+      display: flex;
       gap: 12px;
-      margin-top: 8px;
+      flex-wrap: wrap;
+      margin-top: 4px;
     }
 
-    .metric {
-      padding: 15px;
-      border-radius: 18px;
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.2);
-      backdrop-filter: blur(18px);
-    }
-
-    .metric b {
-      display: block;
-      font: 500 30px/.9 Georgia, serif;
-      color: #fff;
-      margin-bottom: 6px;
-    }
-
-    .metric span {
-      color: rgba(255,255,255,.74);
-      font-size: 12px;
-      font-weight: 850;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-    }
-
+    .ticker span,
     .cta {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: max-content;
-      margin-top: 4px;
-      padding: 16px 22px;
+      padding: 13px 16px;
       border-radius: 999px;
-      background: #fffdf7;
-      color: var(--ink);
-      box-shadow: 0 18px 44px rgba(0,0,0,.25);
-      font-weight: 950;
-    }
-
-    .burst {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 14px;
-      width: min(700px, 100%);
-    }
-
-    .burst div {
-      padding: 18px 20px;
-      border-radius: 22px;
-      background: rgba(255,255,255,.14);
-      border: 1px solid rgba(255,255,255,.19);
-      box-shadow: 0 20px 54px rgba(0,0,0,.18);
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.2);
       backdrop-filter: blur(18px);
       color: #fff;
+      font-size: 14px;
       font-weight: 950;
-      font-size: clamp(16px, 1.8vw, 23px);
+      box-shadow: 0 18px 45px rgba(0,0,0,.2);
     }
 
-    .big-final {
+    .cta {
+      width: max-content;
+      background: #fffdf7;
+      color: var(--ink);
+      padding: 16px 22px;
+    }
+
+    .flyer-deck {
+      position: relative;
+      min-height: 500px;
+    }
+
+    .flyer-card {
+      position: absolute;
+      width: min(270px, 30vw);
+      aspect-ratio: 2 / 2.75;
+      border-radius: 28px;
+      overflow: hidden;
+      background-position: center;
+      background-size: cover;
+      border: 8px solid rgba(255,253,247,.95);
+      box-shadow: 0 36px 92px rgba(0,0,0,.34);
+      animation: floatCard 5s ease-in-out infinite;
+      animation-play-state: paused;
+    }
+
+    body.promo-playing .flyer-card { animation-play-state: running; }
+
+    .flyer-card:nth-child(1) { left: 3%; top: 11%; transform: rotate(-8deg); }
+    .flyer-card:nth-child(2) { left: 31%; top: 1%; transform: rotate(4deg); animation-delay: .5s; }
+    .flyer-card:nth-child(3) { right: 2%; top: 16%; transform: rotate(9deg); animation-delay: 1s; }
+    .flyer-card:nth-child(4) { left: 22%; bottom: 4%; transform: rotate(-2deg); animation-delay: 1.4s; }
+
+    @keyframes floatCard {
+      0%, 100% { translate: 0 0; }
+      50% { translate: 0 -12px; }
+    }
+
+    .meal-board {
+      border-radius: 36px;
+      padding: 23px;
+      background:
+        radial-gradient(circle at 90% 0, rgba(239,201,111,.22), transparent 28%),
+        rgba(255,253,248,.94);
+      color: var(--ink);
+      box-shadow: 0 32px 92px rgba(0,0,0,.28);
+      border: 1px solid rgba(255,255,255,.68);
+    }
+
+    .meal-board h3 {
+      margin: 0 0 15px;
+      font: 500 40px/.94 Georgia, "Times New Roman", serif;
+      letter-spacing: -.05em;
+    }
+
+    .meal-row {
       display: grid;
-      gap: 22px;
-      justify-items: center;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 13px;
+      padding: 13px;
+      border-radius: 18px;
+      background: #fff;
+      border: 1px solid rgba(22,51,33,.1);
+      margin-top: 10px;
     }
 
-    .big-final h1 {
-      max-width: 980px;
+    .meal-row i {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: #eef5e9;
+      font-style: normal;
+    }
+
+    .meal-row b { display: block; }
+    .meal-row span { color: var(--muted); font-size: 12px; font-weight: 800; }
+    .meal-row em {
+      font-style: normal;
+      color: #fff;
+      background: var(--moss);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 11px;
+      font-weight: 950;
     }
 
     .final-card {
-      width: min(820px, 100%);
-      padding: clamp(22px, 3vw, 34px);
-      border-radius: 32px;
-      background: rgba(255,255,255,.14);
+      width: min(880px, 100%);
+      padding: clamp(24px, 3.3vw, 38px);
+      border-radius: 38px;
+      background:
+        radial-gradient(circle at 50% 0, rgba(239,201,111,.26), transparent 38%),
+        rgba(255,255,255,.14);
       border: 1px solid rgba(255,255,255,.2);
-      box-shadow: 0 30px 80px rgba(0,0,0,.28);
-      backdrop-filter: blur(20px);
+      box-shadow: 0 34px 100px rgba(0,0,0,.34);
+      backdrop-filter: blur(24px);
     }
 
     .final-card p {
@@ -602,22 +670,53 @@
       font-size: clamp(18px, 2vw, 27px);
     }
 
+    .progress {
+      position: fixed;
+      top: clamp(14px, 2vw, 24px);
+      left: 50%;
+      z-index: 16;
+      width: min(640px, calc(100vw - 42px));
+      height: 5px;
+      border-radius: 999px;
+      transform: translateX(-50%);
+      overflow: hidden;
+      background: rgba(255,255,255,.17);
+      border: 1px solid rgba(255,255,255,.12);
+    }
+
+    .progress i {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--gold), var(--ember));
+      animation: progress 88s linear infinite;
+      animation-play-state: paused;
+    }
+
+    body.promo-playing .progress i { animation-play-state: running; }
+
+    @keyframes progress {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+
     .watermark {
-      position: absolute;
-      right: clamp(18px, 3vw, 42px);
-      bottom: clamp(14px, 2vw, 32px);
-      z-index: 8;
+      position: fixed;
+      right: clamp(16px, 3vw, 38px);
+      bottom: clamp(16px, 2vw, 30px);
+      z-index: 18;
       display: inline-flex;
       align-items: center;
       gap: 10px;
       padding: 10px 14px;
       border-radius: 999px;
-      background: rgba(255,255,255,.12);
       border: 1px solid rgba(255,255,255,.18);
-      color: rgba(255,255,255,.76);
+      background: rgba(255,255,255,.12);
+      color: rgba(255,255,255,.82);
       font-size: 12px;
-      font-weight: 850;
-      backdrop-filter: blur(16px);
+      font-weight: 900;
+      backdrop-filter: blur(18px);
     }
 
     .watermark img {
@@ -626,175 +725,176 @@
       object-fit: contain;
     }
 
-    .audio-launch {
+    .caption {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(18px, 3vw, 34px);
+      z-index: 17;
+      width: min(820px, calc(100vw - 34px));
+      transform: translateX(-50%);
+      padding: 14px 18px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,.17);
+      background: rgba(8, 26, 14, .62);
+      box-shadow: 0 20px 56px rgba(0,0,0,.24);
+      backdrop-filter: blur(20px);
+      color: rgba(255,255,255,.92);
+      font-size: clamp(14px, 1.45vw, 18px);
+      line-height: 1.35;
+      text-align: center;
+      opacity: 0;
+      transition: opacity .35s ease;
+    }
+
+    body.promo-playing .caption { opacity: 1; }
+
+    .sound-card {
       position: fixed;
       inset: auto clamp(14px, 3vw, 34px) clamp(14px, 3vw, 34px) auto;
-      z-index: 20;
+      z-index: 30;
       width: min(420px, calc(100vw - 28px));
-      display: block;
-      padding: 0;
-      background:
-        radial-gradient(circle at 50% 82%, rgba(227,111,49,.34), transparent 22%),
-        linear-gradient(135deg, rgba(8,26,14,.94), rgba(18,58,32,.9));
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
-      transition: opacity .45s ease, visibility .45s ease;
+      transition: opacity .3s ease, visibility .3s ease;
     }
 
-    body.sound-needed .audio-launch {
+    body.sound-needed .sound-card {
       opacity: 1;
       visibility: visible;
       pointer-events: auto;
     }
 
-    .audio-launch-card {
+    .sound-inner {
       display: grid;
       grid-template-columns: auto 1fr;
-      align-items: center;
       gap: 14px;
+      align-items: center;
       padding: 16px;
-      border-radius: 24px;
-      text-align: left;
+      border-radius: 26px;
       background:
-        radial-gradient(circle at 50% 0%, rgba(232,189,95,.24), transparent 42%),
-        rgba(255,255,255,.13);
-      border: 1px solid rgba(255,255,255,.22);
-      box-shadow: 0 24px 64px rgba(0,0,0,.34);
-      backdrop-filter: blur(22px);
+        radial-gradient(circle at 50% 0, rgba(239,201,111,.25), transparent 40%),
+        rgba(11, 35, 20, .91);
+      border: 1px solid rgba(255,255,255,.2);
+      box-shadow: 0 28px 82px rgba(0,0,0,.36);
+      backdrop-filter: blur(24px);
     }
 
-    .audio-launch-card img {
+    .sound-inner img {
       width: 54px;
-      filter: drop-shadow(0 18px 35px rgba(0,0,0,.28));
+      filter: drop-shadow(0 18px 34px rgba(0,0,0,.28));
     }
 
-    .audio-launch-card h1 {
-      font: 500 25px/.95 Georgia, "Times New Roman", serif;
+    .sound-inner h3 {
+      margin: 0;
+      color: #fff;
+      font: 500 27px/.95 Georgia, "Times New Roman", serif;
       letter-spacing: -.04em;
     }
 
-    .audio-launch-card p {
+    .sound-inner p {
+      grid-column: 1 / -1;
+      color: rgba(255,255,255,.8);
       font-size: 14px;
-      line-height: 1.25;
+      line-height: 1.3;
     }
 
-    .sound-button {
+    .sound-inner button {
+      grid-column: 1 / -1;
       appearance: none;
       border: 0;
       cursor: pointer;
-      grid-column: 1 / -1;
-      width: 100%;
-      margin-top: 2px;
       padding: 14px 18px;
       border-radius: 999px;
       background: #fffdf7;
       color: var(--ink);
-      box-shadow: 0 20px 50px rgba(0,0,0,.25);
-      font: 950 16px/1 Inter, ui-sans-serif, system-ui, sans-serif;
-      letter-spacing: .02em;
+      font-weight: 950;
+      box-shadow: 0 20px 54px rgba(0,0,0,.25);
     }
 
-    .sound-note {
-      grid-column: 1 / -1;
-      color: rgba(255,255,255,.74);
-      font-size: 12px;
-      font-weight: 800;
-    }
-
-    .narration-caption {
-      position: fixed;
-      left: 50%;
-      bottom: clamp(20px, 3vw, 38px);
-      z-index: 9;
-      width: min(820px, calc(100vw - 36px));
-      transform: translateX(-50%);
-      padding: 15px 18px;
-      border-radius: 22px;
-      background: rgba(8, 26, 14, .58);
-      color: rgba(255,255,255,.9);
-      border: 1px solid rgba(255,255,255,.17);
-      box-shadow: 0 18px 48px rgba(0,0,0,.22);
-      backdrop-filter: blur(18px);
-      font-size: clamp(14px, 1.5vw, 18px);
-      line-height: 1.35;
-      text-align: center;
-      opacity: 0;
-      transition: opacity .3s ease;
-    }
-
-    body.promo-playing .narration-caption {
-      opacity: 1;
-    }
-
-    .sound-hotspot {
+    .hotspot {
       position: fixed;
       inset: 0;
-      z-index: 19;
+      z-index: 29;
       display: none;
-      background: transparent;
       border: 0;
+      background: transparent;
       cursor: pointer;
     }
 
-    body.sound-needed .sound-hotspot {
-      display: block;
-    }
+    body.sound-needed .hotspot { display: block; }
 
-    @media (max-width: 860px) {
-      .content {
+    @media (max-width: 900px) {
+      .layout {
         grid-template-columns: 1fr;
       }
 
-      .screen-stack {
-        min-height: 470px;
+      .device-stage {
+        min-height: 500px;
       }
 
-      .desktop {
+      .dashboard {
         width: 100%;
+        transform: rotateZ(-1deg);
+      }
+
+      .card-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
       .phone {
         width: 230px;
-        min-height: 430px;
-        right: 2px;
-        bottom: -18px;
+        min-height: 440px;
+        right: 8px;
+        bottom: -24px;
       }
 
       .phone-screen {
-        min-height: 405px;
+        min-height: 414px;
       }
 
-      .flyer-wall {
-        grid-template-columns: repeat(2, 1fr);
+      .feature-wall {
+        grid-template-columns: 1fr;
       }
 
-      .flyer:nth-child(3) {
+      .flyer-card {
+        width: min(230px, 45vw);
+      }
+
+      .flyer-card:nth-child(3),
+      .flyer-card:nth-child(4) {
         display: none;
       }
     }
   </style>
 </head>
 <body>
-  <div class="audio-launch" id="audioLaunch">
-    <div class="audio-launch-card">
+  <div class="sound-card" id="soundCard">
+    <div class="sound-inner">
       <img src="bur-oaks-logo.png" alt="Bur Oaks logo" />
       <div>
         <span class="eyebrow">Sound</span>
-        <h1>Tap for sound.</h1>
+        <h3>Tap for the full trailer.</h3>
       </div>
-      <p>The promo started. Tap anywhere for campground sound, captions, and real voiceover if the audio file is added.</p>
-      <button class="sound-button" id="startPromo" type="button">🔊 Turn sound on</button>
-      <span class="sound-note">Drop in portal-promo-voiceover.mp3 later for a polished human-style voice.</span>
+      <p>Visuals are already rolling. Tap once for the Ember voiceover and warm campground backing music.</p>
+      <button id="startSound" type="button">🔊 Turn sound on</button>
     </div>
   </div>
-  <button class="sound-hotspot" id="soundHotspot" type="button" aria-label="Turn promo sound on"></button>
+  <button class="hotspot" id="soundHotspot" type="button" aria-label="Turn promo sound on"></button>
 
-  <main class="stage" aria-label="Bur Oaks Camper Portal promotional video">
+  <main class="film" aria-label="Bur Oaks Camper Portal launch promo">
+    <div class="bg-photo" style="background-image:url('site-photos/IMG_8002.jpeg')"></div>
+    <div class="bg-photo" style="background-image:url('site-photos/IMG_8019.jpeg')"></div>
+    <div class="bg-photo" style="background-image:url('site-photos/IMG_7996.jpeg')"></div>
+    <div class="bg-photo" style="background-image:url('site-photos/IMG_8008.jpeg')"></div>
+    <div class="bg-photo" style="background-image:url('site-photos/IMG_8014.jpeg')"></div>
+    <div class="bg-photo" style="background-image:url('site-photos/IMG_8004.jpeg')"></div>
+    <div class="bg-photo" style="background-image:url('site-photos/IMG_7997.jpeg')"></div>
+    <div class="bg-photo" style="background-image:url('site-photos/IMG_8010.jpeg')"></div>
+
     <section class="scene">
-      <div class="photo-bg" style="background-image:url('site-photos/IMG_8002.jpeg')"></div>
-      <div class="content center">
-        <div class="logo-card">
+      <div class="layout center">
+        <div class="hero-mark">
           <img src="bur-oaks-logo.png" alt="Bur Oaks logo" />
           <span class="eyebrow">New for Bur Oaks campers</span>
           <strong>Camp life just got a serious upgrade.</strong>
@@ -803,37 +903,35 @@
     </section>
 
     <section class="scene">
-      <div class="photo-bg" style="background-image:url('site-photos/IMG_8019.jpeg')"></div>
-      <div class="content">
+      <div class="layout">
         <div class="copy">
           <span class="eyebrow">Your private camper portal</span>
           <h1>Everything for your stay. <span class="gold">One easy place.</span></h1>
-          <p>Invoices, AutoPay, ACH bank payments, weather, documents, electric history, maintenance requests, dinner signups, camper directory, messages, and alerts — right from your phone.</p>
+          <p>Invoices, AutoPay, ACH bank payments, weather, documents, electric history, maintenance requests, dinner signups, the camper directory, office messages, and important alerts — right from your phone.</p>
         </div>
-        <div class="screen-stack">
-          <div class="desktop">
-            <div class="desktop-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
-            <div class="desktop-body">
-              <div class="hero-panel">
-                <strong>Welcome back, Rachel.</strong>
-                <span>Lot 1001 is ready for the weekend.</span>
-              </div>
-              <div class="mini-grid">
-                <div class="mini-card"><small>Account</small><b>$0.00 open balance</b></div>
-                <div class="mini-card"><small>Weather</small><b>Hot weekend ahead</b></div>
-                <div class="mini-card"><small>Dinner</small><b>Saturday at 6 PM</b></div>
-                <div class="mini-card"><small>Office</small><b>2 new messages</b></div>
+        <div class="device-stage">
+          <div class="halo"></div>
+          <div class="dashboard">
+            <div class="browser-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">buroakscampground.com/portal</span></div>
+            <div class="dashboard-inner">
+              <div class="portal-hero"><span>Bur Oaks Camper Portal</span><b>Welcome back, Rachel.</b></div>
+              <div class="card-grid">
+                <div class="card"><small>Account</small><b>$0.00 open balance</b></div>
+                <div class="card"><small>Weather</small><b>Hot weekend ahead</b></div>
+                <div class="card"><small>Dinner</small><b>Saturday at 6 PM</b></div>
+                <div class="card"><small>Office</small><b>2 new messages</b></div>
               </div>
             </div>
           </div>
           <div class="phone">
             <div class="phone-screen">
-              <small>BUR OAKS PORTAL</small>
-              <h3>Plan your weekend</h3>
-              <div class="portal-chip-row">
-                <div class="portal-chip"><i class="icon">🌤️</i><div><b>Full forecast</b><span>Know before you tow</span></div><em class="pill">Live</em></div>
-                <div class="portal-chip"><i class="icon">💳</i><div><b>Invoices + AutoPay</b><span>Card or low-fee ACH</span></div><em class="pill">Easy</em></div>
-                <div class="portal-chip"><i class="icon">🍽️</i><div><b>Saturday dinner</b><span>Tell us who’s coming</span></div><em class="pill">6 PM</em></div>
+              <small>Plan your weekend</small>
+              <h3>Lot 1001 is ready.</h3>
+              <div class="phone-list">
+                <div class="tiny"><i>🌤️</i><div><small>Weather</small><b>Full forecast</b></div><em>Live</em></div>
+                <div class="tiny"><i>💳</i><div><small>Billing</small><b>Pay or AutoPay</b></div><em>ACH</em></div>
+                <div class="tiny"><i>🍽️</i><div><small>Dinner</small><b>Say who’s coming</b></div><em>6 PM</em></div>
+                <div class="tiny"><i>💬</i><div><small>Office</small><b>New message</b></div><em>2</em></div>
               </div>
             </div>
           </div>
@@ -842,65 +940,94 @@
     </section>
 
     <section class="scene">
-      <div class="photo-bg" style="background-image:url('site-photos/IMG_7996.jpeg')"></div>
-      <div class="content">
+      <div class="layout">
         <div class="copy">
           <span class="eyebrow">Less guessing. More camping.</span>
           <h2>Built around real Bur Oaks life.</h2>
-          <p>Lot rent, electric, water/trash, pump-outs, AutoPay, ACH, documents, profile updates, gate notices, weekend meals, and events all live together.</p>
-          <div class="metric-row">
-            <div class="metric"><b>24/7</b><span>Portal access</span></div>
-            <div class="metric"><b>ACH</b><span>Less card fees</span></div>
-            <div class="metric"><b>kWh</b><span>Usage history</span></div>
+          <p>See clear invoices, set up AutoPay, use low-fee ACH, view assigned documents, and track current and past electric kilowatt usage.</p>
+          <div class="ticker">
+            <span>💳 Itemized invoices</span>
+            <span>🏦 Low-fee ACH</span>
+            <span>⚡ kWh history</span>
+            <span>📄 Lease documents</span>
           </div>
         </div>
-        <div class="portal-grid">
-          <div class="feature-card"><small>Billing</small><strong>Clear itemized invoices</strong><p>See electric, water/trash, pump-outs, credits, and fees broken out before paying.</p></div>
-          <div class="feature-card"><small>AutoPay + ACH</small><strong>Less check writing</strong><p>Set up automatic payments and use bank payments with next-to-no card fees.</p></div>
-          <div class="feature-card"><small>Electric history</small><strong>Track your kWh</strong><p>View current and past readings, total usage, and your electric history over time.</p></div>
-          <div class="feature-card"><small>Camper directory</small><strong>Keep connections strong</strong><p>Opt in so other campers can find you and stay connected around the campground.</p></div>
+        <div class="feature-wall">
+          <div class="feature"><small>Billing</small><strong>No mystery totals.</strong><p>Electric, water/trash, pump-outs, credits, and fees can all be shown clearly.</p></div>
+          <div class="feature"><small>AutoPay + ACH</small><strong>Less check chasing.</strong><p>Campers can set it and get back to the weekend.</p></div>
+          <div class="feature"><small>Electric</small><strong>Track usage over time.</strong><p>Current readings, past readings, and kilowatt history live in the portal.</p></div>
+          <div class="feature"><small>Directory</small><strong>Stay connected.</strong><p>Campers can opt in so neighbors can find each other.</p></div>
         </div>
       </div>
     </section>
 
     <section class="scene">
-      <div class="photo-bg" style="background-image:url('site-photos/IMG_8008.jpeg')"></div>
-      <div class="content">
+      <div class="layout">
         <div class="copy">
           <span class="eyebrow">Campground happenings</span>
           <h2>Events finally feel easy to follow.</h2>
-          <p>Tap flyers, see the details, RSVP, and keep up with what’s next without digging through Facebook posts or old messages.</p>
-          <span class="cta">Open flyer → RSVP → show up</span>
+          <p>Tap flyers, see the details, RSVP, and keep up with what’s next without digging through old posts and group texts.</p>
+          <span class="cta">Open flyer → See details → RSVP</span>
         </div>
-        <div class="flyer-wall" aria-label="Bur Oaks event flyers">
-          <div class="flyer" style="background-image:url('events-2026/2026-07-04-fourth-of-july.jpg')"></div>
-          <div class="flyer" style="background-image:url('events-2026/2026-summer-3-bag-series.jpg')"></div>
-          <div class="flyer" style="background-image:url('events-2026/2026-10-24-buroakstober-fest.jpg')"></div>
+        <div class="flyer-deck" aria-label="Bur Oaks event flyers">
+          <div class="flyer-card" style="background-image:url('events-2026/2026-07-04-fourth-of-july.jpg')"></div>
+          <div class="flyer-card" style="background-image:url('events-2026/2026-summer-3-bag-series.jpg')"></div>
+          <div class="flyer-card" style="background-image:url('events-2026/2026-10-24-buroakstober-fest.jpg')"></div>
+          <div class="flyer-card" style="background-image:url('events-2026/2026-09-19-casino-night.jpg')"></div>
         </div>
       </div>
     </section>
 
     <section class="scene">
-      <div class="photo-bg" style="background-image:url('site-photos/IMG_8014.jpeg')"></div>
-      <div class="content">
+      <div class="layout">
         <div class="copy">
           <span class="eyebrow">Saturday night at 6</span>
           <h2>Dinner planning without the group-text chaos.</h2>
-          <p>Campers can say if they’re going, add guests, and pick what they’re bringing — so the office can see the whole night at a glance.</p>
+          <p>Campers can say if they’re going, add guests, and pick what they’re bringing — while the office sees one clean list.</p>
         </div>
-        <div class="screen-stack">
-          <div class="desktop" style="transform:rotate(2deg)">
-            <div class="desktop-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i></div>
-            <div class="desktop-body" style="grid-template-columns:1fr;background:linear-gradient(180deg,#174021 0 36%,#f8f4ea 36% 100%)">
-              <div class="hero-panel">
-                <strong>Next Saturday Dinner</strong>
-                <span>July 11 • Taco Table • Eating time 6 PM</span>
-              </div>
-              <div class="mini-grid">
-                <div class="mini-card"><small>Going</small><b>28 campers</b></div>
-                <div class="mini-card"><small>Guests</small><b>9 friends</b></div>
-                <div class="mini-card"><small>Bringing</small><b>Desserts, chips, sides</b></div>
-                <div class="mini-card"><small>Office view</small><b>One clean list</b></div>
+        <div class="meal-board">
+          <h3>Next Saturday Dinner</h3>
+          <div class="meal-row"><i>🌮</i><div><b>Taco Table</b><span>July 11 • Eating time 6 PM</span></div><em>28 going</em></div>
+          <div class="meal-row"><i>👥</i><div><b>Guests welcome</b><span>Add friends and family without limits</span></div><em>9 guests</em></div>
+          <div class="meal-row"><i>🥗</i><div><b>Bring a side</b><span>Desserts, chips, toppings, drinks, or other</span></div><em>Live list</em></div>
+          <div class="meal-row"><i>✅</i><div><b>Office view</b><span>Everyone and everything in one spot</span></div><em>Easy</em></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="layout">
+        <div class="copy">
+          <span class="eyebrow">Important notices</span>
+          <h2>When the office needs everyone, campers know fast.</h2>
+          <p>Portal messages, email alerts, and text alerts help keep campground updates from getting buried.</p>
+        </div>
+        <div class="feature-wall">
+          <div class="feature"><small>Urgent alerts</small><strong>Storm coming in?</strong><p>Send quick updates for weather, gate notices, breakfast, dinner, or campground changes.</p></div>
+          <div class="feature"><small>Office messages</small><strong>Private inbox.</strong><p>Campers and the office can message without losing track.</p></div>
+          <div class="feature"><small>Maintenance</small><strong>Updates stay visible.</strong><p>Requests can move from submitted to approved, in progress, and completed.</p></div>
+          <div class="feature"><small>Profiles</small><strong>Cleaner records.</strong><p>Campers can keep phones, emails, addresses, vehicles, and documents current.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="scene">
+      <div class="layout">
+        <div class="copy">
+          <span class="eyebrow">Made for this campground</span>
+          <h2>Not some generic app. <span class="gold">Bur Oaks, our way.</span></h2>
+          <p>Seasonal sites, electric billing, pump-outs, leases, Saturday dinners, events, maintenance, AutoPay, ACH, alerts, directory opt-in, and real campground rhythm.</p>
+        </div>
+        <div class="device-stage">
+          <div class="dashboard" style="transform: rotateY(7deg) rotateX(3deg) rotateZ(1.5deg);">
+            <div class="browser-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="url">admin overview</span></div>
+            <div class="dashboard-inner">
+              <div class="portal-hero"><span>What needs attention</span><b>One calm place to run the campground.</b></div>
+              <div class="card-grid">
+                <div class="card"><small>Maintenance</small><b>3 need review</b></div>
+                <div class="card"><small>Pump-outs</small><b>2 pending</b></div>
+                <div class="card"><small>Invoices</small><b>Past due list</b></div>
+                <div class="card"><small>Dinner</small><b>Who’s bringing what</b></div>
               </div>
             </div>
           </div>
@@ -909,102 +1036,40 @@
     </section>
 
     <section class="scene">
-      <div class="photo-bg" style="background-image:url('site-photos/IMG_8004.jpeg')"></div>
-      <div class="content">
-        <div class="copy">
-          <span class="eyebrow">Important notices</span>
-          <h2>When the office needs everyone, campers know fast.</h2>
-        <p>Portal messages, email alerts, and text alerts help keep campground updates from getting buried — and campers can keep their phone, email, address, vehicle, and insurance details current.</p>
-        </div>
-        <div class="burst">
-          <div>⚠️ Storm alerts</div>
-          <div>💬 Office messages</div>
-          <div>💳 Bill reminders</div>
-          <div>🚧 Maintenance updates</div>
-          <div>🔌 Electric usage</div>
-          <div>🏕️ Camper directory</div>
-          <div>🍳 Breakfast is ready</div>
-          <div>🍽️ Dinner at 6</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="scene">
-      <div class="photo-bg" style="background-image:url('site-photos/IMG_7997.jpeg')"></div>
-      <div class="content">
-        <div class="copy">
-          <span class="eyebrow">Made for this campground</span>
-          <h2>Not some generic app. <span class="gold">Bur Oaks, our way.</span></h2>
-          <p>Seasonal sites, AutoPay, ACH, electric billing, kWh history, pump-outs, leases, Saturday dinners, events, maintenance, camper profiles, directory opt-in, and real campground rhythm — all built around how Bur Oaks actually runs.</p>
-        </div>
-        <div class="portal-grid">
-          <div class="feature-card"><small>Camper tools</small><strong>Know what matters</strong><p>Balances, AutoPay, weather, documents, requests, dinners, messages, and electric usage.</p></div>
-          <div class="feature-card"><small>Office tools</small><strong>Less chasing</strong><p>Cleaner records, alerts, reports, billing, credits, documents, and assignment tracking.</p></div>
-          <div class="feature-card"><small>Maintenance</small><strong>Clear work orders</strong><p>Requests can be reviewed, approved, assigned, updated, photographed, and closed.</p></div>
-          <div class="feature-card"><small>Campground life</small><strong>More connected</strong><p>Opt-in directory, meals, events, reminders, and “we’re ready for the weekend.”</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="scene">
-      <div class="photo-bg" style="background-image:url('site-photos/IMG_8010.jpeg')"></div>
-      <div class="content center big-final">
+      <div class="layout center">
         <span class="eyebrow">Launch season</span>
         <h1>Your Bur Oaks camper portal is ready.</h1>
         <div class="final-card">
-          <p>Watch for your invite, set your password, update your profile, choose alerts, set up AutoPay if you want it, and start using the portal built just for Bur Oaks campers.</p>
+          <p>Watch for your invite, set your password, update your profile, turn on alerts, set up AutoPay if you want it, and start using the portal built just for Bur Oaks campers.</p>
         </div>
         <span class="cta">Less paperwork. Less guessing. More camping.</span>
       </div>
     </section>
 
+    <div class="progress"><i></i></div>
+    <div class="grain"></div>
     <div class="sparks"></div>
-    <div class="watermark">
-      <img src="bur-oaks-logo.png" alt="" />
-      Bur Oaks Campground
-    </div>
-    <div class="narration-caption" id="narrationCaption">Tap start to begin the camper portal promo.</div>
+    <div class="watermark"><img src="bur-oaks-logo.png" alt="" /> Bur Oaks Campground</div>
+    <div class="caption" id="caption">The promo is playing. Tap anywhere to turn on sound.</div>
   </main>
+
   <script>
     const narration = [
-      {
-        at: 0,
-        text: "Bur Oaks campers, the new camper portal is here — and camp life just got a serious upgrade."
-      },
-      {
-        at: 9,
-        text: "Invoices, AutoPay, ACH bank payments, weather, documents, electric history, maintenance requests, dinner signups, the camper directory, office messages, and important alerts — all from your phone."
-      },
-      {
-        at: 18,
-        text: "See clear itemized invoices, set up AutoPay, use low-fee ACH instead of writing checks, view assigned documents, and track current and past electric kilowatt usage."
-      },
-      {
-        at: 27,
-        text: "Tap event flyers, see the details, RSVP, and stay connected to what’s happening next at Bur Oaks."
-      },
-      {
-        at: 36,
-        text: "For Saturday night dinners, you can let us know who’s coming, how many guests you’re bringing, and what you’d like to bring."
-      },
-      {
-        at: 45,
-        text: "Storm alerts, bill reminders, office messages, dinner updates, maintenance notices, electric updates, and urgent campground updates can all be sent through the portal."
-      },
-      {
-        at: 54,
-        text: "This was built around the way Bur Oaks really works — seasonal sites, AutoPay, ACH, electric billing, kilowatt history, pump-outs, leases, events, meals, maintenance, directory opt-in, and real campground life."
-      },
-      {
-        at: 63,
-        text: "Watch for your invite, set your password, update your profile, turn on alerts, set up AutoPay if you want it, and start using the portal built just for Bur Oaks campers. Less paperwork. Less guessing. More camping."
-      }
+      { at: 0, text: "Bur Oaks campers, the new camper portal is here — and camp life just got a serious upgrade." },
+      { at: 11, text: "Invoices, AutoPay, ACH bank payments, weather, documents, electric history, maintenance requests, dinner signups, the camper directory, office messages, and important alerts — all from your phone." },
+      { at: 22, text: "See clear itemized invoices, set up AutoPay, use low-fee ACH instead of writing checks, view assigned documents, and track current and past electric kilowatt usage." },
+      { at: 33, text: "Tap event flyers, see the details, RSVP, and stay connected to what’s happening next at Bur Oaks." },
+      { at: 44, text: "For Saturday night dinners, you can let us know who’s coming, how many guests you’re bringing, and what you’d like to bring." },
+      { at: 55, text: "Storm alerts, bill reminders, office messages, dinner updates, maintenance notices, electric updates, and urgent campground updates can all be sent through the portal." },
+      { at: 66, text: "This was built around the way Bur Oaks really works — seasonal sites, AutoPay, ACH, electric billing, kilowatt history, pump-outs, leases, events, meals, maintenance, directory opt-in, and real campground life." },
+      { at: 77, text: "Watch for your invite, set your password, update your profile, turn on alerts, set up AutoPay if you want it, and start using the portal built just for Bur Oaks campers. Less paperwork. Less guessing. More camping." }
     ];
 
-    const launchOverlay = document.getElementById("audioLaunch");
-    const startButton = document.getElementById("startPromo");
+    const soundCard = document.getElementById("soundCard");
+    const startSound = document.getElementById("startSound");
     const soundHotspot = document.getElementById("soundHotspot");
-    const caption = document.getElementById("narrationCaption");
+    const caption = document.getElementById("caption");
+
     let audioContext;
     let voiceoverAudio;
     let backgroundAudio;
@@ -1012,13 +1077,11 @@
     let cricketTimer;
     let musicTimer;
     let narrationTimers = [];
-    let hasUserStartedSound = false;
 
     async function playOptionalAudioFile(fileName, volume = 1) {
       const audio = new Audio(fileName);
       audio.volume = volume;
       audio.preload = "auto";
-
       try {
         await audio.play();
         return audio;
@@ -1034,7 +1097,7 @@
       const filter = audioContext.createBiquadFilter();
       oscillator.type = options.type || "sine";
       oscillator.frequency.setValueAtTime(frequency, now);
-      filter.type = options.filterType || "lowpass";
+      filter.type = "lowpass";
       filter.frequency.value = options.filterFrequency || 1800;
       gain.gain.setValueAtTime(0.001, now);
       gain.gain.exponentialRampToValueAtTime(options.volume || 0.04, now + (options.attack || 0.018));
@@ -1075,7 +1138,7 @@
       filter.type = "highpass";
       filter.frequency.value = 4200;
       gain.gain.setValueAtTime(0.001, now);
-      gain.gain.exponentialRampToValueAtTime(0.035, now + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.034, now + 0.006);
       gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
       source.buffer = buffer;
       source.connect(filter);
@@ -1087,9 +1150,9 @@
 
     function startBuiltInMusic(master) {
       const chords = [
-        [196.0, 246.94, 293.66, 392.0],
-        [174.61, 220.0, 261.63, 349.23],
-        [146.83, 196.0, 246.94, 293.66],
+        [196, 246.94, 293.66, 392],
+        [174.61, 220, 261.63, 349.23],
+        [146.83, 196, 246.94, 293.66],
         [164.81, 207.65, 246.94, 329.63]
       ];
       const melody = [392, 440, 493.88, 440, 392, 329.63, 349.23, 392];
@@ -1107,15 +1170,8 @@
             });
           });
         }
-
-        if (step % 4 === 0) {
-          playKick(master);
-        }
-
-        if (step % 2 === 1) {
-          playShaker(master);
-        }
-
+        if (step % 4 === 0) playKick(master);
+        if (step % 2 === 1) playShaker(master);
         if (step % 2 === 0) {
           playTone(master, melody[(step / 2) % melody.length], 0.22, {
             type: "triangle",
@@ -1124,7 +1180,6 @@
             attack: 0.008
           });
         }
-
         step += 1;
       }, 375);
     }
@@ -1177,7 +1232,7 @@
         filter.type = "bandpass";
         filter.frequency.value = 650 + Math.random() * 1400;
         gain.gain.setValueAtTime(0.001, now);
-        gain.gain.exponentialRampToValueAtTime(0.13 + Math.random() * 0.11, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.12 + Math.random() * 0.1, now + 0.01);
         gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
         crackle.buffer = buffer;
         crackle.connect(filter);
@@ -1208,90 +1263,78 @@
       }, 850 + Math.random() * 350);
 
       startBuiltInMusic(master);
-
       return audioContext.state === "running";
     }
 
-    function resetAudioAndTimers() {
+    function clearTimersAndAudio() {
       narrationTimers.forEach((timer) => window.clearTimeout(timer));
       narrationTimers = [];
-      if (fireTimer) {
-        window.clearInterval(fireTimer);
-        fireTimer = null;
-      }
-      if (cricketTimer) {
-        window.clearInterval(cricketTimer);
-        cricketTimer = null;
-      }
-      if (musicTimer) {
-        window.clearInterval(musicTimer);
-        musicTimer = null;
-      }
-      if (voiceoverAudio) {
-        voiceoverAudio.pause();
-        voiceoverAudio.currentTime = 0;
-        voiceoverAudio = null;
-      }
-      if (backgroundAudio) {
-        backgroundAudio.pause();
-        backgroundAudio.currentTime = 0;
-        backgroundAudio = null;
-      }
+      [fireTimer, cricketTimer, musicTimer].forEach((timer) => {
+        if (timer) window.clearInterval(timer);
+      });
+      fireTimer = null;
+      cricketTimer = null;
+      musicTimer = null;
+      [voiceoverAudio, backgroundAudio].forEach((audio) => {
+        if (audio) {
+          audio.pause();
+          audio.currentTime = 0;
+        }
+      });
+      voiceoverAudio = null;
+      backgroundAudio = null;
       if (audioContext && audioContext.state !== "closed") {
         audioContext.close().catch(() => {});
       }
       audioContext = null;
     }
 
-    async function startPromo({ userStartedSound = false } = {}) {
-      if (userStartedSound) {
-        hasUserStartedSound = true;
-        document.body.classList.remove("sound-needed");
-      }
-
-      resetAudioAndTimers();
+    function restartVisuals() {
       document.body.classList.remove("promo-playing");
       void document.body.offsetWidth;
       document.body.classList.add("promo-playing");
-      startButton.textContent = "🔊 Turn sound on";
-      let audioStarted = false;
-      if (userStartedSound) {
-        voiceoverAudio = await playOptionalAudioFile("portal-promo-voiceover.mp3", 1);
-        backgroundAudio = await playOptionalAudioFile("portal-promo-background.mp3", 0.32);
-        const builtInAudioStarted = backgroundAudio ? false : await startCampgroundAmbience();
-        audioStarted = !!voiceoverAudio || !!backgroundAudio || builtInAudioStarted;
-        if (voiceoverAudio) {
-          caption.textContent = backgroundAudio ? "Playing polished voiceover and background music." : "Playing polished voiceover with built-in campground music.";
-        } else {
-          caption.textContent = "No voiceover file found yet — playing campground music with captions.";
-        }
-      }
-
       narration.forEach((item) => {
         narrationTimers.push(window.setTimeout(() => {
           caption.textContent = item.text;
         }, item.at * 1000));
       });
-
       narrationTimers.push(window.setTimeout(() => {
         caption.textContent = "Replay anytime — and welcome to the new Bur Oaks camper portal.";
-      }, 71000));
+      }, 87000));
+    }
 
-      if (!userStartedSound) {
-        document.body.classList.add("sound-needed");
-        caption.textContent = "The promo is playing. Tap anywhere to turn on campground sound.";
+    async function startPromoWithSound() {
+      document.body.classList.remove("sound-needed");
+      clearTimersAndAudio();
+      restartVisuals();
+
+      voiceoverAudio = await playOptionalAudioFile("portal-promo-voiceover.mp3", 1);
+      backgroundAudio = await playOptionalAudioFile("portal-promo-background.mp3", 0.32);
+      const builtInAudioStarted = backgroundAudio ? false : await startCampgroundAmbience();
+
+      if (voiceoverAudio) {
+        caption.textContent = backgroundAudio ? "Playing the Bur Oaks portal trailer." : "Playing the Bur Oaks portal trailer with built-in campground music.";
+      } else if (builtInAudioStarted) {
+        caption.textContent = "Playing with built-in campground music. Add portal-promo-voiceover.mp3 for voiceover.";
+      } else {
+        caption.textContent = "Sound could not start, but the promo is still playing.";
       }
     }
 
-    startButton.addEventListener("click", (event) => {
+    function startMutedPromo() {
+      clearTimersAndAudio();
+      restartVisuals();
+      document.body.classList.add("sound-needed");
+      caption.textContent = "The promo is playing. Tap anywhere to turn on sound.";
+    }
+
+    startSound.addEventListener("click", (event) => {
       event.stopPropagation();
-      startPromo({ userStartedSound: true });
+      startPromoWithSound();
     });
-    launchOverlay.addEventListener("click", () => startPromo({ userStartedSound: true }));
-    soundHotspot.addEventListener("click", () => startPromo({ userStartedSound: true }));
-    window.addEventListener("load", () => {
-      startPromo({ userStartedSound: false });
-    });
+    soundCard.addEventListener("click", () => startPromoWithSound());
+    soundHotspot.addEventListener("click", () => startPromoWithSound());
+    window.addEventListener("load", startMutedPromo);
   </script>
 </body>
 </html>
