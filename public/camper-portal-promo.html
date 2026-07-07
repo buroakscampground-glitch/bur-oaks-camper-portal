@@ -628,11 +628,11 @@
 
     .audio-launch {
       position: fixed;
-      inset: 0;
+      inset: auto clamp(14px, 3vw, 34px) clamp(14px, 3vw, 34px) auto;
       z-index: 20;
-      display: grid;
-      place-items: center;
-      padding: 28px;
+      width: min(420px, calc(100vw - 28px));
+      display: block;
+      padding: 0;
       background:
         radial-gradient(circle at 50% 82%, rgba(227,111,49,.34), transparent 22%),
         linear-gradient(135deg, rgba(8,26,14,.94), rgba(18,58,32,.9));
@@ -649,41 +649,44 @@
     }
 
     .audio-launch-card {
-      width: min(760px, 100%);
       display: grid;
-      justify-items: center;
-      gap: 18px;
-      padding: clamp(28px, 5vw, 56px);
-      border-radius: 38px;
-      text-align: center;
+      grid-template-columns: auto 1fr;
+      align-items: center;
+      gap: 14px;
+      padding: 16px;
+      border-radius: 24px;
+      text-align: left;
       background:
         radial-gradient(circle at 50% 0%, rgba(232,189,95,.24), transparent 42%),
         rgba(255,255,255,.13);
       border: 1px solid rgba(255,255,255,.22);
-      box-shadow: 0 34px 90px rgba(0,0,0,.34);
+      box-shadow: 0 24px 64px rgba(0,0,0,.34);
       backdrop-filter: blur(22px);
     }
 
     .audio-launch-card img {
-      width: min(210px, 44vw);
+      width: 54px;
       filter: drop-shadow(0 18px 35px rgba(0,0,0,.28));
     }
 
     .audio-launch-card h1 {
-      font-size: clamp(42px, 6vw, 84px);
+      font: 500 25px/.95 Georgia, "Times New Roman", serif;
+      letter-spacing: -.04em;
     }
 
     .audio-launch-card p {
-      max-width: 600px;
-      font-size: clamp(17px, 2vw, 24px);
+      font-size: 14px;
+      line-height: 1.25;
     }
 
     .sound-button {
       appearance: none;
       border: 0;
       cursor: pointer;
-      margin-top: 6px;
-      padding: 17px 24px;
+      grid-column: 1 / -1;
+      width: 100%;
+      margin-top: 2px;
+      padding: 14px 18px;
       border-radius: 999px;
       background: #fffdf7;
       color: var(--ink);
@@ -693,6 +696,7 @@
     }
 
     .sound-note {
+      grid-column: 1 / -1;
       color: rgba(255,255,255,.74);
       font-size: 12px;
       font-weight: 800;
@@ -721,6 +725,20 @@
 
     body.promo-playing .narration-caption {
       opacity: 1;
+    }
+
+    .sound-hotspot {
+      position: fixed;
+      inset: 0;
+      z-index: 19;
+      display: none;
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+    }
+
+    body.sound-needed .sound-hotspot {
+      display: block;
     }
 
     @media (max-width: 860px) {
@@ -761,13 +779,16 @@
   <div class="audio-launch" id="audioLaunch">
     <div class="audio-launch-card">
       <img src="bur-oaks-logo.png" alt="Bur Oaks logo" />
-      <span class="eyebrow">Camper portal launch video</span>
-      <h1>Sound is one tap away.</h1>
-      <p>The promo already started. Tap anywhere to turn on narration and the campfire sound.</p>
+      <div>
+        <span class="eyebrow">Sound</span>
+        <h1>Tap for sound.</h1>
+      </div>
+      <p>The promo started. Tap anywhere for narration and campfire audio.</p>
       <button class="sound-button" id="startPromo" type="button">🔊 Turn sound on</button>
       <span class="sound-note">Some phones block automatic sound until the first tap.</span>
     </div>
   </div>
+  <button class="sound-hotspot" id="soundHotspot" type="button" aria-label="Turn promo sound on"></button>
 
   <main class="stage" aria-label="Bur Oaks Camper Portal promotional video">
     <section class="scene">
@@ -982,6 +1003,7 @@
 
     const launchOverlay = document.getElementById("audioLaunch");
     const startButton = document.getElementById("startPromo");
+    const soundHotspot = document.getElementById("soundHotspot");
     const caption = document.getElementById("narrationCaption");
     let audioContext;
     let fireTimer;
@@ -1088,23 +1110,25 @@
       void document.body.offsetWidth;
       document.body.classList.add("promo-playing");
       startButton.textContent = "🔊 Turn sound on";
-      const audioStarted = await startCampfireAmbience();
+      const audioStarted = userStartedSound ? await startCampfireAmbience() : false;
 
       narration.forEach((item) => {
-        narrationTimers.push(window.setTimeout(() => speak(item.text), item.at * 1000));
+        narrationTimers.push(window.setTimeout(() => {
+          if (hasUserStartedSound) {
+            speak(item.text);
+          } else {
+            caption.textContent = item.text;
+          }
+        }, item.at * 1000));
       });
 
       narrationTimers.push(window.setTimeout(() => {
         caption.textContent = "Replay anytime — and welcome to the new Bur Oaks camper portal.";
       }, 71000));
 
-      if (!userStartedSound && !audioStarted) {
-        window.setTimeout(() => {
-          if (!hasUserStartedSound) {
-            document.body.classList.add("sound-needed");
-            caption.textContent = "The promo is playing. Tap anywhere to turn on sound.";
-          }
-        }, 1200);
+      if (!userStartedSound) {
+        document.body.classList.add("sound-needed");
+        caption.textContent = "The promo is playing. Tap anywhere to turn on sound.";
       }
     }
 
@@ -1113,6 +1137,7 @@
       startPromo({ userStartedSound: true });
     });
     launchOverlay.addEventListener("click", () => startPromo({ userStartedSound: true }));
+    soundHotspot.addEventListener("click", () => startPromo({ userStartedSound: true }));
     if ("speechSynthesis" in window) {
       window.speechSynthesis.onvoiceschanged = chooseVoice;
     }
