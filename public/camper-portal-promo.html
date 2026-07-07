@@ -783,9 +783,9 @@
         <span class="eyebrow">Sound</span>
         <h1>Tap for sound.</h1>
       </div>
-      <p>The promo started. Tap anywhere for narration and campfire audio.</p>
+      <p>The promo started. Tap anywhere for campground sound, captions, and real voiceover if the audio file is added.</p>
       <button class="sound-button" id="startPromo" type="button">🔊 Turn sound on</button>
-      <span class="sound-note">Some phones block automatic sound until the first tap.</span>
+      <span class="sound-note">Drop in portal-promo-voiceover.mp3 later for a polished human-style voice.</span>
     </div>
   </div>
   <button class="sound-hotspot" id="soundHotspot" type="button" aria-label="Turn promo sound on"></button>
@@ -1006,34 +1006,130 @@
     const soundHotspot = document.getElementById("soundHotspot");
     const caption = document.getElementById("narrationCaption");
     let audioContext;
+    let voiceoverAudio;
+    let backgroundAudio;
     let fireTimer;
+    let cricketTimer;
+    let musicTimer;
     let narrationTimers = [];
     let hasUserStartedSound = false;
 
-    function chooseVoice() {
-      const voices = window.speechSynthesis?.getVoices?.() || [];
-      return voices.find((voice) => /Samantha|Ava|Allison|Karen|Serena|Jenny|Aria/i.test(voice.name))
-        || voices.find((voice) => voice.lang?.startsWith("en"))
-        || null;
-    }
+    async function playOptionalAudioFile(fileName, volume = 1) {
+      const audio = new Audio(fileName);
+      audio.volume = volume;
+      audio.preload = "auto";
 
-    function speak(text) {
-      if (!("speechSynthesis" in window)) {
-        caption.textContent = text;
-        return;
+      try {
+        await audio.play();
+        return audio;
+      } catch {
+        return null;
       }
-
-      const utterance = new SpeechSynthesisUtterance(text);
-      const voice = chooseVoice();
-      if (voice) utterance.voice = voice;
-      utterance.rate = 0.92;
-      utterance.pitch = 0.94;
-      utterance.volume = 1;
-      caption.textContent = text;
-      window.speechSynthesis.speak(utterance);
     }
 
-    async function startCampfireAmbience() {
+    function playTone(master, frequency, duration, options = {}) {
+      const now = audioContext.currentTime + (options.delay || 0);
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      const filter = audioContext.createBiquadFilter();
+      oscillator.type = options.type || "sine";
+      oscillator.frequency.setValueAtTime(frequency, now);
+      filter.type = options.filterType || "lowpass";
+      filter.frequency.value = options.filterFrequency || 1800;
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(options.volume || 0.04, now + (options.attack || 0.018));
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      oscillator.connect(filter);
+      filter.connect(gain);
+      gain.connect(master);
+      oscillator.start(now);
+      oscillator.stop(now + duration + 0.03);
+    }
+
+    function playKick(master) {
+      const now = audioContext.currentTime;
+      const oscillator = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(92, now);
+      oscillator.frequency.exponentialRampToValueAtTime(44, now + 0.16);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.11, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      oscillator.connect(gain);
+      gain.connect(master);
+      oscillator.start(now);
+      oscillator.stop(now + 0.22);
+    }
+
+    function playShaker(master) {
+      const now = audioContext.currentTime;
+      const source = audioContext.createBufferSource();
+      const buffer = audioContext.createBuffer(1, Math.floor(audioContext.sampleRate * 0.06), audioContext.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i += 1) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.3);
+      }
+      const gain = audioContext.createGain();
+      const filter = audioContext.createBiquadFilter();
+      filter.type = "highpass";
+      filter.frequency.value = 4200;
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.exponentialRampToValueAtTime(0.035, now + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+      source.buffer = buffer;
+      source.connect(filter);
+      filter.connect(gain);
+      gain.connect(master);
+      source.start(now);
+      source.stop(now + 0.07);
+    }
+
+    function startBuiltInMusic(master) {
+      const chords = [
+        [196.0, 246.94, 293.66, 392.0],
+        [174.61, 220.0, 261.63, 349.23],
+        [146.83, 196.0, 246.94, 293.66],
+        [164.81, 207.65, 246.94, 329.63]
+      ];
+      const melody = [392, 440, 493.88, 440, 392, 329.63, 349.23, 392];
+      let step = 0;
+
+      musicTimer = window.setInterval(() => {
+        const chord = chords[Math.floor(step / 8) % chords.length];
+        if (step % 8 === 0) {
+          chord.forEach((note, index) => {
+            playTone(master, note, 1.75, {
+              type: "sine",
+              volume: 0.012,
+              delay: index * 0.012,
+              filterFrequency: 950
+            });
+          });
+        }
+
+        if (step % 4 === 0) {
+          playKick(master);
+        }
+
+        if (step % 2 === 1) {
+          playShaker(master);
+        }
+
+        if (step % 2 === 0) {
+          playTone(master, melody[(step / 2) % melody.length], 0.22, {
+            type: "triangle",
+            volume: 0.026,
+            filterFrequency: 2400,
+            attack: 0.008
+          });
+        }
+
+        step += 1;
+      }, 375);
+    }
+
+    async function startCampgroundAmbience() {
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       if (!AudioContext) return false;
 
@@ -1047,17 +1143,26 @@
       }
 
       const master = audioContext.createGain();
-      master.gain.value = 0.045;
+      master.gain.value = 0.075;
       master.connect(audioContext.destination);
 
       const low = audioContext.createOscillator();
       const lowGain = audioContext.createGain();
       low.type = "sine";
       low.frequency.value = 82;
-      lowGain.gain.value = 0.08;
+      lowGain.gain.value = 0.105;
       low.connect(lowGain);
       lowGain.connect(master);
       low.start();
+
+      const nightPad = audioContext.createOscillator();
+      const nightPadGain = audioContext.createGain();
+      nightPad.type = "sine";
+      nightPad.frequency.value = 174;
+      nightPadGain.gain.value = 0.018;
+      nightPad.connect(nightPadGain);
+      nightPadGain.connect(master);
+      nightPad.start();
 
       fireTimer = window.setInterval(() => {
         const now = audioContext.currentTime;
@@ -1080,18 +1185,57 @@
         gain.connect(master);
         crackle.start(now);
         crackle.stop(now + 0.09);
-      }, 145);
+      }, 110);
+
+      cricketTimer = window.setInterval(() => {
+        const now = audioContext.currentTime;
+        const chirp = audioContext.createOscillator();
+        const chirpGain = audioContext.createGain();
+        const filter = audioContext.createBiquadFilter();
+        chirp.type = "triangle";
+        chirp.frequency.value = 3100 + Math.random() * 900;
+        filter.type = "bandpass";
+        filter.frequency.value = 3600;
+        filter.Q.value = 8;
+        chirpGain.gain.setValueAtTime(0.001, now);
+        chirpGain.gain.exponentialRampToValueAtTime(0.035 + Math.random() * 0.02, now + 0.018);
+        chirpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        chirp.connect(filter);
+        filter.connect(chirpGain);
+        chirpGain.connect(master);
+        chirp.start(now);
+        chirp.stop(now + 0.12);
+      }, 850 + Math.random() * 350);
+
+      startBuiltInMusic(master);
 
       return audioContext.state === "running";
     }
 
-    function resetSpeechAndTimers() {
+    function resetAudioAndTimers() {
       narrationTimers.forEach((timer) => window.clearTimeout(timer));
       narrationTimers = [];
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
       if (fireTimer) {
         window.clearInterval(fireTimer);
         fireTimer = null;
+      }
+      if (cricketTimer) {
+        window.clearInterval(cricketTimer);
+        cricketTimer = null;
+      }
+      if (musicTimer) {
+        window.clearInterval(musicTimer);
+        musicTimer = null;
+      }
+      if (voiceoverAudio) {
+        voiceoverAudio.pause();
+        voiceoverAudio.currentTime = 0;
+        voiceoverAudio = null;
+      }
+      if (backgroundAudio) {
+        backgroundAudio.pause();
+        backgroundAudio.currentTime = 0;
+        backgroundAudio = null;
       }
       if (audioContext && audioContext.state !== "closed") {
         audioContext.close().catch(() => {});
@@ -1105,20 +1249,27 @@
         document.body.classList.remove("sound-needed");
       }
 
-      resetSpeechAndTimers();
+      resetAudioAndTimers();
       document.body.classList.remove("promo-playing");
       void document.body.offsetWidth;
       document.body.classList.add("promo-playing");
       startButton.textContent = "🔊 Turn sound on";
-      const audioStarted = userStartedSound ? await startCampfireAmbience() : false;
+      let audioStarted = false;
+      if (userStartedSound) {
+        voiceoverAudio = await playOptionalAudioFile("portal-promo-voiceover.mp3", 1);
+        backgroundAudio = await playOptionalAudioFile("portal-promo-background.mp3", 0.32);
+        const builtInAudioStarted = backgroundAudio ? false : await startCampgroundAmbience();
+        audioStarted = !!voiceoverAudio || !!backgroundAudio || builtInAudioStarted;
+        if (voiceoverAudio) {
+          caption.textContent = backgroundAudio ? "Playing polished voiceover and background music." : "Playing polished voiceover with built-in campground music.";
+        } else {
+          caption.textContent = "No voiceover file found yet — playing campground music with captions.";
+        }
+      }
 
       narration.forEach((item) => {
         narrationTimers.push(window.setTimeout(() => {
-          if (hasUserStartedSound) {
-            speak(item.text);
-          } else {
-            caption.textContent = item.text;
-          }
+          caption.textContent = item.text;
         }, item.at * 1000));
       });
 
@@ -1128,7 +1279,7 @@
 
       if (!userStartedSound) {
         document.body.classList.add("sound-needed");
-        caption.textContent = "The promo is playing. Tap anywhere to turn on sound.";
+        caption.textContent = "The promo is playing. Tap anywhere to turn on campground sound.";
       }
     }
 
@@ -1138,10 +1289,6 @@
     });
     launchOverlay.addEventListener("click", () => startPromo({ userStartedSound: true }));
     soundHotspot.addEventListener("click", () => startPromo({ userStartedSound: true }));
-    if ("speechSynthesis" in window) {
-      window.speechSynthesis.onvoiceschanged = chooseVoice;
-    }
-
     window.addEventListener("load", () => {
       startPromo({ userStartedSound: false });
     });
