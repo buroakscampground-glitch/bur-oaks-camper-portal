@@ -1067,8 +1067,14 @@
       narrationTimers.forEach((timer) => window.clearTimeout(timer));
       narrationTimers = [];
       if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-      if (fireTimer) window.clearInterval(fireTimer);
-      if (audioContext) audioContext.close();
+      if (fireTimer) {
+        window.clearInterval(fireTimer);
+        fireTimer = null;
+      }
+      if (audioContext && audioContext.state !== "closed") {
+        audioContext.close().catch(() => {});
+      }
+      audioContext = null;
     }
 
     async function startPromo({ userStartedSound = false } = {}) {
