@@ -40,6 +40,30 @@ export async function POST(request: Request) {
   const billingSettings = await loadCampgroundBillingSettings(context.admin)
   const pumpCharge = billingSettings.sewerPumpOutFee
 
+  const { data: existingRequest, error: existingError } = await context.admin
+    .from('sewer_pump_out_requests')
+    .select('*')
+    .eq('camper_id', context.camper.id)
+    .is('billed_at', null)
+    .neq('status', 'cancelled')
+    .order('requested_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existingError) {
+    return NextResponse.json({ error: existingError.message }, { status: 500 })
+  }
+
+  if (existingRequest) {
+    return NextResponse.json({
+      success: true,
+      duplicate: true,
+      request: existingRequest,
+      emailStatus: 'skipped',
+      emailMessage: 'This camper already has an open sewer pump-out request.',
+    })
+  }
+
   const { data: requestRow, error } = await context.admin
     .from('sewer_pump_out_requests')
     .insert({

@@ -312,6 +312,8 @@ export default function CamperPortalPage() {
   }
 
   async function requestSewerPumpOut() {
+    if (requestingPump) return
+
     const confirmed = window.confirm('Request a sewer pump-out for your site? A $10 charge will be added to your next electric bill.')
     if (!confirmed) return
 
@@ -343,6 +345,12 @@ export default function CamperPortalPage() {
     }
 
     let emailNote = ''
+    if (result?.duplicate) {
+      setPumpMessage(`Lot ${camper?.lot_number || 'your site'} is already on the sewer pump-out list. No duplicate charge was added.`)
+      setRequestingPump(false)
+      return
+    }
+
     if (result?.emailStatus === 'failed') emailNote = ' Office email alert failed, but the request was saved.'
     if (result?.emailStatus === 'skipped') emailNote = ' Office email alert skipped, but the request was saved.'
 
