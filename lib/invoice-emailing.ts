@@ -51,6 +51,10 @@ function camperRecipients(camper: any) {
   return emails
 }
 
+function isResendTestSender(from: string) {
+  return /<\s*onboarding@resend\.dev\s*>/i.test(from) || /(^|\s)onboarding@resend\.dev(\s|$)/i.test(from)
+}
+
 function emailCopy(invoice: any, kind: InvoiceEmailKind) {
   const invoiceNumber = invoice.invoice_number || 'new invoice'
   const total = money(invoice.total_due)
@@ -210,6 +214,13 @@ export async function sendInvoiceEmail({
     process.env.PORTAL_INVITE_REPLY_TO ||
     'buroakscampground@gmail.com'
 
+  if (isResendTestSender(from)) {
+    return {
+      status: 'skipped',
+      reason: 'Invoice emails need a verified Resend sending domain. The current sender is the Resend test sender.',
+    }
+  }
+
   const text = [
     `Hi ${camperName},`,
     '',
@@ -322,4 +333,3 @@ export async function sendInvoiceEmail({
 
   return { status: 'sent', providerMessageId: result?.id, recipients: recipients.length }
 }
-
