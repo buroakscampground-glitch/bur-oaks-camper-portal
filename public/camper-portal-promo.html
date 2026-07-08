@@ -3,21 +3,20 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bur Oaks Camper Portal Launch</title>
+  <title>Bur Oaks Camper Portal Walkthrough</title>
   <style>
     :root {
-      --night: #06140c;
-      --forest: #0f311d;
-      --pine: #1f5d34;
-      --leaf: #74a260;
-      --cream: #fff7e6;
-      --paper: #f6eedc;
-      --gold: #f4c75d;
-      --ember: #ff7939;
-      --red: #d83d2d;
-      --ink: #173322;
-      --muted: #687c6d;
-      --white: #fffdfa;
+      --forest: #163722;
+      --green: #2f6742;
+      --cream: #f6f1e7;
+      --paper: #fffdf8;
+      --gold: #e8c66f;
+      --orange: #d56f2f;
+      --red: #bb342a;
+      --blue: #2f667a;
+      --ink: #263d2e;
+      --muted: #68746c;
+      --line: #ded8ca;
     }
 
     * { box-sizing: border-box; }
@@ -28,975 +27,1358 @@
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: var(--night);
-      color: var(--white);
+      background: #06150c;
+      color: white;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     button { font: inherit; }
 
-    .show {
+    .stage {
       position: relative;
       width: 100vw;
       height: 100vh;
       overflow: hidden;
+      display: grid;
+      place-items: center;
+      padding: 0;
       isolation: isolate;
       background:
-        radial-gradient(circle at 50% 104%, rgba(255, 122, 55, .44), transparent 22%),
-        radial-gradient(circle at 78% 16%, rgba(244, 199, 93, .2), transparent 30%),
-        linear-gradient(130deg, #06140c, #10331f 48%, #08190f);
+        linear-gradient(90deg, rgba(4,15,9,.92), rgba(12,38,21,.48), rgba(4,15,9,.84)),
+        url("site-photos/IMG_8002.jpeg") center/cover;
     }
 
-    .show::before,
-    .show::after {
+    .stage::before {
       content: "";
       position: absolute;
       inset: 0;
-      pointer-events: none;
-    }
-
-    .show::before {
-      z-index: 4;
+      z-index: -1;
       background:
-        linear-gradient(90deg, rgba(0,0,0,.64), transparent 20%, transparent 80%, rgba(0,0,0,.46)),
-        radial-gradient(circle at 50% 48%, transparent 34%, rgba(0,0,0,.32) 80%);
+        radial-gradient(circle at 78% 15%, rgba(232,198,111,.24), transparent 30%),
+        radial-gradient(circle at 16% 92%, rgba(213,111,47,.22), transparent 30%),
+        linear-gradient(135deg, rgba(5,18,10,.88), rgba(22,55,34,.50));
     }
 
-    .show::after {
-      z-index: 5;
-      background-image:
-        radial-gradient(circle, rgba(255, 226, 140, .76) 0 1px, transparent 2px),
-        radial-gradient(circle, rgba(255, 124, 61, .54) 0 1px, transparent 2px);
-      background-size: 210px 210px, 310px 310px;
-      opacity: .34;
-      animation: sparks 15s linear infinite;
-      animation-play-state: paused;
+    .promo {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      border: 0;
+      border-radius: 0;
+      overflow: hidden;
+      box-shadow: none;
     }
 
-    body.playing .show::after { animation-play-state: running; }
-
-    @keyframes sparks {
-      from { background-position: 0 100%, 80px 110%; }
-      to { background-position: 48px -130%, 140px -150%; }
+    .story {
+      min-height: 0;
+      display: none;
+      align-content: space-between;
+      gap: 14px;
+      padding: 22px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 0;
+      background: rgba(8,28,16,.78);
+      box-shadow: 0 28px 95px rgba(0,0,0,.36);
+      backdrop-filter: blur(20px);
     }
 
-    .photo {
-      position: absolute;
-      inset: -7%;
-      background-position: center;
-      background-size: cover;
-      opacity: 0;
-      filter: saturate(1.12) contrast(1.08) brightness(.72);
-      transform: scale(1.08);
-      animation: photoPulse 96s linear infinite;
-      animation-play-state: paused;
-    }
-
-    body.playing .photo { animation-play-state: running; }
-    .photo:nth-child(1) { animation-delay: 0s; }
-    .photo:nth-child(2) { animation-delay: 12s; }
-    .photo:nth-child(3) { animation-delay: 24s; }
-    .photo:nth-child(4) { animation-delay: 36s; }
-    .photo:nth-child(5) { animation-delay: 48s; }
-    .photo:nth-child(6) { animation-delay: 60s; }
-    .photo:nth-child(7) { animation-delay: 72s; }
-    .photo:nth-child(8) { animation-delay: 84s; }
-
-    @keyframes photoPulse {
-      0%, 100% { opacity: 0; transform: scale(1.11) translate3d(0,0,0); }
-      1.5%, 11.3% { opacity: 1; }
-      12.5% { opacity: 0; transform: scale(1.025) translate3d(1.6%, -1%, 0); }
-    }
-
-    .light-leak {
-      position: absolute;
-      inset: -22%;
-      z-index: 6;
-      pointer-events: none;
-      background:
-        radial-gradient(circle at 20% 80%, rgba(255, 121, 57, .24), transparent 22%),
-        radial-gradient(circle at 84% 22%, rgba(244, 199, 93, .18), transparent 25%),
-        conic-gradient(from 150deg at 50% 50%, transparent, rgba(255,255,255,.06), transparent, rgba(255,121,57,.08), transparent);
-      mix-blend-mode: screen;
-      animation: leakSpin 16s linear infinite;
-      opacity: .8;
-    }
-
-    @keyframes leakSpin {
-      from { transform: rotate(0deg) scale(1); }
-      to { transform: rotate(360deg) scale(1.05); }
-    }
-
-    .scene {
-      position: absolute;
-      inset: 0;
-      z-index: 10;
-      display: grid;
-      place-items: center;
-      padding: clamp(24px, 4vw, 70px);
-      opacity: 0;
-      transform: translateY(20px) scale(1.01);
-      filter: blur(8px);
-      animation: scene 96s cubic-bezier(.2,.74,.18,1) infinite;
-      animation-play-state: paused;
-    }
-
-    body.playing .scene { animation-play-state: running; }
-    .scene:nth-of-type(1) { animation-delay: 0s; }
-    .scene:nth-of-type(2) { animation-delay: 12s; }
-    .scene:nth-of-type(3) { animation-delay: 24s; }
-    .scene:nth-of-type(4) { animation-delay: 36s; }
-    .scene:nth-of-type(5) { animation-delay: 48s; }
-    .scene:nth-of-type(6) { animation-delay: 60s; }
-    .scene:nth-of-type(7) { animation-delay: 72s; }
-    .scene:nth-of-type(8) { animation-delay: 84s; }
-
-    @keyframes scene {
-      0%, 100% { opacity: 0; transform: translateY(24px) scale(1.014); filter: blur(8px); }
-      1.9%, 11% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-      12.4% { opacity: 0; transform: translateY(-20px) scale(.99); filter: blur(8px); }
-    }
-
-    .layout {
-      width: min(1230px, 100%);
-      display: grid;
-      grid-template-columns: minmax(0, 1.02fr) minmax(330px, .98fr);
-      gap: clamp(28px, 5vw, 70px);
-      align-items: center;
-    }
-
-    .center {
-      grid-template-columns: 1fr;
-      max-width: 1050px;
-      justify-items: center;
-      text-align: center;
-    }
-
-    .copy {
-      display: grid;
-      gap: 20px;
-      text-shadow: 0 24px 70px rgba(0,0,0,.44);
-    }
-
-    .eyebrow {
+    .badge {
       display: inline-flex;
       width: max-content;
       align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
+      gap: 8px;
+      padding: 8px 11px;
+      border: 1px solid rgba(255,255,255,.18);
       border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.24);
-      background: rgba(255,255,255,.13);
+      background: rgba(255,255,255,.10);
       color: var(--gold);
-      font-size: 12px;
-      font-weight: 950;
-      letter-spacing: .18em;
-      text-transform: uppercase;
-      backdrop-filter: blur(18px);
-    }
-
-    .center .eyebrow { margin-inline: auto; }
-
-    h1,
-    h2 {
-      margin: 0;
-      color: #fff;
-      font-family: Georgia, "Times New Roman", serif;
-      font-weight: 500;
-      line-height: .88;
-      letter-spacing: -.07em;
-      text-wrap: balance;
-    }
-
-    h1 { font-size: clamp(70px, 10vw, 160px); }
-    h2 { font-size: clamp(56px, 7vw, 112px); }
-
-    p {
-      margin: 0;
-      max-width: 780px;
-      color: rgba(255,255,255,.88);
-      font-size: clamp(18px, 2.05vw, 29px);
-      line-height: 1.34;
-      text-wrap: balance;
-    }
-
-    .gold { color: var(--gold); }
-
-    .hero-logo {
-      width: min(290px, 48vw);
-      filter: drop-shadow(0 28px 48px rgba(0,0,0,.34));
-    }
-
-    .hero-card {
-      display: grid;
-      justify-items: center;
-      gap: 22px;
-      padding: clamp(34px, 5vw, 62px);
-      border-radius: 52px;
-      border: 1px solid rgba(255,255,255,.2);
-      background:
-        radial-gradient(circle at 50% 0, rgba(244,199,93,.3), transparent 44%),
-        linear-gradient(145deg, rgba(255,255,255,.16), rgba(255,255,255,.07));
-      box-shadow: 0 40px 130px rgba(0,0,0,.4);
-      backdrop-filter: blur(26px);
-    }
-
-    .phone-stage {
-      position: relative;
-      min-height: 650px;
-      display: grid;
-      place-items: center;
-      perspective: 1200px;
-    }
-
-    .phone-stage::before {
-      content: "";
-      position: absolute;
-      width: 540px;
-      max-width: 100%;
-      aspect-ratio: 1;
-      border-radius: 999px;
-      background:
-        radial-gradient(circle, rgba(244,199,93,.23), transparent 56%),
-        radial-gradient(circle, rgba(255,121,57,.18), transparent 68%);
-      filter: blur(6px);
-      transform: translateY(28px);
-    }
-
-    .phone {
-      position: relative;
-      width: min(365px, 72vw);
-      min-height: 650px;
-      padding: 14px;
-      border-radius: 54px;
-      background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(222,235,216,.94));
-      color: var(--ink);
-      box-shadow: 0 38px 120px rgba(0,0,0,.46);
-      border: 1px solid rgba(255,255,255,.85);
-      transform: rotateY(-8deg) rotateX(4deg) rotateZ(-2deg);
-      overflow: hidden;
-    }
-
-    .phone::before {
-      content: "";
-      position: absolute;
-      top: 10px;
-      left: 50%;
-      width: 96px;
-      height: 20px;
-      border-radius: 999px;
-      background: #102017;
-      transform: translateX(-50%);
-      z-index: 5;
-    }
-
-    .screen {
-      min-height: 622px;
-      padding: 42px 17px 18px;
-      border-radius: 42px;
-      overflow: hidden;
-      background:
-        radial-gradient(circle at 84% 0, rgba(244,199,93,.34), transparent 32%),
-        linear-gradient(180deg, #123a20 0 34%, #f8f1e2 34% 100%);
-    }
-
-    .phone-label {
-      color: rgba(255,255,255,.72);
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 950;
       letter-spacing: .14em;
       text-transform: uppercase;
     }
 
-    .screen h3 {
-      margin: 8px 0 16px;
-      color: #fff;
-      font: 500 37px/.92 Georgia, "Times New Roman", serif;
+    .story h1 {
+      margin: 13px 0 0;
+      color: white;
+      font: 500 clamp(30px, 4vw, 48px)/.95 Georgia, "Times New Roman", serif;
       letter-spacing: -.06em;
     }
 
-    .weekend-card {
-      padding: 15px;
-      border-radius: 25px;
-      background:
-        linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,.07)),
-        rgba(47,106,64,.58);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,.18);
-      margin-bottom: 14px;
+    .story p {
+      margin: 12px 0 0;
+      color: rgba(255,255,255,.78);
+      font-size: 14px;
+      line-height: 1.5;
     }
 
-    .weekend-card b {
-      display: block;
-      font-size: 15px;
-      margin-bottom: 8px;
-    }
-
-    .bars {
+    .watching {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .watching small {
+      color: rgba(255,255,255,.54);
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .steps {
+      display: grid;
+      gap: 7px;
+    }
+
+    .steps div {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 34px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.08);
+      color: rgba(255,255,255,.63);
+      font-size: 11px;
+      font-weight: 900;
+      transition: .35s ease;
+    }
+
+    .steps div.active {
+      background: #fff8e6;
+      color: var(--ink);
+      transform: translateX(5px);
+    }
+
+    .sound-box {
+      display: grid;
+      gap: 9px;
+      padding: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 20px;
+      background: rgba(0,0,0,.16);
+    }
+
+    .sound-box strong {
+      font: 500 22px/.98 Georgia, "Times New Roman", serif;
+    }
+
+    .sound-box span {
+      color: rgba(255,255,255,.65);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .sound-box button {
+      min-height: 43px;
+      border: 0;
+      border-radius: 999px;
+      background: #fff8e6;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .browser {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      overflow: hidden;
+      border: 0;
+      border-radius: 0;
+      background: var(--cream);
+      box-shadow: none;
+    }
+
+    .bar {
+      height: 38px;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 0 14px;
+      background: rgba(255,253,248,.98);
+      border-bottom: 1px solid #e4ded1;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #e36348;
+    }
+
+    .dot:nth-child(2) { background: #e8bd4b; }
+    .dot:nth-child(3) { background: #4f9c60; }
+
+    .url {
+      flex: 1;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 999px;
+      background: #edf3ea;
+      color: #6b756d;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .app {
+      position: relative;
+      height: calc(100% - 38px);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 20% 0, rgba(232,198,111,.18), transparent 28%),
+        linear-gradient(180deg, #edf3eb, #f8f5ef 45%, #eeeae1);
+      color: var(--ink);
+    }
+
+    .portal-feed {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateX(22px);
+      pointer-events: none;
+      transition: .55s ease;
+    }
+
+    .portal-feed.active {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+
+    .portal-scroll {
+      height: 100%;
+      overflow: hidden;
+      padding: 12px;
+    }
+
+    .feed-inner {
+      display: grid;
+      gap: 10px;
+      transform: translateY(var(--scroll, 0px));
+      transition: transform 1.1s cubic-bezier(.2,.78,.22,1);
+    }
+
+    .hero {
+      position: relative;
+      overflow: hidden;
+      min-height: 156px;
+      padding: 16px;
+      border-radius: 20px;
+      color: white;
+      background:
+        linear-gradient(90deg, rgba(16,39,26,.97), rgba(32,75,47,.72), rgba(91,61,20,.24)),
+        url("campground.jpg") center/cover;
+      box-shadow: 0 18px 50px rgba(34,54,38,.16);
+    }
+
+    .hero small,
+    .section-title small,
+    .tile small,
+    .line small {
+      display: block;
+      color: #a27d35;
+      font-size: 9px;
+      font-weight: 950;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .hero small { color: var(--gold); }
+
+    .hero h2 {
+      max-width: 650px;
+      margin: 10px 0 0;
+      color: white;
+      font: 500 clamp(31px, 4vw, 52px)/.92 Georgia, "Times New Roman", serif;
+      letter-spacing: -.07em;
+    }
+
+    .hero p {
+      max-width: 560px;
+      margin: 12px 0 0;
+      color: rgba(255,255,255,.82);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .chips span,
+    .button-like {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 36px;
+      padding: 0 13px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.14);
+      color: white;
+      font-size: 11px;
+      font-weight: 950;
+    }
+
+    .chips span:first-child,
+    .button-like.primary {
+      background: #fffdf8;
+      color: var(--green);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 8px;
     }
 
-    .bars span {
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.16);
+    .tile,
+    .panel,
+    .line,
+    .dinner-row {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,.96);
+      box-shadow: 0 12px 30px rgba(38,61,46,.08);
+    }
+
+    .tile {
+      min-height: 76px;
+      padding: 10px;
+    }
+
+    .tile strong {
+      display: block;
+      margin-top: 7px;
+      color: var(--ink);
+      font: 500 21px/.9 Georgia, "Times New Roman", serif;
+      letter-spacing: -.04em;
+    }
+
+    .tile em {
+      display: block;
+      margin-top: 7px;
+      color: var(--muted);
       font-size: 11px;
+      font-style: normal;
       font-weight: 850;
     }
 
-    .app-list {
+    .alert-pump {
       display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
       gap: 10px;
-      margin-top: 14px;
-    }
-
-    .app-tile {
-      position: relative;
-      display: grid;
-      grid-template-columns: auto 1fr auto;
       align-items: center;
-      gap: 11px;
-      min-height: 67px;
-      padding: 12px;
-      border-radius: 21px;
-      border: 1px solid rgba(23,51,34,.1);
-      background: #fffdf8;
-      box-shadow: 0 14px 32px rgba(23,51,34,.09);
-      overflow: hidden;
-      animation: tilePop 96s ease-in-out infinite;
-      animation-play-state: paused;
+      padding: 13px;
+      border: 1px solid #f0c0b6;
+      border-radius: 18px;
+      background:
+        radial-gradient(circle at 92% 0, rgba(187,52,42,.12), transparent 34%),
+        #fff7f3;
+      box-shadow: 0 12px 30px rgba(38,61,46,.08);
     }
 
-    body.playing .app-tile { animation-play-state: running; }
-    .app-tile:nth-child(1) { animation-delay: 14s; }
-    .app-tile:nth-child(2) { animation-delay: 17s; }
-    .app-tile:nth-child(3) { animation-delay: 20s; }
-    .app-tile:nth-child(4) { animation-delay: 23s; }
-    .app-tile:nth-child(5) { animation-delay: 26s; }
-
-    @keyframes tilePop {
-      0%, 4%, 100% { transform: scale(1); box-shadow: 0 14px 32px rgba(23,51,34,.09); }
-      1.2% { transform: scale(1.035); box-shadow: 0 18px 40px rgba(255,121,57,.22); }
-    }
-
-    .app-tile i {
-      width: 42px;
-      height: 42px;
-      display: grid;
-      place-items: center;
-      border-radius: 15px;
-      background: #e8f2e3;
-      font-style: normal;
-      font-size: 20px;
-    }
-
-    .app-tile strong {
-      display: block;
+    .alert-pump h3 {
+      margin: 0;
       color: var(--ink);
-      font-size: 14px;
-      line-height: 1.1;
+      font: 500 25px/.96 Georgia, "Times New Roman", serif;
     }
 
-    .app-tile small {
-      display: block;
-      margin-top: 3px;
+    .alert-pump p {
+      margin: 7px 0 0;
       color: var(--muted);
-      font-size: 11px;
-      font-weight: 800;
-    }
-
-    .badge {
-      padding: 7px 9px;
-      border-radius: 999px;
-      background: var(--pine);
-      color: #fff;
-      font-size: 10px;
-      font-weight: 950;
-      white-space: nowrap;
+      font-size: 13px;
+      line-height: 1.4;
     }
 
     .red {
+      min-height: 44px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 20px;
       background: var(--red);
+      color: white;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 3px 0;
+    }
+
+    .section-title h2 {
+      margin: 5px 0 0;
+      color: var(--ink);
+      font: 500 25px/.98 Georgia, "Times New Roman", serif;
+      letter-spacing: -.04em;
+    }
+
+    .section-title p {
+      max-width: 360px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .wide-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(240px, .75fr);
+      gap: 12px;
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    .line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      box-shadow: none;
+    }
+
+    .line + .line { margin-top: 9px; }
+
+    .line strong {
+      color: var(--ink);
+      font-size: 15px;
+    }
+
+    .line span {
+      color: var(--green);
+      font-size: 18px;
+      font-weight: 950;
+    }
+
+    .total {
+      margin-top: 12px;
+      padding: 15px;
+      border-radius: 18px;
+      background: var(--forest);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .total strong {
+      font: 500 33px/.9 Georgia, "Times New Roman", serif;
+    }
+
+    .chart {
+      height: 180px;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      align-items: end;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: white;
+      box-shadow: 0 12px 30px rgba(38,61,46,.08);
+    }
+
+    .bar {
+      display: grid;
+      gap: 8px;
+      justify-items: center;
+    }
+
+    .bar i {
+      width: 100%;
+      max-width: 64px;
+      min-height: 36px;
+      border-radius: 999px 999px 0 0;
+      background: linear-gradient(180deg, #3e8ea0, var(--green));
+    }
+
+    .bar span {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 950;
+      text-align: center;
+    }
+
+    .dinner-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .dinner-row {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 13px;
+      align-items: center;
+      padding: 15px;
+    }
+
+    .dinner-row i {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      background: #eef5eb;
+      font-style: normal;
+      font-size: 23px;
+    }
+
+    .dinner-row b {
+      display: block;
+      color: var(--ink);
+      font-size: 16px;
+    }
+
+    .dinner-row span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dinner-row em {
+      padding: 9px 11px;
+      border-radius: 999px;
+      background: #f6ebc7;
+      color: #7d6026;
+      font-size: 11px;
+      font-style: normal;
+      font-weight: 950;
+    }
+
+    .message-card {
+      min-height: 135px;
+      padding: 18px;
+      border-radius: 24px;
+      background: white;
+      border: 1px solid var(--line);
+      box-shadow: 0 12px 30px rgba(38,61,46,.08);
+    }
+
+    .message-card h3 {
+      margin: 0;
+      color: var(--ink);
+      font: 500 27px/.98 Georgia, "Times New Roman", serif;
+    }
+
+    .message-card p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .wow-layout {
+      display: grid;
+      grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .wow-lead {
+      min-height: 100%;
+      padding: 18px;
+      border-radius: 28px;
+      color: white;
+      background:
+        linear-gradient(135deg, rgba(17,55,31,.98), rgba(45,105,63,.88)),
+        radial-gradient(circle at 92% 10%, rgba(232,198,111,.28), transparent 34%);
+      box-shadow: 0 18px 50px rgba(38,61,46,.16);
+    }
+
+    .wow-lead small {
+      color: var(--gold);
+      font-size: 9px;
+      font-weight: 950;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .wow-lead h2 {
+      margin: 10px 0 0;
+      color: white;
+      font: 500 clamp(31px, 4.4vw, 52px)/.9 Georgia, "Times New Roman", serif;
+      letter-spacing: -.07em;
+    }
+
+    .wow-lead p {
+      margin: 13px 0 0;
+      color: rgba(255,255,255,.82);
+      font-size: 14px;
+      line-height: 1.48;
+    }
+
+    .wow-stack {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .wow-card {
+      min-height: 88px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: rgba(255,255,255,.97);
+      box-shadow: 0 12px 28px rgba(38,61,46,.08);
+    }
+
+    .wow-card i {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: #edf5ea;
+      font-style: normal;
+      font-size: 18px;
+    }
+
+    .wow-card strong {
+      display: block;
+      margin-top: 7px;
+      color: var(--ink);
+      font-size: 14px;
+      line-height: 1.05;
+    }
+
+    .wow-card span {
+      display: block;
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .finale {
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 26px;
+      text-align: center;
+      color: white;
+      background:
+        radial-gradient(circle at 50% 18%, rgba(232,198,111,.34), transparent 28%),
+        linear-gradient(135deg, rgba(11,35,19,.98), rgba(41,88,53,.92)),
+        url("site-photos/IMG_7997.jpeg") center/cover;
+    }
+
+    .finale-inner {
+      width: min(780px, 100%);
+      display: grid;
+      gap: 15px;
+      justify-items: center;
+    }
+
+    .finale-kicker {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 9px 13px;
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 999px;
+      background: rgba(255,255,255,.11);
+      color: var(--gold);
+      font-size: 10px;
+      font-weight: 950;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      backdrop-filter: blur(14px);
+    }
+
+    .finale h2 {
+      margin: 0;
+      color: white;
+      font: 500 clamp(48px, 8vw, 92px)/.88 Georgia, "Times New Roman", serif;
+      letter-spacing: -.08em;
+      text-wrap: balance;
+    }
+
+    .finale p {
+      max-width: 640px;
+      margin: 0;
+      color: rgba(255,255,255,.82);
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .finale-grid {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 5px;
+    }
+
+    .finale-grid article {
+      min-height: 92px;
+      padding: 13px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 20px;
+      background: rgba(255,255,255,.10);
+      backdrop-filter: blur(14px);
+      text-align: left;
+    }
+
+    .finale-grid i {
+      font-style: normal;
+      font-size: 21px;
+    }
+
+    .finale-grid strong {
+      display: block;
+      margin-top: 8px;
+      color: white;
+      font-size: 13px;
+      line-height: 1.1;
+    }
+
+    .finale-grid span {
+      display: block;
+      margin-top: 5px;
+      color: rgba(255,255,255,.66);
+      font-size: 10px;
+      font-weight: 800;
+      line-height: 1.25;
+    }
+
+    .finale-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 2px;
+      padding: 9px 13px;
+      border-radius: 999px;
+      background: #fffdf8;
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .finale-logo img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
+
+    .screen-note {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 10px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 12px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 18px;
+      background: rgba(15,42,25,.88);
+      color: white;
+      box-shadow: 0 18px 50px rgba(0,0,0,.24);
+      backdrop-filter: blur(18px);
+      display: none;
+    }
+
+    .screen-note strong {
+      font-size: 13px;
+    }
+
+    .screen-note span {
+      color: rgba(255,255,255,.70);
+      font-size: 12px;
     }
 
     .cursor {
       position: absolute;
-      z-index: 12;
-      left: 50%;
-      top: 28%;
-      width: 36px;
-      height: 36px;
+      z-index: 30;
+      width: 28px;
+      height: 28px;
       pointer-events: none;
-      filter: drop-shadow(0 13px 18px rgba(0,0,0,.36));
-      animation: cursorMove 96s cubic-bezier(.2,.8,.18,1) infinite;
-      animation-play-state: paused;
+      transform: translate(-4px, -4px);
+      transition: left 1s cubic-bezier(.2,.8,.2,1), top 1s cubic-bezier(.2,.8,.2,1);
+      filter: drop-shadow(0 12px 18px rgba(0,0,0,.32));
     }
-
-    body.playing .cursor { animation-play-state: running; }
 
     .cursor::before {
       content: "";
       position: absolute;
-      left: 4px;
-      top: 0;
-      width: 0;
-      height: 0;
-      border-right: 20px solid transparent;
-      border-bottom: 31px solid #fffdf7;
-      transform: rotate(-28deg);
+      inset: 0;
+      background: white;
+      clip-path: polygon(0 0, 0 100%, 28% 76%, 43% 100%, 56% 94%, 41% 70%, 74% 70%);
     }
 
-    .cursor::after {
+    .cursor.click::after {
       content: "";
       position: absolute;
-      left: 16px;
-      top: 18px;
-      width: 12px;
-      height: 12px;
-      border: 2px solid rgba(244,199,93,.95);
+      left: 4px;
+      top: 4px;
+      width: 42px;
+      height: 42px;
+      border: 2px solid rgba(255,255,255,.88);
       border-radius: 999px;
-      opacity: 0;
-      animation: cursorClick 96s ease-in-out infinite;
-      animation-play-state: paused;
+      animation: clickRing .75s ease-out;
     }
 
-    body.playing .cursor::after { animation-play-state: running; }
-
-    @keyframes cursorMove {
-      0%, 12%, 100% { opacity: 0; left: 48%; top: 28%; }
-      14%, 16% { opacity: 1; left: 63%; top: 42%; }
-      18%, 20% { opacity: 1; left: 62%; top: 51%; }
-      22%, 24% { opacity: 1; left: 62%; top: 61%; }
-      26%, 28% { opacity: 1; left: 62%; top: 71%; }
-      30%, 32% { opacity: 1; left: 62%; top: 81%; }
-      34% { opacity: 0; left: 62%; top: 81%; }
+    @keyframes clickRing {
+      from { transform: scale(.2); opacity: .95; }
+      to { transform: scale(1.2); opacity: 0; }
     }
 
-    @keyframes cursorClick {
-      0%, 13%, 17%, 21%, 25%, 29%, 33%, 100% { opacity: 0; transform: scale(.5); }
-      14.5%, 18.5%, 22.5%, 26.5%, 30.5% { opacity: .95; transform: scale(2.6); }
-      15.8%, 19.8%, 23.8%, 27.8%, 31.8% { opacity: 0; transform: scale(4.2); }
-    }
-
-    .promise-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 15px;
-    }
-
-    .promise {
-      min-height: 175px;
-      padding: 23px;
-      border-radius: 30px;
-      background:
-        radial-gradient(circle at 95% 0, rgba(244,199,93,.2), transparent 35%),
-        rgba(255,253,248,.94);
-      color: var(--ink);
-      border: 1px solid rgba(255,255,255,.72);
-      box-shadow: 0 28px 78px rgba(0,0,0,.2);
-    }
-
-    .promise small {
-      display: block;
-      color: #a27622;
-      font-size: 11px;
-      font-weight: 950;
-      letter-spacing: .14em;
-      text-transform: uppercase;
-      margin-bottom: 12px;
-    }
-
-    .promise strong {
-      display: block;
-      font: 500 clamp(28px, 3.1vw, 43px)/.94 Georgia, "Times New Roman", serif;
-      letter-spacing: -.055em;
-    }
-
-    .promise p {
-      margin-top: 10px;
-      color: #5b6d60;
-      font-size: 14px;
-      line-height: 1.35;
-    }
-
-    .moment-stack {
-      display: grid;
-      gap: 13px;
-    }
-
-    .moment {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      gap: 14px;
-      padding: 17px;
-      border-radius: 27px;
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.18);
-      box-shadow: 0 24px 66px rgba(0,0,0,.22);
-      backdrop-filter: blur(18px);
-    }
-
-    .moment i {
-      width: 52px;
-      height: 52px;
-      display: grid;
-      place-items: center;
+    .toast {
+      position: absolute;
+      right: 24px;
+      bottom: 72px;
+      z-index: 25;
+      width: min(360px, calc(100% - 48px));
+      padding: 14px;
+      border: 1px solid #d8e5d4;
       border-radius: 18px;
-      background: rgba(255,255,255,.16);
-      font-style: normal;
-      font-size: 25px;
-    }
-
-    .moment b {
-      display: block;
-      color: #fff;
-      font-size: clamp(18px, 2vw, 26px);
-      line-height: 1.08;
-    }
-
-    .moment span {
-      display: block;
-      margin-top: 4px;
-      color: rgba(255,255,255,.72);
-      font-size: 13px;
-      font-weight: 750;
-    }
-
-    .moment em {
-      font-style: normal;
-      padding: 8px 11px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.18);
-      color: var(--gold);
-      font-size: 11px;
-      font-weight: 950;
-      white-space: nowrap;
-    }
-
-    .hype-line {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 12px;
-      width: min(980px, 100%);
-    }
-
-    .hype-line span {
-      padding: 14px 18px;
-      border-radius: 999px;
-      color: #fff;
-      background: rgba(255,255,255,.14);
-      border: 1px solid rgba(255,255,255,.18);
-      backdrop-filter: blur(18px);
-      font-weight: 950;
-      box-shadow: 0 20px 52px rgba(0,0,0,.2);
-    }
-
-    .final-card {
-      width: min(890px, 100%);
-      display: grid;
-      gap: 22px;
-      justify-items: center;
-      padding: clamp(28px, 4vw, 48px);
-      border-radius: 44px;
-      background:
-        radial-gradient(circle at 50% 0, rgba(244,199,93,.3), transparent 40%),
-        rgba(255,255,255,.14);
-      border: 1px solid rgba(255,255,255,.2);
-      box-shadow: 0 38px 120px rgba(0,0,0,.38);
-      backdrop-filter: blur(24px);
-    }
-
-    .cta {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: max-content;
-      padding: 17px 24px;
-      border-radius: 999px;
-      background: var(--cream);
+      background: #f4fbf1;
       color: var(--ink);
-      font-weight: 950;
-      box-shadow: 0 22px 62px rgba(0,0,0,.28);
-    }
-
-    .mini-caption {
-      position: fixed;
-      left: clamp(14px, 3vw, 36px);
-      bottom: clamp(14px, 2.5vw, 30px);
-      z-index: 30;
-      width: min(430px, calc(100vw - 28px));
-      padding: 10px 13px;
-      border-radius: 16px;
-      background: rgba(6, 20, 12, .46);
-      color: rgba(255,255,255,.74);
-      border: 1px solid rgba(255,255,255,.14);
-      box-shadow: 0 18px 46px rgba(0,0,0,.24);
-      backdrop-filter: blur(18px);
-      font-size: 12px;
-      line-height: 1.3;
+      box-shadow: 0 20px 45px rgba(38,61,46,.18);
+      transform: translateY(18px);
       opacity: 0;
-      transition: opacity .3s ease;
+      transition: .35s ease;
     }
 
-    body.playing .mini-caption { opacity: 1; }
-
-    .sound-card {
-      position: fixed;
-      right: clamp(14px, 3vw, 36px);
-      bottom: clamp(14px, 3vw, 36px);
-      z-index: 40;
-      width: min(420px, calc(100vw - 28px));
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      transition: opacity .25s ease, visibility .25s ease;
-    }
-
-    body.sound-needed .sound-card {
+    .toast.show {
+      transform: translateY(0);
       opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
     }
 
-    .sound-inner {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 13px;
-      align-items: center;
-      padding: 16px;
-      border-radius: 26px;
-      background:
-        radial-gradient(circle at 50% 0, rgba(244,199,93,.25), transparent 42%),
-        rgba(8, 28, 16, .92);
-      border: 1px solid rgba(255,255,255,.2);
-      box-shadow: 0 30px 84px rgba(0,0,0,.4);
-      backdrop-filter: blur(24px);
-    }
+    .toast b,
+    .toast span { display: block; }
 
-    .sound-inner img {
-      width: 52px;
-      filter: drop-shadow(0 18px 34px rgba(0,0,0,.28));
-    }
+    .toast b { font-size: 14px; }
+    .toast span { margin-top: 4px; color: var(--muted); font-size: 12px; }
 
-    .sound-inner h3 {
-      margin: 0;
-      font: 500 27px/.94 Georgia, "Times New Roman", serif;
-      letter-spacing: -.04em;
-    }
-
-    .sound-inner p {
-      grid-column: 1 / -1;
-      color: rgba(255,255,255,.78);
-      font-size: 14px;
-      line-height: 1.32;
-    }
-
-    .sound-inner button {
-      grid-column: 1 / -1;
-      appearance: none;
-      border: 0;
-      cursor: pointer;
-      padding: 15px 18px;
+    .floating-controls {
+      position: absolute;
+      right: 10px;
+      bottom: 10px;
+      z-index: 60;
+      display: flex;
+      gap: 8px;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,.22);
       border-radius: 999px;
-      background: var(--cream);
-      color: var(--ink);
+      background: rgba(14, 42, 25, .86);
+      box-shadow: 0 18px 45px rgba(0,0,0,.22);
+      backdrop-filter: blur(18px);
+    }
+
+    .floating-controls button {
+      min-height: 28px;
+      border: 0;
+      border-radius: 999px;
+      padding: 0 8px;
+      background: rgba(255,255,255,.14);
+      color: white;
+      font-size: 9px;
       font-weight: 950;
-      box-shadow: 0 22px 60px rgba(0,0,0,.3);
-    }
-
-    .hotspot {
-      position: fixed;
-      inset: 0;
-      z-index: 39;
-      display: none;
-      border: 0;
-      background: transparent;
       cursor: pointer;
     }
 
-    body.sound-needed .hotspot { display: block; }
-
-    .progress {
-      position: fixed;
-      top: clamp(14px, 2vw, 24px);
-      left: 50%;
-      z-index: 32;
-      width: min(620px, calc(100vw - 40px));
-      height: 4px;
-      border-radius: 999px;
-      transform: translateX(-50%);
-      overflow: hidden;
-      background: rgba(255,255,255,.16);
-    }
-
-    .progress i {
-      display: block;
-      height: 100%;
-      width: 0;
-      background: linear-gradient(90deg, var(--gold), var(--ember));
-      animation: progress 96s linear infinite;
-      animation-play-state: paused;
-    }
-
-    body.playing .progress i { animation-play-state: running; }
-
-    @keyframes progress {
-      from { width: 0; }
-      to { width: 100%; }
-    }
-
-    .brand {
-      position: fixed;
-      right: clamp(14px, 3vw, 36px);
-      top: clamp(16px, 2.4vw, 30px);
-      z-index: 32;
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,.16);
-      background: rgba(255,255,255,.12);
-      color: rgba(255,255,255,.8);
-      font-size: 12px;
-      font-weight: 900;
-      backdrop-filter: blur(16px);
-    }
-
-    .brand img {
-      width: 26px;
-      height: 26px;
-      object-fit: contain;
+    .floating-controls button:first-child {
+      background: #fff8e6;
+      color: var(--ink);
     }
 
     @media (max-width: 900px) {
-      .layout {
+      .promo {
+        width: 100vw;
+        height: 100vh;
+      }
+
+      .story {
+        display: none;
+      }
+
+      .browser {
+        min-height: 100vh;
+      }
+
+      .portal-scroll {
+        padding: 10px;
+      }
+
+      .hero {
+        min-height: 175px;
+        padding: 18px;
+      }
+
+      .hero h2 {
+        font-size: clamp(38px, 11vw, 54px);
+      }
+
+      .grid,
+      .wide-grid,
+      .wow-layout {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .alert-pump {
         grid-template-columns: 1fr;
       }
 
-      .phone-stage {
-        min-height: 560px;
+      .wow-stack {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .phone {
-        min-height: 545px;
-        width: min(330px, 80vw);
+      .finale-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
       }
 
-      .screen {
-        min-height: 517px;
-      }
-
-      .promise-grid {
-        grid-template-columns: 1fr;
-      }
-
+      .screen-note,
       .cursor {
         display: none;
       }
 
-      .mini-caption {
-        display: none;
+      .floating-controls {
+        right: 8px;
+        bottom: 8px;
+        left: auto;
       }
     }
   </style>
 </head>
 <body>
-  <div class="sound-card" id="soundCard">
-    <div class="sound-inner">
-      <img src="bur-oaks-logo.png" alt="Bur Oaks logo" />
-      <div>
-        <span class="eyebrow">Trailer mode</span>
-        <h3>Tap for sound.</h3>
-      </div>
-      <p>Turn on the Ember voiceover plus the hype campfire backing track.</p>
-      <button id="startSound" type="button">🔊 Start the portal trailer</button>
-    </div>
-  </div>
-  <button class="hotspot" id="soundHotspot" type="button" aria-label="Turn sound on"></button>
-
-  <main class="show" aria-label="Bur Oaks Camper Portal launch trailer">
-    <div class="photo" style="background-image:url('site-photos/IMG_8002.jpeg')"></div>
-    <div class="photo" style="background-image:url('site-photos/IMG_8019.jpeg')"></div>
-    <div class="photo" style="background-image:url('site-photos/IMG_7996.jpeg')"></div>
-    <div class="photo" style="background-image:url('site-photos/IMG_8008.jpeg')"></div>
-    <div class="photo" style="background-image:url('site-photos/IMG_8014.jpeg')"></div>
-    <div class="photo" style="background-image:url('site-photos/IMG_8004.jpeg')"></div>
-    <div class="photo" style="background-image:url('site-photos/IMG_7997.jpeg')"></div>
-    <div class="photo" style="background-image:url('site-photos/IMG_8010.jpeg')"></div>
-    <div class="light-leak"></div>
-
-    <section class="scene">
-      <div class="layout center">
-        <div class="hero-card">
-          <img class="hero-logo" src="bur-oaks-logo.png" alt="Bur Oaks logo" />
-          <span class="eyebrow">A private campground with a modern camper portal</span>
-          <h1>Camp life, handled.</h1>
+  <main class="stage">
+    <section class="promo">
+      <aside class="story">
+        <div>
+          <span class="badge">Real portal walkthrough</span>
+          <h1 id="headline">Watch a camper use Bur Oaks in one place.</h1>
+          <p id="copy">This is a demo camper account, built to feel like the actual portal without showing anyone’s private information.</p>
         </div>
-      </div>
-    </section>
 
-    <section class="scene">
-      <div class="layout">
-        <div class="copy">
-          <span class="eyebrow">Your weekend command center</span>
-          <h1>Everything you need. <span class="gold">Before you even pull in.</span></h1>
-          <p>Weather, bills, AutoPay, ACH, electric history, documents, dinner plans, office messages, alerts, and requests — all from your phone.</p>
+        <div class="watching">
+          <small>Now showing</small>
+          <div class="steps" id="steps">
+            <div class="active" data-step="home">🏕️ Portal home</div>
+            <div data-step="wow">🤯 Everything it handles</div>
+            <div data-step="scroll">🧭 Weekend dashboard</div>
+            <div data-step="invoices">💳 Itemized invoice</div>
+            <div data-step="autopay">🏦 AutoPay / ACH</div>
+            <div data-step="electric">⚡ Electric history</div>
+            <div data-step="pump">🚩 Pump-out request</div>
+            <div data-step="dinners">🍽️ Saturday dinners</div>
+            <div data-step="messages">📲 Messages / alerts</div>
+            <div data-step="finale">🚀 Coming Jan. 2027</div>
+          </div>
         </div>
-        <div class="phone-stage">
-          <div class="phone">
-            <div class="screen">
-              <span class="phone-label">Bur Oaks Portal</span>
-              <h3>Ready for the weekend.</h3>
-              <div class="weekend-card">
-                <b>Plan your stay at Lot 1001</b>
-                <div class="bars">
-                  <span>Sat 92°</span>
-                  <span>Rain 12%</span>
-                  <span>Dinner 6 PM</span>
-                  <span>Balance $0</span>
+
+        <div class="sound-box">
+          <strong>Tap for audio.</strong>
+          <span>Browsers block sound until you click once. This starts the voiceover and soft background music.</span>
+          <button id="soundButton" type="button">🔊 Start voice + music</button>
+        </div>
+      </aside>
+
+      <section class="browser" aria-label="Demo Bur Oaks camper portal">
+        <div class="bar">
+          <i class="dot"></i><i class="dot"></i><i class="dot"></i>
+          <div class="url" id="url">buroakscampground.com/portal</div>
+        </div>
+
+        <div class="app">
+          <section class="portal-feed active" data-screen="home">
+            <div class="portal-scroll">
+              <div class="feed-inner">
+                <div class="hero">
+                  <small>Lot 42 • Demo camper</small>
+                  <h2>Welcome back, Camper.</h2>
+                  <p>Your weekend, account, weather, documents, dinners, services, messages, and alerts all start here.</p>
+                  <div class="chips">
+                    <span>View invoices</span>
+                    <span>Saturday dinners</span>
+                    <span>Request service</span>
+                  </div>
+                </div>
+
+                <div class="grid">
+                  <article class="tile"><small>Open balance</small><strong>$0</strong><em>No open invoices</em></article>
+                  <article class="tile"><small>Weather</small><strong>92°</strong><em>Hot weekend ahead</em></article>
+                  <article class="tile"><small>Dinner</small><strong>Taco</strong><em>Saturday • 6 PM</em></article>
+                  <article class="tile"><small>Messages</small><strong>1 new</strong><em>Office update waiting</em></article>
+                </div>
+
+                <div class="alert-pump">
+                  <div>
+                    <h3>Need your sewer pumped?</h3>
+                    <p>Tap the red button and the office gets a clean pump-out request. The $10 charge is ready for the next electric bill.</p>
+                  </div>
+                  <button class="red">🚩 Request pump-out</button>
                 </div>
               </div>
-              <div class="app-list">
-                <div class="app-tile"><i>🌤️</i><div><strong>Weather forecast</strong><small>Know when to come out</small></div><span class="badge">Live</span></div>
-                <div class="app-tile"><i>🏦</i><div><strong>AutoPay + ACH</strong><small>Less paper, fewer fees</small></div><span class="badge">Easy</span></div>
-                <div class="app-tile"><i>⚡</i><div><strong>Electric history</strong><small>Current and past kWh</small></div><span class="badge">Clear</span></div>
-                <div class="app-tile"><i>🚨</i><div><strong>Sewer pump-out</strong><small>Tap the red button</small></div><span class="badge red">$10</span></div>
-                <div class="app-tile"><i>🍽️</i><div><strong>Saturday dinner</strong><small>Guests and what to bring</small></div><span class="badge">6 PM</span></div>
+            </div>
+          </section>
+
+          <section class="portal-feed" data-screen="wow">
+            <div class="portal-scroll">
+              <div class="feed-inner">
+                <div class="wow-layout">
+                  <article class="wow-lead">
+                    <small>Everything in one camper hub</small>
+                    <h2>This is why it feels different.</h2>
+                    <p>It is not just a payment page. It is the weekend planner, office inbox, billing center, document folder, service request button, and campground bulletin board all living in one place.</p>
+                    <div class="chips"><span>One login</span><span>One portal</span><span>Less hunting</span></div>
+                  </article>
+                  <div class="wow-stack">
+                    <article class="wow-card"><i>💳</i><strong>Itemized invoices</strong><span>Electric, water, pump-outs, credits, services.</span></article>
+                    <article class="wow-card"><i>🏦</i><strong>ACH + AutoPay</strong><span>Fewer checks and easier recurring payments.</span></article>
+                    <article class="wow-card"><i>🚩</i><strong>Pump-out button</strong><span>Camper taps, office sees it, billing is ready.</span></article>
+                    <article class="wow-card"><i>🍽️</i><strong>Dinner planning</strong><span>Guests, bring list, maybe/going responses.</span></article>
+                    <article class="wow-card"><i>📲</i><strong>Texts + alerts</strong><span>Storms, bills, breakfast, dinner, urgent updates.</span></article>
+                    <article class="wow-card"><i>📄</i><strong>Documents</strong><span>Leases, signed copies, camper files.</span></article>
+                    <article class="wow-card"><i>⚡</i><strong>Electric history</strong><span>Past and current kilowatt usage.</span></article>
+                    <article class="wow-card"><i>💬</i><strong>Office messages</strong><span>Private camper-to-office conversations.</span></article>
+                    <article class="wow-card"><i>🤝</i><strong>Directory</strong><span>Opt-in camper connection and profile info.</span></article>
+                  </div>
+                </div>
               </div>
             </div>
+          </section>
+
+          <section class="portal-feed" data-screen="scroll">
+            <div class="portal-scroll">
+              <div class="feed-inner" id="scrollFeed">
+                <div class="hero">
+                  <small>Lot 42 • Weekend planner</small>
+                  <h2>Everything campers hunt for is right here.</h2>
+                  <p>Weather, events, dinner, messages, documents, invoices, electric usage, and service requests stay together.</p>
+                  <div class="chips"><span>Plan weekend</span><span>See events</span><span>Update profile</span></div>
+                </div>
+                <div class="section-title"><div><small>What matters today</small><h2>Quick cards that actually help.</h2></div><p>Clickable cards take campers straight where they need to go.</p></div>
+                <div class="grid">
+                  <article class="tile"><small>Invoice</small><strong>Clear</strong><em>Line-by-line charges</em></article>
+                  <article class="tile"><small>ACH</small><strong>Ready</strong><em>Lower-fee payments</em></article>
+                  <article class="tile"><small>Directory</small><strong>Opt-in</strong><em>Connect with campers</em></article>
+                  <article class="tile"><small>Alerts</small><strong>Fast</strong><em>Storms, bills, dinner</em></article>
+                </div>
+                <div class="wide-grid">
+                  <article class="message-card"><h3>New message from office</h3><p>Private updates sit inside the portal so they do not get lost in random text threads.</p></article>
+                  <article class="message-card"><h3>Event flyers open up</h3><p>Campers can click a flyer, read the details, and mark going, maybe, or not going.</p></article>
+                </div>
+                <div class="grid">
+                  <article class="tile"><small>Documents</small><strong>Signed</strong><em>Leases stay available</em></article>
+                  <article class="tile"><small>Vehicles</small><strong>Stored</strong><em>Golf cart insurance</em></article>
+                  <article class="tile"><small>Maintenance</small><strong>Status</strong><em>Office approved progress</em></article>
+                  <article class="tile"><small>Food</small><strong>Live</strong><em>Who is bringing what</em></article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="portal-feed" data-screen="invoices">
+            <div class="portal-scroll">
+              <div class="feed-inner">
+                <div class="section-title"><div><small>Account history</small><h2>Invoices are dumbed down in the best way.</h2></div><p>Campers see exactly how the total was built.</p></div>
+                <div class="wide-grid">
+                  <article class="panel">
+                    <div class="line"><div><strong>Electric usage</strong><small>333 kWh used</small></div><span>$76.59</span></div>
+                    <div class="line"><div><strong>Water / trash</strong><small>Monthly site service</small></div><span>$25.00</span></div>
+                    <div class="line"><div><strong>Sewer pump-out</strong><small>2 pump-outs × $10</small></div><span>$20.00</span></div>
+                    <div class="line"><div><strong>Account credit</strong><small>Applied before payment</small></div><span>-$10.00</span></div>
+                    <div class="line"><div><strong>Card fee</strong><small>Only if paying by card</small></div><span>$0.00</span></div>
+                    <div class="total"><span>Total due</span><strong>$111.59</strong></div>
+                  </article>
+                  <article class="panel">
+                    <div class="section-title"><div><small>Checkout</small><h2>Easy to pay.</h2></div></div>
+                    <p style="color: var(--muted); line-height: 1.5;">Campers can pay open invoices, review past invoices, and see fees before checkout.</p>
+                    <div class="chips"><span class="button-like primary">Pay now</span><span class="button-like">View invoice</span></div>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="portal-feed" data-screen="autopay">
+            <div class="portal-scroll">
+              <div class="feed-inner">
+                <div class="hero">
+                  <small>Payments without the paper chase</small>
+                  <h2>AutoPay and ACH are built in.</h2>
+                  <p>Campers can enroll for electric, rent, or both — and use ACH when they want lower card-style fees.</p>
+                  <div class="chips"><span>Set up AutoPay</span><span>Choose ACH</span><span>Get receipts</span></div>
+                </div>
+                <div class="grid">
+                  <article class="tile"><small>Electric</small><strong>Auto</strong><em>Monthly bill ready</em></article>
+                  <article class="tile"><small>Rent</small><strong>Optional</strong><em>Camper chooses</em></article>
+                  <article class="tile"><small>ACH</small><strong>Lower</strong><em>Less check writing</em></article>
+                  <article class="tile"><small>Card fee</small><strong>Shown</strong><em>At checkout only</em></article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="portal-feed" data-screen="electric">
+            <div class="portal-scroll">
+              <div class="feed-inner">
+                <div class="section-title"><div><small>Electric history</small><h2>Campers can see the usage story.</h2></div><p>Current and past kilowatts are easier to understand than a mystery bill.</p></div>
+                <div class="chart">
+                  <div class="bar"><i style="height:46%"></i><span>Mar<br>214</span></div>
+                  <div class="bar"><i style="height:54%"></i><span>Apr<br>250</span></div>
+                  <div class="bar"><i style="height:61%"></i><span>May<br>282</span></div>
+                  <div class="bar"><i style="height:73%"></i><span>Jun<br>333</span></div>
+                  <div class="bar"><i style="height:68%"></i><span>Jul<br>311</span></div>
+                  <div class="bar"><i style="height:49%"></i><span>Aug<br>226</span></div>
+                </div>
+                <div class="grid">
+                  <article class="tile"><small>This month</small><strong>333</strong><em>kWh used</em></article>
+                  <article class="tile"><small>Extra meter</small><strong>Ready</strong><em>Site moves covered</em></article>
+                  <article class="tile"><small>Services</small><strong>Added</strong><em>Weed, wash, misc.</em></article>
+                  <article class="tile"><small>Credits</small><strong>Applied</strong><em>Before payment</em></article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="portal-feed" data-screen="pump">
+            <div class="portal-scroll">
+              <div class="feed-inner">
+                <div class="hero">
+                  <small>Sewer pump-out</small>
+                  <h2>The red button campers will remember.</h2>
+                  <p>No phone tag. No forgotten flag. They tap request, the office gets the list, and the $10 charge is ready for billing.</p>
+                  <div class="chips"><span>🚩 Request pump-out</span><span>$10 charge ready</span><span>Office notified</span></div>
+                </div>
+                <div class="grid">
+                  <article class="tile"><small>Status</small><strong>Sent</strong><em>Request received</em></article>
+                  <article class="tile"><small>Admin</small><strong>Listed</strong><em>Shows on pump-outs</em></article>
+                  <article class="tile"><small>Billing</small><strong>Auto</strong><em>Next electric bill</em></article>
+                  <article class="tile"><small>Camper</small><strong>Clear</strong><em>No guessing</em></article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="portal-feed" data-screen="dinners">
+            <div class="portal-scroll">
+              <div class="feed-inner">
+                <div class="section-title"><div><small>Saturday night dinners</small><h2>Campers can RSVP and bring something useful.</h2></div><p>Guests, maybes, and bring lists stay visible.</p></div>
+                <div class="dinner-list">
+                  <div class="dinner-row"><i>🌮</i><div><b>July 11 — Taco Table</b><span>6 PM • 4 people coming</span></div><em>Bring chips</em></div>
+                  <div class="dinner-row"><i>🎄</i><div><b>July 18 — Bratwurst</b><span>Christmas in July • friends welcome</span></div><em>Maybe</em></div>
+                  <div class="dinner-row"><i>🍗</i><div><b>July 25 — Fried Chicken</b><span>See sides, desserts, drinks, and more</span></div><em>Going</em></div>
+                </div>
+                <div class="grid">
+                  <article class="tile"><small>People</small><strong>Any #</strong><em>Friends included</em></article>
+                  <article class="tile"><small>Bring list</small><strong>Live</strong><em>Selections disappear</em></article>
+                  <article class="tile"><small>Office</small><strong>Notified</strong><em>Planning gets easier</em></article>
+                  <article class="tile"><small>Community</small><strong>Fun</strong><em>More reasons to camp</em></article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="portal-feed" data-screen="messages">
+            <div class="portal-scroll">
+              <div class="feed-inner">
+                <div class="section-title"><div><small>Office communication</small><h2>Alerts, messages, and documents stop getting buried.</h2></div><p>Storms, invoices, dinner updates, signed leases, and private messages all have a home.</p></div>
+                <div class="grid">
+                  <article class="message-card"><h3>New message from office</h3><p>Direct camper-to-office messages keep conversations organized.</p></article>
+                  <article class="message-card"><h3>Text alerts</h3><p>Bill due, storm alert, dinner at 6, breakfast ready — sent fast.</p></article>
+                  <article class="message-card"><h3>Documents</h3><p>Assigned leases and signed copies stay in the camper’s folder.</p></article>
+                  <article class="message-card"><h3>Directory</h3><p>Campers can opt in so seasonal neighbors can connect.</p></article>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="portal-feed" data-screen="finale">
+            <div class="finale">
+              <div class="finale-inner">
+                <span class="finale-kicker">Coming January 2027</span>
+                <h2>The Bur Oaks camper portal is just getting started.</h2>
+                <p>One login for the things campers actually need — payments, weather, dinners, alerts, documents, requests, messages, and the little campground details that make weekends easier.</p>
+                <div class="finale-grid">
+                  <article><i>🗺️</i><strong>Interactive map</strong><span>Future clickable lots, amenities, and campground info.</span></article>
+                  <article><i>📲</i><strong>Faster alerts</strong><span>Storms, dinner, bills, gate, and urgent office updates.</span></article>
+                  <article><i>🏕️</i><strong>Weekend hub</strong><span>Everything campers check before heading out.</span></article>
+                  <article><i>✨</i><strong>And so much more</strong><span>Built around how Bur Oaks actually works.</span></article>
+                </div>
+                <div class="finale-logo"><img src="bur-oaks-logo.png" alt="" /> Bur Oaks Campground</div>
+              </div>
+            </div>
+          </section>
+
+          <div class="toast" id="toast"><b>Request sent</b><span>Lot 42 pump-out was added. The $10 charge is ready for the next electric bill.</span></div>
+          <div class="screen-note"><strong id="noteTitle">Real portal home</strong><span id="noteCopy">A demo camper opens the portal and sees the whole weekend in one place.</span></div>
+          <div class="floating-controls">
+            <button id="floatingSound" type="button">🔊 Audio</button>
           </div>
-          <div class="cursor" aria-hidden="true"></div>
+          <div class="cursor" id="cursor" aria-hidden="true"></div>
         </div>
-      </div>
+      </section>
     </section>
-
-    <section class="scene">
-      <div class="layout">
-        <div class="copy">
-          <span class="eyebrow">The portal makes Bur Oaks feel different</span>
-          <h2>No more guessing. No more chasing.</h2>
-          <p>Campers can see what matters, pay the easy way, and stay connected to campground life without digging through texts, checks, and old posts.</p>
-        </div>
-        <div class="promise-grid">
-          <div class="promise"><small>Invoices</small><strong>Dumbed-down totals.</strong><p>Electric, lot rent, sewer pump-outs, water/trash, credits, and fees can be shown clearly.</p></div>
-          <div class="promise"><small>ACH payments</small><strong>Almost no card-fee pain.</strong><p>Campers can pay from a bank account instead of mailing a check or eating card fees.</p></div>
-          <div class="promise"><small>Documents</small><strong>Leases stay organized.</strong><p>Assigned documents, signed documents, and camper copies live where they belong.</p></div>
-          <div class="promise"><small>Directory</small><strong>Neighbors stay neighbors.</strong><p>Campers can opt in and keep connections strong around the campground.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="scene">
-      <div class="layout">
-        <div class="copy">
-          <span class="eyebrow">Built for actual campground moments</span>
-          <h2>This is not generic software.</h2>
-          <p>It was built around Bur Oaks: seasonal sites, electric readings, pump-outs, maintenance, Saturday dinners, documents, alerts, events, and real camper life.</p>
-        </div>
-        <div class="moment-stack">
-          <div class="moment"><i>🚩</i><div><b>Need pumped out?</b><span>Campers request it. Office sees the list. Billing knows the charge.</span></div><em>Bur Oaks feature</em></div>
-          <div class="moment"><i>🔧</i><div><b>Maintenance without mystery.</b><span>Requests can be approved, assigned, updated, photographed, and closed.</span></div><em>Trackable</em></div>
-          <div class="moment"><i>🍳</i><div><b>Breakfast ready? Storm coming?</b><span>Office alerts can reach campers fast.</span></div><em>Quick</em></div>
-          <div class="moment"><i>🎟️</i><div><b>Events feel alive.</b><span>Flyers, details, RSVPs, meals, guests, and what people bring.</span></div><em>Connected</em></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="scene">
-      <div class="layout center">
-        <span class="eyebrow">The camper side</span>
-        <h2>Open your phone. Know your weekend.</h2>
-        <div class="hype-line">
-          <span>Weather</span>
-          <span>Invoices</span>
-          <span>AutoPay</span>
-          <span>ACH</span>
-          <span>Documents</span>
-          <span>Electric kWh</span>
-          <span>Pump-outs</span>
-          <span>Maintenance</span>
-          <span>Dinner</span>
-          <span>Events</span>
-          <span>Messages</span>
-          <span>Alerts</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="scene">
-      <div class="layout">
-        <div class="copy">
-          <span class="eyebrow">The office side</span>
-          <h2>One calm place to run the chaos.</h2>
-          <p>Past-due invoices, maintenance requests, pump-out lists, dinner counts, documents waiting to be signed, camper messages, reports, and urgent alerts stay visible.</p>
-        </div>
-        <div class="promise-grid">
-          <div class="promise"><small>Attention board</small><strong>What needs done.</strong><p>Maintenance, past due, almost due, pump-outs, food, RSVPs, messages, and more.</p></div>
-          <div class="promise"><small>Billing</small><strong>Real breakdowns.</strong><p>Money in by electric, rent, services, water/trash, credits, fees, and dates.</p></div>
-          <div class="promise"><small>Texts + email</small><strong>Reach campers fast.</strong><p>Bill reminders, urgent announcements, dinner updates, and office messages.</p></div>
-          <div class="promise"><small>Records</small><strong>Cleaner camper files.</strong><p>Addresses, emails, phones, vehicles, insurance, leases, notes, and documents.</p></div>
-        </div>
-      </div>
-    </section>
-
-    <section class="scene">
-      <div class="layout center">
-        <span class="eyebrow">Why it matters</span>
-        <h2>The portal makes the campground feel cared for.</h2>
-        <p>Less paperwork. Less guessing. Less “did you get my check?” More confidence, more connection, and more time actually camping.</p>
-        <span class="cta">That is the Bur Oaks difference.</span>
-      </div>
-    </section>
-
-    <section class="scene">
-      <div class="layout center">
-        <div class="final-card">
-          <span class="eyebrow">Launch season</span>
-          <h1>Welcome to the new Bur Oaks camper portal.</h1>
-          <p>Watch for your invite. Set your password. Update your profile. Turn on alerts. Set up AutoPay if you want it. Then enjoy a campground that feels easier before you even arrive.</p>
-          <span class="cta">Camp smarter. Camp easier. Camp Bur Oaks.</span>
-        </div>
-      </div>
-    </section>
-
-    <div class="progress"><i></i></div>
-    <div class="brand"><img src="bur-oaks-logo.png" alt="" /> Bur Oaks Campground</div>
-    <div class="mini-caption" id="miniCaption">Tap to turn on the Ember voiceover and hype campfire track.</div>
   </main>
 
   <script>
-    const soundCard = document.getElementById("soundCard");
-    const startSound = document.getElementById("startSound");
-    const soundHotspot = document.getElementById("soundHotspot");
-    const miniCaption = document.getElementById("miniCaption");
-
-    const captions = [
-      { at: 0, text: "Bur Oaks campers, the new camper portal is here." },
-      { at: 12, text: "Weather, bills, documents, dinner plans, alerts, and requests — all from your phone." },
-      { at: 24, text: "Clear invoices, AutoPay, ACH, documents, and electric kilowatt history." },
-      { at: 36, text: "Built for real Bur Oaks moments — including the sewer pump-out button." },
-      { at: 48, text: "Open your phone. Know your weekend." },
-      { at: 60, text: "The office sees what needs attention without hunting." },
-      { at: 72, text: "Less paperwork. Less guessing. More camping." },
-      { at: 84, text: "Welcome to the new Bur Oaks camper portal." }
+    const scenes = [
+      {
+        id: "home",
+        url: "buroakscampground.com/portal",
+        headline: "Watch a camper use Bur Oaks in one place.",
+        copy: "This is a demo camper account, built to feel like the actual portal without showing anyone’s private information.",
+        title: "Real portal home",
+        note: "A demo camper opens the portal and sees the whole weekend in one place.",
+        cursor: [78, 48],
+        duration: 4300
+      },
+      {
+        id: "wow",
+        url: "buroakscampground.com/portal",
+        headline: "This is the screen that says: look what it does.",
+        copy: "Instead of selling one feature at a time, this shows campers the whole Bur Oaks experience in one place.",
+        title: "Everything it handles",
+        note: "Invoices, ACH, pump-outs, dinners, alerts, documents, electric history, messages, and directory — all in one camper hub.",
+        cursor: [73, 38],
+        duration: 6400
+      },
+      {
+        id: "scroll",
+        url: "buroakscampground.com/portal",
+        headline: "It feels like a campground command center.",
+        copy: "The camper scrolls through useful cards instead of hunting through texts, papers, and office calls.",
+        title: "Scrolling the dashboard",
+        note: "Weather, invoices, messages, events, documents, and quick actions all live together.",
+        cursor: [70, 62],
+        scroll: -265,
+        duration: 5200
+      },
+      {
+        id: "invoices",
+        url: "buroakscampground.com/invoices",
+        headline: "Bills become clear instead of confusing.",
+        copy: "Electric, water/trash, pump-outs, credits, and fees are broken down before checkout.",
+        title: "Opening itemized invoices",
+        note: "Campers can see exactly how the total was built before they pay.",
+        cursor: [73, 56],
+        duration: 5200
+      },
+      {
+        id: "autopay",
+        url: "buroakscampground.com/autopay",
+        headline: "AutoPay and ACH cut down the paper chase.",
+        copy: "Campers can set up recurring payments and use ACH when they want a lower-fee option.",
+        title: "Setting up easier payments",
+        note: "Less check writing, fewer reminders, and cleaner receipts.",
+        cursor: [66, 42],
+        duration: 5000
+      },
+      {
+        id: "electric",
+        url: "buroakscampground.com/electric",
+        headline: "Electric history is finally easy to understand.",
+        copy: "Current and past kilowatt usage gives campers context before the bill arrives.",
+        title: "Checking kilowatt history",
+        note: "A camper can see what changed instead of guessing.",
+        cursor: [63, 48],
+        duration: 5000
+      },
+      {
+        id: "pump",
+        url: "buroakscampground.com/portal#pump-out",
+        headline: "The red pump-out button is the kind of thing campers remember.",
+        copy: "One tap tells the office, creates the list, and prepares the $10 charge for billing.",
+        title: "Requesting sewer pump-out",
+        note: "No phone tag. No sticky notes. The request lands where it belongs.",
+        cursor: [55, 44],
+        toast: true,
+        duration: 5200
+      },
+      {
+        id: "dinners",
+        url: "buroakscampground.com/dinners",
+        headline: "Saturday dinners feel organized before anyone shows up.",
+        copy: "Campers can add guests, choose what they are bringing, and see what others already claimed.",
+        title: "Planning Saturday dinner",
+        note: "This is campground life — not just software.",
+        cursor: [76, 50],
+        duration: 5200
+      },
+      {
+        id: "messages",
+        url: "buroakscampground.com/messages",
+        headline: "Messages, alerts, and documents stop getting lost.",
+        copy: "Office messages, text alerts, signed leases, and directory connections all stay organized.",
+        title: "Staying connected",
+        note: "The portal makes Bur Oaks feel easier, clearer, and more connected.",
+        cursor: [72, 50],
+        duration: 5600
+      },
+      {
+        id: "finale",
+        url: "buroakscampground.com/portal",
+        headline: "Coming January 2027 — and this is only the beginning.",
+        copy: "A cleaner, easier, more connected way to camp at Bur Oaks is on the way.",
+        title: "Coming January 2027",
+        note: "Payments, alerts, documents, dinners, pump-outs, messages, and more — built around real campground life.",
+        cursor: [50, 50],
+        duration: 7200
+      }
     ];
 
-    let audioContext;
-    let voiceoverAudio;
-    let backgroundAudio;
-    let fireTimer;
-    let cricketTimer;
-    let musicTimer;
-    let captionTimers = [];
+    const headline = document.getElementById("headline");
+    const copy = document.getElementById("copy");
+    const url = document.getElementById("url");
+    const noteTitle = document.getElementById("noteTitle");
+    const noteCopy = document.getElementById("noteCopy");
+    const cursor = document.getElementById("cursor");
+    const toast = document.getElementById("toast");
+    const soundButton = document.getElementById("soundButton");
+    const floatingSound = document.getElementById("floatingSound");
+    const scrollFeed = document.getElementById("scrollFeed");
+    const feeds = [...document.querySelectorAll(".portal-feed")];
+    const stepPills = [...document.querySelectorAll(".steps div")];
+    let current = 0;
+    let timer;
+    let voiceover;
+    let music;
 
-    async function playOptionalAudioFile(fileName, volume = 1) {
-      const audio = new Audio(fileName);
+    function setScene(index) {
+      current = index % scenes.length;
+      const scene = scenes[current];
+      feeds.forEach((feed) => feed.classList.toggle("active", feed.dataset.screen === scene.id));
+      stepPills.forEach((pill) => pill.classList.toggle("active", pill.dataset.step === scene.id));
+      headline.textContent = scene.headline;
+      copy.textContent = scene.copy;
+      url.textContent = scene.url;
+      noteTitle.textContent = scene.title;
+      noteCopy.textContent = scene.note;
+      toast.classList.toggle("show", Boolean(scene.toast));
+      cursor.style.left = `${scene.cursor[0]}%`;
+      cursor.style.top = `${scene.cursor[1]}%`;
+      cursor.classList.remove("click");
+      void cursor.offsetWidth;
+      cursor.classList.add("click");
+      if (scrollFeed) scrollFeed.style.setProperty("--scroll", `${scene.scroll || 0}px`);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => setScene(current + 1), scene.duration);
+    }
+
+    async function playAudio(file, volume, loop = false) {
+      const audio = new Audio(file);
       audio.volume = volume;
+      audio.loop = loop;
       audio.preload = "auto";
       try {
         await audio.play();
@@ -1006,239 +1388,19 @@
       }
     }
 
-    function playTone(master, frequency, duration, options = {}) {
-      const now = audioContext.currentTime + (options.delay || 0);
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      const filter = audioContext.createBiquadFilter();
-      oscillator.type = options.type || "sine";
-      oscillator.frequency.setValueAtTime(frequency, now);
-      filter.type = options.filterType || "lowpass";
-      filter.frequency.value = options.filterFrequency || 1800;
-      gain.gain.setValueAtTime(0.001, now);
-      gain.gain.exponentialRampToValueAtTime(options.volume || 0.04, now + (options.attack || 0.018));
-      gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      oscillator.connect(filter);
-      filter.connect(gain);
-      gain.connect(master);
-      oscillator.start(now);
-      oscillator.stop(now + duration + 0.04);
+    async function startAudio() {
+      if (voiceover) voiceover.pause();
+      if (music) music.pause();
+      voiceover = await playAudio("portal-promo-voiceover.mp3", 0.88);
+      music = await playAudio("portal-promo-background.wav", 0.18, true);
+      const label = music || voiceover ? "🔊 Audio is playing" : "🔇 Browser blocked audio — tap again";
+      soundButton.textContent = label;
+      floatingSound.textContent = label;
     }
 
-    function playKick(master) {
-      const now = audioContext.currentTime;
-      const oscillator = audioContext.createOscillator();
-      const gain = audioContext.createGain();
-      oscillator.type = "sine";
-      oscillator.frequency.setValueAtTime(96, now);
-      oscillator.frequency.exponentialRampToValueAtTime(42, now + 0.17);
-      gain.gain.setValueAtTime(0.001, now);
-      gain.gain.exponentialRampToValueAtTime(0.13, now + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.21);
-      oscillator.connect(gain);
-      gain.connect(master);
-      oscillator.start(now);
-      oscillator.stop(now + 0.23);
-    }
-
-    function playClap(master) {
-      const now = audioContext.currentTime;
-      const source = audioContext.createBufferSource();
-      const buffer = audioContext.createBuffer(1, Math.floor(audioContext.sampleRate * 0.08), audioContext.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < data.length; i += 1) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 1.7);
-      }
-      const gain = audioContext.createGain();
-      const filter = audioContext.createBiquadFilter();
-      filter.type = "highpass";
-      filter.frequency.value = 2500;
-      gain.gain.setValueAtTime(0.001, now);
-      gain.gain.exponentialRampToValueAtTime(0.055, now + 0.008);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
-      source.buffer = buffer;
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(master);
-      source.start(now);
-      source.stop(now + 0.09);
-    }
-
-    function startBuiltInHype(master) {
-      const chords = [
-        [196, 246.94, 293.66, 392],
-        [220, 261.63, 329.63, 440],
-        [174.61, 220, 261.63, 349.23],
-        [164.81, 207.65, 246.94, 329.63]
-      ];
-      const hook = [392, 440, 493.88, 587.33, 493.88, 440, 392, 329.63];
-      let step = 0;
-
-      musicTimer = window.setInterval(() => {
-        const chord = chords[Math.floor(step / 8) % chords.length];
-        if (step % 8 === 0) {
-          chord.forEach((note, index) => {
-            playTone(master, note, 1.8, {
-              type: "sine",
-              volume: 0.013,
-              delay: index * 0.014,
-              filterFrequency: 920
-            });
-          });
-        }
-        if (step % 4 === 0) playKick(master);
-        if (step % 4 === 2) playClap(master);
-        if (step % 2 === 0) {
-          playTone(master, hook[(step / 2) % hook.length], 0.24, {
-            type: "triangle",
-            volume: 0.031,
-            filterFrequency: 2600,
-            attack: 0.008
-          });
-        }
-        step += 1;
-      }, 360);
-    }
-
-    async function startGeneratedMusic() {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return false;
-      audioContext = new AudioContext();
-
-      if (audioContext.state === "suspended") {
-        try {
-          await audioContext.resume();
-        } catch {
-          return false;
-        }
-      }
-
-      const master = audioContext.createGain();
-      master.gain.value = 0.078;
-      master.connect(audioContext.destination);
-
-      const low = audioContext.createOscillator();
-      const lowGain = audioContext.createGain();
-      low.type = "sine";
-      low.frequency.value = 82;
-      lowGain.gain.value = 0.1;
-      low.connect(lowGain);
-      lowGain.connect(master);
-      low.start();
-
-      fireTimer = window.setInterval(() => {
-        const now = audioContext.currentTime;
-        const source = audioContext.createBufferSource();
-        const buffer = audioContext.createBuffer(1, audioContext.sampleRate * 0.07, audioContext.sampleRate);
-        const data = buffer.getChannelData(0);
-        for (let i = 0; i < data.length; i += 1) {
-          data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / data.length, 2);
-        }
-        const gain = audioContext.createGain();
-        const filter = audioContext.createBiquadFilter();
-        filter.type = "bandpass";
-        filter.frequency.value = 650 + Math.random() * 1400;
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.exponentialRampToValueAtTime(0.12 + Math.random() * 0.08, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
-        source.buffer = buffer;
-        source.connect(filter);
-        filter.connect(gain);
-        gain.connect(master);
-        source.start(now);
-        source.stop(now + 0.08);
-      }, 115);
-
-      cricketTimer = window.setInterval(() => {
-        const now = audioContext.currentTime;
-        const chirp = audioContext.createOscillator();
-        const chirpGain = audioContext.createGain();
-        const filter = audioContext.createBiquadFilter();
-        chirp.type = "triangle";
-        chirp.frequency.value = 3100 + Math.random() * 850;
-        filter.type = "bandpass";
-        filter.frequency.value = 3600;
-        filter.Q.value = 8;
-        chirpGain.gain.setValueAtTime(0.001, now);
-        chirpGain.gain.exponentialRampToValueAtTime(0.025 + Math.random() * 0.016, now + 0.018);
-        chirpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-        chirp.connect(filter);
-        filter.connect(chirpGain);
-        chirpGain.connect(master);
-        chirp.start(now);
-        chirp.stop(now + 0.12);
-      }, 1050 + Math.random() * 400);
-
-      startBuiltInHype(master);
-      return audioContext.state === "running";
-    }
-
-    function clearAll() {
-      captionTimers.forEach((timer) => window.clearTimeout(timer));
-      captionTimers = [];
-      [fireTimer, cricketTimer, musicTimer].forEach((timer) => {
-        if (timer) window.clearInterval(timer);
-      });
-      fireTimer = null;
-      cricketTimer = null;
-      musicTimer = null;
-      [voiceoverAudio, backgroundAudio].forEach((audio) => {
-        if (audio) {
-          audio.pause();
-          audio.currentTime = 0;
-        }
-      });
-      voiceoverAudio = null;
-      backgroundAudio = null;
-      if (audioContext && audioContext.state !== "closed") {
-        audioContext.close().catch(() => {});
-      }
-      audioContext = null;
-    }
-
-    function startVisuals() {
-      document.body.classList.remove("playing");
-      void document.body.offsetWidth;
-      document.body.classList.add("playing");
-      captions.forEach((item) => {
-        captionTimers.push(window.setTimeout(() => {
-          miniCaption.textContent = item.text;
-        }, item.at * 1000));
-      });
-    }
-
-    async function startWithSound() {
-      document.body.classList.remove("sound-needed");
-      clearAll();
-      startVisuals();
-
-      voiceoverAudio = await playOptionalAudioFile("portal-promo-voiceover.mp3", 1);
-      backgroundAudio = await playOptionalAudioFile("portal-promo-background.mp3", 0.34);
-      const generatedMusic = backgroundAudio ? false : await startGeneratedMusic();
-
-      if (voiceoverAudio) {
-        miniCaption.textContent = backgroundAudio ? "Voiceover and music are playing." : "Voiceover is playing with the generated hype campfire track.";
-      } else if (generatedMusic) {
-        miniCaption.textContent = "Generated hype campfire track is playing. Voiceover file not found.";
-      } else {
-        miniCaption.textContent = "Sound could not start, but the trailer is still playing.";
-      }
-    }
-
-    function startMuted() {
-      clearAll();
-      startVisuals();
-      document.body.classList.add("sound-needed");
-      miniCaption.textContent = "Tap to turn on the Ember voiceover and hype campfire track.";
-    }
-
-    startSound.addEventListener("click", (event) => {
-      event.stopPropagation();
-      startWithSound();
-    });
-    soundCard.addEventListener("click", () => startWithSound());
-    soundHotspot.addEventListener("click", () => startWithSound());
-    window.addEventListener("load", startMuted);
+    soundButton.addEventListener("click", startAudio);
+    floatingSound.addEventListener("click", startAudio);
+    window.addEventListener("load", () => setScene(0));
   </script>
 </body>
 </html>
