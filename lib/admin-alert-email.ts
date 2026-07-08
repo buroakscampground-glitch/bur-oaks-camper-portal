@@ -7,6 +7,7 @@ type AdminAlertEmailInput = {
   details?: Array<{ label: string; value: string | number | null | undefined }>
   actionUrl?: string
   actionLabel?: string
+  recipients?: string[]
 }
 
 export function adminAlertEmailConfigured() {
@@ -32,6 +33,7 @@ export async function sendAdminAlertEmail({
   details = [],
   actionUrl,
   actionLabel = 'Open admin portal',
+  recipients,
 }: AdminAlertEmailInput) {
   const apiKey = process.env.RESEND_API_KEY
 
@@ -39,7 +41,9 @@ export async function sendAdminAlertEmail({
     return { skipped: true, reason: 'RESEND_API_KEY is not configured.' }
   }
 
-  const to = adminAlertRecipients()
+  const to = (recipients?.length ? recipients : adminAlertRecipients())
+    .map((email) => email.trim())
+    .filter(Boolean)
   const from =
     process.env.ADMIN_ALERT_FROM ||
     process.env.PORTAL_INVITE_FROM ||

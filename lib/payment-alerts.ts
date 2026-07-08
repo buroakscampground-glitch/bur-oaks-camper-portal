@@ -10,6 +10,17 @@ type PaymentAlertInput = {
   origin?: string | null
 }
 
+function paymentAlertRecipients() {
+  const raw =
+    process.env.PAYMENT_ALERT_EMAILS ||
+    'buroakscampground@gmail.com,dlfinlee@gmail.com'
+
+  return raw
+    .split(',')
+    .map((email) => email.trim())
+    .filter(Boolean)
+}
+
 export async function sendPaymentReceivedAlert({
   admin,
   invoiceIds,
@@ -66,6 +77,7 @@ export async function sendPaymentReceivedAlert({
       ],
       actionUrl: `${origin || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com'}/admin/invoices`,
       actionLabel: 'View invoices',
+      recipients: paymentAlertRecipients(),
     })
 
     if ((emailResult as any)?.skipped) {
