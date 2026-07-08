@@ -11,6 +11,17 @@ type SendInvoiceEmailOptions = {
   sentBy?: string | null
 }
 
+type EmailProvider = 'sendgrid' | 'resend'
+
+type EmailPayload = {
+  to: string[]
+  from: string
+  replyTo: string
+  subject: string
+  html: string
+  text: string
+}
+
 function money(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
     style: 'currency',
@@ -53,6 +64,176 @@ function camperRecipients(camper: any) {
 
 function isResendTestSender(from: string) {
   return /<\s*onboarding@resend\.dev\s*>/i.test(from) || /(^|\s)onboarding@resend\.dev(\s|$)/i.test(from)
+}
+
+function parseSender(value: string) {
+  const trimmed = value.trim()
+  const match = trimmed.match(/^(.*?)<([^>]+)>$/)
+
+  if (match) {
+    return {
+      name: match[1].trim().replace(/^"|"$/g, '') || undefined,
+      email: match[2].trim(),
+    }
+  }
+
+  return { email: trimmed }
+}
+
+function senderEmail(value: string) {
+  return parseSender(value).email
+}
+
+function invoiceEmailFrom() {
+  return (
+    process.env.SENDGRID_FROM ||
+    process.env.INVOICE_EMAIL_FROM ||
+    process.env.CAMPER_MESSAGE_FROM ||
+    process.env.PORTAL_INVITE_FROM ||
+    process.env.ADMIN_ALERT_FROM ||
+    ''
+  ).trim()
+}
+
+function invoiceEmailReplyTo() {
+  return (
+    process.env.SENDGRID_REPLY_TO ||
+    process.env.INVOICE_EMAIL_REPLY_TO ||
+    process.env.CAMPER_MESSAGE_REPLY_TO ||
+    process.env.ADMIN_ALERT_REPLY_TO ||
+    process.env.PORTAL_INVITE_REPLY_TO ||
+    'buroakscampground@gmail.com'
+  ).trim()
+}
+
+export function invoiceEmailProviderStatus() {
+  const from = invoiceEmailFrom()
+
+  if (process.env.SENDGRID_API_KEY) {
+    return {
+      provider: 'sendgrid' as EmailProvider,
+      configured: Boolean(from),
+      from,
+      replyTo: invoiceEmailReplyTo(),
+      reason: from ? '' : 'SENDGRID_FROM or INVOICE_EMAIL_FROM is not configured.',
+    }
+  }
+
+  if (process.env.RESEND_API_KEY) {
+    return {
+      provider: 'resend' as EmailProvider,
+      configured: Boolean(from) && !isResendTestSender(from),
+      from: from || 'Bur Oaks Campground <onboarding@resend.dev>',
+      replyTo: invoiceEmailReplyTo(),
+      reason:
+        !from || isResendTestSender(from)
+          ? 'Resend needs a verified sending domain. The current sender is missing or uses the Resend test sender.'
+          : '',
+    }
+  }
+
+  return {
+    provider: null,
+    configured: false,
+    from,
+    replyTo: invoiceEmailReplyTo(),
+    reason: 'No invoice email provider is configured. Add SENDGRID_API_KEY or RESEND_API_KEY.',
+  }
+}
+
+async function sendWithSendGrid(payload: EmailPayload) {
+  const apiKey = process.env.SENDGRID_API_KEY
+  if (!apiKey) return { sent: false, error: 'SENDGRID_API_KEY is not configured.' }
+
+  const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      personalizations: [
+        {
+          to: payload.to.map((email) => ({ email })),
+          subject: payload.subject,
+        },
+      ],
+      from: parseSender(payload.from),
+      reply_to: { email: senderEmail(payload.replyTo) },
+      content: [
+        { type: 'text/plain', value: payload.text },
+        { type: 'text/html', value: payload.html },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '')
+    return {
+      sent: false,
+      error: errorText || `SendGrid rejected the email with status ${response.status}.`,
+    }
+  }
+
+  return {
+    sent: true,
+    providerMessageId: response.headers.get('x-message-id') || null,
+  }
+}
+
+async function sendWithResend(payload: EmailPayload) {
+  const apiKey = process.env.RESEND_API_KEY
+  if (!apiKey) return { sent: false, error: 'RESEND_API_KEY is not configured.' }
+
+  if (isResendTestSender(payload.from)) {
+    return {
+      sent: false,
+      error: 'Resend needs a verified sending domain. The current sender is the Resend test sender.',
+    }
+  }
+
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: payload.from,
+      to: payload.to,
+      reply_to: payload.replyTo,
+      subject: payload.subject,
+      html: payload.html,
+      text: payload.text,
+    }),
+  })
+
+  const result = await response.json().catch(() => ({}))
+
+  if (!response.ok) {
+    return {
+      sent: false,
+      error: result?.message || result?.name || 'Resend rejected the email.',
+    }
+  }
+
+  return { sent: true, providerMessageId: result?.id || null }
+}
+
+async function sendInvoiceEmailPayload(payload: EmailPayload) {
+  const status = invoiceEmailProviderStatus()
+
+  if (!status.configured || !status.provider) {
+    return { sent: false, provider: status.provider, error: status.reason }
+  }
+
+  if (status.provider === 'sendgrid') {
+    const result = await sendWithSendGrid(payload)
+    return { ...result, provider: 'sendgrid' as EmailProvider }
+  }
+
+  const result = await sendWithResend(payload)
+  return { ...result, provider: 'resend' as EmailProvider }
 }
 
 function emailCopy(invoice: any, kind: InvoiceEmailKind) {
@@ -143,10 +324,10 @@ export async function sendInvoiceEmail({
   reminderDate,
   sentBy = 'automation',
 }: SendInvoiceEmailOptions) {
-  const apiKey = process.env.RESEND_API_KEY
+  const providerStatus = invoiceEmailProviderStatus()
 
-  if (!apiKey) {
-    return { status: 'skipped', reason: 'RESEND_API_KEY is not configured.' }
+  if (!providerStatus.configured) {
+    return { status: 'skipped', reason: providerStatus.reason }
   }
 
   const { data: invoice, error: invoiceError } = await client
@@ -201,25 +382,8 @@ export async function sendInvoiceEmail({
   const copy = emailCopy(invoice, kind)
   const items = Array.isArray(invoice.invoice_items) ? invoice.invoice_items : []
   const rows = itemRows(items)
-  const from =
-    process.env.INVOICE_EMAIL_FROM ||
-    process.env.CAMPER_MESSAGE_FROM ||
-    process.env.PORTAL_INVITE_FROM ||
-    process.env.ADMIN_ALERT_FROM ||
-    'Bur Oaks Campground <onboarding@resend.dev>'
-  const replyTo =
-    process.env.INVOICE_EMAIL_REPLY_TO ||
-    process.env.CAMPER_MESSAGE_REPLY_TO ||
-    process.env.ADMIN_ALERT_REPLY_TO ||
-    process.env.PORTAL_INVITE_REPLY_TO ||
-    'buroakscampground@gmail.com'
-
-  if (isResendTestSender(from)) {
-    return {
-      status: 'skipped',
-      reason: 'Invoice emails need a verified Resend sending domain. The current sender is the Resend test sender.',
-    }
-  }
+  const from = providerStatus.from
+  const replyTo = providerStatus.replyTo
 
   const text = [
     `Hi ${camperName},`,
@@ -274,24 +438,16 @@ export async function sendInvoiceEmail({
     </div>
   `
 
-  const response = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: recipients,
-      reply_to: replyTo,
-      subject: copy.subject,
-      html,
-      text,
-    }),
+  const result = await sendInvoiceEmailPayload({
+    from,
+    to: recipients,
+    replyTo,
+    subject: copy.subject,
+    html,
+    text,
   })
-
-  const result = await response.json().catch(() => ({}))
-  const sent = response.ok
+  const providerMessageId = 'providerMessageId' in result ? result.providerMessageId : null
+  const sent = result.sent
 
   const message = `${copy.heading} ${copy.intro} ${copy.statusLine} View and pay: ${actionUrl}`
   const logRow = {
@@ -303,9 +459,9 @@ export async function sendInvoiceEmail({
     status: sent ? 'sent' : 'failed',
     recipient_phone: null,
     recipient_email: recipients.join(', '),
-    provider: 'resend',
-    provider_message_id: sent ? result?.id || null : null,
-    error_message: sent ? null : result?.message || result?.name || 'Invoice email could not be sent.',
+    provider: result.provider || providerStatus.provider,
+    provider_message_id: sent ? providerMessageId || null : null,
+    error_message: sent ? null : result.error || 'Invoice email could not be sent.',
     sent_by: sentBy,
     reminder_date: reminderDate,
     automation_key: automationKey,
@@ -322,14 +478,69 @@ export async function sendInvoiceEmail({
   }
 
   if (!sent) {
-    console.error('Invoice email rejected by Resend:', {
+    console.error('Invoice email rejected by provider:', {
+      provider: result.provider || providerStatus.provider,
       invoiceId,
-      status: response.status,
-      message: result?.message,
-      name: result?.name,
+      error: result.error,
     })
-    return { status: 'failed', error: result?.message || 'Invoice email could not be sent.' }
+    return { status: 'failed', error: result.error || 'Invoice email could not be sent.' }
   }
 
-  return { status: 'sent', providerMessageId: result?.id, recipients: recipients.length }
+  return { status: 'sent', provider: result.provider, providerMessageId, recipients: recipients.length }
+}
+
+export async function sendInvoiceEmailTest(to: string, origin = 'https://www.buroakscampground.com') {
+  const status = invoiceEmailProviderStatus()
+
+  if (!status.configured || !status.provider) {
+    return { status: 'skipped', reason: status.reason, providerStatus: status }
+  }
+
+  const recipient = cleanEmail(to)
+  if (!isRealEmail(recipient)) {
+    return { status: 'failed', error: 'Enter a real test email address.', providerStatus: status }
+  }
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;background:#f5f1e8;padding:28px;color:#26382d">
+      <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2dccf">
+        <div style="background:#214b31;color:#fff;padding:24px 28px">
+          <div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#d8c18b;font-weight:700">Bur Oaks Campground</div>
+          <h1 style="margin:8px 0 0;font-family:Georgia,serif;font-weight:500">Invoice email test</h1>
+        </div>
+        <div style="padding:28px">
+          <p style="font-size:16px;line-height:1.55;margin-top:0">This is a test of the automatic invoice email system.</p>
+          <p style="font-size:16px;line-height:1.55">If you received this, the portal can send invoice notices and reminders through ${escapeHtml(status.provider)}.</p>
+          <a href="${origin}/invoices" style="display:inline-block;margin-top:6px;background:#2f5b3b;color:#fff;text-decoration:none;padding:13px 17px;border-radius:12px;font-weight:700">Open camper invoices</a>
+        </div>
+      </div>
+    </div>
+  `
+  const text = [
+    'Bur Oaks Campground invoice email test',
+    '',
+    'This is a test of the automatic invoice email system.',
+    `Provider: ${status.provider}`,
+    `Open camper invoices: ${origin}/invoices`,
+  ].join('\n')
+
+  const result = await sendInvoiceEmailPayload({
+    from: status.from,
+    replyTo: status.replyTo,
+    to: [recipient],
+    subject: 'Bur Oaks invoice email test',
+    html,
+    text,
+  })
+
+  if (!result.sent) {
+    return { status: 'failed', error: result.error || 'Invoice email test failed.', providerStatus: status }
+  }
+
+  return {
+    status: 'sent',
+    provider: result.provider,
+    providerMessageId: 'providerMessageId' in result ? result.providerMessageId : null,
+    providerStatus: status,
+  }
 }
