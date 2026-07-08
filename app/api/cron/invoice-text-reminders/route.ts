@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { sendInvoiceEmail } from '../../../../lib/invoice-emailing'
 import { daysUntilDate, sendInvoiceText, todayInCentral } from '../../../../lib/invoice-texting'
 
 export const dynamic = 'force-dynamic'
@@ -45,7 +46,8 @@ export async function GET(request: Request) {
 
   const summary = {
     checked: invoices?.length || 0,
-    sent: 0,
+    textSent: 0,
+    emailSent: 0,
     skipped: 0,
     failed: 0,
     results: [] as any[],
@@ -53,42 +55,71 @@ export async function GET(request: Request) {
 
   for (const invoice of invoices || []) {
     const daysUntilDue = daysUntilDate(String(invoice.due_date), today)
-    let kind: 'due_3_days' | 'due_1_day' | 'past_due' | null = null
+    let kind: 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | null = null
     let automationKey = ''
+    let emailAutomationKey = ''
 
     if (daysUntilDue === 3) {
       kind = 'due_3_days'
       automationKey = 'invoice-due-3'
+      emailAutomationKey = 'invoice-due-3-email'
     } else if (daysUntilDue === 1) {
       kind = 'due_1_day'
       automationKey = 'invoice-due-1'
+      emailAutomationKey = 'invoice-due-1-email'
+    } else if (daysUntilDue === 0) {
+      kind = 'due_today'
+      automationKey = 'invoice-due-today'
+      emailAutomationKey = 'invoice-due-today-email'
     } else if (daysUntilDue < 0) {
       kind = 'past_due'
       automationKey = 'invoice-past-due'
+      emailAutomationKey = 'invoice-past-due-email'
     }
 
     if (!kind) continue
 
-    const result = await sendInvoiceText({
-      client: admin,
-      invoiceId: invoice.id,
-      kind,
-      automationKey,
-      reminderDate: today,
-      sentBy: 'invoice-reminder-cron',
-    })
+    const [textResult, emailResult] = await Promise.all([
+      sendInvoiceText({
+        client: admin,
+        invoiceId: invoice.id,
+        kind,
+        automationKey,
+        reminderDate: today,
+        sentBy: 'invoice-reminder-cron',
+      }),
+      sendInvoiceEmail({
+        client: admin,
+        invoiceId: invoice.id,
+        kind,
+        automationKey: emailAutomationKey,
+        reminderDate: today,
+        sentBy: 'invoice-reminder-cron',
+      }),
+    ])
 
-    if (result.status === 'sent') summary.sent += 1
-    else if (result.status === 'failed') summary.failed += 1
+    if (textResult.status === 'sent') summary.textSent += 1
+    else if (textResult.status === 'failed') summary.failed += 1
+    else summary.skipped += 1
+
+    if (emailResult.status === 'sent') summary.emailSent += 1
+    else if (emailResult.status === 'failed') summary.failed += 1
     else summary.skipped += 1
 
     summary.results.push({
       invoiceId: invoice.id,
       dueDate: invoice.due_date,
       kind,
-      status: result.status,
-      reason: 'reason' in result ? result.reason : undefined,
-      error: 'error' in result ? result.error : undefined,
+      text: {
+        status: textResult.status,
+        reason: 'reason' in textResult ? textResult.reason : undefined,
+        error: 'error' in textResult ? textResult.error : undefined,
+      },
+      email: {
+        status: emailResult.status,
+        reason: 'reason' in emailResult ? emailResult.reason : undefined,
+        error: 'error' in emailResult ? emailResult.error : undefined,
+      },
     })
   }
 

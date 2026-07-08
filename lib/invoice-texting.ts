@@ -1,6 +1,6 @@
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 
-type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'past_due'
+type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due'
 
 type SendInvoiceTextOptions = {
   client: any
@@ -69,6 +69,10 @@ function buildInvoiceSms(invoice: any, kind: InvoiceTextKind) {
 
   if (kind === 'due_1_day') {
     return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due tomorrow, ${due}. View and pay in your camper portal. Reply STOP to opt out.`
+  }
+
+  if (kind === 'due_today') {
+    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due today, ${due}. View and pay in your camper portal. Reply STOP to opt out.`
   }
 
   return `Bur Oaks Campground: Past due reminder — invoice #${invoiceNumber} for ${total} was due ${due}. Please pay in your camper portal or contact the office. Reply STOP to opt out.`
@@ -148,7 +152,9 @@ export async function sendInvoiceText({
           ? 'Invoice Due in 3 Days'
           : kind === 'due_1_day'
             ? 'Invoice Due Tomorrow'
-            : 'Past Due Invoice',
+            : kind === 'due_today'
+              ? 'Invoice Due Today'
+              : 'Past Due Invoice',
     message,
     sent_at: new Date().toISOString(),
     status: result.sent ? 'sent' : 'failed',

@@ -27,6 +27,22 @@ export async function notifyInvoiceCreated(invoiceId: string) {
 }
 
 export function invoiceTextSummary(result: any) {
+  const textResult = result?.text || result
+  const emailResult = result?.email
+  let summary = ''
+
+  if (textResult?.status === 'sent') summary += ' Text alert sent.'
+  else if (textResult?.status === 'failed') summary += ` Text alert failed: ${textResult.error || 'unknown error'}.`
+  else if (textResult?.status === 'skipped') summary += ` Text alert skipped: ${textResult.reason || 'not eligible'}.`
+
+  if (emailResult?.status === 'sent') summary += ' Email notice sent.'
+  else if (emailResult?.status === 'failed') summary += ` Email notice failed: ${emailResult.error || 'unknown error'}.`
+  else if (emailResult?.status === 'skipped') summary += ` Email notice skipped: ${emailResult.reason || 'not eligible'}.`
+
+  return summary
+}
+
+export function legacyInvoiceTextSummary(result: any) {
   if (!result) return ''
   if (result.status === 'sent') return ' Text alert sent.'
   if (result.status === 'failed') return ` Text alert failed: ${result.error || 'unknown error'}.`

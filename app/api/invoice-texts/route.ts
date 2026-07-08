@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { sendInvoiceEmail } from '../../../lib/invoice-emailing'
 import { sendInvoiceText, todayInCentral } from '../../../lib/invoice-texting'
 
 async function requireAdmin(request: Request) {
@@ -23,14 +24,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing invoice id.' }, { status: 400 })
   }
 
-  const result = await sendInvoiceText({
-    client: context.admin,
-    invoiceId,
-    kind: 'new',
-    automationKey: 'invoice-new',
-    reminderDate: todayInCentral(),
-    sentBy: context.user.email || 'office',
-  })
+  const today = todayInCentral()
+  const [textResult, emailResult] = await Promise.all([
+    sendInvoiceText({
+      client: context.admin,
+      invoiceId,
+      kind: 'new',
+      automationKey: 'invoice-new',
+      reminderDate: today,
+      sentBy: context.user.email || 'office',
+    }),
+    sendInvoiceEmail({
+      client: context.admin,
+      invoiceId,
+      kind: 'new',
+      automationKey: 'invoice-new-email',
+      reminderDate: today,
+      sentBy: context.user.email || 'office',
+    }),
+  ])
 
-  return NextResponse.json({ success: result.status !== 'failed', result })
+  const hasFailure = textResult.status === 'failed' || emailResult.status === 'failed'
+
+  return NextResponse.json({
+    success: !hasFailure,
+    result: {
+      text: textResult,
+      email: emailResult,
+    },
+  })
 }
