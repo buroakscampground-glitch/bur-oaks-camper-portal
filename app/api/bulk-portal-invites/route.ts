@@ -66,7 +66,7 @@ export async function POST(request: Request) {
 
     if (!portalInviteEmailConfigured()) {
       return NextResponse.json(
-        { error: 'Bulk email is not connected yet. Add RESEND_API_KEY in Vercel first.' },
+        { error: 'Bulk email is not connected yet. Add SENDGRID_API_KEY in Vercel first.' },
         { status: 400 }
       )
     }
@@ -137,7 +137,7 @@ export async function POST(request: Request) {
     for (const recipient of selected) {
       try {
         const setupUrl = await generateSetupUrl(context, recipient.email, origin)
-        await sendPortalInviteEmail({
+        const emailResult = await sendPortalInviteEmail({
           to: recipient.email,
           camperName: recipient.camperName,
           setupUrl,
@@ -147,7 +147,7 @@ export async function POST(request: Request) {
           camper_id: recipient.camperId,
           email: recipient.email,
           delivery_status: 'sent',
-          delivery_provider: 'resend',
+          delivery_provider: (emailResult as any)?.provider || 'email-service',
           sent_by: context.user.email,
         })
 
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
           camper_id: recipient.camperId,
           email: recipient.email,
           delivery_status: 'failed',
-          delivery_provider: 'resend',
+          delivery_provider: 'email-service',
           error_message: error?.message || 'Unknown email error',
           sent_by: context.user.email,
         })

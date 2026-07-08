@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { invoiceEmailProviderStatus, sendInvoiceEmailTest } from '../../../lib/invoice-emailing'
+import { portalInviteEmailProviderStatus } from '../../../lib/portal-invite-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
 export const runtime = 'nodejs'
@@ -22,6 +23,7 @@ export async function GET(request: Request) {
   }
 
   const status = invoiceEmailProviderStatus()
+  const inviteStatus = portalInviteEmailProviderStatus()
 
   return NextResponse.json({
     success: status.configured,
@@ -30,6 +32,13 @@ export async function GET(request: Request) {
     reason: status.reason,
     from: status.from ? maskSender(status.from) : '',
     replyTo: status.replyTo ? maskEmail(status.replyTo) : '',
+    portalInvites: {
+      provider: inviteStatus.provider,
+      configured: inviteStatus.configured,
+      reason: inviteStatus.reason,
+      from: inviteStatus.from ? maskSender(inviteStatus.from) : '',
+      replyTo: inviteStatus.replyTo ? maskEmail(inviteStatus.replyTo) : '',
+    },
   })
 }
 
@@ -63,4 +72,3 @@ export async function POST(request: Request) {
     },
   }, { status: result.status === 'failed' ? 500 : 200 })
 }
-

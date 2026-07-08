@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     if (portalInviteEmailConfigured()) {
       const setupUrl = await generateSetupUrl(context, email, origin)
       try {
-        await sendPortalInviteEmail({
+        const emailResult = await sendPortalInviteEmail({
           to: email,
           camperName: `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper',
           setupUrl,
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
           camper_id: camper.id,
           email,
           delivery_status: 'sent',
-          delivery_provider: 'resend',
+          delivery_provider: (emailResult as any)?.provider || 'email-service',
           sent_by: context.user.email,
         })
 
@@ -125,7 +125,7 @@ export async function POST(request: Request) {
           camper_id: camper.id,
           email,
           delivery_status: 'manual',
-          delivery_provider: 'resend-fallback',
+          delivery_provider: 'email-service-fallback',
           sent_by: context.user.email,
         })
 
