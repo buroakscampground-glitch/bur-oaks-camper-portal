@@ -86,7 +86,7 @@ const serviceLinks = [
   {
     href: '/profile',
     title: 'Camper Profile',
-    description: 'Update contact info and upload golf cart insurance.',
+    description: 'Update contact info, vehicles, text alerts, and optional insurance.',
     icon: UserRound,
     accent: 'slate',
   },
@@ -1135,7 +1135,7 @@ export default function CamperPortalPage() {
         </section>
 
         <div className="portal-content-grid">
-          <section className="portal-panel portal-services-panel">
+          <section className="portal-panel portal-services-panel" id="portal-services">
             <div className="portal-section-heading">
               <div>
                 <span>YOUR STAY</span>
@@ -1305,22 +1305,22 @@ export default function CamperPortalPage() {
             <ReceiptText size={18} />
             <span>Pay</span>
           </a>
-          <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : ''}>
-            <FileText size={18} />
-            <span>Docs</span>
-          </a>
-          <a href="/maintenance">
-            <Wrench size={18} />
-            <span>Fix</span>
-          </a>
-          <a href="/dinners">
-            <Soup size={18} />
-            <span>Dinner</span>
-          </a>
           <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump}>
             <Droplets size={18} />
             <span>Pump</span>
           </button>
+          <a href="/messages" className={unreadOfficeMessages > 0 ? 'attention' : ''}>
+            <MessageCircle size={18} />
+            <span>Office</span>
+          </a>
+          <a href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>
+            <Soup size={18} />
+            <span>Dinner</span>
+          </a>
+          <a href="#portal-services">
+            <Sparkles size={18} />
+            <span>More</span>
+          </a>
         </nav>
       </div>
     </main>
