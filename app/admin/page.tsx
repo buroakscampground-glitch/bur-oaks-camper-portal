@@ -75,6 +75,18 @@ type AdminStats = {
   needsContactInfo: number
 }
 
+type CockpitItem = {
+  id: string
+  href: string
+  type: 'pump' | 'maintenance' | 'message' | 'billing'
+  label: string
+  title: string
+  detail: string
+  status: string
+  tone: 'red' | 'gold' | 'green' | 'blue' | 'orange'
+  createdAt?: string
+}
+
 const emptyStats: AdminStats = {
   campers: 0,
   archivedCampers: 0,
@@ -118,6 +130,7 @@ const emptyStats: AdminStats = {
 export default function AdminPage() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [stats, setStats] = useState<AdminStats>(emptyStats)
+  const [cockpitItems, setCockpitItems] = useState<CockpitItem[]>([])
 
   useEffect(() => {
     checkAdmin()
@@ -178,10 +191,10 @@ export default function AdminPage() {
       supabase.from('waitlist').select('id'),
       supabase.from('admin_notifications').select('id,type').is('read_at', null),
       supabase.from('documents').select('id,document_type,signature_status,camper_id'),
-      supabase.from('sewer_pump_out_requests').select('id,status,billed_at'),
+      supabase.from('sewer_pump_out_requests').select('id,camper_name,lot_number,status,charge_amount,notes,requested_at,completed_at,billed_at').order('requested_at', { ascending: false }),
       supabase.from('site_service_charges').select('id,billed_at,cancelled_at'),
       supabase.from('account_credits').select('id,status,remaining_amount'),
-      supabase.from('office_messages').select('id').eq('sender_role', 'camper').is('read_by_admin_at', null),
+      supabase.from('office_messages').select('id,camper_id,lot_number,sender_name,sender_email,body,created_at').eq('sender_role', 'camper').is('read_by_admin_at', null).order('created_at', { ascending: false }),
       supabase.from('saturday_dinner_signups').select('*'),
     ])
 
@@ -192,6 +205,8 @@ export default function AdminPage() {
     const campers = campersResult.data || []
     const rsvps = rsvpsResult.data || []
     const dinnerSignups = dinnerResult.data || []
+    const pumpOuts = pumpOutResult.data || []
+    const unreadMessages = messageResult.data || []
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const dueSoonCutoff = new Date(today)
@@ -216,11 +231,78 @@ export default function AdminPage() {
       return !Number.isNaN(dueDate.getTime()) && dueDate >= today && dueDate <= dueSoonCutoff
     })
     const activeCredits = (creditResult.data || []).filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)
+    const activePumpOuts = pumpOuts.filter((request) => request.status !== 'cancelled' && !request.billed_at)
     const insuredCamperIds = new Set(
       documents
         .filter((document) => document.document_type === 'Golf Cart Insurance')
         .map((document) => String(document.camper_id))
     )
+
+    const liveCockpitItems: CockpitItem[] = [
+      ...activePumpOuts.map((request: any): CockpitItem => ({
+        id: `pump-${request.id}`,
+        href: '/admin/pump-outs',
+        type: 'pump',
+        label: request.status === 'completed' ? 'PUMPED / NOT BILLED' : 'PUMP-OUT REQUEST',
+        title: `Lot ${request.lot_number || 'N/A'} · ${request.camper_name || 'Camper'}`,
+        detail: request.status === 'completed'
+          ? `$${Number(request.charge_amount || 10).toFixed(2)} waiting for electric bill.`
+          : request.notes || 'Camper requested a sewer pump-out from the portal.',
+        status: request.status === 'completed' ? 'Completed, not billed' : 'Needs pumped',
+        tone: request.status === 'completed' ? 'green' : 'red',
+        createdAt: request.requested_at,
+      })),
+      ...maintenance
+        .filter((ticket) => ticket.status !== 'Completed')
+        .map((ticket: any): CockpitItem => ({
+          id: `maintenance-${ticket.id}`,
+          href: `/admin/maintenance/${ticket.id}`,
+          type: 'maintenance',
+          label: ticket.admin_approved === true ? 'ACTIVE WORK ORDER' : 'AWAITING APPROVAL',
+          title: `Lot ${ticket.lot_number || 'N/A'} · ${ticket.title || 'Maintenance request'}`,
+          detail: ticket.description || `${ticket.priority || 'Normal'} priority maintenance item.`,
+          status: ticket.admin_approved === true ? ticket.status || 'Open' : 'Needs admin approval',
+          tone: ticket.priority === 'Emergency' ? 'red' : ticket.admin_approved === true ? 'blue' : 'orange',
+          createdAt: ticket.created_at,
+        })),
+      ...unreadMessages.map((message: any): CockpitItem => ({
+        id: `message-${message.id}`,
+        href: `/admin/messages?camperId=${message.camper_id}`,
+        type: 'message',
+        label: 'OFFICE MESSAGE',
+        title: `Lot ${message.lot_number || 'N/A'} · ${message.sender_name || message.sender_email || 'Camper'}`,
+        detail: message.body || 'Camper sent a message to the office.',
+        status: 'Needs reply',
+        tone: 'gold',
+        createdAt: message.created_at,
+      })),
+      ...pastDueInvoices.slice(0, 8).map((invoice: any): CockpitItem => ({
+        id: `pastdue-${invoice.id}`,
+        href: `/admin/invoices/${invoice.id}`,
+        type: 'billing',
+        label: 'PAST DUE',
+        title: `Invoice ${invoice.invoice_number || invoice.id?.slice?.(0, 6) || ''}`,
+        detail: `$${Number(invoice.total_due || 0).toFixed(2)} due ${invoice.due_date || 'now'}.`,
+        status: 'Past due',
+        tone: 'red',
+        createdAt: invoice.due_date,
+      })),
+      ...dueSoonInvoices.slice(0, 6).map((invoice: any): CockpitItem => ({
+        id: `duesoon-${invoice.id}`,
+        href: `/admin/invoices/${invoice.id}`,
+        type: 'billing',
+        label: 'DUE SOON',
+        title: `Invoice ${invoice.invoice_number || invoice.id?.slice?.(0, 6) || ''}`,
+        detail: `$${Number(invoice.total_due || 0).toFixed(2)} due ${invoice.due_date || 'soon'}.`,
+        status: 'Almost due',
+        tone: 'gold',
+        createdAt: invoice.due_date,
+      })),
+    ]
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 9)
+
+    setCockpitItems(liveCockpitItems)
 
     setStats({
       campers: campersResult.data?.length || 0,
@@ -256,13 +338,13 @@ export default function AdminPage() {
       paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
       rsvpAlerts: notifications.filter((notification) => notification.type === 'event_rsvp').length,
       pumpOutAlerts: notifications.filter((notification) => notification.type === 'sewer_pump_out').length,
-      messageAlerts: messageResult.data?.length || notifications.filter((notification) => notification.type === 'direct_message').length,
+      messageAlerts: unreadMessages.length || notifications.filter((notification) => notification.type === 'direct_message').length,
       documentActions: documents.filter((document) => {
         const status = String(document.signature_status || '').toLowerCase()
         return status !== 'signed' && status !== 'not_required'
       }).length,
       insuranceMissing: campers.filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
-      pumpOuts: (pumpOutResult.data || []).filter((request) => request.status !== 'cancelled' && !request.billed_at).length,
+      pumpOuts: activePumpOuts.length,
       siteServices: (siteServiceResult.data || []).filter((charge) => !charge.cancelled_at && !charge.billed_at).length,
       totalUnreadAlerts: notifications.length,
       pastDueInvoices: pastDueInvoices.length,
@@ -590,42 +672,85 @@ export default function AdminPage() {
 
         <section className="admin-command-panel admin-today-panel admin-todo-panel">
           <div className="admin-command-heading">
-            <div><span>TO BE DONE</span><h2>Everything that needs your attention</h2></div>
+            <div><span>COMMAND COCKPIT</span><h2>Everything that needs your attention</h2></div>
             <a href="/admin/notifications">Open notifications <ArrowRight size={16} /></a>
           </div>
-          <div className={toDoTotal ? 'admin-todo-summary attention' : 'admin-todo-summary'}>
-            <div>
-              <small>Today’s pressure gauge</small>
-              <strong>{toDoTotal ? `${toDoTotal} things to watch` : 'All clear'}</strong>
+          <div className={toDoTotal ? 'admin-cockpit attention' : 'admin-cockpit'}>
+            <div className="admin-cockpit-radar">
+              <span className="admin-cockpit-sweep" />
+              <div>
+                <small>Operations telemetry</small>
+                <strong>{toDoTotal || 'Clear'}</strong>
+                <em>{toDoTotal ? 'active signals' : 'no active signals'}</em>
+              </div>
+            </div>
+
+            <div className="admin-cockpit-readout">
+              <small>Today’s command status</small>
+              <h3>{toDoTotal ? 'Action needed, but it is under control.' : 'All quiet at Bur Oaks.'}</h3>
               <p>
                 {toDoTotal
-                  ? 'This board pulls the campground’s scattered loose ends into one place.'
-                  : 'No urgent admin items are showing right now. Suspiciously peaceful, but we’ll take it.'}
+                  ? 'Pump-outs, maintenance, unread office messages, billing pressure, dinner activity, and camper cleanup are rolled into this one board.'
+                  : 'Nothing urgent is showing right now. If a camper submits a request, it will light up here.'}
               </p>
+              <div>
+                <a href="/admin/pump-outs"><Droplets size={16} /> Pump-outs</a>
+                <a href="/admin/maintenance"><Wrench size={16} /> Maintenance</a>
+                <a href="/admin/messages"><MessageCircle size={16} /> Messages</a>
+                <a href="/admin/open-balance"><ReceiptText size={16} /> Billing</a>
+              </div>
             </div>
-            <a href="/admin/launch">Open launch monitor <ArrowRight size={16} /></a>
+
+            <div className="admin-cockpit-gauges">
+              {toDoItems.slice(0, 8).map((item) => {
+                const Icon = item.icon
+                return (
+                  <a href={item.href} className={item.urgent ? 'hot' : ''} key={item.title}>
+                    <Icon size={18} />
+                    <span>
+                      <small>{item.title}</small>
+                      <strong>{item.count || 'OK'}</strong>
+                    </span>
+                  </a>
+                )
+              })}
+            </div>
           </div>
 
-          <div className="admin-todo-board">
-            <a href="/admin/notifications" className={stats.totalUnreadAlerts ? 'attention' : ''}>
-              <BellRing size={22} />
-              <span><small>Unread alerts</small><strong>{stats.totalUnreadAlerts || 'Clear'}</strong><em>{stats.totalUnreadAlerts ? 'New activity to review' : 'No new alerts'}</em></span>
-              <ArrowRight size={17} />
-            </a>
-            {toDoItems.map((item) => {
-              const Icon = item.icon
-              return (
-                <a href={item.href} className={item.urgent ? 'attention' : ''} key={item.title}>
-                  <Icon size={22} />
-                  <span>
-                    <small>{item.title}</small>
-                    <strong>{item.count || 'Clear'}</strong>
-                    <em>{item.detail}</em>
-                  </span>
-                  <ArrowRight size={17} />
-                </a>
-              )
-            })}
+          <div className="admin-cockpit-live">
+            <div className="admin-cockpit-live-head">
+              <span><Gauge size={18} /> Live request queue</span>
+              <small>{cockpitItems.length ? `${cockpitItems.length} newest signals` : 'Nothing waiting'}</small>
+            </div>
+            {cockpitItems.length ? (
+              <div className="admin-cockpit-stream">
+                {cockpitItems.map((item) => {
+                  const Icon =
+                    item.type === 'pump' ? Droplets :
+                    item.type === 'maintenance' ? Wrench :
+                    item.type === 'message' ? MessageCircle :
+                    ReceiptText
+
+                  return (
+                    <a href={item.href} className={`admin-cockpit-signal ${item.tone}`} key={item.id}>
+                      <span><Icon size={19} /></span>
+                      <div>
+                        <small>{item.label}</small>
+                        <strong>{item.title}</strong>
+                        <p>{item.detail}</p>
+                      </div>
+                      <em>{item.status}</em>
+                    </a>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="admin-cockpit-empty">
+                <ShieldCheck size={24} />
+                <strong>No open requests in the cockpit.</strong>
+                <p>New pump-outs, maintenance tickets, unread messages, and billing pressure will appear here automatically.</p>
+              </div>
+            )}
           </div>
         </section>
 
