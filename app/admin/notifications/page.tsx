@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BellRing, CheckCheck, CircleDollarSign, Droplets, MessageCircle, MessageSquareWarning, PartyPopper, Search, Soup, Wrench } from 'lucide-react'
+import { BellRing, CheckCheck, CircleDollarSign, Droplets, MessageCircle, MessageSquareWarning, PartyPopper, Search, Soup, UsersRound, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import AdminQuickText from '../../../components/AdminQuickText'
 
@@ -12,6 +12,7 @@ const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   saturday_dinner: { label: 'Saturday Dinner', icon: Soup, href: '/admin/dinners' },
   sewer_pump_out: { label: 'Sewer Pump-Out', icon: Droplets, href: '/admin/pump-outs' },
   direct_message: { label: 'Camper Message', icon: MessageCircle, href: '/admin/messages' },
+  website_waitlist: { label: 'Website Waitlist', icon: UsersRound, href: '/admin/waitlist' },
 }
 
 export default function AdminNotificationsPage() {

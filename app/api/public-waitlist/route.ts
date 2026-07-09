@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getSiteUrl } from '../../../lib/site-url'
 
@@ -69,15 +70,19 @@ export async function POST(request: Request) {
       'Submitted from public website availability form.',
     ].filter(Boolean).join('\n\n')
 
-    const { error } = await admin.from('waitlist').insert({
-      first_name: firstName,
-      last_name: lastName,
-      phone,
-      email,
-      desired_site: desiredSite,
-      notes: visitorNotes,
-      status: 'Waiting',
-    })
+    const { data: waitlistEntry, error } = await admin
+      .from('waitlist')
+      .insert({
+        first_name: firstName,
+        last_name: lastName,
+        phone,
+        email,
+        desired_site: desiredSite,
+        notes: visitorNotes,
+        status: 'Waiting',
+      })
+      .select('id')
+      .single()
 
     if (error) {
       console.error('Public waitlist insert failed:', error)
@@ -88,25 +93,48 @@ export async function POST(request: Request) {
     }
 
     const fullName = `${firstName} ${lastName}`.trim()
+    const alertTitle = `New website waitlist request: ${fullName}`
+    const alertMessage = `${fullName} filled out the seasonal site interest form on the Bur Oaks website.`
 
-    sendAdminAlertEmail({
-      subject: `New website waitlist request: ${fullName}`,
-      heading: 'New website waitlist request',
-      message: `${fullName} filled out the seasonal site interest form on the Bur Oaks website.`,
-      details: [
-        { label: 'Name', value: fullName },
-        { label: 'Phone', value: phone },
-        { label: 'Email', value: email },
-        { label: 'Desired site / camper info', value: desiredSite },
-        { label: 'Notes', value: notes },
-      ],
-      actionUrl: `${getSiteUrl()}/admin/waitlist`,
-      actionLabel: 'Open waitlist',
-    }).catch((error) => {
-      console.error('Public waitlist admin email failed:', error)
-    })
+    await createAdminNotification(admin, {
+      type: 'website_waitlist',
+      title: alertTitle,
+      message: alertMessage,
+      lot_number: desiredSite || null,
+      source_table: 'waitlist',
+      source_id: waitlistEntry?.id ? String(waitlistEntry.id) : null,
+    }).catch((notificationError) => console.error('Public waitlist admin notification failed:', notificationError))
 
-    return NextResponse.json({ success: true })
+    let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
+    let emailMessage = ''
+
+    try {
+      const emailResult = await sendAdminAlertEmail({
+        subject: alertTitle,
+        heading: 'New website waitlist request',
+        message: alertMessage,
+        details: [
+          { label: 'Name', value: fullName },
+          { label: 'Phone', value: phone },
+          { label: 'Email', value: email },
+          { label: 'Desired site / camper info', value: desiredSite },
+          { label: 'Notes', value: notes },
+        ],
+        actionUrl: `${getSiteUrl()}/admin/waitlist`,
+        actionLabel: 'Open waitlist',
+      })
+
+      if ((emailResult as any)?.skipped) {
+        emailStatus = 'skipped'
+        emailMessage = (emailResult as any).reason || 'Admin email alert is not configured.'
+      }
+    } catch (emailError: any) {
+      emailStatus = 'failed'
+      emailMessage = emailError?.message || 'Admin waitlist email failed.'
+      console.error('Public waitlist admin email failed:', emailError)
+    }
+
+    return NextResponse.json({ success: true, emailStatus, emailMessage })
   } catch (error) {
     console.error('Public waitlist form failed:', error)
     return NextResponse.json(

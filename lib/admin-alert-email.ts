@@ -10,11 +10,13 @@ type AdminAlertEmailInput = {
   recipients?: string[]
 }
 
+type EmailProvider = 'sendgrid' | 'resend'
+
 export function adminAlertEmailConfigured() {
-  return Boolean(process.env.RESEND_API_KEY)
+  return Boolean(process.env.SENDGRID_API_KEY || process.env.RESEND_API_KEY)
 }
 
-function adminAlertRecipients() {
+export function adminAlertRecipients() {
   const raw =
     process.env.ADMIN_ALERT_EMAILS ||
     process.env.ADMIN_ALERT_EMAIL ||
@@ -26,6 +28,86 @@ function adminAlertRecipients() {
     .filter(Boolean)
 }
 
+function parseSender(value: string) {
+  const trimmed = value.trim()
+  const match = trimmed.match(/^(.*?)<([^>]+)>$/)
+
+  if (match) {
+    return {
+      name: match[1].trim().replace(/^"|"$/g, '') || undefined,
+      email: match[2].trim(),
+    }
+  }
+
+  return { email: trimmed }
+}
+
+function senderEmail(value: string) {
+  return parseSender(value).email
+}
+
+function isResendTestSender(from: string) {
+  return /<\s*onboarding@resend\.dev\s*>/i.test(from) || /(^|\s)onboarding@resend\.dev(\s|$)/i.test(from)
+}
+
+function adminAlertFrom() {
+  return (
+    process.env.SENDGRID_FROM ||
+    process.env.ADMIN_ALERT_FROM ||
+    process.env.CAMPER_MESSAGE_FROM ||
+    process.env.INVOICE_EMAIL_FROM ||
+    process.env.PORTAL_INVITE_FROM ||
+    ''
+  ).trim()
+}
+
+function adminAlertReplyTo() {
+  return (
+    process.env.SENDGRID_REPLY_TO ||
+    process.env.ADMIN_ALERT_REPLY_TO ||
+    process.env.CAMPER_MESSAGE_REPLY_TO ||
+    process.env.INVOICE_EMAIL_REPLY_TO ||
+    process.env.PORTAL_INVITE_REPLY_TO ||
+    'buroakscampground@gmail.com'
+  ).trim()
+}
+
+export function adminAlertEmailProviderStatus() {
+  const from = adminAlertFrom()
+  const replyTo = adminAlertReplyTo()
+
+  if (process.env.SENDGRID_API_KEY) {
+    return {
+      provider: 'sendgrid' as EmailProvider,
+      configured: Boolean(from),
+      from,
+      replyTo,
+      reason: from ? '' : 'SENDGRID_FROM or ADMIN_ALERT_FROM is not configured.',
+    }
+  }
+
+  if (process.env.RESEND_API_KEY) {
+    return {
+      provider: 'resend' as EmailProvider,
+      configured: Boolean(from) && !isResendTestSender(from),
+      from: from || 'Bur Oaks Campground <onboarding@resend.dev>',
+      replyTo,
+      reason:
+        !from || isResendTestSender(from)
+          ? 'Resend needs a verified sending domain. The current sender is missing or uses the Resend test sender.'
+          : '',
+    }
+  }
+
+  return {
+    provider: null,
+    configured: false,
+    from,
+    replyTo,
+    reason: 'No admin alert email provider is configured. Add SENDGRID_API_KEY or RESEND_API_KEY.',
+  }
+}
+
 export async function sendAdminAlertEmail({
   subject,
   heading,
@@ -35,23 +117,17 @@ export async function sendAdminAlertEmail({
   actionLabel = 'Open admin portal',
   recipients,
 }: AdminAlertEmailInput) {
-  const apiKey = process.env.RESEND_API_KEY
+  const providerStatus = adminAlertEmailProviderStatus()
 
-  if (!apiKey) {
-    return { skipped: true, reason: 'RESEND_API_KEY is not configured.' }
+  if (!providerStatus.configured || !providerStatus.provider) {
+    return { skipped: true, reason: providerStatus.reason || 'Admin alert email is not configured.' }
   }
 
   const to = (recipients?.length ? recipients : adminAlertRecipients())
     .map((email) => email.trim())
     .filter(Boolean)
-  const from =
-    process.env.ADMIN_ALERT_FROM ||
-    process.env.PORTAL_INVITE_FROM ||
-    'Bur Oaks Campground <onboarding@resend.dev>'
-  const replyTo =
-    process.env.ADMIN_ALERT_REPLY_TO ||
-    process.env.PORTAL_INVITE_REPLY_TO ||
-    'buroakscampground@gmail.com'
+  const from = providerStatus.from
+  const replyTo = providerStatus.replyTo
 
   const visibleDetails = details.filter((detail) => detail.value !== null && detail.value !== undefined && detail.value !== '')
   const text = [
@@ -98,10 +174,53 @@ export async function sendAdminAlertEmail({
     </div>
   `
 
+  if (providerStatus.provider === 'sendgrid') {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [
+          {
+            to: to.map((email) => ({ email })),
+            subject,
+          },
+        ],
+        from: parseSender(from),
+        reply_to: { email: senderEmail(replyTo) },
+        content: [
+          { type: 'text/plain', value: text },
+          { type: 'text/html', value: html },
+        ],
+      }),
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      console.error('Admin alert email rejected by SendGrid:', {
+        subject,
+        status: response.status,
+        message: errorText,
+      })
+      throw new Error(errorText || `SendGrid rejected the admin alert email with status ${response.status}.`)
+    }
+
+    const id = response.headers.get('x-message-id') || null
+    console.info('Admin alert email accepted by SendGrid:', {
+      subject,
+      id,
+      recipients: to.length,
+    })
+
+    return { provider: 'sendgrid', id, recipients: to.length }
+  }
+
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({

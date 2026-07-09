@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
+import { adminAlertEmailProviderStatus, adminAlertRecipients, sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
 export const runtime = 'nodejs'
@@ -10,18 +10,6 @@ function maskEmail(value: string) {
   return `${name.slice(0, 2)}***@${domain}`
 }
 
-function adminAlertRecipients() {
-  const raw =
-    process.env.ADMIN_ALERT_EMAILS ||
-    process.env.ADMIN_ALERT_EMAIL ||
-    'buroakscampground@gmail.com'
-
-  return raw
-    .split(',')
-    .map((email) => email.trim())
-    .filter(Boolean)
-}
-
 export async function POST(request: Request) {
   const context = await getAuthenticatedContext(request)
 
@@ -30,14 +18,9 @@ export async function POST(request: Request) {
   }
 
   const to = adminAlertRecipients()
-  const from =
-    process.env.ADMIN_ALERT_FROM ||
-    process.env.PORTAL_INVITE_FROM ||
-    'Bur Oaks Campground <onboarding@resend.dev>'
-  const replyTo =
-    process.env.ADMIN_ALERT_REPLY_TO ||
-    process.env.PORTAL_INVITE_REPLY_TO ||
-    'buroakscampground@gmail.com'
+  const providerStatus = adminAlertEmailProviderStatus()
+  const from = providerStatus.from
+  const replyTo = providerStatus.replyTo
 
   try {
     const result = await sendAdminAlertEmail({
@@ -60,10 +43,12 @@ export async function POST(request: Request) {
         status: 'skipped',
         message: (result as any).reason || 'Email alert is not configured.',
         configured: {
-          hasResendKey: Boolean(process.env.RESEND_API_KEY),
+          provider: providerStatus.provider,
+          ready: providerStatus.configured,
           to: to.map(maskEmail).join(', '),
           from,
           replyTo: maskEmail(replyTo),
+          reason: providerStatus.reason,
         },
       })
     }
@@ -73,10 +58,12 @@ export async function POST(request: Request) {
       status: 'sent',
       message: `Test email sent to ${to.map(maskEmail).join(', ')}.`,
       configured: {
-        hasResendKey: Boolean(process.env.RESEND_API_KEY),
+        provider: providerStatus.provider,
+        ready: providerStatus.configured,
         to: to.map(maskEmail).join(', '),
         from,
         replyTo: maskEmail(replyTo),
+        reason: providerStatus.reason,
       },
     })
   } catch (error: any) {
@@ -85,10 +72,12 @@ export async function POST(request: Request) {
       status: 'failed',
       message: error?.message || 'Test email failed.',
       configured: {
-        hasResendKey: Boolean(process.env.RESEND_API_KEY),
+        provider: providerStatus.provider,
+        ready: providerStatus.configured,
         to: to.map(maskEmail).join(', '),
         from,
         replyTo: maskEmail(replyTo),
+        reason: providerStatus.reason,
       },
     }, { status: 500 })
   }

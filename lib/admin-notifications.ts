@@ -1,7 +1,7 @@
 import { sendOwnerTextAlert } from './owner-alert-sms'
 
 type NotificationInput = {
-  type: 'maintenance_request' | 'payment_received' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message'
+  type: 'maintenance_request' | 'payment_received' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message' | 'website_waitlist'
   title: string
   message: string
   lot_number?: string | null
