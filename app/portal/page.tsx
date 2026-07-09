@@ -151,6 +151,8 @@ export default function CamperPortalPage() {
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [alerts, setAlerts] = useState<any[]>([])
   const [maintenanceTickets, setMaintenanceTickets] = useState<any[]>([])
+  const [pumpOutRequests, setPumpOutRequests] = useState<any[]>([])
+  const [officePendingMessages, setOfficePendingMessages] = useState<any[]>([])
   const [latestElectric, setLatestElectric] = useState<any>(null)
   const [unreadOfficeMessages, setUnreadOfficeMessages] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -189,7 +191,7 @@ export default function CamperPortalPage() {
         setCamper(camperData)
 
         const today = new Date().toISOString().split('T')[0]
-        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult] =
+        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult] =
           await Promise.all([
             supabase
               .from('invoices')
@@ -236,6 +238,21 @@ export default function CamperPortalPage() {
               .eq('sender_role', 'admin')
               .is('camper_archived_at', null)
               .is('read_by_camper_at', null),
+            supabase
+              .from('sewer_pump_out_requests')
+              .select('*')
+              .eq('camper_id', camperData.id)
+              .order('requested_at', { ascending: false })
+              .limit(6),
+            supabase
+              .from('office_messages')
+              .select('id,body,created_at,read_by_admin_at')
+              .eq('camper_id', camperData.id)
+              .eq('sender_role', 'camper')
+              .is('camper_archived_at', null)
+              .is('read_by_admin_at', null)
+              .order('created_at', { ascending: false })
+              .limit(3),
           ])
 
         setInvoices(invoiceResult.data || [])
@@ -253,6 +270,8 @@ export default function CamperPortalPage() {
         setAlerts((alertResult.data || []).filter((alert: any) => !dismissedAlertIds.has(String(alert.id))))
         setMaintenanceTickets(maintenanceResult.data || [])
         setUnreadOfficeMessages(messageResult.count || 0)
+        setPumpOutRequests(pumpOutResult.data || [])
+        setOfficePendingMessages(pendingOfficeResult.data || [])
       } catch (error) {
         console.error('Unable to load camper portal:', error)
       } finally {
@@ -386,6 +405,9 @@ export default function CamperPortalPage() {
   const activeMaintenance = maintenanceTickets.filter(
     (ticket) => ticket.status !== 'Completed'
   )
+  const activePumpOutRequests = pumpOutRequests.filter(
+    (request) => request.status !== 'cancelled' && !request.billed_at
+  )
   const latestMaintenance = maintenanceTickets[0]
   const latestMaintenanceStatus = getMaintenanceDisplayStatus(latestMaintenance)
   const maintenanceHeadline = activeMaintenance.length
@@ -480,7 +502,9 @@ export default function CamperPortalPage() {
   const urgentCount =
     (documentsNeedingSignature.length ? 1 : 0) +
     (openInvoices.length ? 1 : 0) +
-    (activeMaintenance.length ? 1 : 0)
+    (activeMaintenance.length ? 1 : 0) +
+    (activePumpOutRequests.length ? 1 : 0) +
+    (officePendingMessages.length ? 1 : 0)
   const nextDinner = upcomingDinners[0]
   const portalMood = urgentCount
     ? `${urgentCount} thing${urgentCount === 1 ? '' : 's'} need attention`
@@ -588,6 +612,72 @@ export default function CamperPortalPage() {
         }]
       : []),
   ].slice(0, 5)
+  const camperCockpitItems = [
+    ...openInvoices.slice(0, 2).map((invoice) => ({
+      href: '/invoices',
+      label: 'Billing',
+      title: `$${Number(invoice.total_due || 0).toFixed(2)} open invoice`,
+      detail: `Due ${formatDate(invoice.due_date)}. Open it to see the full itemized breakdown.`,
+      status: 'Needs review',
+      tone: 'gold',
+      icon: ReceiptText,
+    })),
+    ...documentsNeedingSignature.slice(0, 2).map((document) => ({
+      href: '/documents',
+      label: 'Documents',
+      title: document.title || document.name || 'Document waiting',
+      detail: 'The office has a document waiting for your review or signature.',
+      status: 'Action needed',
+      tone: 'gold',
+      icon: FileText,
+    })),
+    ...activePumpOutRequests.slice(0, 2).map((request) => ({
+      href: '/portal#pump-out',
+      label: 'Pump-out',
+      title: request.status === 'completed' ? 'Pump-out completed' : 'Pump-out request received',
+      detail: request.status === 'completed'
+        ? `$${Number(request.charge_amount || 10).toFixed(2)} will be added to your next electric bill.`
+        : 'Your site is on the office pump-out list. No duplicate request is needed.',
+      status: request.status === 'completed' ? 'Completed' : 'In office queue',
+      tone: request.status === 'completed' ? 'green' : 'red',
+      icon: Droplets,
+    })),
+    ...activeMaintenance.slice(0, 2).map((ticket) => ({
+      href: '/maintenance',
+      label: 'Maintenance',
+      title: ticket.title || 'Maintenance request',
+      detail: ticket.admin_approved ? `Current status: ${ticket.status || 'Open'}` : 'Waiting for office approval before work begins.',
+      status: getMaintenanceDisplayStatus(ticket),
+      tone: ticket.admin_approved ? 'blue' : 'orange',
+      icon: Wrench,
+    })),
+    ...officePendingMessages.slice(0, 2).map((message) => ({
+      href: '/messages',
+      label: 'Office inbox',
+      title: 'Message sent to office',
+      detail: message.body || 'Your message is waiting for the office to review.',
+      status: 'Waiting on office',
+      tone: 'blue',
+      icon: MessageCircle,
+    })),
+    ...(unreadOfficeMessages > 0
+      ? [{
+          href: '/messages',
+          label: 'Office reply',
+          title: `${unreadOfficeMessages} unread office message${unreadOfficeMessages === 1 ? '' : 's'}`,
+          detail: 'The office replied. Open your inbox when you have a minute.',
+          status: 'New reply',
+          tone: 'red',
+          icon: MessageCircle,
+        }]
+      : []),
+  ].slice(0, 8)
+  const completedCamperSignals = [
+    latestMaintenance?.status === 'Completed' ? 'Latest maintenance request completed' : '',
+    pumpOutRequests.some((request) => request.status === 'completed' || request.billed_at) ? 'Recent pump-out completed or moved to billing' : '',
+    !openInvoices.length ? 'No open balance' : '',
+    !documentsNeedingSignature.length ? 'Documents caught up' : '',
+  ].filter(Boolean)
 
   return (
     <main className="camper-portal-page">
@@ -699,6 +789,57 @@ export default function CamperPortalPage() {
               <em>{nextDinner?.menu || 'View schedule'}</em>
             </a>
           </div>
+        </section>
+
+        <section className={camperCockpitItems.length ? 'portal-cockpit active' : 'portal-cockpit'} aria-label="My Bur Oaks cockpit">
+          <div className="portal-cockpit-top">
+            <div>
+              <span><Gauge size={16} /> MY BUR OAKS COCKPIT</span>
+              <h2>{camperCockpitItems.length ? 'Here is what is moving for your site.' : 'Everything looks caught up.'}</h2>
+              <p>
+                Pump-outs, maintenance, billing, documents, and office messages show here so you can see what is requested, waiting, or completed.
+              </p>
+            </div>
+            <div className="portal-cockpit-orb">
+              <strong>{camperCockpitItems.length || 'OK'}</strong>
+              <small>{camperCockpitItems.length ? 'live items' : 'all clear'}</small>
+            </div>
+          </div>
+
+          {camperCockpitItems.length ? (
+            <div className="portal-cockpit-grid">
+              {camperCockpitItems.map((item, index) => {
+                const Icon = item.icon
+
+                return (
+                  <a className={`portal-cockpit-card ${item.tone}`} href={item.href} key={`${item.label}-${item.title}-${index}`}>
+                    <span><Icon size={19} /></span>
+                    <div>
+                      <small>{item.label}</small>
+                      <strong>{item.title}</strong>
+                      <p>{item.detail}</p>
+                    </div>
+                    <em>{item.status}</em>
+                  </a>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="portal-cockpit-clear">
+              <ShieldCheck size={24} />
+              <strong>No open requests or loose ends.</strong>
+              <p>If you request a pump-out, submit maintenance, send the office a message, or get a new invoice, it will appear here automatically.</p>
+            </div>
+          )}
+
+          {completedCamperSignals.length > 0 && (
+            <div className="portal-cockpit-completed">
+              <span><CheckCircle2 size={16} /> Completed / caught up</span>
+              {completedCamperSignals.slice(0, 4).map((signal) => (
+                <small key={signal}>{signal}</small>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="portal-command-center" aria-label="What is new at Bur Oaks">
