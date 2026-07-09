@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, LockKeyhole } from 'lucide-react'
+import { CheckCircle2, LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function SetPasswordPage() {
@@ -95,10 +95,18 @@ export default function SetPasswordPage() {
   return (
     <main className="account-recovery-page">
       <section className="account-recovery-card">
-        <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
-        <span>SECURE YOUR ACCOUNT</span>
-        <h1>Create a new password</h1>
-        <p>Use at least 10 characters and avoid reusing a password from another site.</p>
+        <div className="account-recovery-brand">
+          <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
+          <span><strong>Bur Oaks</strong><small>Camper Portal</small></span>
+        </div>
+        <span><Sparkles size={15} /> SECURE YOUR ACCOUNT</span>
+        <h1>Create your portal password.</h1>
+        <p>Use at least 10 characters and avoid reusing a password from another site. Once saved, you’ll sign in to your Bur Oaks camper portal.</p>
+
+        <div className="account-recovery-trust">
+          <ShieldCheck size={18} />
+          <span>This secure setup link is private to your camper account.</span>
+        </div>
 
         <label htmlFor="new-password">New password</label>
         <div className="signin-input-wrap">

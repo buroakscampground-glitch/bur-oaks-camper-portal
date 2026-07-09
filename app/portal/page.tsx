@@ -430,39 +430,47 @@ export default function CamperPortalPage() {
   ]
   const completedProfileFields = profileFields.filter(Boolean).length
   const profileCompletion = Math.round((completedProfileFields / profileFields.length) * 100)
+  const contactInfoComplete = Boolean(camper?.email || camper?.secondary_email) && Boolean(camper?.phone)
+  const mailingAddressComplete = Boolean(
+    camper?.mailing_address_line1 &&
+    camper?.mailing_city &&
+    camper?.mailing_state &&
+    camper?.mailing_zip
+  )
   const firstLoginTasks = [
     {
-      label: 'Confirm contact info',
-      complete: Boolean(camper?.email || camper?.secondary_email) && Boolean(camper?.phone),
+      label: 'Confirm phone and email',
+      detail: 'So the office can reach the right person quickly.',
+      complete: contactInfoComplete,
       href: '/profile',
     },
     {
-      label: 'Sign documents',
+      label: 'Add mailing address',
+      detail: 'Required for paper notices if we ever need to mail something.',
+      complete: mailingAddressComplete,
+      href: '/profile',
+    },
+    {
+      label: 'Review documents',
+      detail: documentsNeedingSignature.length ? `${documentsNeedingSignature.length} waiting for signature.` : 'Documents are caught up.',
       complete: documentsNeedingSignature.length === 0,
       href: '/documents',
     },
     {
       label: 'Check payments',
+      detail: openInvoices.length ? `${openInvoices.length} open invoice${openInvoices.length === 1 ? '' : 's'}.` : 'No open balance right now.',
       complete: openInvoices.length === 0,
       href: '/invoices',
     },
     {
-      label: 'Optional insurance',
-      complete: true,
-      href: '/profile',
-    },
-    {
-      label: 'Text alerts',
+      label: 'Turn on text alerts',
+      detail: 'Get office notices, bill reminders, and urgent updates faster.',
       complete: camper?.sms_opt_in === true,
       href: '/invoices',
     },
-    {
-      label: 'Plan next event',
-      complete: !nextEvent,
-      href: '/calendar',
-    },
   ]
   const completedTasks = firstLoginTasks.filter((task) => task.complete).length
+  const onboardingComplete = completedTasks === firstLoginTasks.length
   const weekendFocus = documentsNeedingSignature.length
     ? {
         href: '/documents',
@@ -793,6 +801,35 @@ export default function CamperPortalPage() {
             </a>
           </div>
         </section>
+
+        {!onboardingComplete && (
+          <section className="portal-start-here" aria-label="Start here checklist">
+            <div className="portal-start-copy">
+              <span><Sparkles size={16} /> START HERE</span>
+              <h2>Let’s get your portal fully ready.</h2>
+              <p>
+                Complete these quick setup items once. When everything is checked off,
+                this guide disappears and your portal stays clean.
+              </p>
+              <div className="portal-start-meter">
+                <strong>{completedTasks} of {firstLoginTasks.length}</strong>
+                <span><i style={{ width: `${Math.round((completedTasks / firstLoginTasks.length) * 100)}%` }} /></span>
+              </div>
+            </div>
+
+            <div className="portal-start-list">
+              {firstLoginTasks.map((task) => (
+                <a href={task.href} className={task.complete ? 'done' : 'todo'} key={task.label}>
+                  {task.complete ? <CheckCircle2 size={18} /> : <ArrowRight size={18} />}
+                  <span>
+                    <strong>{task.label}</strong>
+                    <small>{task.detail}</small>
+                  </span>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className={camperCockpitItems.length ? 'portal-cockpit active' : 'portal-cockpit'} aria-label="My Bur Oaks cockpit">
           <div className="portal-cockpit-top">

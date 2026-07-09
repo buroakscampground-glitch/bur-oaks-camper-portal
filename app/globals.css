@@ -1502,6 +1502,145 @@ button:hover {
   backdrop-filter: blur(16px);
 }
 
+.portal-start-here {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+  gap: 18px;
+  align-items: stretch;
+  margin: 0 28px 24px;
+  padding: 20px;
+  border: 1px solid rgba(230, 202, 127, .7);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 6% 8%, rgba(230, 202, 127, .26), transparent 28%),
+    radial-gradient(circle at 94% 0%, rgba(49, 95, 61, .1), transparent 30%),
+    linear-gradient(135deg, #fffdf7, #f4f1e8);
+  box-shadow: 0 20px 54px rgba(39, 54, 43, .11);
+}
+
+.portal-start-copy {
+  display: grid;
+  align-content: center;
+  padding: 10px;
+}
+
+.portal-start-copy > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #9a7834;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.portal-start-copy h2 {
+  max-width: 520px;
+  margin: 9px 0 0;
+  color: #263d2e;
+  font: 500 clamp(31px, 4vw, 48px)/1 Georgia, 'Times New Roman', serif;
+  letter-spacing: -.04em;
+}
+
+.portal-start-copy p {
+  max-width: 520px;
+  margin: 10px 0 0;
+  color: #647168;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.portal-start-meter {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.portal-start-meter strong {
+  color: #315f3d;
+  font-size: 13px;
+}
+
+.portal-start-meter span {
+  overflow: hidden;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(49, 95, 61, .12);
+}
+
+.portal-start-meter i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #315f3d, #d6b660);
+}
+
+.portal-start-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portal-start-list a {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 11px;
+  align-items: center;
+  min-height: 86px;
+  padding: 13px;
+  border: 1px solid #e0dbce;
+  border-radius: 19px;
+  background: #fff;
+  color: #263d2e;
+  text-decoration: none;
+  box-shadow: 0 10px 24px rgba(34, 54, 38, .055);
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.portal-start-list a:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(34, 54, 38, .105);
+}
+
+.portal-start-list a > svg {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  padding: 11px;
+  border-radius: 15px;
+  background: #fff3df;
+  color: #a36522;
+}
+
+.portal-start-list a.done {
+  border-color: rgba(49, 95, 61, .14);
+  background: #f8fbf6;
+}
+
+.portal-start-list a.done > svg {
+  background: #e6f1e4;
+  color: #315f3d;
+}
+
+.portal-start-list strong,
+.portal-start-list small {
+  display: block;
+}
+
+.portal-start-list strong {
+  font-size: 14px;
+}
+
+.portal-start-list small {
+  margin-top: 3px;
+  color: #707c73;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
 .portal-arrival-main {
   display: grid;
   align-content: center;
@@ -6848,7 +6987,8 @@ tbody tr:hover {
   place-items: center;
   padding: 28px 20px 88px;
   background:
-    radial-gradient(circle at 8% 6%, rgba(200, 165, 87, 0.14), transparent 25%),
+    radial-gradient(circle at 18% 12%, rgba(230, 202, 127, 0.22), transparent 27%),
+    radial-gradient(circle at 86% 8%, rgba(49, 95, 61, .12), transparent 28%),
     linear-gradient(180deg, #eaf0e8, #f5f3ed);
 }
 
@@ -6857,22 +6997,54 @@ tbody tr:hover {
 .legal-card {
   width: min(520px, 100%);
   padding: clamp(26px, 5vw, 42px);
-  border: 1px solid var(--line);
-  border-radius: 23px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 18px 50px rgba(35, 51, 40, 0.12);
+  border: 1px solid rgba(49, 95, 61, .13);
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(230, 202, 127, .18), transparent 30%),
+    rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 70px rgba(35, 51, 40, 0.14);
 }
 
-.account-recovery-card > img {
+.account-recovery-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid rgba(49, 95, 61, .12);
+  border-radius: 999px;
+  background: #f7faf5;
+  color: #263d2e;
+}
+
+.account-recovery-brand img {
   width: 68px;
   height: 68px;
   object-fit: cover;
   border-radius: 50%;
 }
 
+.account-recovery-brand span {
+  display: grid;
+}
+
+.account-recovery-brand strong {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 20px;
+}
+
+.account-recovery-brand small {
+  color: #758078;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
 .account-recovery-card > span,
 .legal-kicker {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   margin-top: 20px;
   color: #987631;
   font-size: 10px;
@@ -6895,6 +7067,21 @@ tbody tr:hover {
 .system-state-page p {
   color: #717d74;
   line-height: 1.6;
+}
+
+.account-recovery-trust {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 4px;
+  padding: 12px;
+  border: 1px solid #d7e2d3;
+  border-radius: 14px;
+  background: #eef6ec;
+  color: #315f3d;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.35;
 }
 
 .account-recovery-card > label {
@@ -6990,6 +7177,9 @@ tbody tr:hover {
   .signin-form-side { min-height: 560px; padding: 45px 24px 90px; }
   .signin-feature-strip { grid-template-columns: 1fr; }
   .signin-ambient-card { display: none; }
+  .portal-start-here {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 620px) {
@@ -7011,6 +7201,17 @@ tbody tr:hover {
   .signin-form-side { padding: 26px 16px 92px; }
   .signin-form-card { padding: 25px; border-radius: 24px; }
   .signin-mini-grid { grid-template-columns: 1fr; }
+  .portal-start-here {
+    margin: 0 14px 18px;
+    padding: 16px;
+    border-radius: 22px;
+  }
+  .portal-start-list {
+    grid-template-columns: 1fr;
+  }
+  .portal-start-list a {
+    min-height: 74px;
+  }
 }
 
 /* CAMPER DIRECTORY & MAINTENANCE PHOTOS */
