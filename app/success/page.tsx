@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, Check, CircleDollarSign, LockKeyhole, ReceiptText } from 'lucide-react'
+import { ArrowRight, Check, CircleDollarSign, Home, LockKeyhole, ReceiptText, Sparkles } from 'lucide-react'
 
 export default function SuccessPage() {
   return (
@@ -18,6 +18,24 @@ export default function SuccessPage() {
         <div className="payment-result-note">
           <ReceiptText size={21} />
           <div><strong>Payment received</strong><span>You can review the updated invoice and your full payment history from Billing & Payments.</span></div>
+        </div>
+
+        <div className="payment-result-next">
+          <article>
+            <ReceiptText size={18} />
+            <strong>Receipt updated</strong>
+            <small>Your portal will show the paid status as soon as Stripe confirms it.</small>
+          </article>
+          <article>
+            <Home size={18} />
+            <strong>Back to camp life</strong>
+            <small>Weather, events, dinners, requests, and messages are waiting on your home page.</small>
+          </article>
+          <article>
+            <Sparkles size={18} />
+            <strong>Less paper, less chasing</strong>
+            <small>ACH and AutoPay options can help make future bills easier.</small>
+          </article>
         </div>
 
         <div className="payment-result-actions">

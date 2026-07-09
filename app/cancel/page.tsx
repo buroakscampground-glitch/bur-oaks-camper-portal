@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowLeft, CreditCard, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeft, CreditCard, ReceiptText, RefreshCcw, ShieldCheck, X } from 'lucide-react'
 
 export default function CancelPage() {
   return (
@@ -18,6 +18,24 @@ export default function CancelPage() {
         <div className="payment-result-note">
           <ShieldCheck size={21} />
           <div><strong>Nothing changed</strong><span>You can return to billing whenever you are ready and try the payment again.</span></div>
+        </div>
+
+        <div className="payment-result-next">
+          <article>
+            <ReceiptText size={18} />
+            <strong>Invoice still open</strong>
+            <small>The balance stays on your account until it is paid or marked paid by the office.</small>
+          </article>
+          <article>
+            <ShieldCheck size={18} />
+            <strong>No card charge</strong>
+            <small>Closing checkout does not run a payment or change your saved billing information.</small>
+          </article>
+          <article>
+            <RefreshCcw size={18} />
+            <strong>Try again anytime</strong>
+            <small>You can come back from Billing & Payments when you are ready.</small>
+          </article>
         </div>
 
         <div className="payment-result-actions">
