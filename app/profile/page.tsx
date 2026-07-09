@@ -231,7 +231,7 @@ export default function ProfilePage() {
     { label: 'Vehicle information', complete: Boolean(camper.vehicle_make && camper.vehicle_model && camper.license_plate) },
     { label: 'Directory choice', complete: camper.directory_opt_in !== null && camper.directory_opt_in !== undefined },
     { label: 'Text alert choice', complete: camper.sms_opt_in !== null && camper.sms_opt_in !== undefined },
-    { label: 'Golf cart insurance', complete: insuranceDocuments.length > 0 },
+    { label: 'Golf cart insurance optional', complete: true },
   ]
   const completeItems = profileChecklist.filter((item) => item.complete).length
   const completionPercent = Math.round((completeItems / profileChecklist.length) * 100)

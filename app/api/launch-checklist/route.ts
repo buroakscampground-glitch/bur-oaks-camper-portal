@@ -159,11 +159,11 @@ export async function GET(request: Request) {
     }),
     item({
       id: 'insurance',
-      label: 'Golf cart insurance',
-      status: insuranceMissing.length ? 'warning' : 'ready',
+      label: 'Golf cart insurance optional',
+      status: 'ready',
       detail: insuranceMissing.length
-        ? `${insuranceMissing.length} active camper${insuranceMissing.length === 1 ? '' : 's'} missing insurance on file.`
-        : 'Golf cart insurance files look complete.',
+        ? `${insuranceMissing.length} active camper${insuranceMissing.length === 1 ? '' : 's'} have not uploaded optional insurance yet.`
+        : 'Optional golf cart insurance files are on file.',
       href: '/admin/campers',
     }),
   ]

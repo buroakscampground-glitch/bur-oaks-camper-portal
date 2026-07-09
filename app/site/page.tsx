@@ -109,7 +109,7 @@ export default function MySitePage() {
       <section className="my-site-status-grid">
         <a href="/invoices" className={openInvoices.length ? 'attention' : 'complete'}><CircleDollarSign /><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong><span>{openInvoices.length} invoice{openInvoices.length === 1 ? '' : 's'}</span><em>{openInvoices.length ? 'Needs review' : 'Ready'}</em></a>
         <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'complete'}><FileText /><small>Documents</small><strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} pending` : 'Complete'}</strong><span>{documents.length} total files</span><em>{documentsNeedingSignature.length ? 'Signature needed' : 'Ready'}</em></a>
-        <a href="/profile" className={insuranceDocs.length ? 'complete' : 'attention'}><ShieldCheck /><small>Insurance</small><strong>{insuranceDocs.length ? 'Uploaded' : 'Needed'}</strong><span>Golf cart insurance</span><em>{insuranceDocs.length ? 'On file' : 'Upload needed'}</em></a>
+        <a href="/profile" className="complete"><ShieldCheck /><small>Insurance</small><strong>{insuranceDocs.length ? 'Uploaded' : 'Optional'}</strong><span>Golf cart insurance</span><em>{insuranceDocs.length ? 'On file' : 'Upload if you have it'}</em></a>
         <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'complete'}><Wrench /><small>Maintenance</small><strong>{maintenanceCardTitle}</strong><span>{maintenanceCardDetail}</span><em>{activeMaintenance.length ? 'Active request' : latestMaintenance?.status === 'Completed' ? 'Closed' : 'Ready'}</em></a>
       </section>
 

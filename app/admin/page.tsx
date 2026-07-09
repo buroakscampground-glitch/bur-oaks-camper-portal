@@ -511,7 +511,6 @@ export default function AdminPage() {
     stats.documentActions +
     stats.messageAlerts +
     stats.pendingDinnerResponses +
-    stats.insuranceMissing +
     stats.needsContactInfo
 
   const toDoItems = [
@@ -591,9 +590,11 @@ export default function AdminPage() {
       href: '/admin/campers',
       title: 'Camper records to clean up',
       count: stats.needsContactInfo,
-      detail: `${stats.insuranceMissing} missing golf cart insurance`,
+      detail: stats.insuranceMissing
+        ? `${stats.insuranceMissing} optional golf cart insurance files not uploaded`
+        : 'Optional golf cart insurance files are on file',
       icon: Users,
-      urgent: stats.needsContactInfo > 0 || stats.insuranceMissing > 0,
+      urgent: stats.needsContactInfo > 0,
     },
   ]
 

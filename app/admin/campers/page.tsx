@@ -470,7 +470,6 @@ export default function AdminCampersPage() {
         health.unsignedDocs ||
         health.activeMaintenance ||
         health.activePumpOuts ||
-        !health.insuranceOnFile ||
         !camper.phone
 
       return (
@@ -528,8 +527,8 @@ export default function AdminCampersPage() {
     <span className={health.activePumpOuts ? 'warn' : 'good'}>
       {health.activePumpOuts ? `${health.activePumpOuts} pump-out` : 'No pump-out'}
     </span>
-    <span className={health.insuranceOnFile ? 'good' : 'warn'}>
-      {health.insuranceOnFile ? 'Insurance filed' : 'Insurance missing'}
+    <span className={health.insuranceOnFile ? 'good' : 'info'}>
+      {health.insuranceOnFile ? 'Insurance filed' : 'Insurance optional'}
     </span>
     <span className={needsAttention ? 'warn' : 'good'}>
       {needsAttention ? 'Needs review' : 'Healthy'}

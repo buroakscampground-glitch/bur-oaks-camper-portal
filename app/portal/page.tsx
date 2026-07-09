@@ -446,8 +446,8 @@ export default function CamperPortalPage() {
       href: '/invoices',
     },
     {
-      label: 'Upload insurance',
-      complete: insuranceOnFile,
+      label: 'Optional insurance',
+      complete: true,
       href: '/profile',
     },
     {
@@ -544,7 +544,7 @@ export default function CamperPortalPage() {
   const camperInitials = `${camper?.first_name?.[0] || ''}${camper?.last_name?.[0] || ''}`.toUpperCase() || 'BO'
   const identityBadges = [
     { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
-    { label: 'Insurance', value: insuranceOnFile ? 'On file' : 'Needed', complete: insuranceOnFile },
+    { label: 'Insurance', value: insuranceOnFile ? 'On file' : 'Optional', complete: true },
     { label: 'Texts', value: camper?.sms_opt_in ? 'On' : 'Off', complete: camper?.sms_opt_in === true },
   ]
   const whatIsNew = [
@@ -1285,7 +1285,7 @@ export default function CamperPortalPage() {
             <article><small>Camper</small><strong>{camper?.first_name || ''} {camper?.last_name || ''}</strong></article>
             <article><small>Latest electric</small><strong>{latestElectric ? `${latestElectric.kwh_used || 0} kWh` : 'No reading'}</strong></article>
             <article><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong></article>
-            <article><small>Insurance</small><strong>{insuranceOnFile ? 'On file' : 'Needed'}</strong></article>
+            <article><small>Insurance</small><strong>{insuranceOnFile ? 'On file' : 'Optional'}</strong></article>
             <article><small>Text alerts</small><strong>{camper?.sms_opt_in ? 'On' : 'Off'}</strong></article>
             <article><small>Office messages</small><strong>{unreadOfficeMessages ? `${unreadOfficeMessages} unread` : 'Clear'}</strong></article>
           </div>
