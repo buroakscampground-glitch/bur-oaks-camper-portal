@@ -72,7 +72,8 @@ export default function TicketDetailPage() {
     setStatus(data?.status || 'Open')
     setAssignedTo(data?.assigned_to || 'Open')
     setCompletionNotes(data?.completion_notes || '')
-    setMessage('Saved. Admin and camper views will update automatically.')
+    setMessage('Saved. Returning to work orders…')
+    window.setTimeout(() => router.push('/maintenance/dashboard?updated=saved'), 650)
   }
 
   if (loading) {

@@ -54,6 +54,17 @@ function fallbackFor(pathname: string) {
   return '/portal'
 }
 
+function isSafeInternalReferrer(referrer: string) {
+  if (!referrer) return false
+
+  try {
+    const previous = new URL(referrer)
+    return previous.origin === window.location.origin
+  } catch {
+    return false
+  }
+}
+
 export default function GlobalBackButton() {
   const pathname = usePathname()
   const router = useRouter()
@@ -61,6 +72,11 @@ export default function GlobalBackButton() {
   if (pathname === '/') return null
 
   function goBack() {
+    if (isSafeInternalReferrer(document.referrer) && window.history.length > 1) {
+      router.back()
+      return
+    }
+
     router.push(fallbackFor(pathname))
   }
 

@@ -85,8 +85,9 @@ export default function MaintenanceTicketPage() {
     setStatus(data.status || 'Open')
     setAssignedTo(data.assigned_to || 'Open')
     setCompletionNotes(data.completion_notes || '')
-    setMessage('Ticket saved.')
+    setMessage('Ticket saved. Returning to all work orders…')
     setSaving(false)
+    window.setTimeout(() => router.push('/admin/maintenance?updated=saved'), 650)
   }
 
   async function closeTicket() {
@@ -114,8 +115,9 @@ export default function MaintenanceTicketPage() {
     setTicket(data)
     setStatus(data.status || 'Completed')
     setCompletionNotes(data.completion_notes || '')
-    setMessage('Ticket closed.')
+    setMessage('Ticket closed. Returning to all work orders…')
     setSaving(false)
+    window.setTimeout(() => router.push('/admin/maintenance?updated=closed'), 650)
   }
 
   async function setApproval(approved: boolean) {

@@ -28,6 +28,22 @@ export default function DocumentViewerPage() {
     [viewer?.fileUrl]
   )
 
+  function returnToDocuments() {
+    if (document.referrer) {
+      try {
+        const previous = new URL(document.referrer)
+        if (previous.origin === window.location.origin && window.history.length > 1) {
+          router.back()
+          return
+        }
+      } catch {
+        // Fall back below.
+      }
+    }
+
+    router.push('/documents')
+  }
+
   useEffect(() => {
     loadDocument()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -75,7 +91,7 @@ export default function DocumentViewerPage() {
     <main className="document-viewer-page">
       <section className="document-viewer-shell">
         <div className="document-viewer-header">
-          <button type="button" onClick={() => router.back()}>
+          <button type="button" onClick={returnToDocuments}>
             <ArrowLeft size={17} /> Back
           </button>
           <div>

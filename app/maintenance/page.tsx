@@ -192,9 +192,10 @@ export default function MaintenanceRequestPage() {
     setCategory('General')
     setTreeResponsibilityAcknowledged(false)
     setPhotoFiles([])
-    setMessage(`✅ Maintenance request submitted. The office will review it before work is assigned.${alertMessage}`)
+    setMessage(`✅ Maintenance request submitted. Returning to your portal…${alertMessage}`)
     setSubmitting(false)
-    loadPage()
+    await loadPage()
+    window.setTimeout(() => router.push('/portal'), 900)
   }
 
   function selectPhotos(files: FileList | null) {
