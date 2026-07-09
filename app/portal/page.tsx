@@ -26,6 +26,7 @@ import {
   UserRound,
   UsersRound,
   Wrench,
+  X,
   Zap,
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
@@ -158,6 +159,8 @@ export default function CamperPortalPage() {
   const [loading, setLoading] = useState(true)
   const [pumpMessage, setPumpMessage] = useState('')
   const [requestingPump, setRequestingPump] = useState(false)
+  const [showPumpConfirm, setShowPumpConfirm] = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
 
   useEffect(() => {
     async function loadDashboard() {
@@ -333,10 +336,8 @@ export default function CamperPortalPage() {
   async function requestSewerPumpOut() {
     if (requestingPump) return
 
-    const confirmed = window.confirm('Request a sewer pump-out for your site? A $10 charge will be added to your next electric bill.')
-    if (!confirmed) return
-
     setRequestingPump(true)
+    setShowPumpConfirm(false)
     setPumpMessage('Sending your sewer pump-out request…')
 
     const { data } = await supabase.auth.getSession()
@@ -678,6 +679,8 @@ export default function CamperPortalPage() {
     !openInvoices.length ? 'No open balance' : '',
     !documentsNeedingSignature.length ? 'Documents caught up' : '',
   ].filter(Boolean)
+  const mobileMoreNeedsAttention = documentsNeedingSignature.length > 0 || alerts.length > 0
+  const pumpNeedsAttention = activePumpOutRequests.length > 0
 
   return (
     <main className="camper-portal-page">
@@ -907,7 +910,7 @@ export default function CamperPortalPage() {
             <p>Tap the red button and the office will add you to the pump-out list. A $10 charge is added to your next electric bill.</p>
             {pumpMessage && <small>{pumpMessage}</small>}
           </div>
-          <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump}>
+          <button type="button" onClick={() => setShowPumpConfirm(true)} disabled={requestingPump}>
             {requestingPump ? 'Sending…' : 'Request pump-out'}
           </button>
         </section>
@@ -1305,7 +1308,7 @@ export default function CamperPortalPage() {
             <ReceiptText size={18} />
             <span>Pay</span>
           </a>
-          <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump}>
+          <button type="button" className={`portal-dock-pump ${pumpNeedsAttention ? 'attention' : ''}`} onClick={() => setShowPumpConfirm(true)} disabled={requestingPump}>
             <Droplets size={18} />
             <span>Pump</span>
           </button>
@@ -1317,11 +1320,85 @@ export default function CamperPortalPage() {
             <Soup size={18} />
             <span>Dinner</span>
           </a>
-          <a href="#portal-services">
+          <button type="button" className={`portal-dock-more ${mobileMoreNeedsAttention ? 'attention' : ''}`} onClick={() => setShowMobileMenu(true)}>
             <Sparkles size={18} />
             <span>More</span>
-          </a>
+          </button>
         </nav>
+
+        {showPumpConfirm && (
+          <div className="portal-mobile-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Confirm sewer pump-out request">
+            <section className="portal-mobile-confirm">
+              <button className="portal-mobile-sheet-close" type="button" onClick={() => setShowPumpConfirm(false)} aria-label="Close pump-out confirmation">
+                <X size={18} />
+              </button>
+              <span><Droplets size={18} /> Sewer pump-out</span>
+              <h2>Request a pump-out for Lot {camper?.lot_number || 'your site'}?</h2>
+              <p>The office will add your site to the pump-out list. A <strong>$10 charge</strong> will be added to your next electric bill.</p>
+              {activePumpOutRequests.length > 0 && (
+                <em>Your site already appears to be on the pump-out list. Sending again will not add a duplicate charge.</em>
+              )}
+              <div>
+                <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump}>
+                  {requestingPump ? 'Sending…' : 'Request pump-out'}
+                </button>
+                <button type="button" onClick={() => setShowPumpConfirm(false)}>
+                  Not now
+                </button>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {showMobileMenu && (
+          <div className="portal-mobile-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Camper portal menu">
+            <section className="portal-mobile-more-sheet">
+              <div className="portal-mobile-more-head">
+                <div>
+                  <span><Sparkles size={16} /> Portal menu</span>
+                  <h2>Where do you want to go?</h2>
+                </div>
+                <button className="portal-mobile-sheet-close" type="button" onClick={() => setShowMobileMenu(false)} aria-label="Close portal menu">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="portal-mobile-more-alerts">
+                <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : ''}>
+                  <FileText size={18} />
+                  <span>
+                    <small>Documents</small>
+                    <strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} need signature` : 'All caught up'}</strong>
+                  </span>
+                </a>
+                <a href="/maintenance" className={activeMaintenance.length ? 'attention' : ''}>
+                  <Wrench size={18} />
+                  <span>
+                    <small>Maintenance</small>
+                    <strong>{activeMaintenance.length ? `${activeMaintenance.length} active` : 'Request help'}</strong>
+                  </span>
+                </a>
+              </div>
+
+              <div className="portal-mobile-menu-list">
+                {serviceLinks.map((service) => {
+                  const Icon = service.icon
+
+                  return (
+                    <a href={service.href} key={service.href}>
+                      <Icon size={18} />
+                      <span>
+                        <strong>{service.title}</strong>
+                        <small>{service.description}</small>
+                      </span>
+                      <ChevronRight size={16} />
+                    </a>
+                  )
+                })}
+              </div>
+            </section>
+          </div>
+        )}
       </div>
     </main>
   )
