@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowRight, LockKeyhole, Mail, ShieldCheck } from 'lucide-react'
+import { ArrowRight, CalendarDays, CloudSun, FileText, LockKeyhole, Mail, MessageCircle, ReceiptText, ShieldCheck, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function LoginPage() {
@@ -81,11 +81,35 @@ export default function LoginPage() {
           <p>Your account, your site, and your campground community—together in one portal.</p>
         </div>
 
+        <div className="signin-feature-strip" aria-label="Camper portal highlights">
+          <article>
+            <CloudSun size={18} />
+            <span><strong>Weekend weather</strong><small>Plan before you pull in</small></span>
+          </article>
+          <article>
+            <ReceiptText size={18} />
+            <span><strong>Simple billing</strong><small>Invoices, AutoPay, history</small></span>
+          </article>
+          <article>
+            <MessageCircle size={18} />
+            <span><strong>Office messages</strong><small>Everything in one place</small></span>
+          </article>
+        </div>
+
         <small className="signin-est">A site to remember · Est. 1972</small>
       </section>
 
       <section className="signin-form-side">
+        <div className="signin-ambient-card" aria-hidden="true">
+          <span>Tonight at Bur Oaks</span>
+          <strong>Campfire glow · quiet roads · your site waiting</strong>
+        </div>
+
         <div className="signin-form-card">
+          <div className="signin-card-badge">
+            <Sparkles size={17} />
+            <span>Camper command center</span>
+          </div>
           <span className="signin-form-kicker">BUR OAKS CAMPER PORTAL</span>
           <h2>Sign in to continue</h2>
           <p>Use the email and password connected to your camper account.</p>
@@ -128,6 +152,13 @@ export default function LoginPage() {
             {loading ? 'Signing in…' : 'Sign in'}
             {!loading && <ArrowRight size={18} />}
           </button>
+
+          <div className="signin-mini-grid" aria-label="Portal tools">
+            <span><FileText size={15} /> Documents</span>
+            <span><CalendarDays size={15} /> Events</span>
+            <span><ReceiptText size={15} /> Payments</span>
+            <span><MessageCircle size={15} /> Office</span>
+          </div>
 
           <a className="signin-forgot-link" href="/forgot-password">
             Forgot your password?

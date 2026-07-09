@@ -6397,7 +6397,9 @@ tbody tr:hover {
   min-height: 100vh;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(430px, 0.72fr);
-  background: #f4f2ec;
+  background:
+    radial-gradient(circle at 78% 16%, rgba(238, 199, 111, .22), transparent 34%),
+    linear-gradient(135deg, #f8f3e8 0%, #ece7dc 52%, #dfe8dc 100%);
 }
 
 .signin-story {
@@ -6409,23 +6411,52 @@ tbody tr:hover {
   padding: 30px 42px;
   overflow: hidden;
   background-image:
-    linear-gradient(90deg, rgba(246, 240, 225, 0.92), rgba(246, 240, 225, 0.72) 48%, rgba(31, 67, 42, 0.36)),
-    linear-gradient(180deg, rgba(255, 248, 232, 0.25), rgba(23, 52, 32, 0.18)),
-    url('/campground.jpg');
+    radial-gradient(circle at 22% 78%, rgba(242, 143, 54, .38), transparent 24%),
+    radial-gradient(circle at 30% 84%, rgba(255, 205, 98, .25), transparent 18%),
+    linear-gradient(100deg, rgba(12, 35, 21, .92) 0%, rgba(20, 58, 35, .77) 38%, rgba(246, 240, 225, .28) 78%),
+    linear-gradient(180deg, rgba(10, 28, 17, .1), rgba(9, 26, 15, .56)),
+    url('/site-photos/IMG_8008.jpeg');
   background-size: cover;
   background-position: center;
   color: #fff;
 }
 
+.signin-story::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(5, 18, 10, .2), transparent 45%),
+    radial-gradient(circle at 82% 18%, rgba(255, 255, 255, .14), transparent 22%);
+}
+
+.signin-story::after {
+  content: "";
+  position: absolute;
+  right: -80px;
+  bottom: -90px;
+  width: 310px;
+  height: 310px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(225, 116, 41, .36), rgba(238, 188, 76, .14) 34%, transparent 68%);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
 .signin-story-copy {
+  position: relative;
+  z-index: 1;
   max-width: 650px;
   margin: 44px 0;
-  padding: 28px 30px;
-  border: 1px solid rgba(199, 185, 151, 0.52);
-  border-radius: 26px;
-  background: rgba(255, 252, 244, 0.82);
-  box-shadow: 0 22px 55px rgba(52, 69, 48, 0.16);
-  backdrop-filter: blur(7px);
+  padding: 31px 34px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 30px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, .18), rgba(255, 255, 255, .08)),
+    rgba(9, 31, 17, 0.48);
+  box-shadow: 0 28px 75px rgba(2, 12, 6, 0.28);
+  backdrop-filter: blur(12px);
 }
 
 .signin-story-copy > span {
@@ -6441,23 +6472,25 @@ tbody tr:hover {
 
 .signin-story-copy h1 {
   margin: 20px 0 0;
-  color: #223c2b;
+  color: #fffaf0;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(48px, 6vw, 78px);
   font-weight: 500;
   line-height: 1.01;
   letter-spacing: -0.04em;
-  text-shadow: none;
+  text-shadow: 0 18px 42px rgba(0, 0, 0, .28);
 }
 
 .signin-story-copy p {
   max-width: 560px;
-  color: #435548;
+  color: rgba(255, 250, 240, .82);
   font-size: 17px;
   line-height: 1.65;
 }
 
 .signin-est {
+  position: relative;
+  z-index: 1;
   color: #f9f2df;
   font-size: 10px;
   font-weight: 800;
@@ -6465,17 +6498,127 @@ tbody tr:hover {
   text-transform: uppercase;
 }
 
+.signin-feature-strip {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: auto;
+}
+
+.signin-feature-strip article {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 78px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 19px;
+  background: rgba(255, 252, 244, .13);
+  color: #fff;
+  box-shadow: 0 18px 42px rgba(4, 16, 9, .18);
+  backdrop-filter: blur(12px);
+}
+
+.signin-feature-strip article > svg {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  padding: 9px;
+  border-radius: 14px;
+  background: rgba(255, 245, 218, .18);
+  color: #f3d58b;
+}
+
+.signin-feature-strip strong,
+.signin-feature-strip small {
+  display: block;
+}
+
+.signin-feature-strip strong {
+  font-size: 13px;
+}
+
+.signin-feature-strip small {
+  margin-top: 2px;
+  color: rgba(255,255,255,.68);
+  font-size: 11px;
+  line-height: 1.25;
+}
+
 .signin-form-side {
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
   padding: 45px;
   background:
-    radial-gradient(circle at top right, rgba(213, 183, 102, 0.18), transparent 34%),
+    radial-gradient(circle at 15% 14%, rgba(49, 95, 61, .11), transparent 26%),
+    radial-gradient(circle at 85% 8%, rgba(213, 183, 102, 0.22), transparent 34%),
+    radial-gradient(circle at 90% 88%, rgba(164, 71, 54, .12), transparent 30%),
     linear-gradient(180deg, #fbfaf6 0%, #efede6 100%);
 }
 
+.signin-form-side::before {
+  content: "";
+  position: absolute;
+  inset: 26px;
+  border: 1px solid rgba(49, 95, 61, .08);
+  border-radius: 34px;
+  pointer-events: none;
+}
+
+.signin-ambient-card {
+  position: absolute;
+  right: 32px;
+  top: 32px;
+  max-width: 250px;
+  padding: 14px 16px;
+  border: 1px solid rgba(49, 95, 61, .12);
+  border-radius: 18px;
+  background: rgba(255,255,255,.62);
+  color: #263d2e;
+  box-shadow: 0 18px 45px rgba(34,54,38,.09);
+  backdrop-filter: blur(12px);
+}
+
+.signin-ambient-card span {
+  display: block;
+  color: #9a7834;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.signin-ambient-card strong {
+  display: block;
+  margin-top: 5px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.08;
+}
+
 .signin-form-card {
+  position: relative;
+  z-index: 1;
   width: min(440px, 100%);
+}
+
+.signin-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 8px 11px;
+  border: 1px solid rgba(49, 95, 61, .13);
+  border-radius: 999px;
+  background: #eef6ec;
+  color: #315f3d;
+  font-size: 11px;
+  font-weight: 950;
 }
 
 .signin-form-kicker {
@@ -6539,6 +6682,10 @@ tbody tr:hover {
   background: #fff;
 }
 
+.signin-input-wrap:focus-within svg {
+  color: #9a7834;
+}
+
 .signin-error {
   margin-top: 15px;
   padding: 11px 13px;
@@ -6558,6 +6705,34 @@ tbody tr:hover {
   gap: 9px;
   margin-top: 20px;
   font-size: 14px;
+  box-shadow: 0 14px 28px rgba(49, 95, 61, .2);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.signin-submit:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 35px rgba(49, 95, 61, .26);
+}
+
+.signin-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.signin-mini-grid span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  border: 1px solid rgba(49, 95, 61, .12);
+  border-radius: 999px;
+  background: #f8faf7;
+  color: #3d5747;
+  font-size: 11px;
+  font-weight: 900;
 }
 
 .signin-help {
@@ -6587,10 +6762,13 @@ tbody tr:hover {
 
 .signin-form-card {
   padding: 34px;
-  border: 1px solid #cfc6b4;
-  border-radius: 26px;
-  background: rgba(255,255,255,.985);
-  box-shadow: 0 24px 65px rgba(38,59,45,.18);
+  border: 1px solid rgba(49, 95, 61, .14);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(238, 208, 129, .2), transparent 28%),
+    rgba(255,255,255,.92);
+  box-shadow: 0 28px 80px rgba(38,59,45,.18);
+  backdrop-filter: blur(16px);
 }
 
 .signin-input-wrap input {
@@ -6604,16 +6782,18 @@ tbody tr:hover {
 
 .signin-story-copy p,
 .signin-est {
-  text-shadow: none;
+  text-shadow: 0 10px 25px rgba(0,0,0,.24);
 }
 
 .signin-story-copy > span {
-  color: #8a6726;
-  text-shadow: none;
+  color: #f3d58b;
+  text-shadow: 0 10px 25px rgba(0,0,0,.24);
 }
 
 .signin-brand {
   display: inline-flex;
+  position: relative;
+  z-index: 1;
   width: fit-content;
   padding: 9px 12px 9px 9px;
   border: 1px solid rgba(199, 185, 151, 0.56);
@@ -6805,9 +6985,11 @@ tbody tr:hover {
 @media (max-width: 900px) {
   .signin-page { grid-template-columns: 1fr; }
   .signin-story { min-height: 390px; padding: 24px; }
-  .signin-story-copy { padding: 55px 0 35px; }
+  .signin-story-copy { margin: 34px 0 18px; padding: 26px; }
   .signin-story-copy h1 { max-width: 650px; font-size: 52px; }
   .signin-form-side { min-height: 560px; padding: 45px 24px 90px; }
+  .signin-feature-strip { grid-template-columns: 1fr; }
+  .signin-ambient-card { display: none; }
 }
 
 @media (max-width: 620px) {
@@ -6822,9 +7004,13 @@ tbody tr:hover {
   .welcome-content > p { font-size: 16px; }
   .welcome-actions { align-items: stretch; flex-direction: column; }
   .welcome-callout { right: 18px; bottom: 72px; }
-  .signin-story { min-height: 430px; }
+  .signin-story { min-height: 560px; padding: 18px; }
   .signin-story-copy h1 { font-size: 45px; }
   .signin-form-card h2 { font-size: 34px; }
+  .signin-feature-strip article { min-height: 64px; }
+  .signin-form-side { padding: 26px 16px 92px; }
+  .signin-form-card { padding: 25px; border-radius: 24px; }
+  .signin-mini-grid { grid-template-columns: 1fr; }
 }
 
 /* CAMPER DIRECTORY & MAINTENANCE PHOTOS */
