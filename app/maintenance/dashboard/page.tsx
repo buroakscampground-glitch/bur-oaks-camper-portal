@@ -49,49 +49,41 @@ export default function MaintenanceDashboard() {
       return
     }
 
-    const { data: ticket, error } = await supabase
-      .from('maintenance_tickets')
-      .insert({
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+
+    if (!token) {
+      setSubmitMessage('Please sign out and back in before submitting a work request.')
+      return
+    }
+
+    setSubmitMessage('Submitting for admin approval…')
+
+    const response = await fetch('/api/maintenance-staff-request', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
         title: newTitle,
         description: newDescription,
-        status: 'Open',
         priority: newPriority,
-        assigned_to: 'Open',
-        reported_by: 'Maintenance',
-        lot_number: 'WORK ORDER',
-        work_order: true,
-        admin_approved: false,
-      })
-      .select('id')
-      .single()
+      }),
+    })
 
-    if (error) {
-      alert(error.message)
+    const result = await response.json().catch(() => null)
+
+    if (!response.ok || !result?.success) {
+      setSubmitMessage(result?.error || 'Unable to submit this work request. Please try again.')
       return
     }
 
     let alertMessage = ''
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
-
-    if (token && ticket?.id) {
-      const alertResponse = await fetch('/api/admin-alert', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          type: 'maintenance_request',
-          ticketId: ticket.id,
-        }),
-      })
-      const alertResult = await alertResponse.json().catch(() => null)
-      if (!alertResponse.ok || alertResult?.emailStatus === 'failed') {
-        alertMessage = ` Ticket was saved, but the admin email alert did not send: ${alertResult?.emailMessage || alertResult?.error || 'unknown email error'}.`
-      } else if (alertResult?.emailStatus === 'skipped') {
-        alertMessage = ` Ticket was saved, but email alerts are not configured: ${alertResult.emailMessage || 'missing setup'}.`
-      }
+    if (result.emailStatus === 'failed') {
+      alertMessage = ` Ticket was saved, but the admin email alert did not send: ${result.emailMessage || 'unknown email error'}.`
+    } else if (result.emailStatus === 'skipped') {
+      alertMessage = ` Ticket was saved, but email alerts are not configured: ${result.emailMessage || 'missing setup'}.`
     }
 
     setNewTitle('')
