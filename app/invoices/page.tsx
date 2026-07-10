@@ -509,7 +509,7 @@ export default function InvoicesPage() {
               <div><small>TEXT ALERTS</small><h2>Fast campground updates</h2></div>
             </div>
 
-            <p className="autopay-intro">Get quick texts for invoices, payment reminders, storm alerts, breakfast, dinner, gate updates, maintenance updates, and campground announcements.</p>
+            <p className="autopay-intro">Get quick non-marketing texts for invoices, payment reminders, account notices, gate updates, utility notices, maintenance updates, sewer pump-outs, office notices, and safety or weather-related operational alerts.</p>
 
             <label className="autopay-consent account-sms-consent">
               <input
@@ -524,7 +524,7 @@ export default function InvoicesPage() {
               <span>
                 <strong>I agree to receive Bur Oaks Campground text alerts</strong>
                 <small>
-                  By checking this box, I agree to receive SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, events, dinner reminders, gate notices, office messages, and urgent campground or weather alerts. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. SMS consent is optional and is not shared or sold.
+                  By checking this box, I agree to receive SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. SMS consent is optional and is not shared or sold.
                 </small>
               </span>
             </label>

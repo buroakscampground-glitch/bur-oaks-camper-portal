@@ -11,7 +11,7 @@ export default function SmsTermsPage() {
 
         <h2>Program description</h2>
         <p>
-          Bur Oaks Campground sends opted-in seasonal campers operational text messages related to their private camper portal account and campground activity. Messages may include new invoice notices, invoice due-date reminders, past-due reminders, payment confirmations, maintenance request updates, sewer pump-out updates, campground announcements, urgent weather or storm alerts, event updates, Saturday dinner reminders, gate notices, office messages, and other Bur Oaks Campground operational notices.
+          Bur Oaks Campground sends opted-in seasonal campers operational text messages related to their private camper portal account and campground operations. Messages may include new invoice notices, invoice due-date reminders, past-due reminders, payment confirmations, maintenance request updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices.
         </p>
 
         <h2>How consent is collected</h2>
@@ -24,7 +24,7 @@ export default function SmsTermsPage() {
 
         <h2>Message frequency</h2>
         <p>
-          Message frequency varies based on account activity, invoice and payment activity, maintenance requests, campground announcements, event reminders, dinner reminders, and urgent campground or weather alerts.
+          Message frequency varies based on account activity, invoice and payment activity, maintenance requests, utility notices, gate notices, office notices, and safety or weather-related operational alerts.
         </p>
 
         <h2>Cost</h2>
