@@ -218,7 +218,7 @@ export default function AdminCampersPage() {
 
     setInvitingEmail(email)
     setSetupLink('')
-    setMessage(`Creating a fresh portal setup link for ${email}…`)
+    setMessage(`Creating a fresh password reset link for ${email}…`)
 
     try {
       const response = await fetch(
@@ -242,15 +242,15 @@ export default function AdminCampersPage() {
 
       if (result.delivery === 'manual' && result.setupUrl) {
         setSetupLink(result.setupUrl)
-        setMessage(`A fresh one-time setup link is ready for ${email}. Copy it below and send it privately.`)
+        setMessage(`A fresh one-time password reset link is ready for ${email}. Copy it below and send it privately.`)
       } else if (result.delivery === 'email-service') {
-        setMessage(`Fresh portal setup link sent from Bur Oaks to ${email}. Ask them to use the newest email.`)
+        setMessage(`Fresh password reset email sent from Bur Oaks to ${email}. Ask them to use the newest email and check junk/spam if needed.`)
       } else {
-        setMessage(`Fresh portal setup link sent to ${email}. Ask them to use the newest email and check spam.`)
+        setMessage(`Fresh password reset email sent to ${email}. Ask them to use the newest email and check junk/spam.`)
       }
       loadPortalStatuses()
     } catch {
-      setMessage('The fresh setup link could not be sent. Please try again.')
+      setMessage('The fresh password reset link could not be sent. Please try again.')
     } finally {
       setInvitingEmail(null)
     }
@@ -412,8 +412,8 @@ export default function AdminCampersPage() {
       {setupLink && (
         <div className="admin-camper-setup-link">
           <div>
-            <strong>Fresh one-time portal setup link</strong>
-            <span>This is the newest link. Copy it and send it privately. Do not open it from your admin account.</span>
+            <strong>Fresh one-time password reset link</strong>
+            <span>This is the newest link. Copy it and send it privately if the email did not arrive. Do not open it from your admin account.</span>
           </div>
           <button
             type="button"
@@ -422,7 +422,7 @@ export default function AdminCampersPage() {
               setMessage('Fresh setup link copied. Send it privately to the camper.')
             }}
           >
-            Copy Fresh Setup Link
+            Copy Fresh Reset Link
           </button>
         </div>
       )}
@@ -567,7 +567,7 @@ export default function AdminCampersPage() {
                 createPortalAccount(camper, camper.email)
               }}
             >
-              {invitingEmail === camper.email ? 'Sending Fresh Link…' : 'Send Fresh Setup Link'}
+              {invitingEmail === camper.email ? 'Sending Reset Link…' : 'Reset Password / Send Fresh Link'}
             </button>
           )}
           {camper.secondary_email && (
@@ -579,7 +579,7 @@ export default function AdminCampersPage() {
                 createPortalAccount(camper, camper.secondary_email)
               }}
             >
-              {invitingEmail === camper.secondary_email ? 'Sending Fresh Link…' : 'Send Fresh Link to Second Email'}
+              {invitingEmail === camper.secondary_email ? 'Sending Reset Link…' : 'Reset Password for Second Email'}
             </button>
           )}
         </div>
