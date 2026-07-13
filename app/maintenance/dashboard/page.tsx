@@ -6,9 +6,41 @@ import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, ListChecks, Pl
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 
+const weeklyTasks = [
+  {
+    id: 'trash',
+    title: 'Take all trash out',
+    detail: 'Empty campground trash, check problem areas, and report overflow or dumping.',
+  },
+  {
+    id: 'showerhouse',
+    title: 'Clean shower house',
+    detail: 'Clean floors, sinks, toilets, showers, restock supplies, and report repairs needed.',
+  },
+  {
+    id: 'grounds-limbs',
+    title: 'Inspect grounds for downed limbs',
+    detail: 'Drive/walk common areas and roads. Submit a request for anything needing office review.',
+  },
+  {
+    id: 'mowers',
+    title: 'Service mowers',
+    detail: 'Check fuel, oil, blades, belts, tire pressure, and note any parts or repairs needed.',
+  },
+]
+
+function getMaintenanceWeekKey() {
+  const now = new Date()
+  const start = new Date(now)
+  start.setHours(0, 0, 0, 0)
+  start.setDate(now.getDate() - now.getDay())
+  return start.toISOString().slice(0, 10)
+}
+
 export default function MaintenanceDashboard() {
   const [loading, setLoading] = useState(true)
   const [tickets, setTickets] = useState<any[]>([])
+  const [weeklyDone, setWeeklyDone] = useState<Record<string, boolean>>({})
 
   const [newTitle, setNewTitle] = useState('')
   const [newDescription, setNewDescription] = useState('')
@@ -19,6 +51,13 @@ export default function MaintenanceDashboard() {
 
   useEffect(() => {
     loadTickets()
+    const key = `bur-oaks-maintenance-weekly-${getMaintenanceWeekKey()}`
+
+    try {
+      setWeeklyDone(JSON.parse(window.localStorage.getItem(key) || '{}'))
+    } catch {
+      setWeeklyDone({})
+    }
 
     const refresh = () => loadTickets()
     const timer = window.setInterval(refresh, 30000)
@@ -31,6 +70,14 @@ export default function MaintenanceDashboard() {
       window.removeEventListener('pageshow', refresh)
     }
   }, [])
+
+  function toggleWeeklyTask(id: string) {
+    const key = `bur-oaks-maintenance-weekly-${getMaintenanceWeekKey()}`
+    const next = { ...weeklyDone, [id]: !weeklyDone[id] }
+
+    setWeeklyDone(next)
+    window.localStorage.setItem(key, JSON.stringify(next))
+  }
 
   async function loadTickets() {
     const { data } = await supabase
@@ -162,6 +209,32 @@ export default function MaintenanceDashboard() {
         <article><ClipboardList size={20} /><strong>1. Pick approved work</strong><span>Open a ticket from the queue below.</span></article>
         <article><Clock3 size={20} /><strong>2. Update progress</strong><span>Mark in progress or waiting parts as you work.</span></article>
         <article><CheckCircle2 size={20} /><strong>3. Parts, receipts, notes</strong><span>Open details to record parts used, receipt photos, and what was done.</span></article>
+      </section>
+
+      <section className="maintenance-weekly-card">
+        <div className="maintenance-weekly-heading">
+          <div>
+            <span><ListChecks size={17} /> WEEKLY GROUNDS ROUTINE</span>
+            <h2>This week’s recurring tasks</h2>
+            <p>Tap each task as it is done. If you find a repair, hazard, or part needed, submit it below for office approval.</p>
+          </div>
+          <strong>{weeklyTasks.filter((task) => weeklyDone[task.id]).length}/{weeklyTasks.length} done</strong>
+        </div>
+
+        <div className="maintenance-weekly-grid">
+          {weeklyTasks.map((task) => (
+            <button
+              type="button"
+              key={task.id}
+              className={weeklyDone[task.id] ? 'done' : ''}
+              onClick={() => toggleWeeklyTask(task.id)}
+            >
+              <span>{weeklyDone[task.id] ? <CheckCircle2 size={18} /> : <Clock3 size={18} />}</span>
+              <strong>{task.title}</strong>
+              <small>{task.detail}</small>
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="maintenance-staff-stats">
