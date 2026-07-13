@@ -4081,6 +4081,20 @@ button:hover {
   font-size: clamp(32px, 3.3vw, 47px);
 }
 
+.camper-workspace-home-page .camper-workspace-main {
+  padding: 0;
+}
+
+.camper-workspace-home-page .camper-workspace-content {
+  width: 100%;
+  max-width: none;
+}
+
+.camper-workspace-home-page .camper-portal-page {
+  min-height: 100vh;
+  padding: 24px;
+}
+
 @media(max-width:1050px) {
   .camper-workspace-shell {
     grid-template-columns: 1fr;
@@ -4108,10 +4122,22 @@ button:hover {
   .camper-workspace-main {
     padding: 16px;
   }
+
+  .camper-workspace-home-page .camper-workspace-main {
+    padding: 0;
+  }
 }
 
 @media(max-width:760px) {
   .camper-workspace-main {
+    padding: 12px;
+  }
+
+  .camper-workspace-home-page .camper-workspace-main {
+    padding: 0;
+  }
+
+  .camper-workspace-home-page .camper-portal-page {
     padding: 12px;
   }
 

@@ -19,6 +19,7 @@ import {
 import { usePathname } from 'next/navigation'
 
 const camperPages: Record<string, string> = {
+  '/portal': 'Portal Home',
   '/invoices': 'Invoices & AutoPay',
   '/profile': 'Camper Profile',
   '/messages': 'Message the Office',
@@ -58,11 +59,12 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
 
   if (!title) return <>{children}</>
 
+  const isPortalHome = pathname === '/portal'
   const backHref = pathname === '/maintenance/history' ? '/maintenance' : '/portal'
   const backLabel = pathname === '/maintenance/history' ? 'Back to maintenance' : 'Back to portal'
 
   return (
-    <div className="camper-workspace-page">
+    <div className={`camper-workspace-page${isPortalHome ? ' camper-workspace-home-page' : ''}`}>
       <div className="camper-workspace-shell">
         <aside className="camper-sidebar" aria-label="Camper portal navigation">
           <a className="camper-sidebar-brand" href="/portal">
@@ -105,29 +107,33 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
         </aside>
 
         <div className="camper-workspace-main">
-          <header className="camper-workspace-header">
-            <nav>
-              <a className="camper-workspace-brand" href="/portal">
-                <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
-                <span><strong>Bur Oaks</strong><small>Camper Portal</small></span>
-              </a>
-              <a className="camper-workspace-home" href="/portal"><Home size={17} /> Portal home</a>
-            </nav>
-            <div className="camper-workspace-title">
-              <div>
-                <span><TentTree size={15} /> YOUR CAMPGROUND HOME BASE</span>
-                <h1>{title}</h1>
-                <p>Everything you need for your stay, kept simple and close at hand.</p>
+          {!isPortalHome && (
+            <header className="camper-workspace-header">
+              <nav>
+                <a className="camper-workspace-brand" href="/portal">
+                  <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
+                  <span><strong>Bur Oaks</strong><small>Camper Portal</small></span>
+                </a>
+                <a className="camper-workspace-home" href="/portal"><Home size={17} /> Portal home</a>
+              </nav>
+              <div className="camper-workspace-title">
+                <div>
+                  <span><TentTree size={15} /> YOUR CAMPGROUND HOME BASE</span>
+                  <h1>{title}</h1>
+                  <p>Everything you need for your stay, kept simple and close at hand.</p>
+                </div>
+                <a href={backHref}><ArrowLeft size={17} /> {backLabel}</a>
               </div>
-              <a href={backHref}><ArrowLeft size={17} /> {backLabel}</a>
-            </div>
-          </header>
+            </header>
+          )}
 
           <div className="camper-workspace-content">{children}</div>
-          <footer className="camper-workspace-footer">
-            <span><MapPin size={13} /> Bur Oaks Campground</span>
-            <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
-          </footer>
+          {!isPortalHome && (
+            <footer className="camper-workspace-footer">
+              <span><MapPin size={13} /> Bur Oaks Campground</span>
+              <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
+            </footer>
+          )}
         </div>
       </div>
     </div>
