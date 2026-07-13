@@ -52,7 +52,7 @@ export async function POST(request: Request) {
   const rateLimit = checkRateLimit(request, 'bulk-camper-invites', 12, 60 * 60_000)
   if (!rateLimit.allowed) {
     return NextResponse.json(
-      { error: 'Bulk invites were clicked too many times. Please wait before trying again.' },
+      { error: 'Bulk setup links were clicked too many times. Please wait before trying again.' },
       { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
     )
   }
@@ -165,7 +165,7 @@ export async function POST(request: Request) {
           error_message: error?.message || 'Unknown email error',
           sent_by: context.user.email,
         })
-        failed.push({ email: recipient.email, error: error?.message || 'Unable to send invite.' })
+        failed.push({ email: recipient.email, error: error?.message || 'Unable to send setup link.' })
       }
     }
 
@@ -178,9 +178,9 @@ export async function POST(request: Request) {
       skippedRecentlySent: recentlySentEmails.size,
     })
   } catch (error) {
-    console.error('Unable to bulk send portal invites:', error)
+    console.error('Unable to bulk send portal setup links:', error)
     return NextResponse.json(
-      { error: 'Unable to send bulk portal invites.' },
+      { error: 'Unable to send bulk portal setup links.' },
       { status: 500 }
     )
   }

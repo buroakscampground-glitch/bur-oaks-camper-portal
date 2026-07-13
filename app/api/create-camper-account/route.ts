@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   const rateLimit = checkRateLimit(request, 'camper-invite', 30, 10 * 60_000)
   if (!rateLimit.allowed) {
     return NextResponse.json(
-      { error: 'Too many invitation attempts. Please wait before trying again.' },
+      { error: 'Too many setup link attempts. Please wait before trying again.' },
       { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
     )
   }
@@ -86,14 +86,14 @@ export async function POST(request: Request) {
 
     if (!camper) {
       return NextResponse.json(
-        { error: 'Save this camper with a real email before sending a portal invite.' },
+        { error: 'Save this camper with a real email before sending a portal setup link.' },
         { status: 400 }
       )
     }
 
     if (camper.active === false) {
       return NextResponse.json(
-        { error: 'This camper is archived. Restore the camper before sending a portal invite.' },
+        { error: 'This camper is archived. Restore the camper before sending a portal setup link.' },
         { status: 400 }
       )
     }
@@ -133,7 +133,7 @@ export async function POST(request: Request) {
           success: true,
           delivery: 'manual',
           setupUrl,
-          warning: 'The email sender could not send this invite, so use this secure setup link manually.',
+          warning: 'The email sender could not send this setup email, so use this fresh secure setup link manually.',
         })
       }
     }
@@ -167,7 +167,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Unable to create camper account:', error)
     return NextResponse.json(
-      { error: 'Unable to send the portal invitation.' },
+      { error: 'Unable to send the portal setup link.' },
       { status: 500 }
     )
   }

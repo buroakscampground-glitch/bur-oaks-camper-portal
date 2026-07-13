@@ -33,7 +33,7 @@ export default function SetPasswordPage() {
         })
 
         if (verification.error) {
-          setMessage('This setup link is invalid or expired. Please generate a new setup link.')
+          setMessage('This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh setup link.')
           return
         }
 
@@ -43,7 +43,7 @@ export default function SetPasswordPage() {
       if (!data.session && code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
-          setMessage('This invitation link is invalid or expired. Please request a new invitation.')
+          setMessage('This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh setup link.')
           return
         }
         const sessionResult = await supabase.auth.getSession()
@@ -51,7 +51,7 @@ export default function SetPasswordPage() {
       }
 
       if (!data.session) {
-        setMessage('This invitation link is invalid or expired. Please request a new invitation.')
+        setMessage('This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh setup link.')
         return
       }
 
@@ -81,7 +81,7 @@ export default function SetPasswordPage() {
     if (error) {
       setMessage(
         error.message.includes('session')
-          ? 'This link is invalid or expired. Request a new password-reset link.'
+          ? 'This link is invalid or expired. Ask the Bur Oaks office for a fresh setup link.'
           : error.message
       )
       setSaving(false)

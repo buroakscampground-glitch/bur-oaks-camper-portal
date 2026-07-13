@@ -212,13 +212,13 @@ export default function AdminCampersPage() {
     const token = data.session?.access_token
 
     if (!token) {
-      setMessage('Please sign in again before sending an invitation.')
+      setMessage('Please sign in again before creating a fresh setup link.')
       return
     }
 
     setInvitingEmail(email)
     setSetupLink('')
-    setMessage(`Sending portal invitation to ${email}…`)
+    setMessage(`Creating a fresh portal setup link for ${email}…`)
 
     try {
       const response = await fetch(
@@ -242,15 +242,15 @@ export default function AdminCampersPage() {
 
       if (result.delivery === 'manual' && result.setupUrl) {
         setSetupLink(result.setupUrl)
-        setMessage(`Email sending is temporarily limited. A secure one-time setup link is ready for ${email}.`)
+        setMessage(`A fresh one-time setup link is ready for ${email}. Copy it below and send it privately.`)
       } else if (result.delivery === 'email-service') {
-        setMessage(`Portal invite sent from Bur Oaks to ${email}.`)
+        setMessage(`Fresh portal setup link sent from Bur Oaks to ${email}. Ask them to use the newest email.`)
       } else {
-        setMessage(`Portal invite sent to ${email}. Ask them to check their inbox and spam folder.`)
+        setMessage(`Fresh portal setup link sent to ${email}. Ask them to use the newest email and check spam.`)
       }
       loadPortalStatuses()
     } catch {
-      setMessage('The invitation could not be sent. Please try again.')
+      setMessage('The fresh setup link could not be sent. Please try again.')
     } finally {
       setInvitingEmail(null)
     }
@@ -258,7 +258,7 @@ export default function AdminCampersPage() {
 
   async function sendBulkPortalInvites() {
     const confirmed = window.confirm(
-      'Send the next batch of portal invite emails to campers who have not accepted and were not emailed recently?'
+      'Send the next batch of fresh portal setup emails to campers who have not accepted and were not emailed recently?'
     )
 
     if (!confirmed) return
@@ -267,13 +267,13 @@ export default function AdminCampersPage() {
     const token = data.session?.access_token
 
     if (!token) {
-      setMessage('Please sign in again before sending bulk invites.')
+      setMessage('Please sign in again before sending bulk setup links.')
       return
     }
 
     setBulkSending(true)
     setSetupLink('')
-    setMessage('Sending the next batch of portal invite emails…')
+    setMessage('Sending the next batch of fresh portal setup emails…')
 
     try {
       const response = await fetch('/api/bulk-portal-invites', {
@@ -288,7 +288,7 @@ export default function AdminCampersPage() {
       const result = await response.json()
 
       if (!response.ok) {
-        setMessage(result.error || 'Unable to send bulk portal invites.')
+        setMessage(result.error || 'Unable to send bulk portal setup links.')
         return
       }
 
@@ -297,14 +297,14 @@ export default function AdminCampersPage() {
       const remaining = result.remaining || 0
 
       if (sentCount === 0 && failedCount === 0) {
-        setMessage('No unsent portal invites are waiting right now. Accepted accounts and recently emailed campers were skipped.')
+        setMessage('No unsent portal setup links are waiting right now. Accepted accounts and recently emailed campers were skipped automatically.')
       } else {
-        setMessage(`Sent ${sentCount} portal invite${sentCount === 1 ? '' : 's'}. ${failedCount ? `${failedCount} failed. ` : ''}${remaining} still waiting for a future batch.`)
+        setMessage(`Sent ${sentCount} fresh setup link${sentCount === 1 ? '' : 's'}. ${failedCount ? `${failedCount} failed. ` : ''}${remaining} still waiting for a future batch.`)
       }
 
       loadPortalStatuses()
     } catch {
-      setMessage('Bulk invites could not be sent. Please try again.')
+      setMessage('Bulk setup links could not be sent. Please try again.')
     } finally {
       setBulkSending(false)
     }
@@ -331,14 +331,14 @@ export default function AdminCampersPage() {
 
       <section className="admin-camper-bulk-invites">
         <div>
-          <strong>Bulk portal invitations</strong>
+          <strong>Bulk portal setup links</strong>
         <span>
-          Send password setup emails in batches of 50. Accepted accounts and campers emailed recently are skipped automatically.
+          Send fresh password setup emails in batches of 50. Accepted accounts and campers emailed recently are skipped automatically.
           {' '}Accepted: {Object.values(portalStatuses).filter((status) => status === 'accepted').length} · Pending: {Object.values(portalStatuses).filter((status) => status === 'pending').length}
         </span>
         </div>
         <button type="button" onClick={sendBulkPortalInvites} disabled={bulkSending}>
-          {bulkSending ? 'Sending Batch…' : 'Send Next Batch of Portal Invites'}
+          {bulkSending ? 'Sending Batch…' : 'Send Next Batch of Fresh Setup Links'}
         </button>
       </section>
 
@@ -412,17 +412,17 @@ export default function AdminCampersPage() {
       {setupLink && (
         <div className="admin-camper-setup-link">
           <div>
-            <strong>One-time portal setup link</strong>
-            <span>Copy this link and send it privately to the camper. Do not open it from your admin account.</span>
+            <strong>Fresh one-time portal setup link</strong>
+            <span>This is the newest link. Copy it and send it privately. Do not open it from your admin account.</span>
           </div>
           <button
             type="button"
             onClick={async () => {
               await navigator.clipboard.writeText(setupLink)
-              setMessage('Secure setup link copied. Send it privately to the camper.')
+              setMessage('Fresh setup link copied. Send it privately to the camper.')
             }}
           >
-            Copy Setup Link
+            Copy Fresh Setup Link
           </button>
         </div>
       )}
@@ -567,7 +567,7 @@ export default function AdminCampersPage() {
                 createPortalAccount(camper, camper.email)
               }}
             >
-              {invitingEmail === camper.email ? 'Sending Invite…' : 'Invite Primary Email'}
+              {invitingEmail === camper.email ? 'Sending Fresh Link…' : 'Send Fresh Setup Link'}
             </button>
           )}
           {camper.secondary_email && (
@@ -579,7 +579,7 @@ export default function AdminCampersPage() {
                 createPortalAccount(camper, camper.secondary_email)
               }}
             >
-              {invitingEmail === camper.secondary_email ? 'Sending Invite…' : 'Invite Second Email'}
+              {invitingEmail === camper.secondary_email ? 'Sending Fresh Link…' : 'Send Fresh Link to Second Email'}
             </button>
           )}
         </div>

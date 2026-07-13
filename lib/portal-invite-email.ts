@@ -105,11 +105,12 @@ export async function sendPortalInviteEmail({
   const text = [
     `Hi ${firstName},`,
     '',
-    'Bur Oaks Campground has created your camper portal account.',
-    'Use the secure link below to create your password:',
+    'Bur Oaks Campground has created or refreshed your camper portal setup link.',
+    'Use the newest secure link below to create or reset your password:',
     '',
     setupUrl,
     '',
+    'For security, portal setup links are one-time use and can expire. If an older email does not work, use the newest email from Bur Oaks or contact the office for a fresh link.',
     'This link is private to you. If you did not request this, please contact the campground office.',
     '',
     'Bur Oaks Campground',
@@ -120,13 +121,14 @@ export async function sendPortalInviteEmail({
       <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2dccf">
         <div style="background:#214b31;color:#fff;padding:24px 28px">
           <div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#d8c18b;font-weight:700">Bur Oaks Campground</div>
-          <h1 style="margin:8px 0 0;font-family:Georgia,serif;font-weight:500">Your camper portal is ready.</h1>
+          <h1 style="margin:8px 0 0;font-family:Georgia,serif;font-weight:500">Your camper portal setup link is ready.</h1>
         </div>
         <div style="padding:28px">
           <p style="font-size:16px;line-height:1.55">Hi ${escapeHtml(firstName)},</p>
-          <p style="font-size:16px;line-height:1.55">We created your Bur Oaks Camper Portal account so you can view documents, invoices, events, weather, maintenance requests, and campground updates in one place.</p>
-          <a href="${setupUrl}" style="display:inline-block;margin:14px 0 18px;background:#2f5b3b;color:#fff;text-decoration:none;padding:14px 18px;border-radius:12px;font-weight:700">Create My Password</a>
+          <p style="font-size:16px;line-height:1.55">We created or refreshed your Bur Oaks Camper Portal setup link so you can view documents, invoices, events, weather, maintenance requests, and campground updates in one place.</p>
+          <a href="${setupUrl}" style="display:inline-block;margin:14px 0 18px;background:#2f5b3b;color:#fff;text-decoration:none;padding:14px 18px;border-radius:12px;font-weight:700">Set Up My Password</a>
           <p style="font-size:13px;line-height:1.5;color:#69766d">If the button does not work, copy and paste this link into your browser:<br><span style="word-break:break-all">${setupUrl}</span></p>
+          <p style="font-size:13px;line-height:1.5;color:#69766d"><strong>Important:</strong> For security, portal setup links are one-time use and can expire. If an older email does not work, use the newest email from Bur Oaks or contact the office for a fresh link.</p>
           <p style="font-size:13px;line-height:1.5;color:#69766d">This link is private to you. If you did not request this, please contact the campground office.</p>
         </div>
       </div>
