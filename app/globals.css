@@ -3892,6 +3892,258 @@ button:hover {
 .payment-result-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }.payment-result-actions a{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border-radius:11px;font-size:12px;font-weight:900;text-decoration:none}.payment-result-primary{background:#2f5b3b;color:#fff}.payment-result-secondary{border:1px solid #d8dcd5;color:#526359;background:#fff}.payment-result-security{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:21px;color:#939a94;font-size:9px}
 @media(max-width:760px){.camper-workspace-page{padding:12px}.camper-workspace-header{border-radius:21px}.camper-workspace-header nav{padding:16px}.camper-workspace-brand img{width:41px;height:41px}.camper-workspace-home{padding:0 10px;font-size:0}.camper-workspace-title{align-items:flex-start;flex-direction:column;padding:32px 21px 38px}.camper-workspace-title h1{font-size:38px}.camper-workspace-footer{flex-direction:column;gap:5px}.payment-result-page{padding:13px}.payment-result-shell{padding:25px 20px 35px;border-radius:22px}.payment-result-next{grid-template-columns:1fr}.payment-result-actions{grid-template-columns:1fr}.payment-result-icon{margin-top:29px}}
 
+.camper-workspace-page {
+  padding: 0;
+}
+
+.camper-workspace-shell {
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.camper-workspace-main {
+  min-width: 0;
+  padding: 24px;
+}
+
+.camper-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
+  padding: 20px 15px;
+  color: #263c2d;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(230, 202, 127, .28), transparent 26%),
+    linear-gradient(180deg, #fffaf0 0%, #edf5e9 52%, #e6efe3 100%);
+  border-right: 1px solid #dcd8cb;
+  box-shadow: 14px 0 34px rgba(42, 59, 45, .08);
+}
+
+.camper-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 8px 7px 16px;
+  color: #263d2e;
+  text-decoration: none;
+}
+
+.camper-sidebar-brand img {
+  width: 46px;
+  height: 46px;
+  object-fit: cover;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 10px 22px rgba(39, 60, 45, .14);
+}
+
+.camper-sidebar-brand span,
+.camper-sidebar-feature span,
+.camper-sidebar-nav a span {
+  display: grid;
+  min-width: 0;
+}
+
+.camper-sidebar-brand strong {
+  font: 500 23px/1 Georgia, serif;
+}
+
+.camper-sidebar-brand small,
+.camper-sidebar-feature small,
+.camper-sidebar-nav small {
+  color: #7f8b82;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.camper-sidebar-brand small {
+  color: #9a7834;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.camper-sidebar-feature {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 13px;
+  border: 1px solid #d9d4c5;
+  border-radius: 18px;
+  color: #fff;
+  background:
+    radial-gradient(circle at 90% 0%, rgba(230, 202, 127, .28), transparent 32%),
+    linear-gradient(135deg, #1e442c, #315f3d);
+  text-decoration: none;
+  box-shadow: 0 14px 28px rgba(37, 63, 44, .14);
+}
+
+.camper-sidebar-feature svg {
+  color: #f2d88b;
+}
+
+.camper-sidebar-feature strong {
+  color: #fff;
+  font-size: 13px;
+}
+
+.camper-sidebar-feature small {
+  overflow: hidden;
+  color: rgba(255,255,255,.68);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.camper-sidebar-nav {
+  display: grid;
+  gap: 7px;
+}
+
+.camper-sidebar-nav a {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  color: #314438;
+  text-decoration: none;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease, box-shadow .16s ease;
+}
+
+.camper-sidebar-nav a:hover {
+  background: rgba(255,255,255,.75);
+  border-color: #e2ddd1;
+  transform: translateX(2px);
+}
+
+.camper-sidebar-nav a.active {
+  background: #fff;
+  border-color: #d7d0bf;
+  box-shadow: 0 12px 24px rgba(39, 55, 43, .09);
+}
+
+.camper-sidebar-nav a svg {
+  color: #315f3d;
+}
+
+.camper-sidebar-nav strong {
+  overflow: hidden;
+  color: #263d2e;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.camper-sidebar-nav small {
+  overflow: hidden;
+  margin-top: 2px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.camper-sidebar-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 13px 8px 0;
+  border-top: 1px solid #dcd8cb;
+  color: #738078;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.camper-workspace-main .camper-workspace-header,
+.camper-workspace-main .camper-workspace-content,
+.camper-workspace-main .camper-workspace-footer {
+  width: 100%;
+  max-width: 1220px;
+}
+
+.camper-workspace-main .camper-workspace-header {
+  margin-bottom: 18px;
+}
+
+.camper-workspace-main .camper-workspace-title {
+  padding: 31px 36px 36px;
+}
+
+.camper-workspace-main .camper-workspace-title h1 {
+  font-size: clamp(32px, 3.3vw, 47px);
+}
+
+@media(max-width:1050px) {
+  .camper-workspace-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .camper-sidebar {
+    position: relative;
+    height: auto;
+    padding: 14px;
+  }
+
+  .camper-sidebar-brand {
+    padding-bottom: 11px;
+  }
+
+  .camper-sidebar-nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .camper-sidebar-feature small,
+  .camper-sidebar-footer {
+    display: none;
+  }
+
+  .camper-workspace-main {
+    padding: 16px;
+  }
+}
+
+@media(max-width:760px) {
+  .camper-workspace-main {
+    padding: 12px;
+  }
+
+  .camper-sidebar-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .camper-sidebar-nav a {
+    min-height: 64px;
+    align-content: center;
+  }
+
+  .camper-workspace-main .camper-workspace-header nav {
+    display: none;
+  }
+
+  .camper-workspace-main .camper-workspace-title {
+    padding: 27px 20px 31px;
+  }
+
+  .camper-workspace-main .camper-workspace-title>a {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media(max-width:480px) {
+  .camper-sidebar-nav {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ADMIN BILLING WORKSPACE */
 .admin-workspace-content>main.admin-billing-page { padding:0!important; border:0; background:transparent!important; box-shadow:none; }
 .admin-billing-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:hidden; margin-bottom:22px; border:1px solid #dcd9ce; border-radius:19px; background:rgba(255,255,255,.97); box-shadow:0 12px 32px rgba(39,52,43,.07); }
