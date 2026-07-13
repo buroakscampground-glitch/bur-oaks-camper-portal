@@ -16,10 +16,10 @@ export default function SmsTermsPage() {
 
         <h2>How consent is collected</h2>
         <p>
-          Campers are not opted in automatically. A camper must sign in to the private Bur Oaks Camper Portal at <strong>www.buroakscampground.com</strong>, open <strong>Profile</strong> or <strong>Invoices</strong>, enter or confirm their mobile phone number, and check the box labeled <strong>I agree to receive Bur Oaks Campground text alerts</strong>.
+          Campers are not opted in automatically. A camper must sign in to the private Bur Oaks Camper Portal at <strong>www.buroakscampground.com</strong>, open <strong>Profile</strong> or <strong>Invoices</strong>, enter or confirm their mobile phone number, and manually check the unchecked box labeled <strong>I agree to receive Bur Oaks Campground text alerts</strong>.
         </p>
         <p>
-          SMS consent is a direct opt-in to Bur Oaks Campground only. Consent is not hidden inside a lease, payment authorization, AutoPay enrollment, portal account creation, camper directory listing, or any other agreement. SMS consent is optional and is not required to stay at Bur Oaks Campground, use the camper portal, or receive campground services.
+          SMS consent is a direct opt-in to Bur Oaks Campground only. Consent is not hidden inside a lease, payment authorization, AutoPay enrollment, portal account creation, camper directory listing, verbal conversation, or any other agreement. SMS consent is optional and is not required to stay at Bur Oaks Campground, use the camper portal, or receive campground services.
         </p>
 
         <h2>Message frequency</h2>
@@ -39,7 +39,7 @@ export default function SmsTermsPage() {
 
         <h2>Privacy and data sharing</h2>
         <p>
-          Bur Oaks Campground does not sell, rent, buy, trade, or share SMS opt-in information, phone numbers, or text messaging consent with third parties or affiliates for marketing, promotional, lead-generation, or advertising purposes. SMS consent is used only for Bur Oaks Campground communications. Service providers may process messages only as needed to deliver campground communications.
+          Bur Oaks Campground does not sell, rent, buy, trade, or share SMS opt-in information, phone numbers, or text messaging consent with third parties or affiliates for marketing, promotional, lead-generation, or advertising purposes. SMS consent is used only for Bur Oaks Campground account and campground operations communications. Service providers may process messages only as needed to deliver campground communications.
         </p>
 
         <h2>Related public pages</h2>

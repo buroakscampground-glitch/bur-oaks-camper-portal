@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, CheckCircle2, Mail, MessageCircle, Search, Send, UserRound, UsersRound, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
@@ -28,6 +28,7 @@ export default function AdminMessagesPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
+  const activeThreadRequest = useRef('')
 
   useEffect(() => {
     loadConversations()
@@ -71,10 +72,15 @@ export default function AdminMessagesPage() {
   }
 
   async function loadThread(camperId: string) {
+    activeThreadRequest.current = String(camperId)
+    setMessages([])
+
     const response = await fetch(`/api/messages?camperId=${camperId}`, {
       headers: await authHeaders(),
     })
     const result = await response.json().catch(() => ({}))
+
+    if (activeThreadRequest.current !== String(camperId)) return
 
     if (!response.ok) {
       setNotice(result.error || 'Unable to open this conversation.')
@@ -137,7 +143,6 @@ export default function AdminMessagesPage() {
     setSending(false)
   }
 
-  const selectedConversation = conversations.find((conversation) => String(conversation.camper.id) === String(selectedCamperId))
   const filteredConversations = useMemo(() => {
     const term = search.trim().toLowerCase()
     return conversations.filter((conversation) => {
@@ -145,6 +150,20 @@ export default function AdminMessagesPage() {
       return !term || `${camperName(camper)} ${camper.lot_number || ''} ${camper.email || ''}`.toLowerCase().includes(term)
     })
   }, [conversations, search])
+  const selectedConversation = conversations.find((conversation) => String(conversation.camper.id) === String(selectedCamperId))
+
+  useEffect(() => {
+    const term = search.trim()
+    if (!term || filteredConversations.length === 0) return
+
+    const selectedIsVisible = filteredConversations.some(
+      (conversation) => String(conversation.camper.id) === String(selectedCamperId)
+    )
+
+    if (!selectedIsVisible) {
+      setSelectedCamperId(String(filteredConversations[0].camper.id))
+    }
+  }, [filteredConversations, search, selectedCamperId])
 
   const unreadTotal = conversations.reduce((sum, conversation) => sum + Number(conversation.unreadCount || 0), 0)
   const selectedBulkCount = selectedCamperIds.length
