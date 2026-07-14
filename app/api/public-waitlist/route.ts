@@ -41,6 +41,9 @@ export async function POST(request: Request) {
     const phone = clean(body.phone, 40)
     const email = clean(body.email, 120).toLowerCase()
     const desiredSite = clean(body.desiredSite, 180)
+    const tourRequested = body.tourRequested === true
+    const preferredTourDate = clean(body.preferredTourDate, 20)
+    const preferredTourTime = clean(body.preferredTourTime, 40)
     const notes = clean(body.notes, 900)
 
     if (!firstName || !lastName) {
@@ -67,6 +70,9 @@ export async function POST(request: Request) {
     const admin = createClient(supabaseUrl, serviceRoleKey)
     const visitorNotes = [
       notes,
+      tourRequested
+        ? `Campground tour requested. Preferred date: ${preferredTourDate || 'No date selected'}. Preferred time: ${preferredTourTime || 'Flexible'}.`
+        : '',
       'Submitted from public website availability form.',
     ].filter(Boolean).join('\n\n')
 
@@ -118,6 +124,9 @@ export async function POST(request: Request) {
           { label: 'Phone', value: phone },
           { label: 'Email', value: email },
           { label: 'Desired site / camper info', value: desiredSite },
+          { label: 'Tour requested', value: tourRequested ? 'Yes' : 'No' },
+          { label: 'Preferred tour date', value: tourRequested ? preferredTourDate : '' },
+          { label: 'Preferred tour time', value: tourRequested ? preferredTourTime : '' },
           { label: 'Notes', value: notes },
         ],
         actionUrl: `${getSiteUrl()}/admin/waitlist`,

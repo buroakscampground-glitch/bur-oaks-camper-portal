@@ -157,7 +157,7 @@ export default function HomePage() {
             <address>10303 Oaks Rd.<br />Alhambra, IL 62001</address>
             <div>
               <a href="https://www.google.com/maps/dir/?api=1&destination=10303+Oaks+Rd,+Alhambra,+IL+62001" target="_blank" rel="noreferrer">Get directions <ArrowRight size={17} /></a>
-              <a href="/contact">Schedule a tour</a>
+              <a href="/availability#membership-inquiry">Request a tour</a>
             </div>
           </div>
         </section>
@@ -168,6 +168,7 @@ export default function HomePage() {
           </div>
           <div className="public-guide-card-grid">
             <a href="/seasonal-camping-near-st-louis"><span>Local guide</span><h3>Seasonal camping near St. Louis</h3><p>Compare the rhythm of an annual site with packing for a different campground every weekend.</p><b>Read the guide <ArrowRight size={15} /></b></a>
+            <a href="/seasonal-camping-near-edwardsville-il"><span>Edwardsville area guide</span><h3>Seasonal camping near Edwardsville</h3><p>Explore a private, members-only seasonal camping option for families across the Metro East.</p><b>Explore the local guide <ArrowRight size={15} /></b></a>
             <a href="/annual-rv-sites-metro-east"><span>RV site guide</span><h3>Annual RV sites in the Metro East</h3><p>Learn what to consider when choosing a long-term seasonal home base for your camper.</p><b>Explore annual sites <ArrowRight size={15} /></b></a>
             <a href="/members-only-seasonal-camping"><span>Membership guide</span><h3>How members-only camping works</h3><p>Understand seasonal membership, approved guests, tours, community expectations, and next steps.</p><b>Learn how it works <ArrowRight size={15} /></b></a>
           </div>

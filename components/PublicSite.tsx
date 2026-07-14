@@ -128,6 +128,7 @@ export function PublicFooter() {
           <a href="/events">Events</a>
           <a href="/gallery">Gallery</a>
           <a href="/seasonal-camping-near-st-louis">Camping near St. Louis</a>
+          <a href="/seasonal-camping-near-edwardsville-il">Camping near Edwardsville</a>
         </div>
         <div>
           <h3>Plan a visit</h3>
@@ -136,6 +137,7 @@ export function PublicFooter() {
           <a href="/members-only-seasonal-camping">How seasonal membership works</a>
           <a href="/faq">Frequently asked questions</a>
           <a href="/contact">Contact us</a>
+          <a href="/reviews">Leave a Google review</a>
           <a href="/login">Camper portal</a>
         </div>
         <div>

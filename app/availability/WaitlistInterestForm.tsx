@@ -10,6 +10,9 @@ export default function WaitlistInterestForm() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [desiredSite, setDesiredSite] = useState('')
+  const [tourRequested, setTourRequested] = useState(false)
+  const [preferredTourDate, setPreferredTourDate] = useState('')
+  const [preferredTourTime, setPreferredTourTime] = useState('Flexible')
   const [notes, setNotes] = useState('')
   const [message, setMessage] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -41,6 +44,9 @@ export default function WaitlistInterestForm() {
           phone,
           email,
           desiredSite,
+          tourRequested,
+          preferredTourDate,
+          preferredTourTime,
           notes,
         }),
       })
@@ -60,6 +66,9 @@ export default function WaitlistInterestForm() {
       setPhone('')
       setEmail('')
       setDesiredSite('')
+      setTourRequested(false)
+      setPreferredTourDate('')
+      setPreferredTourTime('Flexible')
       setNotes('')
     } catch {
       setMessage('We could not send your request. Please call the campground.')
@@ -69,7 +78,7 @@ export default function WaitlistInterestForm() {
   }
 
   return (
-    <form className="public-waitlist-form" onSubmit={submitInterest}>
+    <form id="membership-inquiry" className="public-waitlist-form" onSubmit={submitInterest}>
       <span className="public-kicker">Membership inquiry</span>
       <h3>Interested in a seasonal site?</h3>
       <p>
@@ -106,6 +115,36 @@ export default function WaitlistInterestForm() {
           placeholder="Example: seasonal site, larger camper, near friends, etc."
         />
       </label>
+
+      <label className="public-tour-option">
+        <input
+          type="checkbox"
+          checked={tourRequested}
+          onChange={(event) => setTourRequested(event.target.checked)}
+        />
+        <span><strong>I would like to tour the campground</strong><small>We will contact you to confirm a date and time.</small></span>
+      </label>
+
+      {tourRequested && <div className="public-waitlist-grid public-tour-fields">
+        <label>
+          Preferred tour date
+          <input
+            type="date"
+            value={preferredTourDate}
+            min={new Date().toISOString().slice(0, 10)}
+            onChange={(event) => setPreferredTourDate(event.target.value)}
+          />
+        </label>
+        <label>
+          Preferred time
+          <select value={preferredTourTime} onChange={(event) => setPreferredTourTime(event.target.value)}>
+            <option>Flexible</option>
+            <option>Morning</option>
+            <option>Afternoon</option>
+            <option>Early evening</option>
+          </select>
+        </label>
+      </div>}
 
       <label>
         Anything else we should know?

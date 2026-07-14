@@ -7,6 +7,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ['', 1, 'weekly'],
     ['/availability', 0.95, 'weekly'],
     ['/seasonal-camping-near-st-louis', 0.9, 'monthly'],
+    ['/seasonal-camping-near-edwardsville-il', 0.9, 'monthly'],
     ['/annual-rv-sites-metro-east', 0.9, 'monthly'],
     ['/members-only-seasonal-camping', 0.9, 'monthly'],
     ['/about', 0.8, 'monthly'],
@@ -15,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ['/gallery', 0.75, 'monthly'],
     ['/faq', 0.75, 'monthly'],
     ['/contact', 0.75, 'monthly'],
+    ['/reviews', 0.65, 'monthly'],
     ['/blog', 0.6, 'monthly'],
   ] as const
 
