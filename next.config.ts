@@ -26,6 +26,17 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+  async redirects() {
+    return [
+      { source: '/check-availability', destination: '/availability', permanent: true },
+      { source: '/calander', destination: '/events', permanent: true },
+      { source: '/contact-4', destination: '/contact', permanent: true },
+      { source: '/event-list', destination: '/events', permanent: true },
+    ]
+  },
   async headers() {
     return [{ source: '/(.*)', headers: securityHeaders }]
   },

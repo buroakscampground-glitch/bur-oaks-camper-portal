@@ -7,7 +7,6 @@ import AuthLinkRedirect from '../components/AuthLinkRedirect'
 import GoogleAnalytics from '../components/GoogleAnalytics'
 
 const siteUrl = 'https://www.buroakscampground.com'
-const analyticsMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -92,18 +91,6 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(campgroundSchema) }} />
-        {analyticsMeasurementId ? (
-          <script
-            id="google-analytics-init"
-            dangerouslySetInnerHTML={{
-              __html: `window.dataLayer = window.dataLayer || [];
-function gtag(){window.dataLayer.push(arguments);}
-window.gtag = gtag;
-gtag('js', new Date());
-gtag('config', ${JSON.stringify(analyticsMeasurementId)}, { anonymize_ip: true });`,
-            }}
-          />
-        ) : null}
         <GoogleAnalytics />
         <AuthLinkRedirect />
         <CamperChrome>{children}</CamperChrome>

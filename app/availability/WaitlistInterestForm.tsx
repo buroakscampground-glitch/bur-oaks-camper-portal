@@ -60,6 +60,9 @@ export default function WaitlistInterestForm() {
 
       setSubmitted(true)
       trackPublicEvent('membership_inquiry_submitted', { form: 'public_waitlist', source: 'website' })
+      if (tourRequested) {
+        trackPublicEvent('tour_request_submitted', { form: 'public_waitlist', source: 'website' })
+      }
       setMessage('Your membership inquiry was received! We will reach out to talk through availability.')
       setFirstName('')
       setLastName('')

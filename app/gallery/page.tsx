@@ -1,4 +1,5 @@
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import Image from 'next/image'
 import { publicPageMetadata } from '../../lib/publicMetadata'
 
 export const metadata = publicPageMetadata('Campground Gallery', 'View real photos of Bur Oaks Campground, including its lake, shaded seasonal sites, green space, and community setting.', '/gallery')
@@ -25,6 +26,6 @@ const photos = [
 
 export default function GalleryPage() {
   return <PublicShell><main><PageHero eyebrow="Photo gallery" title="This is what getting away looks like." description="A glimpse of the scenery, seasons, and simple moments that make Bur Oaks memorable." />
-    <section id="page-content" className="public-gallery public-section">{photos.map(([src, alt], index) => <figure key={src} className={`gallery-${(index % 6) + 1}`}><img src={src} alt={alt} /><figcaption>{alt}</figcaption></figure>)}</section>
+    <section id="page-content" className="public-gallery public-section">{photos.map(([src, alt], index) => <figure key={src} className={`gallery-${(index % 6) + 1}`}><Image src={src} alt={alt} fill sizes="(max-width: 700px) 100vw, 50vw" /><figcaption>{alt}</figcaption></figure>)}</section>
   </main></PublicShell>
 }

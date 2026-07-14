@@ -14,8 +14,8 @@ import {
   X,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import Image from 'next/image'
 import { useEffect, useState } from 'react'
-import { trackPublicEvent } from '../lib/publicAnalytics'
 
 const navItems = [
   ['About', '/about'],
@@ -78,7 +78,7 @@ export function PublicHeader() {
       </div>
       <nav className="public-nav" aria-label="Main navigation">
         <a href="/" className="public-logo" aria-label="Bur Oaks Campground home">
-          <img src="/bur-oaks-logo.png" alt="" />
+          <Image src="/bur-oaks-logo.png" alt="" width={60} height={60} sizes="60px" priority />
           <span><strong>Bur Oaks</strong><small>Campground · Est. 1972</small></span>
         </a>
 
@@ -115,7 +115,7 @@ export function PublicFooter() {
     <footer className="public-footer">
       <div className="public-footer-main">
         <div className="public-footer-brand">
-          <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
+          <Image src="/bur-oaks-logo.png" alt="Bur Oaks Campground" width={76} height={76} sizes="76px" />
           <div>
             <h2>A site to remember.</h2>
             <p>A peaceful seasonal community built around nature, friendship, and summers well spent.</p>
@@ -146,8 +146,7 @@ export function PublicFooter() {
           <a href="tel:6184887927"><Phone size={15} /> 618-488-7927</a>
           <a href="mailto:buroakscampground@gmail.com"><Mail size={15} /> Email Bur Oaks</a>
           <div className="public-socials">
-            <a href="https://www.facebook.com/profile.php?id=100012292111661" aria-label="Facebook">f</a>
-            <a href="#" aria-label="Instagram">ig</a>
+            <a href="https://www.facebook.com/pages/Bur-Oaks-Campground/108171435891984" aria-label="Facebook">f</a>
           </div>
         </div>
       </div>
@@ -162,15 +161,15 @@ export function PublicFooter() {
 function PublicMobileActions() {
   return (
     <nav className="public-mobile-actions" aria-label="Quick contact actions">
-      <a href="tel:6184887927" onClick={() => trackPublicEvent('click_to_call', { location: 'mobile_action_bar' })}>
+      <a href="tel:6184887927" data-analytics-location="mobile_action_bar">
         <Phone size={18} />
         <span>Call</span>
       </a>
-      <a href="sms:+16188828063" onClick={() => trackPublicEvent('click_to_text', { location: 'mobile_action_bar' })}>
+      <a href="sms:+16188828063" data-analytics-location="mobile_action_bar">
         <MessageCircle size={18} />
         <span>Text</span>
       </a>
-      <a href="/availability" onClick={() => trackPublicEvent('membership_information_click', { location: 'mobile_action_bar' })}>
+      <a href="/availability" data-analytics-location="mobile_action_bar">
         <UserPlus size={18} />
         <span>Membership</span>
       </a>
@@ -194,7 +193,8 @@ export function PageHero({
   image?: string
 }) {
   return (
-    <section className="public-page-hero" style={{ backgroundImage: `linear-gradient(90deg, rgba(12,32,21,.94), rgba(12,32,21,.45)), url('${image}')` }}>
+    <section className="public-page-hero">
+      <Image src={image} alt="" fill sizes="100vw" className="public-page-hero-image" priority />
       <div>
         <span>{eyebrow}</span>
         <h1>{title}</h1>

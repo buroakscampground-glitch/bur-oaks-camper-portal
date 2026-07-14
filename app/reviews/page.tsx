@@ -21,7 +21,7 @@ export default function ReviewsPage() {
           <h2>Tell people what your time here has been like.</h2>
           <p>Whether you value the wooded setting, the lake, campground events, or the friendships you have made, your honest feedback helps people decide whether Bur Oaks may be a good fit for their family.</p>
           <p>Reviews should reflect your genuine experience. Bur Oaks does not require a positive review or offer an incentive in exchange for one.</p>
-          <a className="public-inline-action" href={googleReviewUrl} target="_blank" rel="noreferrer">Leave a review on Google <ExternalLink size={17} /></a>
+          <a className="public-inline-action" href={googleReviewUrl} target="_blank" rel="noreferrer" data-analytics-event="google_review_click">Leave a review on Google <ExternalLink size={17} /></a>
         </div>
         <aside className="public-review-qr-card"><img src="/bur-oaks-google-review-qr.svg" alt="QR code linking to the Bur Oaks Campground Google review form" /><span>Scan with your phone</span><h3>Open the Google review form.</h3><p>Point your phone camera at the code, then tap the link that appears.</p></aside>
       </section>

@@ -1,4 +1,5 @@
 import { Heart, Leaf, ShieldCheck, Users } from 'lucide-react'
+import Image from 'next/image'
 import { PageHero, PublicShell } from '../../components/PublicSite'
 import { publicPageMetadata } from '../../lib/publicMetadata'
 
@@ -14,9 +15,9 @@ export default function AboutPage() {
           <div><p>Bur Oaks Resort provides annual site rentals within a private, gated community in Alhambra, Illinois. For generations, families have come here to step away from the ordinary and make room for what matters most.</p><p>Our campground is warm, welcoming, and grounded in a simple idea: the best places do more than give you somewhere to stay. They give you a sense of belonging.</p></div>
         </section>
         <section className="public-about-photo-row public-section">
-          <figure><img src="/site-photos/IMG_8008.jpeg" alt="Bur Oaks lake and clubhouse" /><figcaption>Lakefront views</figcaption></figure>
-          <figure><img src="/site-photos/IMG_8004.jpeg" alt="Seasonal sites under mature trees" /><figcaption>Shaded seasonal sites</figcaption></figure>
-          <figure><img src="/site-photos/IMG_8010.jpeg" alt="Bur Oaks lake reflections" /><figcaption>Quiet days outdoors</figcaption></figure>
+          <figure><Image src="/site-photos/IMG_8008.jpeg" alt="Bur Oaks lake and clubhouse" fill sizes="(max-width: 700px) 100vw, 40vw" /><figcaption>Lakefront views</figcaption></figure>
+          <figure><Image src="/site-photos/IMG_8004.jpeg" alt="Seasonal sites under mature trees" fill sizes="(max-width: 700px) 100vw, 27vw" /><figcaption>Shaded seasonal sites</figcaption></figure>
+          <figure><Image src="/site-photos/IMG_8010.jpeg" alt="Bur Oaks lake reflections" fill sizes="(max-width: 700px) 100vw, 33vw" /><figcaption>Quiet days outdoors</figcaption></figure>
         </section>
         <section className="public-values public-section">
           <article><Leaf /><h3>Rooted in nature</h3><p>Mature trees, peaceful water, and the freedom to spend your days outside.</p></article>

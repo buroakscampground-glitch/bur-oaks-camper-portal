@@ -211,14 +211,16 @@ button:hover {
   position: relative;
   display: flex;
   align-items: center;
-  background: url('/site-photos/IMG_8008.jpeg') center 53% / cover no-repeat;
   color: white;
 }
+
+.public-home-hero-image { object-fit: cover; object-position: center 53%; z-index: 0; }
 
 .public-home-overlay {
   position: absolute;
   inset: 0;
   background: linear-gradient(90deg, rgba(8,29,18,.94) 0%, rgba(9,33,20,.77) 38%, rgba(8,20,12,.12) 76%), linear-gradient(0deg, rgba(8,20,12,.4), transparent 50%);
+  z-index: 1;
 }
 
 .public-home-copy {
@@ -771,12 +773,14 @@ button:hover {
 .public-cta a:first-child { background: white; color: var(--forest); }
 .public-cta a:last-child { color: white; border: 1px solid rgba(255,255,255,.35); }
 
-.public-page-hero { min-height: 520px; position: relative; padding: 100px max(22px, calc((100vw - 1180px) / 2)); display: flex; align-items: center; background-size: cover; background-position: center; color: white; }
-.public-page-hero > div { max-width: 850px; }
+.public-page-hero { min-height: 520px; position: relative; overflow: hidden; padding: 100px max(22px, calc((100vw - 1180px) / 2)); display: flex; align-items: center; color: white; }
+.public-page-hero::before { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, rgba(12,32,21,.94), rgba(12,32,21,.45)); }
+.public-page-hero-image { object-fit: cover; object-position: center; z-index: 0; }
+.public-page-hero > div { max-width: 850px; position: relative; z-index: 2; }
 .public-page-hero span { color: var(--sand); font-size: 11px; font-weight: 800; letter-spacing: .17em; text-transform: uppercase; }
 .public-page-hero h1 { margin: 18px 0; font-size: clamp(56px, 7vw, 96px); line-height: .95; font-weight: 500; }
 .public-page-hero p { max-width: 670px; margin-bottom: 0; color: rgba(255,255,255,.76); font-size: 18px; line-height: 1.7; }
-.public-page-hero > a { width: 46px; height: 46px; position: absolute; right: max(22px, calc((100vw - 1180px) / 2)); bottom: 36px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 50%; color: white; }
+.public-page-hero > a { width: 46px; height: 46px; position: absolute; z-index: 2; right: max(22px, calc((100vw - 1180px) / 2)); bottom: 36px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 50%; color: white; }
 
 .public-editorial { display: grid; grid-template-columns: .85fr 1.15fr; gap: 120px; }
 .public-editorial p:first-child { font-size: 21px; color: var(--ink); }
@@ -890,7 +894,7 @@ button:hover {
 .public-review-grid span { color: rgba(255,255,255,.58); font-size: 10px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase; }
 
 .public-visit { display: grid; grid-template-columns: 1.05fr .95fr; gap: 64px; align-items: center; }
-.public-visit figure { min-height: 560px; margin: 0; overflow: hidden; border-radius: 28px 180px 28px 28px; background: #d7d2c6; box-shadow: 0 28px 70px rgba(35,58,42,.14); }
+.public-visit figure { min-height: 560px; position: relative; margin: 0; overflow: hidden; border-radius: 28px 180px 28px 28px; background: #d7d2c6; box-shadow: 0 28px 70px rgba(35,58,42,.14); }
 .public-visit figure img { width: 100%; height: 100%; min-height: 560px; object-fit: cover; }
 .public-visit h2 { margin: 18px 0; color: var(--forest); font-size: clamp(42px,5vw,68px); font-weight: 500; line-height: 1.02; }
 .public-visit p { color: #637069; font-size: 16px; line-height: 1.75; }
@@ -1005,7 +1009,8 @@ button:hover {
   .public-nav-links > a::after { display: none; }
   .public-nav-links .public-nav-availability { display: flex; margin-top: 10px; justify-content: center; }
   .public-nav-links .public-nav-portal { margin-top: 8px; justify-content: center; }
-  .public-home-hero { min-height: 700px; align-items: flex-start; background-position: 62% center; }
+  .public-home-hero { min-height: 700px; align-items: flex-start; }
+  .public-home-hero-image { object-position: 62% center; }
   .public-home-overlay { background: linear-gradient(90deg, rgba(8,29,18,.94), rgba(8,29,18,.42)), linear-gradient(0deg, rgba(8,20,12,.65), transparent 55%); }
   .public-home-copy { width: calc(100% - 36px); padding: 85px 0 185px; }
   .public-home-copy h1 { font-size: clamp(54px, 16vw, 76px); }

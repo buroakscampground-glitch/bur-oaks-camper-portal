@@ -1,4 +1,5 @@
 import { ArrowRight, CalendarDays, Fish, Leaf, MapPinned, Quote, ShieldCheck, Sparkles, Star, TentTree, Users } from 'lucide-react'
+import Image from 'next/image'
 import EventFlyerShowcase from '../components/EventFlyerShowcase'
 import { PublicShell } from '../components/PublicSite'
 import { publicPageMetadata } from '../lib/publicMetadata'
@@ -24,6 +25,7 @@ export default function HomePage() {
     <PublicShell>
       <main>
         <section className="public-home-hero">
+          <Image src="/site-photos/IMG_8008.jpeg" alt="" fill sizes="100vw" className="public-home-hero-image" priority />
           <div className="public-home-overlay" />
           <div className="public-home-copy">
             <span className="public-eyebrow"><Leaf size={15} /> Now welcoming seasonal camping inquiries</span>
@@ -51,10 +53,10 @@ export default function HomePage() {
             <a href="/gallery">Explore the full gallery <ArrowRight size={16} /></a>
           </div>
           <div className="public-first-look-grid">
-            <figure className="public-first-look-main"><img src={gallery[0]} alt="Bur Oaks lake and clubhouse" /><figcaption>The lake at the heart of Bur Oaks</figcaption></figure>
-            <figure><img src={gallery[2]} alt="Shaded campground road at Bur Oaks" /><figcaption>Sites tucked under mature oaks</figcaption></figure>
-            <figure><img src={gallery[3]} alt="Bur Oaks fountain on the lake" /><figcaption>Quiet water views</figcaption></figure>
-            <figure className="public-first-look-wide"><img src={gallery[1]} alt="Bur Oaks lakefront seasonal campground" /><figcaption>Your seasonal home base</figcaption></figure>
+            <figure className="public-first-look-main"><Image src={gallery[0]} alt="Bur Oaks lake and clubhouse" fill sizes="(max-width: 700px) 100vw, 52vw" /><figcaption>The lake at the heart of Bur Oaks</figcaption></figure>
+            <figure><Image src={gallery[2]} alt="Shaded campground road at Bur Oaks" fill sizes="(max-width: 700px) 100vw, 24vw" /><figcaption>Sites tucked under mature oaks</figcaption></figure>
+            <figure><Image src={gallery[3]} alt="Bur Oaks fountain on the lake" fill sizes="(max-width: 700px) 100vw, 24vw" /><figcaption>Quiet water views</figcaption></figure>
+            <figure className="public-first-look-wide"><Image src={gallery[1]} alt="Bur Oaks lakefront seasonal campground" fill sizes="(max-width: 700px) 100vw, 48vw" /><figcaption>Your seasonal home base</figcaption></figure>
           </div>
           <div className="public-new-camper-invite">
             <div><span>New to Bur Oaks?</span><h3>Come walk the campground before choosing your site.</h3></div>
@@ -82,8 +84,8 @@ export default function HomePage() {
 
         <section className="public-image-story public-section">
           <div className="public-image-stack">
-            <img src={gallery[4]} alt="A peaceful day at Bur Oaks" />
-            <img src={gallery[5]} alt="Campground scenery" />
+            <Image src={gallery[4]} alt="A peaceful day at Bur Oaks" width={1428} height={1071} sizes="(max-width: 700px) 88vw, 44vw" />
+            <Image src={gallery[5]} alt="Campground scenery" width={1428} height={1071} sizes="(max-width: 700px) 52vw, 26vw" />
             <span><Sparkles size={18} /> Unhurried by nature</span>
           </div>
           <div>
@@ -113,7 +115,7 @@ export default function HomePage() {
               ['/site-photos/IMG_8019.jpeg', 'Life around Bur Oaks'],
             ].map(([src, caption]) => (
               <figure key={src}>
-                <img src={src} alt={caption} />
+                <Image src={src} alt={caption} fill sizes="(max-width: 700px) 100vw, 34vw" />
                 <figcaption>{caption}</figcaption>
               </figure>
             ))}
@@ -126,7 +128,7 @@ export default function HomePage() {
               <span className="public-kicker">Campers say it best</span>
               <h2 id="guest-reviews-title">A community people remember.</h2>
             </div>
-            <a href="https://www.google.com/maps/search/?api=1&query=Bur+Oaks+Campground+Alhambra+IL" target="_blank" rel="noreferrer">Read Google reviews <ArrowRight size={16} /></a>
+            <a href="https://www.google.com/maps/search/?api=1&query=Bur+Oaks+Campground+Alhambra+IL" target="_blank" rel="noreferrer" data-analytics-event="google_review_click">Read Google reviews <ArrowRight size={16} /></a>
           </div>
           <div className="public-review-summary">
             <strong>4.5</strong>
@@ -149,7 +151,7 @@ export default function HomePage() {
         </section>
 
         <section className="public-visit public-section">
-          <figure><img src={gallery[2]} alt="Shaded seasonal campground road at Bur Oaks" /></figure>
+          <figure><Image src={gallery[2]} alt="Shaded seasonal campground road at Bur Oaks" fill sizes="(max-width: 900px) 100vw, 52vw" /></figure>
           <div>
             <span className="public-kicker"><MapPinned size={16} /> Plan a visit</span>
             <h2>See the campground before choosing your site.</h2>
