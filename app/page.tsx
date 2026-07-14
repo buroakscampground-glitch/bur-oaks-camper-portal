@@ -22,7 +22,7 @@ export default function HomePage() {
             <h1>Find your place<br /><em>under the oaks.</em></h1>
             <p>Discover a private seasonal campground where your site becomes a second home—and every summer comes with more time outdoors, more community, and more memories.</p>
             <div className="public-hero-actions">
-              <a href="/availability">Check seasonal availability <ArrowRight size={18} /></a>
+              <a href="/availability">Membership information &amp; availability <ArrowRight size={18} /></a>
               <a href="/contact">Plan a campground tour</a>
             </div>
             <div className="public-prospect-note"><ShieldCheck size={15} /> Private gated community <span /> <Users size={15} /> Family-friendly <span /> <TentTree size={15} /> Annual sites</div>
@@ -122,7 +122,7 @@ export default function HomePage() {
 
         <section className="public-cta">
           <div><span className="public-kicker">Your next chapter outdoors</span><h2>Come see what makes Bur Oaks feel like home.</h2></div>
-          <div><a href="/availability">Check availability <ArrowRight size={18} /></a><a href="/login">Camper portal</a></div>
+          <div><a href="/availability">Membership information <ArrowRight size={18} /></a><a href="/login">Camper portal</a></div>
         </section>
       </main>
     </PublicShell>

@@ -52,7 +52,7 @@ export default function WaitlistInterestForm() {
       }
 
       setSubmitted(true)
-      setMessage('You are on our interest list! We will reach out when we can talk through availability.')
+      setMessage('Your membership inquiry was received! We will reach out to talk through availability.')
       setFirstName('')
       setLastName('')
       setPhone('')
@@ -68,8 +68,8 @@ export default function WaitlistInterestForm() {
 
   return (
     <form className="public-waitlist-form" onSubmit={submitInterest}>
-      <span className="public-kicker">Join the waitlist</span>
-      <h3>Want a seasonal site?</h3>
+      <span className="public-kicker">Membership inquiry</span>
+      <h3>Interested in a seasonal site?</h3>
       <p>
         Tell us a little about what you are looking for and we will add you to
         the Bur Oaks waitlist in our office portal.
@@ -115,7 +115,7 @@ export default function WaitlistInterestForm() {
       </label>
 
       <button type="submit" disabled={submitting || submitted}>
-        {submitting ? 'Sending…' : submitted ? 'Added to waitlist' : 'Send my information'}
+        {submitting ? 'Sending…' : submitted ? 'Inquiry received' : 'Request membership information'}
       </button>
 
       {message && <small className={submitted ? 'success' : ''}>{message}</small>}
