@@ -1,5 +1,8 @@
 import { ArrowRight, BookOpen } from 'lucide-react'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import { publicPageMetadata } from '../../lib/publicMetadata'
+
+export const metadata = publicPageMetadata('Campground News and Guides', 'Read seasonal camping guides, Bur Oaks community stories, event updates, and ideas for enjoying campground life.', '/blog')
 
 export default function BlogPage() {
   return <PublicShell><main><PageHero eyebrow="Stories from Bur Oaks" title="Campground news and notes." description="Seasonal updates, community stories, and ideas for making the most of life outdoors." />

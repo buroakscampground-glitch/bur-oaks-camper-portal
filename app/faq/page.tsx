@@ -1,4 +1,7 @@
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import { publicPageMetadata } from '../../lib/publicMetadata'
+
+export const metadata = publicPageMetadata('Seasonal Camping FAQ', 'Answers about seasonal membership, annual RV sites, availability, campground visits, and the Bur Oaks community.', '/faq')
 
 const questions = [
   ['Is Bur Oaks open for overnight camping?', 'Bur Oaks is a seasonal, members-only campground offering annual site rentals rather than nightly transient camping.'],
@@ -10,7 +13,17 @@ const questions = [
 ]
 
 export default function FaqPage() {
-  return <PublicShell><main><PageHero eyebrow="Frequently asked questions" title="A few things to know before you visit." description="Quick answers about seasonal camping, availability, and life at Bur Oaks." />
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: questions.map(([question, answer]) => ({
+      '@type': 'Question',
+      name: question,
+      acceptedAnswer: { '@type': 'Answer', text: answer },
+    })),
+  }
+
+  return <PublicShell><main><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} /><PageHero eyebrow="Frequently asked questions" title="A few things to know before you visit." description="Quick answers about seasonal camping, availability, and life at Bur Oaks." />
     <section id="page-content" className="public-faq public-section">{questions.map(([q, a]) => <details key={q}><summary>{q}</summary><p>{a}</p></details>)}</section>
     <section className="public-note-card"><span>Still curious?</span><h2>We would be happy to help.</h2><p>Reach out and our campground team will point you in the right direction.</p><a href="/contact">Contact Bur Oaks</a></section>
   </main></PublicShell>

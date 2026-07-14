@@ -8,11 +8,14 @@ import {
   Mail,
   MapPin,
   Menu,
+  MessageCircle,
   Phone,
+  UserPlus,
   X,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
+import { trackPublicEvent } from '../lib/publicAnalytics'
 
 const navItems = [
   ['About', '/about'],
@@ -99,7 +102,7 @@ export function PublicHeader() {
               {label}
             </a>
           ))}
-          <a href="/availability" className="public-nav-availability">Check availability</a>
+          <a href="/availability" className="public-nav-availability">Membership info</a>
           <a href="/login" className="public-nav-portal"><LogIn size={16} /> Camper portal</a>
         </div>
       </nav>
@@ -124,10 +127,13 @@ export function PublicFooter() {
           <a href="/amenities">Amenities</a>
           <a href="/events">Events</a>
           <a href="/gallery">Gallery</a>
+          <a href="/seasonal-camping-near-st-louis">Camping near St. Louis</a>
         </div>
         <div>
           <h3>Plan a visit</h3>
-          <a href="/availability">Check availability</a>
+          <a href="/availability">Membership information</a>
+          <a href="/annual-rv-sites-metro-east">Annual RV sites</a>
+          <a href="/members-only-seasonal-camping">How seasonal membership works</a>
           <a href="/faq">Frequently asked questions</a>
           <a href="/contact">Contact us</a>
           <a href="/login">Camper portal</a>
@@ -151,8 +157,27 @@ export function PublicFooter() {
   )
 }
 
+function PublicMobileActions() {
+  return (
+    <nav className="public-mobile-actions" aria-label="Quick contact actions">
+      <a href="tel:6184887927" onClick={() => trackPublicEvent('click_to_call', { location: 'mobile_action_bar' })}>
+        <Phone size={18} />
+        <span>Call</span>
+      </a>
+      <a href="sms:+16188828063" onClick={() => trackPublicEvent('click_to_text', { location: 'mobile_action_bar' })}>
+        <MessageCircle size={18} />
+        <span>Text</span>
+      </a>
+      <a href="/availability" onClick={() => trackPublicEvent('membership_information_click', { location: 'mobile_action_bar' })}>
+        <UserPlus size={18} />
+        <span>Membership</span>
+      </a>
+    </nav>
+  )
+}
+
 export function PublicShell({ children }: { children: React.ReactNode }) {
-  return <div className="public-site"><PublicHeader />{children}<PublicFooter /></div>
+  return <div className="public-site"><PublicHeader />{children}<PublicFooter /><PublicMobileActions /></div>
 }
 
 export function PageHero({

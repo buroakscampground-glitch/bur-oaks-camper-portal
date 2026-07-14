@@ -1,5 +1,8 @@
 import { Heart, Leaf, ShieldCheck, Users } from 'lucide-react'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import { publicPageMetadata } from '../../lib/publicMetadata'
+
+export const metadata = publicPageMetadata('Our Story', 'Learn about Bur Oaks Campground, established in 1972 and family-operated since 1996.', '/about')
 
 export default function AboutPage() {
   return (

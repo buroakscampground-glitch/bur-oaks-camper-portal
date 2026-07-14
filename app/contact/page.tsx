@@ -1,6 +1,9 @@
 import { Clock, Mail, MapPin, Phone } from 'lucide-react'
 import CampgroundMap from '../../components/CampgroundMap'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import { publicPageMetadata } from '../../lib/publicMetadata'
+
+export const metadata = publicPageMetadata('Contact and Directions', 'Contact Bur Oaks Campground about seasonal availability, membership questions, directions, and campground tours.', '/contact')
 
 export default function ContactPage() {
   return <PublicShell><main><PageHero eyebrow="Contact Bur Oaks" title="Let’s talk about your next season." description="Questions about availability or campground life? We’re ready to help." />

@@ -1,6 +1,14 @@
-import { ArrowRight, CalendarDays, Fish, Leaf, ShieldCheck, Sparkles, TentTree, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, Fish, Leaf, MapPinned, Quote, ShieldCheck, Sparkles, Star, TentTree, Users } from 'lucide-react'
 import EventFlyerShowcase from '../components/EventFlyerShowcase'
 import { PublicShell } from '../components/PublicSite'
+import { publicPageMetadata } from '../lib/publicMetadata'
+
+export const metadata = publicPageMetadata(
+  'Seasonal Camping Near St. Louis',
+  'Discover a private, family-friendly seasonal campground with annual RV sites, lake views, and community events in Alhambra, Illinois.',
+  '/',
+  '/site-photos/IMG_8008.jpeg',
+)
 
 const gallery = [
   '/site-photos/IMG_8008.jpeg',
@@ -112,12 +120,57 @@ export default function HomePage() {
           </div>
         </section>
 
+        <section className="public-reviews public-section" aria-labelledby="guest-reviews-title">
+          <div className="public-section-heading">
+            <div>
+              <span className="public-kicker">Campers say it best</span>
+              <h2 id="guest-reviews-title">A community people remember.</h2>
+            </div>
+            <a href="https://www.google.com/maps/search/?api=1&query=Bur+Oaks+Campground+Alhambra+IL" target="_blank" rel="noreferrer">Read Google reviews <ArrowRight size={16} /></a>
+          </div>
+          <div className="public-review-summary">
+            <strong>4.5</strong>
+            <span>{Array.from({ length: 5 }).map((_, index) => <Star key={index} size={18} fill="currentColor" />)}</span>
+            <p>Google rating from 29 reviews</p>
+          </div>
+          <div className="public-review-grid">
+            <article><Quote /><blockquote>“Overall an amazing place for family and friends to hang out.”</blockquote><span>Google review</span></article>
+            <article><Quote /><blockquote>“This is the first weekend for us and we absolutely love it.”</blockquote><span>Google review</span></article>
+            <article><Quote /><blockquote>“Great people, great fun.”</blockquote><span>Google review</span></article>
+          </div>
+        </section>
+
         <section className="public-events-preview public-section">
           <div className="public-section-heading">
             <div><span className="public-kicker">On the calendar</span><h2>There is always something happening.</h2></div>
             <a href="/events">See all events <ArrowRight size={16} /></a>
           </div>
           <EventFlyerShowcase context="public" limit={3} />
+        </section>
+
+        <section className="public-visit public-section">
+          <figure><img src={gallery[2]} alt="Shaded seasonal campground road at Bur Oaks" /></figure>
+          <div>
+            <span className="public-kicker"><MapPinned size={16} /> Plan a visit</span>
+            <h2>See the campground before choosing your site.</h2>
+            <p>Bur Oaks is a private, gated seasonal community. Contact our team to arrange a tour, learn about current annual-site options, and make sure someone is ready to welcome you.</p>
+            <address>10303 Oaks Rd.<br />Alhambra, IL 62001</address>
+            <div>
+              <a href="https://www.google.com/maps/dir/?api=1&destination=10303+Oaks+Rd,+Alhambra,+IL+62001" target="_blank" rel="noreferrer">Get directions <ArrowRight size={17} /></a>
+              <a href="/contact">Schedule a tour</a>
+            </div>
+          </div>
+        </section>
+
+        <section className="public-guides public-section">
+          <div className="public-section-heading">
+            <div><span className="public-kicker">Helpful camping guides</span><h2>Know what seasonal camping offers.</h2></div>
+          </div>
+          <div className="public-guide-card-grid">
+            <a href="/seasonal-camping-near-st-louis"><span>Local guide</span><h3>Seasonal camping near St. Louis</h3><p>Compare the rhythm of an annual site with packing for a different campground every weekend.</p><b>Read the guide <ArrowRight size={15} /></b></a>
+            <a href="/annual-rv-sites-metro-east"><span>RV site guide</span><h3>Annual RV sites in the Metro East</h3><p>Learn what to consider when choosing a long-term seasonal home base for your camper.</p><b>Explore annual sites <ArrowRight size={15} /></b></a>
+            <a href="/members-only-seasonal-camping"><span>Membership guide</span><h3>How members-only camping works</h3><p>Understand seasonal membership, approved guests, tours, community expectations, and next steps.</p><b>Learn how it works <ArrowRight size={15} /></b></a>
+          </div>
         </section>
 
         <section className="public-cta">

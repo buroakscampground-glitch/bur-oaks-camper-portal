@@ -1,6 +1,9 @@
 import { ArrowRight, Mail, Phone, Trees } from 'lucide-react'
 import { PageHero, PublicShell } from '../../components/PublicSite'
 import WaitlistInterestForm from './WaitlistInterestForm'
+import { publicPageMetadata } from '../../lib/publicMetadata'
+
+export const metadata = publicPageMetadata('Membership Information and Availability', 'Request information about seasonal membership and annual RV site availability at Bur Oaks Campground.', '/availability')
 
 export default function AvailabilityPage() {
   return <PublicShell><main><PageHero eyebrow="Membership information & availability" title="Find your place at Bur Oaks." description="Interested in an annual site? Start a conversation with our campground team." />

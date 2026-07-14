@@ -1,4 +1,7 @@
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import { publicPageMetadata } from '../../lib/publicMetadata'
+
+export const metadata = publicPageMetadata('Campground Gallery', 'View real photos of Bur Oaks Campground, including its lake, shaded seasonal sites, green space, and community setting.', '/gallery')
 
 const photos = [
   ['/site-photos/IMG_8008.jpeg', 'Lake and clubhouse views'],

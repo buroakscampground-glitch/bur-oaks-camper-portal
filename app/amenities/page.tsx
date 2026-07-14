@@ -1,5 +1,8 @@
 import { Bike, CalendarDays, Fish, KeyRound, Leaf, PartyPopper, TentTree, Users } from 'lucide-react'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import { publicPageMetadata } from '../../lib/publicMetadata'
+
+export const metadata = publicPageMetadata('Campground Amenities', 'Explore the annual RV sites, lake, events, recreation, and family-friendly amenities at Bur Oaks Campground.', '/amenities')
 
 const amenities = [
   [KeyRound, 'Private gated community', 'A seasonal setting designed to feel secure, familiar, and truly yours.'],

@@ -1,5 +1,8 @@
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import { publicPageMetadata } from '../../lib/publicMetadata'
+
+export const metadata = publicPageMetadata('Campground Events', 'See upcoming seasonal events, holiday weekends, family activities, and community traditions at Bur Oaks Campground.', '/events')
 
 export default function EventsPage() {
   return <PublicShell><main><PageHero eyebrow="Campground calendar" title="Good times are part of the tradition." description="From holiday weekends to friendly competitions, the Bur Oaks calendar keeps the community connected." />
