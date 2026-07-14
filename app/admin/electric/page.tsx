@@ -152,6 +152,7 @@ const liveSecondAmount =
 const selectedWaterTrashFee = includeWaterTrash ? Number(waterTrashFee || 0) : 0
 const selectedPumpOuts = pumpOuts.filter((request) => request.camper_id === camperId)
 const pumpOutChargeTotal = selectedPumpOuts.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
+const pumpOutUnitPreview = selectedPumpOuts.length ? Number((pumpOutChargeTotal / selectedPumpOuts.length).toFixed(2)) : 10
 const selectedSiteServices = siteServiceCharges.filter((charge) => charge.camper_id === camperId)
 const siteServiceChargeTotal = selectedSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0)
 const selectedAccountCredits = accountCredits.filter((credit) => credit.camper_id === camperId)
@@ -375,11 +376,12 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
     }
 
     if (pumpOutTotal > 0) {
+      const pumpOutUnitPrice = activePumpOuts.length ? Number((pumpOutTotal / activePumpOuts.length).toFixed(2)) : 10
       invoiceItems.push({
         invoice_id: invoice.id,
-        description: `${activePumpOuts.length} Sewer Pump-Out${activePumpOuts.length === 1 ? '' : 's'} @ $10.00 each`,
+        description: `${activePumpOuts.length} Sewer Pump-Out${activePumpOuts.length === 1 ? '' : 's'} @ $${pumpOutUnitPrice.toFixed(2)} each`,
         quantity: activePumpOuts.length,
-        unit_price: activePumpOuts.length ? Number((pumpOutTotal / activePumpOuts.length).toFixed(2)) : 10,
+        unit_price: pumpOutUnitPrice,
         total: pumpOutTotal,
       })
     }
@@ -523,7 +525,8 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
     }
 
     if (pumpOutTotal > 0) {
-      resultMessage += ` + Sewer Pump-Outs: ${activePumpOuts.length} × $10.00 = $${pumpOutTotal.toFixed(2)}`
+      const pumpOutUnitPrice = activePumpOuts.length ? Number((pumpOutTotal / activePumpOuts.length).toFixed(2)) : 10
+      resultMessage += ` + Sewer Pump-Outs: ${activePumpOuts.length} × $${pumpOutUnitPrice.toFixed(2)} = $${pumpOutTotal.toFixed(2)}`
     }
 
     if (siteServiceTotal > 0) {
@@ -719,7 +722,7 @@ setTimeout(() => {
 
       {pumpOutChargeTotal > 0 && (
         <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
-          <span>{selectedPumpOuts.length} sewer pump-out{selectedPumpOuts.length === 1 ? '' : 's'} × $10.00</span>
+          <span>{selectedPumpOuts.length} sewer pump-out{selectedPumpOuts.length === 1 ? '' : 's'} × {`$${pumpOutUnitPreview.toFixed(2)}`}</span>
           <strong>${pumpOutChargeTotal.toFixed(2)}</strong>
         </p>
       )}

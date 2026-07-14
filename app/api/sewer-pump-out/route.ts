@@ -3,6 +3,7 @@ import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
+import { getSewerPumpOutFeeForLot, isHoldingTankPumpOutLot } from '../../../lib/sewer-pump-fees'
 
 export const runtime = 'nodejs'
 
@@ -38,7 +39,10 @@ export async function POST(request: Request) {
   const notes = String(body.notes || '').trim().slice(0, 500)
   const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'Camper'
   const billingSettings = await loadCampgroundBillingSettings(context.admin)
-  const pumpCharge = billingSettings.sewerPumpOutFee
+  const pumpCharge = getSewerPumpOutFeeForLot(context.camper.lot_number, billingSettings.sewerPumpOutFee)
+  const holdingTankNote = isHoldingTankPumpOutLot(context.camper.lot_number)
+    ? ' This is a holding-tank site, so the holding-tank pump-out rate applies.'
+    : ''
 
   const { data: existingRequest, error: existingError } = await context.admin
     .from('sewer_pump_out_requests')
@@ -82,7 +86,7 @@ export async function POST(request: Request) {
   }
 
   const title = `Sewer pump-out requested: Site ${context.camper.lot_number || 'Unknown'}`
-  const message = `${camperName} requested a sewer pump-out. A $${pumpCharge.toFixed(2)} charge is pending for the next electric bill.${notes ? ` Note: ${notes}` : ''}`
+  const message = `${camperName} requested a sewer pump-out. A $${pumpCharge.toFixed(2)} charge is pending for the next electric bill.${holdingTankNote}${notes ? ` Note: ${notes}` : ''}`
   const origin = new URL(request.url).origin
 
   await createAdminNotification(context.admin, {
@@ -107,6 +111,7 @@ export async function POST(request: Request) {
         { label: 'Site', value: context.camper.lot_number || 'Unknown' },
         { label: 'Camper', value: camperName },
         { label: 'Pending charge', value: `$${pumpCharge.toFixed(2)}` },
+        { label: 'Rate type', value: isHoldingTankPumpOutLot(context.camper.lot_number) ? 'Holding-tank site' : 'Standard site' },
         { label: 'Notes', value: notes || 'None' },
       ],
       actionUrl: `${origin}/admin/pump-outs`,

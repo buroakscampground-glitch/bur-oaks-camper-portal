@@ -78,7 +78,7 @@ export default function AdminPumpOutsPage() {
         <a href="/admin">← Back to dashboard</a>
         <span><Droplets size={17} /> SEWER PUMP-OUT QUEUE</span>
         <h1>See who needs pumped before electric bills go out.</h1>
-        <p>Camper requests create a $10 pending charge. Electric billing automatically includes unbilled pump-outs and marks them billed.</p>
+        <p>Camper requests create the correct pending charge automatically. Holding-tank sites are $15; standard sites use the campground default. Electric billing automatically includes unbilled pump-outs and marks them billed.</p>
       </section>
 
       <section className="admin-pump-stats">

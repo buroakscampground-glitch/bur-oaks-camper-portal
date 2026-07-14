@@ -33,6 +33,7 @@ import { getCurrentCamper, supabase } from '../../lib/supabase'
 import PortalWeather, { PortalWeatherMini } from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
+import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 
 const serviceLinks = [
   {
@@ -689,6 +690,7 @@ export default function CamperPortalPage() {
   ].filter(Boolean)
   const mobileMoreNeedsAttention = documentsNeedingSignature.length > 0 || alerts.length > 0
   const pumpNeedsAttention = activePumpOutRequests.length > 0
+  const displayedPumpOutFee = getSewerPumpOutFeeForLot(camper?.lot_number, 10)
 
   return (
     <main className="camper-portal-page">
@@ -944,7 +946,7 @@ export default function CamperPortalPage() {
           <div>
             <span><Droplets size={18} /> SEWER PUMP-OUT</span>
             <h2>Need your sewer pumped?</h2>
-            <p>Tap the red button and the office will add you to the pump-out list. A $10 charge is added to your next electric bill.</p>
+            <p>Tap the red button and the office will add you to the pump-out list. A {`$${displayedPumpOutFee.toFixed(2)}`} charge is added to your next electric bill.</p>
             {pumpMessage && <small>{pumpMessage}</small>}
           </div>
           <button type="button" onClick={() => setShowPumpConfirm(true)} disabled={requestingPump}>
@@ -1371,7 +1373,7 @@ export default function CamperPortalPage() {
               </button>
               <span><Droplets size={18} /> Sewer pump-out</span>
               <h2>Request a pump-out for Lot {camper?.lot_number || 'your site'}?</h2>
-              <p>The office will add your site to the pump-out list. A <strong>$10 charge</strong> will be added to your next electric bill.</p>
+              <p>The office will add your site to the pump-out list. A <strong>{`$${displayedPumpOutFee.toFixed(2)} charge`}</strong> will be added to your next electric bill.</p>
               {activePumpOutRequests.length > 0 && (
                 <em>Your site already appears to be on the pump-out list. Sending again will not add a duplicate charge.</em>
               )}
