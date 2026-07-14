@@ -1,12 +1,12 @@
-import { ArrowRight, CalendarDays, Fish, Leaf, MapPinned, Quote, ShieldCheck, Sparkles, Star, TentTree, Users } from 'lucide-react'
+import { ArrowRight, CalendarDays, ClipboardCheck, Fish, Leaf, MapPinned, Quote, ShieldCheck, Sparkles, Star, TentTree, Users } from 'lucide-react'
 import Image from 'next/image'
 import EventFlyerShowcase from '../components/EventFlyerShowcase'
 import { PublicShell } from '../components/PublicSite'
 import { publicPageMetadata } from '../lib/publicMetadata'
 
 export const metadata = publicPageMetadata(
-  'Seasonal Camping Near St. Louis',
-  'Discover a private, family-friendly seasonal campground with annual RV sites, lake views, and community events in Alhambra, Illinois.',
+  'Private Seasonal Camping Near St. Louis',
+  'Join the seasonal site interest list for Bur Oaks, a private family-friendly campground with annual RV sites, lake views, and community events in Alhambra, Illinois.',
   '/',
   '/site-photos/IMG_8008.jpeg',
 )
@@ -28,20 +28,29 @@ export default function HomePage() {
           <Image src="/site-photos/IMG_8008.jpeg" alt="" fill sizes="100vw" className="public-home-hero-image" priority />
           <div className="public-home-overlay" />
           <div className="public-home-copy">
-            <span className="public-eyebrow"><Leaf size={15} /> Now welcoming seasonal camping inquiries</span>
-            <h1>Find your place<br /><em>under the oaks.</em></h1>
-            <p>Discover a private seasonal campground where your site becomes a second home—and every summer comes with more time outdoors, more community, and more memories.</p>
+            <span className="public-eyebrow"><Leaf size={15} /> Private seasonal camping community</span>
+            <h1>Claim your summers<br /><em>under the oaks.</em></h1>
+            <p>Bur Oaks is a private seasonal campground where annual sites are limited, summers feel easy, and your camper can become a true weekend home base.</p>
             <div className="public-hero-actions">
-              <a href="/availability">Membership information &amp; availability <ArrowRight size={18} /></a>
+              <a href="/availability#membership-inquiry">Join the seasonal interest list <ArrowRight size={18} /></a>
               <a href="/contact">Plan a campground tour</a>
             </div>
-            <div className="public-prospect-note"><ShieldCheck size={15} /> Private gated community <span /> <Users size={15} /> Family-friendly <span /> <TentTree size={15} /> Annual sites</div>
+            <div className="public-prospect-note"><ShieldCheck size={15} /> Private gated community <span /> <Users size={15} /> Family-friendly <span /> <TentTree size={15} /> Limited annual sites</div>
           </div>
           <div className="public-home-facts">
             <span><strong>1972</strong><small>Established</small></span>
-            <span><strong>Seasonal</strong><small>Members-only community</small></span>
-            <span><strong>Alhambra</strong><small>Southern Illinois</small></span>
+            <span><strong>Private</strong><small>Seasonal community</small></span>
+            <span><strong>Interest list</strong><small>Future openings</small></span>
           </div>
+        </section>
+
+        <section className="public-waitlist-band">
+          <div>
+            <span><ClipboardCheck size={17} /> Seasonal site interest list</span>
+            <strong>Want to be considered when the right site opens?</strong>
+            <p>Share your camper details once and the office will have your information ready for future availability and tours.</p>
+          </div>
+          <a href="/availability#membership-inquiry">Request membership information <ArrowRight size={17} /></a>
         </section>
 
         <section className="public-first-look public-section">
@@ -60,8 +69,8 @@ export default function HomePage() {
           </div>
           <div className="public-new-camper-invite">
             <div><span>New to Bur Oaks?</span><h3>Come walk the campground before choosing your site.</h3></div>
-            <p>Meet the team, experience the community, and learn what seasonal camping can look like for your family.</p>
-            <a href="/contact">Schedule a visit <ArrowRight size={17} /></a>
+            <p>Meet the team, experience the community, and learn whether seasonal camping at Bur Oaks is the right fit for your family.</p>
+            <a href="/availability#membership-inquiry">Request a visit <ArrowRight size={17} /></a>
           </div>
         </section>
 
@@ -77,9 +86,22 @@ export default function HomePage() {
         </section>
 
         <section className="public-feature-grid public-section">
-          <article><TentTree /><span>01</span><h3>Your seasonal home base</h3><p>Settle into your own annual site and make every weekend feel like a true getaway.</p></article>
+          <article><TentTree /><span>01</span><h3>Your seasonal home base</h3><p>Leave the camper here, skip the weekend setup, and make every trip feel easier.</p></article>
           <article><Fish /><span>02</span><h3>Nature at your doorstep</h3><p>Quiet water, mature trees, open air, and space to enjoy the outdoors your way.</p></article>
-          <article><Users /><span>03</span><h3>A genuine community</h3><p>Family-friendly events and familiar faces turn neighbors into lasting friends.</p></article>
+          <article><Users /><span>03</span><h3>A genuine community</h3><p>Saturday dinners, family-friendly events, and familiar faces turn neighbors into lasting friends.</p></article>
+        </section>
+
+        <section className="public-membership-pull public-section">
+          <div>
+            <span className="public-kicker">Why the interest list matters</span>
+            <h2>Seasonal sites are personal. The right fit matters.</h2>
+            <p>Bur Oaks is not a quick overnight stop. It is a private seasonal community, so we like to understand your camper, timing, and what kind of site would make sense before openings are discussed.</p>
+          </div>
+          <div className="public-membership-pull-grid">
+            <article><strong>01</strong><span>Tell us your setup</span><small>Camper type, length, timing, and what you are hoping for.</small></article>
+            <article><strong>02</strong><span>Tour when it fits</span><small>See the roads, lakes, community spaces, and seasonal rhythm in person.</small></article>
+            <article><strong>03</strong><span>Stay on the radar</span><small>When future openings make sense, the office knows how to reach you.</small></article>
+          </div>
         </section>
 
         <section className="public-image-story public-section">
@@ -155,11 +177,11 @@ export default function HomePage() {
           <div>
             <span className="public-kicker"><MapPinned size={16} /> Plan a visit</span>
             <h2>See the campground before choosing your site.</h2>
-            <p>Bur Oaks is a private, gated seasonal community. Contact our team to arrange a tour, learn about current annual-site options, and make sure someone is ready to welcome you.</p>
+            <p>Bur Oaks is a private, gated seasonal community. Contact our team to arrange a tour, learn how seasonal membership works, and make sure someone is ready to welcome you.</p>
             <address>10303 Oaks Rd.<br />Alhambra, IL 62001</address>
             <div>
               <a href="https://www.google.com/maps/dir/?api=1&destination=10303+Oaks+Rd,+Alhambra,+IL+62001" target="_blank" rel="noreferrer">Get directions <ArrowRight size={17} /></a>
-              <a href="/availability#membership-inquiry">Request a tour</a>
+              <a href="/availability#membership-inquiry">Join interest list</a>
             </div>
           </div>
         </section>
@@ -178,7 +200,7 @@ export default function HomePage() {
 
         <section className="public-cta">
           <div><span className="public-kicker">Your next chapter outdoors</span><h2>Come see what makes Bur Oaks feel like home.</h2></div>
-          <div><a href="/availability">Membership information <ArrowRight size={18} /></a><a href="/login">Camper portal</a></div>
+          <div><a href="/availability#membership-inquiry">Join seasonal interest list <ArrowRight size={18} /></a><a href="/login">Camper portal</a></div>
         </section>
       </main>
     </PublicShell>

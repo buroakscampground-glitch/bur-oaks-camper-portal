@@ -318,6 +318,41 @@ button:hover {
 .public-home-facts strong { font-family: Georgia, serif; font-size: 19px; }
 .public-home-facts small { margin-top: 6px; color: rgba(255,255,255,.57); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; }
 
+.public-waitlist-band {
+  width: min(1180px, calc(100% - 44px));
+  margin: -42px auto 0;
+  position: relative;
+  z-index: 8;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  border: 1px solid rgba(225,220,207,.9);
+  border-radius: 26px;
+  background: linear-gradient(135deg,#fffdf7,#f3ead7);
+  box-shadow: 0 28px 70px rgba(18,45,29,.18);
+}
+
+.public-waitlist-band div { display: grid; gap: 6px; }
+.public-waitlist-band span { display: inline-flex; align-items: center; gap: 8px; color: #9a773f; font-size: 10px; font-weight: 900; letter-spacing: .16em; text-transform: uppercase; }
+.public-waitlist-band strong { color: var(--forest); font: 500 28px/1.05 Georgia,serif; }
+.public-waitlist-band p { max-width: 680px; margin: 0; color: #617064; line-height: 1.55; }
+.public-waitlist-band a {
+  min-height: 50px;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--forest);
+  color: white;
+  font-size: 13px;
+  font-weight: 900;
+}
+
 .public-section { width: min(1180px, calc(100% - 44px)); margin: 0 auto; padding: 110px 0; }
 
 .public-first-look {
@@ -442,6 +477,40 @@ button:hover {
 .public-feature-grid article > span { position: absolute; top: 34px; right: 34px; color: #9aa59d; font-size: 11px; letter-spacing: .15em; }
 .public-feature-grid h3 { max-width: 220px; margin: 95px 0 15px; font-family: Georgia, serif; font-size: 29px; font-weight: 500; }
 .public-feature-grid p { color: #6b756e; line-height: 1.7; }
+
+.public-membership-pull {
+  display: grid;
+  grid-template-columns: .95fr 1.05fr;
+  gap: 42px;
+  align-items: stretch;
+  padding-top: 30px;
+}
+
+.public-membership-pull > div:first-child {
+  padding: 42px;
+  border-radius: 30px;
+  background: var(--forest);
+  color: white;
+}
+
+.public-membership-pull h2 { margin: 14px 0 18px; font-size: clamp(36px,4vw,58px); line-height: 1; font-weight: 500; }
+.public-membership-pull p { color: rgba(255,255,255,.72); line-height: 1.75; }
+.public-membership-pull-grid { display: grid; gap: 14px; }
+.public-membership-pull-grid article {
+  min-height: 140px;
+  padding: 26px;
+  display: grid;
+  grid-template-columns: 58px 1fr;
+  align-items: center;
+  column-gap: 18px;
+  border: 1px solid #e0dacc;
+  border-radius: 22px;
+  background: #fffdf8;
+  box-shadow: 0 18px 42px rgba(38,61,46,.08);
+}
+.public-membership-pull-grid strong { grid-row: span 2; color: #a37b3c; font: 500 32px/1 Georgia,serif; }
+.public-membership-pull-grid span { color: var(--forest); font-weight: 900; }
+.public-membership-pull-grid small { color: #68746c; line-height: 1.55; }
 
 .public-image-story { display: grid; grid-template-columns: 1.05fr .95fr; gap: 100px; align-items: center; }
 .public-image-stack { min-height: 650px; position: relative; }
@@ -857,6 +926,8 @@ button:hover {
 .public-waitlist-section > div { position: sticky; top: 110px; }
 .public-waitlist-section h2 { margin: 14px 0 0; color: var(--forest); font-size: clamp(38px, 5vw, 66px); line-height: 1.02; font-weight: 500; }
 .public-waitlist-section p { color: #5c695f; font-size: 16px; line-height: 1.8; }
+.public-waitlist-points { margin: 24px 0 0; padding: 0; display: grid; gap: 10px; list-style: none; }
+.public-waitlist-points li { padding: 13px 15px; border: 1px solid #dfd8c8; border-radius: 999px; background: #fffdf8; color: var(--forest); font-size: 13px; font-weight: 850; }
 .public-waitlist-form { display: grid; gap: 14px; padding: 34px; border: 1px solid #e1dccf; border-radius: 30px; background: linear-gradient(180deg,#fffdf8,#f8f4eb); box-shadow: 0 28px 70px rgba(38,61,46,.12); }
 .public-waitlist-form h3 { margin: 4px 0 0; color: var(--forest); font: 500 38px/1 Georgia,serif; letter-spacing: -.04em; }
 .public-waitlist-form p { margin: 0; color: #647069; font-size: 14px; line-height: 1.55; }
@@ -982,6 +1053,19 @@ button:hover {
   .public-editorial,
   .public-contact,
   .public-availability { gap: 55px; }
+  .public-waitlist-band {
+    align-items: flex-start;
+    flex-direction: column;
+    margin-top: -26px;
+  }
+  .public-waitlist-band a {
+    width: 100%;
+    justify-content: center;
+  }
+  .public-membership-pull {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
   .public-amenity-grid,
   .public-values { grid-template-columns: repeat(2, 1fr); }
   .public-footer-main { grid-template-columns: 1.6fr 1fr 1fr; }
@@ -1030,7 +1114,25 @@ button:hover {
   .public-editorial,
   .public-contact,
   .public-availability,
+  .public-membership-pull,
   .public-blog-grid > .featured { grid-template-columns: 1fr; gap: 45px; }
+  .public-waitlist-band {
+    width: calc(100% - 28px);
+    padding: 18px;
+    border-radius: 20px;
+  }
+  .public-waitlist-band strong {
+    font-size: 23px;
+  }
+  .public-waitlist-band p {
+    font-size: 14px;
+  }
+  .public-membership-pull > div:first-child {
+    padding: 30px 24px;
+  }
+  .public-membership-pull-grid article {
+    grid-template-columns: 45px 1fr;
+  }
   .public-feature-grid,
   .public-event-grid { grid-template-columns: 1fr; }
   .event-flyer-grid,

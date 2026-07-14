@@ -40,6 +40,9 @@ export async function POST(request: Request) {
     const lastName = clean(body.lastName, 80)
     const phone = clean(body.phone, 40)
     const email = clean(body.email, 120).toLowerCase()
+    const camperType = clean(body.camperType, 80)
+    const camperLength = clean(body.camperLength, 60)
+    const timeline = clean(body.timeline, 80)
     const desiredSite = clean(body.desiredSite, 180)
     const tourRequested = body.tourRequested === true
     const preferredTourDate = clean(body.preferredTourDate, 20)
@@ -69,6 +72,10 @@ export async function POST(request: Request) {
 
     const admin = createClient(supabaseUrl, serviceRoleKey)
     const visitorNotes = [
+      camperType ? `Camper type: ${camperType}` : '',
+      camperLength ? `Camper length: ${camperLength}` : '',
+      timeline ? `Timeline: ${timeline}` : '',
+      desiredSite ? `Preferred site feel: ${desiredSite}` : '',
       notes,
       tourRequested
         ? `Campground tour requested. Preferred date: ${preferredTourDate || 'No date selected'}. Preferred time: ${preferredTourTime || 'Flexible'}.`
@@ -123,7 +130,10 @@ export async function POST(request: Request) {
           { label: 'Name', value: fullName },
           { label: 'Phone', value: phone },
           { label: 'Email', value: email },
-          { label: 'Desired site / camper info', value: desiredSite },
+          { label: 'Camper type', value: camperType },
+          { label: 'Camper length', value: camperLength },
+          { label: 'Timeline', value: timeline },
+          { label: 'Preferred site feel', value: desiredSite },
           { label: 'Tour requested', value: tourRequested ? 'Yes' : 'No' },
           { label: 'Preferred tour date', value: tourRequested ? preferredTourDate : '' },
           { label: 'Preferred tour time', value: tourRequested ? preferredTourTime : '' },

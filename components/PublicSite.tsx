@@ -102,7 +102,7 @@ export function PublicHeader() {
               {label}
             </a>
           ))}
-          <a href="/availability" className="public-nav-availability">Membership info</a>
+          <a href="/availability#membership-inquiry" className="public-nav-availability">Join interest list</a>
           <a href="/login" className="public-nav-portal"><LogIn size={16} /> Camper portal</a>
         </div>
       </nav>
@@ -132,7 +132,7 @@ export function PublicFooter() {
         </div>
         <div>
           <h3>Plan a visit</h3>
-          <a href="/availability">Membership information</a>
+          <a href="/availability#membership-inquiry">Join seasonal interest list</a>
           <a href="/annual-rv-sites-metro-east">Annual RV sites</a>
           <a href="/members-only-seasonal-camping">How seasonal membership works</a>
           <a href="/faq">Frequently asked questions</a>
@@ -171,7 +171,7 @@ function PublicMobileActions() {
       </a>
       <a href="/availability" data-analytics-location="mobile_action_bar">
         <UserPlus size={18} />
-        <span>Membership</span>
+        <span>Waitlist</span>
       </a>
     </nav>
   )

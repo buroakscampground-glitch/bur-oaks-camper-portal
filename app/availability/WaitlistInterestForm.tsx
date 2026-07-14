@@ -9,6 +9,9 @@ export default function WaitlistInterestForm() {
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
+  const [camperType, setCamperType] = useState('')
+  const [camperLength, setCamperLength] = useState('')
+  const [timeline, setTimeline] = useState('Flexible')
   const [desiredSite, setDesiredSite] = useState('')
   const [tourRequested, setTourRequested] = useState(false)
   const [preferredTourDate, setPreferredTourDate] = useState('')
@@ -43,6 +46,9 @@ export default function WaitlistInterestForm() {
           lastName,
           phone,
           email,
+          camperType,
+          camperLength,
+          timeline,
           desiredSite,
           tourRequested,
           preferredTourDate,
@@ -68,6 +74,9 @@ export default function WaitlistInterestForm() {
       setLastName('')
       setPhone('')
       setEmail('')
+      setCamperType('')
+      setCamperLength('')
+      setTimeline('Flexible')
       setDesiredSite('')
       setTourRequested(false)
       setPreferredTourDate('')
@@ -82,11 +91,11 @@ export default function WaitlistInterestForm() {
 
   return (
     <form id="membership-inquiry" className="public-waitlist-form" onSubmit={submitInterest}>
-      <span className="public-kicker">Membership inquiry</span>
-      <h3>Interested in a seasonal site?</h3>
+      <span className="public-kicker">Seasonal interest list</span>
+      <h3>Tell us what would make a good fit.</h3>
       <p>
-        Tell us a little about what you are looking for and we will add you to
-        the Bur Oaks waitlist in our office portal.
+        Share your contact details and camping setup. Your inquiry goes straight
+        into the Bur Oaks office waitlist for future availability.
       </p>
 
       <div className="public-waitlist-grid">
@@ -110,12 +119,46 @@ export default function WaitlistInterestForm() {
         <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" />
       </label>
 
+      <div className="public-waitlist-grid">
+        <label>
+          Camper type
+          <select value={camperType} onChange={(event) => setCamperType(event.target.value)}>
+            <option value="">Select one</option>
+            <option>Travel trailer</option>
+            <option>Fifth wheel</option>
+            <option>Park model</option>
+            <option>Motorhome</option>
+            <option>Tent / smaller setup</option>
+            <option>Still deciding</option>
+          </select>
+        </label>
+        <label>
+          Camper length
+          <input
+            value={camperLength}
+            onChange={(event) => setCamperLength(event.target.value)}
+            placeholder="Example: 32 ft"
+          />
+        </label>
+      </div>
+
       <label>
-        Desired site or camper size
+        When are you hoping to start?
+        <select value={timeline} onChange={(event) => setTimeline(event.target.value)}>
+          <option>Flexible</option>
+          <option>As soon as the right site opens</option>
+          <option>This season</option>
+          <option>Next season</option>
+          <option>Just researching</option>
+        </select>
+      </label>
+
+      <label>
+        Preferred site feel
         <input
           value={desiredSite}
           onChange={(event) => setDesiredSite(event.target.value)}
-          placeholder="Example: seasonal site, larger camper, near friends, etc."
+          placeholder="Example: near friends, quiet area, lake area, larger camper, etc."
         />
       </label>
 
@@ -159,7 +202,7 @@ export default function WaitlistInterestForm() {
       </label>
 
       <button type="submit" disabled={submitting || submitted}>
-        {submitting ? 'Sending…' : submitted ? 'Inquiry received' : 'Request membership information'}
+        {submitting ? 'Sending…' : submitted ? 'Inquiry received' : 'Join the seasonal interest list'}
       </button>
 
       {message && <small className={submitted ? 'success' : ''}>{message}</small>}
