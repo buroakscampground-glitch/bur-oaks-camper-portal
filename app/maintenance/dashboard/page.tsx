@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, ListChecks, PlusCircle, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
+import MaintenanceSupplyRequestPanel from '../../../components/MaintenanceSupplyRequestPanel'
 
 const weeklyTasks = [
   {
@@ -242,6 +243,8 @@ export default function MaintenanceDashboard() {
         <article><small>In progress</small><strong>{inProgressTickets}</strong></article>
         <article className={emergencyTickets ? 'urgent' : ''}><small>Emergency</small><strong>{emergencyTickets}</strong></article>
       </section>
+
+      <MaintenanceSupplyRequestPanel />
 
       <section className="maintenance-staff-request">
         <div>
