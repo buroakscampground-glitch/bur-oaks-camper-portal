@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
@@ -62,16 +63,53 @@ export async function POST(request: Request) {
   }
 
   const quantityLabel = `${Number(supplyRequest.quantity)} ${supplyRequest.unit}`
+  const alertTitle = `${urgency === 'Urgent' ? 'Urgent s' : 'S'}upply request: ${itemName}`
+  const alertMessage = `${reporterName} requested ${quantityLabel}${notes ? ` — ${notes}` : ''}`
 
   await createAdminNotification(context.admin, {
     type: 'maintenance_request',
-    title: `${urgency === 'Urgent' ? 'Urgent s' : 'S'}upply request: ${itemName}`,
-    message: `${reporterName} requested ${quantityLabel}${notes ? ` — ${notes}` : ''}`,
+    title: alertTitle,
+    message: alertMessage,
     lot_number: 'SUPPLIES',
     camper_id: context.camper.id,
     source_table: 'maintenance_supply_requests',
     source_id: String(supplyRequest.id),
   }).catch((notificationError) => console.error('Supply request notification failed:', notificationError))
 
-  return NextResponse.json({ success: true, request: supplyRequest })
+  let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
+  let emailMessage = ''
+
+  try {
+    const origin = new URL(request.url).origin
+    const emailResult = await sendAdminAlertEmail({
+      subject: alertTitle,
+      heading: alertTitle,
+      message: alertMessage,
+      details: [
+        { label: 'Requested by', value: reporterName },
+        { label: 'Item', value: itemName },
+        { label: 'Quantity', value: quantityLabel },
+        { label: 'Urgency', value: urgency },
+        { label: 'Notes', value: notes || 'No extra notes' },
+      ],
+      actionUrl: `${origin}/admin/maintenance/supplies`,
+      actionLabel: 'Open supply requests',
+    })
+
+    if ((emailResult as any)?.skipped) {
+      emailStatus = 'skipped'
+      emailMessage = (emailResult as any)?.reason || 'Admin email alerts are not configured.'
+    }
+  } catch (emailError: any) {
+    emailStatus = 'failed'
+    emailMessage = emailError?.message || 'Admin alert email failed.'
+    console.error('Supply request email alert failed:', emailError)
+  }
+
+  return NextResponse.json({
+    success: true,
+    request: supplyRequest,
+    emailStatus,
+    emailMessage,
+  })
 }

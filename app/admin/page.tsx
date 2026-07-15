@@ -23,6 +23,7 @@ import {
   Settings,
   Soup,
   SprayCan,
+  ShoppingBasket,
   TentTree,
   UserRoundSearch,
   Users,
@@ -53,6 +54,7 @@ type AdminStats = {
   emergencyMaintenance: number
   completedMaintenance: number
   pendingMaintenance: number
+  activeSupplyRequests: number
   maintenanceAlerts: number
   paymentAlerts: number
   rsvpAlerts: number
@@ -78,7 +80,7 @@ type AdminStats = {
 type CockpitItem = {
   id: string
   href: string
-  type: 'pump' | 'maintenance' | 'message' | 'billing'
+  type: 'pump' | 'maintenance' | 'supply' | 'message' | 'billing'
   label: string
   title: string
   detail: string
@@ -105,6 +107,7 @@ const emptyStats: AdminStats = {
   emergencyMaintenance: 0,
   completedMaintenance: 0,
   pendingMaintenance: 0,
+  activeSupplyRequests: 0,
   maintenanceAlerts: 0,
   paymentAlerts: 0,
   rsvpAlerts: 0,
@@ -179,6 +182,7 @@ export default function AdminPage() {
       creditResult,
       messageResult,
       dinnerResult,
+      supplyRequestResult,
     ] = await Promise.all([
       supabase.from('campers').select('id,email,secondary_email,phone,mailing_address_line1,mailing_city,mailing_state,mailing_zip').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
@@ -196,6 +200,7 @@ export default function AdminPage() {
       supabase.from('account_credits').select('id,status,remaining_amount'),
       supabase.from('office_messages').select('id,camper_id,lot_number,sender_name,sender_email,body,created_at').eq('sender_role', 'camper').is('read_by_admin_at', null).order('created_at', { ascending: false }),
       supabase.from('saturday_dinner_signups').select('*'),
+      supabase.from('maintenance_supply_requests').select('*').in('status', ['Requested', 'Ordered']).order('requested_at', { ascending: false }),
     ])
 
     const invoices = invoicesResult.data || []
@@ -207,6 +212,7 @@ export default function AdminPage() {
     const dinnerSignups = dinnerResult.data || []
     const pumpOuts = pumpOutResult.data || []
     const unreadMessages = messageResult.data || []
+    const activeSupplyRequests = supplyRequestResult.data || []
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const dueSoonCutoff = new Date(today)
@@ -239,6 +245,17 @@ export default function AdminPage() {
     )
 
     const liveCockpitItems: CockpitItem[] = [
+      ...activeSupplyRequests.map((request: any): CockpitItem => ({
+        id: `supply-${request.id}`,
+        href: '/admin/maintenance/supplies',
+        type: 'supply',
+        label: request.urgency === 'Urgent' ? 'URGENT SUPPLY REQUEST' : 'SUPPLY REQUEST',
+        title: `${Number(request.quantity)} ${request.unit || 'each'} · ${request.item_name}`,
+        detail: `${request.requested_by || 'Maintenance team'}${request.notes ? ` — ${request.notes}` : ''}`,
+        status: request.status === 'Ordered' ? 'Already ordered' : 'Needs ordered',
+        tone: request.urgency === 'Urgent' ? 'red' : 'orange',
+        createdAt: request.requested_at,
+      })),
       ...activePumpOuts.map((request: any): CockpitItem => ({
         id: `pump-${request.id}`,
         href: '/admin/pump-outs',
@@ -334,6 +351,7 @@ export default function AdminPage() {
         (ticket) => ticket.status === 'Completed'
       ).length,
       pendingMaintenance: maintenance.filter((ticket) => ticket.admin_approved !== true).length,
+      activeSupplyRequests: activeSupplyRequests.length,
       maintenanceAlerts: notifications.filter((notification) => notification.type === 'maintenance_request').length,
       paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
       rsvpAlerts: notifications.filter((notification) => notification.type === 'event_rsvp').length,
@@ -468,6 +486,14 @@ export default function AdminPage() {
       tone: stats.emergencyMaintenance > 0 ? 'red' : 'orange',
     },
     {
+      href: '/admin/maintenance/supplies',
+      title: 'Supply Requests',
+      description: 'See what maintenance needs and keep the shopping list moving.',
+      detail: `${stats.activeSupplyRequests} active`,
+      icon: ShoppingBasket,
+      tone: stats.activeSupplyRequests > 0 ? 'red' : 'green',
+    },
+    {
       href: '/admin/map',
       title: 'Lots & Sites',
       description: 'View occupied, vacant, and maintenance lots.',
@@ -504,6 +530,7 @@ export default function AdminPage() {
   const toDoTotal =
     stats.totalUnreadAlerts +
     stats.pendingMaintenance +
+    stats.activeSupplyRequests +
     stats.pastDueInvoices +
     stats.dueSoonInvoices +
     stats.pumpOuts +
@@ -514,6 +541,14 @@ export default function AdminPage() {
     stats.needsContactInfo
 
   const toDoItems = [
+    {
+      href: '/admin/maintenance/supplies',
+      title: 'Supply requests',
+      count: stats.activeSupplyRequests,
+      detail: stats.activeSupplyRequests ? 'Maintenance needs items ordered' : 'Shopping list is clear',
+      icon: ShoppingBasket,
+      urgent: stats.activeSupplyRequests > 0,
+    },
     {
       href: '/admin/maintenance',
       title: 'Maintenance approvals',
@@ -728,6 +763,7 @@ export default function AdminPage() {
                 {cockpitItems.map((item) => {
                   const Icon =
                     item.type === 'pump' ? Droplets :
+                    item.type === 'supply' ? ShoppingBasket :
                     item.type === 'maintenance' ? Wrench :
                     item.type === 'message' ? MessageCircle :
                     ReceiptText
@@ -749,7 +785,7 @@ export default function AdminPage() {
               <div className="admin-cockpit-empty">
                 <ShieldCheck size={24} />
                 <strong>No open requests in the cockpit.</strong>
-                <p>New pump-outs, maintenance tickets, unread messages, and billing pressure will appear here automatically.</p>
+                <p>New supply requests, pump-outs, maintenance tickets, unread messages, and billing pressure will appear here automatically.</p>
               </div>
             )}
           </div>

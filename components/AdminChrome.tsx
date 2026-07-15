@@ -22,6 +22,7 @@ import {
   Send,
   Settings,
   ShieldCheck,
+  ShoppingBasket,
   TentTree,
   Users,
   Utensils,
@@ -94,6 +95,7 @@ const navGroups = [
     label: 'Operations',
     links: [
       { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench },
+      { href: '/admin/maintenance/supplies', label: 'Supply Requests', icon: ShoppingBasket },
       { href: '/admin/pump-outs', label: 'Pump-Outs', icon: Hammer },
       { href: '/admin/site-services', label: 'Site Services', icon: KeyRound },
       { href: '/admin/lots', label: 'Lots & Sites', icon: TentTree },
@@ -122,6 +124,13 @@ const navGroups = [
 
 function isActiveLink(pathname: string, href: string) {
   if (href === '/admin') return pathname === '/admin'
+  if (href === '/admin/maintenance') {
+    return pathname === href || (
+      pathname.startsWith(`${href}/`) &&
+      !pathname.startsWith('/admin/maintenance/supplies') &&
+      !pathname.startsWith('/admin/maintenance/inventory')
+    )
+  }
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
@@ -148,7 +157,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
             <Bell size={18} />
             <span>
               <strong>What needs attention?</strong>
-              <small>Tickets, balances, pump-outs, messages</small>
+              <small>Supplies, tickets, balances, pump-outs</small>
             </span>
           </a>
 

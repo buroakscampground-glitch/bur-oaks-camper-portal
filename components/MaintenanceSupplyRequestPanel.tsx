@@ -70,7 +70,13 @@ export default function MaintenanceSupplyRequestPanel() {
     setUnit('each')
     setUrgency('Normal')
     setNotes('')
-    setMessage('Supply request sent to the office.')
+    if (result.emailStatus === 'failed') {
+      setMessage('Request saved, but the office email did not send. The request is still visible on the admin dashboard.')
+    } else if (result.emailStatus === 'skipped') {
+      setMessage('Request saved. Admin email alerts are not configured, but the request is visible on the admin dashboard.')
+    } else {
+      setMessage('Supply request sent. The office was notified by email.')
+    }
     loadRequests()
   }
 
