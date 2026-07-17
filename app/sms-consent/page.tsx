@@ -4,13 +4,41 @@ export default function SmsConsentPage() {
       <article className="legal-card">
         <p className="legal-kicker">BUR OAKS CAMPGROUND</p>
         <h1>SMS Text Alert Consent</h1>
-        <p className="muted">Last updated July 9, 2026</p>
+        <p className="muted">Last updated July 16, 2026</p>
 
         <h2>Who can opt in</h2>
         <p>SMS text alerts are available only to Bur Oaks Campground seasonal campers with a private camper portal account. Campers are not opted in automatically, and consent is never purchased, sold, transferred, bundled, or collected by a third party.</p>
 
         <h2>How campers opt in</h2>
         <p>After signing into the private Bur Oaks Camper Portal at <strong>www.buroakscampground.com</strong>, a camper can open the <strong>Profile</strong> page or the <strong>Invoices</strong> page, enter or confirm their mobile phone number, and manually check the unchecked SMS consent box. This is a direct opt-in by the camper to Bur Oaks Campground only. SMS consent is not hidden inside the camper lease, AutoPay enrollment, invoice payment, portal account creation, camper directory, or any other agreement.</p>
+
+        <section id="portal-consent-preview" className="sms-reviewer-proof" aria-labelledby="portal-consent-preview-title">
+          <p className="sms-reviewer-kicker">PUBLIC REVIEWER COPY OF THE GATED PORTAL SCREEN</p>
+          <h2 id="portal-consent-preview-title">Exact camper opt-in form</h2>
+          <p>This is the same unchecked consent control and disclosure shown to signed-in campers on the Profile and Invoices pages.</p>
+
+          <div className="sms-consent-screen">
+            <div className="sms-consent-screen-heading">
+              <span aria-hidden="true">SMS</span>
+              <div>
+                <small>TEXT ALERTS</small>
+                <h3>Fast campground updates</h3>
+              </div>
+            </div>
+            <p>Get quick non-marketing texts for invoices, payment reminders, account notices, gate updates, utility notices, maintenance updates, sewer pump-outs, office notices, and safety or weather-related operational alerts.</p>
+
+            <label className="sms-consent-screen-choice">
+              <input type="checkbox" disabled aria-label="Example unchecked SMS consent checkbox" />
+              <span>
+                <strong>I agree to receive Bur Oaks Campground text alerts</strong>
+                <small>By checking this box, I agree to receive SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. SMS consent is optional and is not shared or sold.</small>
+              </span>
+            </label>
+
+            <p className="sms-consent-screen-note">Your SMS opt-in, phone number, and text consent are not sold or shared with third parties or affiliates for marketing. <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/sms-consent">SMS consent</a></p>
+            <p className="sms-consent-screen-warning">SMS consent is optional and is not required to stay at Bur Oaks or use the camper portal.</p>
+          </div>
+        </section>
 
         <h2>Consent checkbox wording</h2>
         <p>The checkbox label says:</p>

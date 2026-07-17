@@ -7853,6 +7853,123 @@ tbody tr:hover {
   line-height: 1.7;
 }
 
+.sms-reviewer-proof {
+  margin: 30px 0 34px;
+  padding: clamp(18px, 4vw, 28px);
+  border: 2px solid #b8ccb7;
+  border-radius: 22px;
+  background: #f4f8f2;
+}
+
+.legal-card .sms-reviewer-proof h2 {
+  margin-top: 5px;
+}
+
+.legal-card .sms-reviewer-kicker {
+  margin: 0;
+  color: #987631;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .13em;
+}
+
+.sms-consent-screen {
+  margin-top: 18px;
+  padding: clamp(16px, 3vw, 24px);
+  border: 1px solid #d8e0d4;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 30px rgba(38, 61, 46, .08);
+}
+
+.sms-consent-screen-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sms-consent-screen-heading > span {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 14px;
+  background: #e5eee4;
+  color: #315f3d;
+  font-size: 10px;
+  font-weight: 950;
+}
+
+.sms-consent-screen-heading small {
+  color: #987631;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .12em;
+}
+
+.sms-consent-screen-heading h3 {
+  margin: 3px 0 0;
+  color: #263d2e;
+  font: 500 24px Georgia, 'Times New Roman', serif;
+}
+
+.sms-consent-screen-choice {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 12px;
+  margin: 18px 0 14px;
+  padding: 17px;
+  border: 1px solid #cbd9c8;
+  border-radius: 15px;
+  background: #f8fbf7;
+}
+
+.sms-consent-screen-choice input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.sms-consent-screen-choice span {
+  display: grid;
+  gap: 6px;
+}
+
+.sms-consent-screen-choice strong {
+  color: #294532;
+  font-size: 14px;
+}
+
+.sms-consent-screen-choice small {
+  color: #5e6b62;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.legal-card .sms-consent-screen-note,
+.legal-card .sms-consent-screen-warning {
+  margin: 10px 0 0;
+  padding: 11px 13px;
+  border-radius: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.legal-card .sms-consent-screen-note {
+  background: #eef5ec;
+  color: #315f3d;
+}
+
+.legal-card .sms-consent-screen-note a {
+  color: inherit;
+  font-weight: 850;
+}
+
+.legal-card .sms-consent-screen-warning {
+  background: #fbf5e8;
+  color: #765d2b;
+}
+
 .system-state-page > section {
   text-align: center;
 }
