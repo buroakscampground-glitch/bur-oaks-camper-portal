@@ -28,14 +28,14 @@ export default function SmsConsentPage() {
             <p>Get quick non-marketing texts for invoices, payment reminders, account notices, gate updates, utility notices, maintenance updates, sewer pump-outs, office notices, and safety or weather-related operational alerts.</p>
 
             <label className="sms-consent-screen-choice">
-              <input type="checkbox" disabled aria-label="Example unchecked SMS consent checkbox" />
+              <input type="checkbox" readOnly aria-label="Example unchecked SMS consent checkbox" />
               <span>
                 <strong>I agree to receive Bur Oaks Campground text alerts</strong>
-                <small>By checking this box, I agree to receive SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. SMS consent is optional and is not shared or sold.</small>
+                <small>By checking this box, I agree to receive recurring, non-marketing SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. Consent is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a></small>
               </span>
             </label>
 
-            <p className="sms-consent-screen-note">Your SMS opt-in, phone number, and text consent are not sold or shared with third parties or affiliates for marketing. <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/sms-consent">SMS consent</a></p>
+            <p className="sms-consent-screen-note">Your SMS opt-in, phone number, and text consent are not sold or shared with third parties or affiliates for marketing. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a> · <a href="/sms-consent">SMS consent</a></p>
             <p className="sms-consent-screen-warning">SMS consent is optional and is not required to stay at Bur Oaks or use the camper portal.</p>
           </div>
         </section>
@@ -44,7 +44,7 @@ export default function SmsConsentPage() {
         <p>The checkbox label says:</p>
         <blockquote>
           <p><strong>I agree to receive Bur Oaks Campground text alerts.</strong></p>
-          <p>By checking this box, I agree to receive SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. SMS consent is optional and is not required to stay at Bur Oaks Campground or use the camper portal. SMS consent is not shared, sold, rented, or used for affiliate or third-party marketing.</p>
+          <p>By checking this box, I agree to receive recurring, non-marketing SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. Consent is optional and is not a condition of campground service. SMS consent is not shared, sold, rented, or used for affiliate or third-party marketing. SMS Terms: www.buroakscampground.com/sms-terms. Privacy Policy: www.buroakscampground.com/privacy.</p>
         </blockquote>
 
         <h2>Opt-in location</h2>
