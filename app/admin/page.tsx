@@ -704,54 +704,90 @@ export default function AdminPage() {
           </a>
         </section>
 
-        <AdminWeather />
+        <section className="admin-command-panel admin-priority-tools">
+          <div className="admin-command-heading">
+            <div><span>QUICK START</span><h2>Run the campground</h2></div>
+            <p>The tools you use most, right up front.</p>
+          </div>
+
+          <div className="admin-operation-grid">
+            {dailyOperations.map((item) => {
+              const Icon = item.icon
+              const alertCount = item.alertCount || 0
+              return (
+                <a href={item.href} className="admin-operation-card" key={item.href}>
+                  {alertCount > 0 && (
+                    <span className="admin-attention-badge" aria-label={`${alertCount} ${item.alertLabel}${alertCount === 1 ? '' : 's'}`}>
+                      {alertCount}
+                    </span>
+                  )}
+                  <span className={`admin-operation-icon ${item.tone}`}><Icon size={24} /></span>
+                  <span className="admin-operation-copy"><strong>{item.title}</strong><small>{item.description}</small><em>{item.detail}</em></span>
+                  <ArrowRight size={19} />
+                </a>
+              )
+            })}
+          </div>
+        </section>
+
+        <details className="admin-dashboard-drawer">
+          <summary>
+            <span><CalendarDays size={18} /> Weather and planning</span>
+            <small>Open the full campground forecast</small>
+            <ArrowRight size={18} />
+          </summary>
+          <AdminWeather />
+        </details>
 
         <section className="admin-command-panel admin-today-panel admin-todo-panel">
           <div className="admin-command-heading">
             <div><span>COMMAND COCKPIT</span><h2>Everything that needs your attention</h2></div>
             <a href="/admin/notifications">Open notifications <ArrowRight size={16} /></a>
           </div>
-          <div className={toDoTotal ? 'admin-cockpit attention' : 'admin-cockpit'}>
-            <div className="admin-cockpit-radar">
-              <span className="admin-cockpit-sweep" />
-              <div>
-                <small>Operations telemetry</small>
-                <strong>{toDoTotal || 'Clear'}</strong>
-                <em>{toDoTotal ? 'active signals' : 'no active signals'}</em>
+          {toDoTotal ? (
+            <div className="admin-cockpit attention">
+              <div className="admin-cockpit-radar">
+                <span className="admin-cockpit-sweep" />
+                <div>
+                  <small>Operations telemetry</small>
+                  <strong>{toDoTotal}</strong>
+                  <em>active signals</em>
+                </div>
+              </div>
+
+              <div className="admin-cockpit-readout">
+                <small>Today’s command status</small>
+                <h3>Action needed, but it is under control.</h3>
+                <p>Pump-outs, maintenance, unread office messages, billing pressure, dinner activity, and camper cleanup are rolled into this one board.</p>
+                <div>
+                  <a href="/admin/pump-outs"><Droplets size={16} /> Pump-outs</a>
+                  <a href="/admin/maintenance"><Wrench size={16} /> Maintenance</a>
+                  <a href="/admin/messages"><MessageCircle size={16} /> Messages</a>
+                  <a href="/admin/open-balance"><ReceiptText size={16} /> Billing</a>
+                </div>
+              </div>
+
+              <div className="admin-cockpit-gauges">
+                {toDoItems.slice(0, 8).map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <a href={item.href} className={item.urgent ? 'hot' : ''} key={item.title}>
+                      <Icon size={18} />
+                      <span>
+                        <small>{item.title}</small>
+                        <strong>{item.count || 'OK'}</strong>
+                      </span>
+                    </a>
+                  )
+                })}
               </div>
             </div>
-
-            <div className="admin-cockpit-readout">
-              <small>Today’s command status</small>
-              <h3>{toDoTotal ? 'Action needed, but it is under control.' : 'All quiet at Bur Oaks.'}</h3>
-              <p>
-                {toDoTotal
-                  ? 'Pump-outs, maintenance, unread office messages, billing pressure, dinner activity, and camper cleanup are rolled into this one board.'
-                  : 'Nothing urgent is showing right now. If a camper submits a request, it will light up here.'}
-              </p>
-              <div>
-                <a href="/admin/pump-outs"><Droplets size={16} /> Pump-outs</a>
-                <a href="/admin/maintenance"><Wrench size={16} /> Maintenance</a>
-                <a href="/admin/messages"><MessageCircle size={16} /> Messages</a>
-                <a href="/admin/open-balance"><ReceiptText size={16} /> Billing</a>
-              </div>
+          ) : (
+            <div className="admin-command-clear">
+              <ShieldCheck size={23} />
+              <span><strong>All quiet at Bur Oaks.</strong><small>No urgent work is waiting right now.</small></span>
             </div>
-
-            <div className="admin-cockpit-gauges">
-              {toDoItems.slice(0, 8).map((item) => {
-                const Icon = item.icon
-                return (
-                  <a href={item.href} className={item.urgent ? 'hot' : ''} key={item.title}>
-                    <Icon size={18} />
-                    <span>
-                      <small>{item.title}</small>
-                      <strong>{item.count || 'OK'}</strong>
-                    </span>
-                  </a>
-                )
-              })}
-            </div>
-          </div>
+          )}
 
           <div className="admin-cockpit-live">
             <div className="admin-cockpit-live-head">
@@ -788,32 +824,6 @@ export default function AdminPage() {
                 <p>New supply requests, pump-outs, maintenance tickets, unread messages, and billing pressure will appear here automatically.</p>
               </div>
             )}
-          </div>
-        </section>
-
-        <section className="admin-command-panel">
-          <div className="admin-command-heading">
-            <div><span>DAILY OPERATIONS</span><h2>Run the campground</h2></div>
-            <p>The tools you use most, all in one place.</p>
-          </div>
-
-          <div className="admin-operation-grid">
-            {dailyOperations.map((item) => {
-              const Icon = item.icon
-              const alertCount = item.alertCount || 0
-              return (
-                <a href={item.href} className="admin-operation-card" key={item.href}>
-                  {alertCount > 0 && (
-                    <span className="admin-attention-badge" aria-label={`${alertCount} ${item.alertLabel}${alertCount === 1 ? '' : 's'}`}>
-                      {alertCount}
-                    </span>
-                  )}
-                  <span className={`admin-operation-icon ${item.tone}`}><Icon size={24} /></span>
-                  <span className="admin-operation-copy"><strong>{item.title}</strong><small>{item.description}</small><em>{item.detail}</em></span>
-                  <ArrowRight size={19} />
-                </a>
-              )
-            })}
           </div>
         </section>
 
