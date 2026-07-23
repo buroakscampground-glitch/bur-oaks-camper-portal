@@ -48,8 +48,6 @@ export default function MaintenanceDashboard() {
   const [newPriority, setNewPriority] = useState('Normal')
   const [submitMessage, setSubmitMessage] = useState('')
 
-  const [filter, setFilter] = useState('Active')
-
   useEffect(() => {
     loadTickets()
     const key = `bur-oaks-maintenance-weekly-${getMaintenanceWeekKey()}`
@@ -85,6 +83,7 @@ export default function MaintenanceDashboard() {
       .from('maintenance_tickets')
       .select('*')
       .eq('admin_approved', true)
+      .neq('status', 'Completed')
       .order('created_at', { ascending: false })
 
     setTickets(data || [])
@@ -178,18 +177,6 @@ export default function MaintenanceDashboard() {
   const emergencyTickets = tickets.filter(
     (t) => t.priority === 'Emergency'
   ).length
-
-  const filteredTickets = tickets.filter((ticket) => {
-    if (filter === 'Completed') {
-      return ticket.status === 'Completed'
-    }
-
-    if (filter === 'All') {
-      return true
-    }
-
-    return ticket.status !== 'Completed'
-  })
 
   if (loading) {
     return <div style={{ padding: '40px' }}>Loading...</div>
@@ -293,16 +280,10 @@ export default function MaintenanceDashboard() {
             <h2>Work orders</h2>
             <p>Tap “Open details” when you need photos, notes, or the full request.</p>
           </div>
-          <div className="maintenance-staff-filter">
-            {['Active', 'Completed', 'All'].map((item) => (
-              <button className={filter === item ? 'selected' : ''} onClick={() => setFilter(item)} key={item}>
-                {item}
-              </button>
-            ))}
-          </div>
+          <Link href="/maintenance/history">Open completed archive →</Link>
         </div>
 
-          {filteredTickets.length === 0 && (
+          {tickets.length === 0 && (
             <div className="maintenance-staff-empty">
               <CheckCircle2 size={32} />
               <h3>No work orders found</h3>
@@ -311,7 +292,7 @@ export default function MaintenanceDashboard() {
           )}
 
         <div className="maintenance-staff-ticket-list">
-          {filteredTickets.map((ticket) => (
+          {tickets.map((ticket) => (
             <article
               key={ticket.id}
               className={ticket.priority === 'Emergency' && ticket.status !== 'Completed' ? 'urgent' : ''}

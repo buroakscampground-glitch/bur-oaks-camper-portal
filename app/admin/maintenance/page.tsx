@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  Archive,
   ArrowRight,
-  CheckCircle2,
   ClipboardList,
   Hammer,
   Search,
@@ -28,6 +28,8 @@ export default function MaintenancePage() {
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [archivedCount, setArchivedCount] = useState(0)
+  const [creating, setCreating] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -46,12 +48,20 @@ export default function MaintenancePage() {
   async function loadTickets() {
     await markAdminAlertsSeen(supabase, 'maintenance_request')
 
-    const { data } = await supabase
-      .from('maintenance_tickets')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const [{ data }, { count }] = await Promise.all([
+      supabase
+        .from('maintenance_tickets')
+        .select('*')
+        .neq('status', 'Completed')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('maintenance_tickets')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'Completed'),
+    ])
 
     setTickets(data || [])
+    setArchivedCount(count || 0)
   }
 
   async function createTicket() {
@@ -60,37 +70,61 @@ export default function MaintenancePage() {
       return
     }
 
-    const { error } = await supabase
-      .from('maintenance_tickets')
-      .insert({
-        title,
-        description,
-        category,
-        priority,
-        assigned_to: assignedTo,
-        lot_number: lotNumber,
-        reported_by: reportedBy,
-        status: 'Open',
-        admin_approved: true,
-        approved_at: new Date().toISOString(),
-        approved_by: 'Admin',
-      })
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
 
-    if (error) {
-      setMessage(error.message)
+    if (!token) {
+      setMessage('Please sign out and back in before creating a maintenance ticket.')
       return
     }
 
-    setTitle('')
-    setDescription('')
-    setCategory('General')
-    setPriority('Normal')
-    setAssignedTo('')
-    setLotNumber('')
-    setReportedBy('')
+    setCreating(true)
+    setMessage('Creating ticket and notifying maintenance…')
 
-    setMessage('Maintenance ticket created!')
-    loadTickets()
+    try {
+      const response = await fetch('/api/admin-maintenance-ticket', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          description,
+          category,
+          priority,
+          assignedTo,
+          lotNumber,
+          reportedBy,
+        }),
+      })
+
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok || !result?.success) {
+        setMessage(result?.error || 'Unable to create this maintenance ticket.')
+        return
+      }
+
+      setTitle('')
+      setDescription('')
+      setCategory('General')
+      setPriority('Normal')
+      setAssignedTo('')
+      setLotNumber('')
+      setReportedBy('')
+
+      setMessage(
+        result.smsStatus === 'sent'
+          ? 'Maintenance ticket created and text alert sent to (314) 713-6100.'
+          : `Maintenance ticket created, but the text alert did not send: ${result.smsMessage || 'unknown Twilio error'}`
+      )
+      loadTickets()
+    } catch (error: any) {
+      setMessage(error?.message || 'Unable to create this maintenance ticket.')
+    } finally {
+      setCreating(false)
+    }
   }
 
   async function updateStatus(id: string, status: string) {
@@ -182,7 +216,7 @@ export default function MaintenancePage() {
         <h1>Work orders that are clear, approved, and easy to track.</h1>
         <p>Review camper-submitted requests, approve work for the maintenance crew, and keep every repair moving.</p>
         <div className="admin-maintenance-hero-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: 11 }}>
-          <a href="/maintenance/history">View completed maintenance history <ArrowRight size={16} /></a>
+          <a href="/admin/maintenance/archive">Completed ticket archive <ArrowRight size={16} /></a>
           <a href="/admin/maintenance/supplies">Supply requests <ArrowRight size={16} /></a>
           <a href="/admin/maintenance/inventory">Manage inventory & receipts <ArrowRight size={16} /></a>
         </div>
@@ -191,7 +225,7 @@ export default function MaintenancePage() {
       <section className="admin-maintenance-stats">
         <article><span className="slate"><ClipboardList size={19} /></span><div><small>Open</small><strong>{tickets.filter(t => t.status === 'Open').length}</strong></div></article>
         <article><span className="blue"><Hammer size={19} /></span><div><small>In progress</small><strong>{tickets.filter(t => t.status === 'In Progress').length}</strong></div></article>
-        <article><span className="green"><CheckCircle2 size={19} /></span><div><small>Completed</small><strong>{tickets.filter(t => t.status === 'Completed').length}</strong></div></article>
+        <article><span className="green"><Archive size={19} /></span><div><small>Archived</small><strong>{archivedCount}</strong></div></article>
         <article><span className="red"><Wrench size={19} /></span><div><small>Emergency</small><strong>{emergencyCount}</strong></div></article>
         <article><span className="gold"><ShieldCheck size={19} /></span><div><small>Pending approval</small><strong>{pendingCount}</strong></div></article>
       </section>
@@ -245,7 +279,9 @@ export default function MaintenancePage() {
 
           <textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} />
 
-          <button type="button" onClick={createTicket}>Create Ticket</button>
+          <button type="button" onClick={createTicket} disabled={creating}>
+            {creating ? 'Creating & Texting…' : 'Create Ticket'}
+          </button>
           {message && <p className="maintenance-submit-message">{message}</p>}
         </section>
 
@@ -266,7 +302,6 @@ export default function MaintenancePage() {
                 <option>Open</option>
                 <option>In Progress</option>
                 <option>Waiting Parts</option>
-                <option>Completed</option>
                 <option>Pending Approval</option>
                 <option>Approved</option>
               </select>
