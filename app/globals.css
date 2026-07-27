@@ -4150,6 +4150,14 @@ button:hover {
   text-decoration: none;
 }
 
+.camper-sidebar-mobile-head {
+  display: contents;
+}
+
+.camper-sidebar-menu-button {
+  display: none;
+}
+
 .camper-sidebar-brand img {
   width: 46px;
   height: 46px;
@@ -4326,12 +4334,41 @@ button:hover {
     padding: 14px;
   }
 
+  .camper-sidebar-mobile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
   .camper-sidebar-brand {
     padding-bottom: 11px;
   }
 
+  .camper-sidebar-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 0 13px;
+    border: 1px solid rgba(49, 95, 61, .2);
+    border-radius: 12px;
+    background: rgba(255,255,255,.72);
+    color: #315f3d;
+    font-size: 12px;
+    font-weight: 900;
+    box-shadow: 0 8px 20px rgba(42, 59, 45, .08);
+  }
+
   .camper-sidebar-nav {
+    display: none;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 14px;
+  }
+
+  .camper-sidebar-nav.mobile-open {
+    display: grid;
   }
 
   .camper-sidebar-feature small,

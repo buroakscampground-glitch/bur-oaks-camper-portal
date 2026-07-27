@@ -7,6 +7,7 @@ import {
   Home,
   Map,
   MapPin,
+  Menu,
   MessageCircle,
   ReceiptText,
   Soup,
@@ -14,9 +15,11 @@ import {
   UserRound,
   UsersRound,
   Wrench,
+  X,
   Zap,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 
 const camperPages: Record<string, string> = {
   '/portal': 'Portal Home',
@@ -55,6 +58,7 @@ function isActiveLink(pathname: string, href: string) {
 
 export default function CamperChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const title = camperPages[pathname]
 
   if (!title) return <>{children}</>
@@ -67,13 +71,25 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
     <div className={`camper-workspace-page${isPortalHome ? ' camper-workspace-home-page' : ''}`}>
       <div className="camper-workspace-shell">
         <aside className="camper-sidebar" aria-label="Camper portal navigation">
-          <a className="camper-sidebar-brand" href="/portal">
-            <img src="/bur-oaks-logo.png" alt="" />
-            <span>
-              <strong>Bur Oaks</strong>
-              <small>Camper Portal</small>
-            </span>
-          </a>
+          <div className="camper-sidebar-mobile-head">
+            <a className="camper-sidebar-brand" href="/portal">
+              <img src="/bur-oaks-logo.png" alt="" />
+              <span>
+                <strong>Bur Oaks</strong>
+                <small>Camper Portal</small>
+              </span>
+            </a>
+            <button
+              type="button"
+              className="camper-sidebar-menu-button"
+              aria-label={mobileMenuOpen ? 'Close camper menu' : 'Open camper menu'}
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              <span>{mobileMenuOpen ? 'Close' : 'Menu'}</span>
+            </button>
+          </div>
 
           <a className="camper-sidebar-feature" href="/portal">
             <TentTree size={18} />
@@ -83,7 +99,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
             </span>
           </a>
 
-          <nav className="camper-sidebar-nav">
+          <nav className={`camper-sidebar-nav${mobileMenuOpen ? ' mobile-open' : ''}`}>
             {camperNav.map((link) => {
               const Icon = link.icon
               const active = isActiveLink(pathname, link.href)
