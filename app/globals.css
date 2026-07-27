@@ -10475,3 +10475,129 @@ tbody tr:hover {
   .portal-quick-actions-top a:last-child{grid-column:auto}
   .admin-priority-tools .admin-operation-grid{grid-template-columns:1fr}
 }
+
+/* ADMIN DASHBOARD: LIVE WORK FIRST, SHORTCUTS COMPACT */
+.admin-command-hero{
+  min-height:315px;
+}
+.admin-command-intro{
+  padding:36px 46px 66px;
+}
+.admin-command-intro h1{
+  font-size:clamp(38px,4.4vw,58px);
+}
+.admin-command-intro p{
+  max-width:700px;
+  margin-top:13px;
+  font-size:15px;
+  line-height:1.5;
+}
+.admin-command-hero-actions{
+  margin-top:15px;
+}
+.admin-kpi-grid{
+  margin-bottom:18px;
+}
+.admin-today-panel{
+  margin-bottom:14px;
+}
+.admin-tools-drawer-content{
+  padding:16px;
+}
+.admin-tools-drawer .admin-operation-card{
+  min-height:88px;
+  padding:13px;
+}
+.admin-tools-drawer .admin-operation-icon{
+  width:42px;
+  height:42px;
+}
+
+@media(max-width:760px){
+  .admin-command-hero{
+    min-height:auto;
+  }
+  .admin-command-intro{
+    padding:24px 20px 54px;
+  }
+  .admin-command-intro h1{
+    font-size:34px;
+  }
+  .admin-command-intro p{
+    display:none;
+  }
+  .admin-command-hero-actions{
+    margin-top:13px;
+  }
+  .admin-command-hero-actions a{
+    min-height:39px;
+    padding:0 12px;
+    font-size:11px;
+  }
+  .admin-kpi-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    margin:-34px 10px 14px;
+  }
+  .admin-kpi-card,
+  .admin-kpi-card:nth-child(2){
+    min-height:82px;
+    padding:12px;
+    border-right:1px solid #e6e3d9;
+    border-bottom:1px solid #e6e3d9;
+  }
+  .admin-kpi-card:nth-child(2n){
+    border-right:0;
+  }
+  .admin-kpi-card:nth-child(n+3){
+    border-bottom:0;
+  }
+  .admin-kpi-icon{
+    width:38px;
+    height:38px;
+  }
+  .admin-kpi-card strong{
+    font-size:18px;
+  }
+  .admin-kpi-card em{
+    display:none;
+  }
+  .admin-today-panel{
+    padding:16px;
+  }
+  .admin-today-panel .admin-command-heading{
+    margin-bottom:14px;
+  }
+  .admin-today-panel .admin-command-heading h2{
+    font-size:23px;
+  }
+  .admin-cockpit-readout p{
+    display:none;
+  }
+  .admin-cockpit-readout{
+    padding:16px;
+  }
+  .admin-cockpit-readout h3{
+    font-size:25px;
+  }
+  .admin-tools-drawer-content{
+    padding:10px;
+  }
+  .admin-tools-drawer .admin-operation-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .admin-tools-drawer .admin-operation-card{
+    grid-template-columns:auto minmax(0,1fr);
+    min-height:76px;
+    padding:10px;
+  }
+  .admin-tools-drawer .admin-operation-card>svg,
+  .admin-tools-drawer .admin-operation-copy small{
+    display:none;
+  }
+}
+
+@media(max-width:430px){
+  .admin-tools-drawer .admin-operation-grid{
+    grid-template-columns:1fr;
+  }
+}

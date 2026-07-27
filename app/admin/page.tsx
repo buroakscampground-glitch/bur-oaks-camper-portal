@@ -704,41 +704,6 @@ export default function AdminPage() {
           </a>
         </section>
 
-        <section className="admin-command-panel admin-priority-tools">
-          <div className="admin-command-heading">
-            <div><span>QUICK START</span><h2>Run the campground</h2></div>
-            <p>The tools you use most, right up front.</p>
-          </div>
-
-          <div className="admin-operation-grid">
-            {dailyOperations.map((item) => {
-              const Icon = item.icon
-              const alertCount = item.alertCount || 0
-              return (
-                <a href={item.href} className="admin-operation-card" key={item.href}>
-                  {alertCount > 0 && (
-                    <span className="admin-attention-badge" aria-label={`${alertCount} ${item.alertLabel}${alertCount === 1 ? '' : 's'}`}>
-                      {alertCount}
-                    </span>
-                  )}
-                  <span className={`admin-operation-icon ${item.tone}`}><Icon size={24} /></span>
-                  <span className="admin-operation-copy"><strong>{item.title}</strong><small>{item.description}</small><em>{item.detail}</em></span>
-                  <ArrowRight size={19} />
-                </a>
-              )
-            })}
-          </div>
-        </section>
-
-        <details className="admin-dashboard-drawer">
-          <summary>
-            <span><CalendarDays size={18} /> Weather and planning</span>
-            <small>Open the full campground forecast</small>
-            <ArrowRight size={18} />
-          </summary>
-          <AdminWeather />
-        </details>
-
         <section className="admin-command-panel admin-today-panel admin-todo-panel">
           <div className="admin-command-heading">
             <div><span>COMMAND COCKPIT</span><h2>Everything that needs your attention</h2></div>
@@ -826,6 +791,43 @@ export default function AdminPage() {
             )}
           </div>
         </section>
+
+        <details className="admin-dashboard-drawer admin-tools-drawer">
+          <summary>
+            <span><Gauge size={18} /> All admin shortcuts</span>
+            <small>{dailyOperations.length} tools — tap to open the full shortcut screen</small>
+            <ArrowRight size={18} />
+          </summary>
+          <div className="admin-tools-drawer-content">
+            <div className="admin-operation-grid">
+              {dailyOperations.map((item) => {
+                const Icon = item.icon
+                const alertCount = item.alertCount || 0
+                return (
+                  <a href={item.href} className="admin-operation-card" key={item.href}>
+                    {alertCount > 0 && (
+                      <span className="admin-attention-badge" aria-label={`${alertCount} ${item.alertLabel}${alertCount === 1 ? '' : 's'}`}>
+                        {alertCount}
+                      </span>
+                    )}
+                    <span className={`admin-operation-icon ${item.tone}`}><Icon size={24} /></span>
+                    <span className="admin-operation-copy"><strong>{item.title}</strong><small>{item.description}</small><em>{item.detail}</em></span>
+                    <ArrowRight size={19} />
+                  </a>
+                )
+              })}
+            </div>
+          </div>
+        </details>
+
+        <details className="admin-dashboard-drawer">
+          <summary>
+            <span><CalendarDays size={18} /> Weather and planning</span>
+            <small>Open the full campground forecast</small>
+            <ArrowRight size={18} />
+          </summary>
+          <AdminWeather />
+        </details>
 
         <section className="admin-command-panel admin-community-panel">
           <div className="admin-command-heading">
