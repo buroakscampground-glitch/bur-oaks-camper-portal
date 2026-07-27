@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   Mail,
   Map,
+  Menu,
   Megaphone,
   MessageCircle,
   ReceiptText,
@@ -28,9 +29,11 @@ import {
   Utensils,
   WalletCards,
   Wrench,
+  X,
   Zap,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
+import { useState } from 'react'
 
 const pageNames: Record<string, string> = {
   campers: 'Camper Management',
@@ -136,6 +139,7 @@ function isActiveLink(pathname: string, href: string) {
 
 export default function AdminChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const section = pathname.split('/')[2] || ''
   const pageTitle = pathname === '/admin' ? 'Operations Dashboard' : pageNames[section] || 'Operations'
@@ -145,13 +149,25 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
     <div className="admin-workspace-page">
       <div className="admin-workspace-shell">
         <aside className="admin-sidebar" aria-label="Admin navigation">
-          <a className="admin-sidebar-brand" href="/admin">
-            <img src="/bur-oaks-logo.png" alt="" />
-            <span>
-              <strong>Bur Oaks</strong>
-              <small>Command Center</small>
-            </span>
-          </a>
+          <div className="admin-sidebar-mobile-head">
+            <a className="admin-sidebar-brand" href="/admin">
+              <img src="/bur-oaks-logo.png" alt="" />
+              <span>
+                <strong>Bur Oaks</strong>
+                <small>Command Center</small>
+              </span>
+            </a>
+            <button
+              type="button"
+              className="admin-sidebar-menu-button"
+              aria-label={mobileMenuOpen ? 'Close admin menu' : 'Open admin menu'}
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen((open) => !open)}
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+              <span>{mobileMenuOpen ? 'Close' : 'Menu'}</span>
+            </button>
+          </div>
 
           <a className="admin-sidebar-create" href="/admin/notifications">
             <Bell size={18} />
@@ -161,7 +177,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
             </span>
           </a>
 
-          <nav className="admin-sidebar-nav">
+          <nav className={`admin-sidebar-nav${mobileMenuOpen ? ' mobile-open' : ''}`}>
             {navGroups.map((group) => (
               <section key={group.label} className="admin-sidebar-group">
                 <p>{group.label}</p>
@@ -192,35 +208,35 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
         </aside>
 
         <div className="admin-workspace-main">
-          <header className="admin-workspace-header">
-            <nav>
-              <a className="admin-workspace-brand" href="/admin">
-                <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
-                <span>
-                  <strong>Bur Oaks</strong>
-                  <small>Operations Center</small>
-                </span>
-              </a>
+          {pathname !== '/admin' && (
+            <header className="admin-workspace-header">
+              <nav>
+                <a className="admin-workspace-brand" href="/admin">
+                  <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
+                  <span>
+                    <strong>Bur Oaks</strong>
+                    <small>Operations Center</small>
+                  </span>
+                </a>
 
-              <div className="admin-workspace-nav-actions">
-                <span><ShieldCheck size={15} /> Admin workspace</span>
-                <a href="/admin"><Home size={17} /> Dashboard</a>
-              </div>
-            </nav>
+                <div className="admin-workspace-nav-actions">
+                  <span><ShieldCheck size={15} /> Admin workspace</span>
+                  <a href="/admin"><Home size={17} /> Dashboard</a>
+                </div>
+              </nav>
 
-            <div className="admin-workspace-title">
-              <div>
-                <span><TentTree size={15} /> CAMPGROUND OPERATIONS</span>
-                <h1>{pageTitle}</h1>
-                <p>{isDetailPage ? 'Review and manage this record.' : 'Jump straight into the work that keeps Bur Oaks moving.'}</p>
-              </div>
-              {pathname !== '/admin' && (
+              <div className="admin-workspace-title">
+                <div>
+                  <span><TentTree size={15} /> CAMPGROUND OPERATIONS</span>
+                  <h1>{pageTitle}</h1>
+                  <p>{isDetailPage ? 'Review and manage this record.' : 'Jump straight into the work that keeps Bur Oaks moving.'}</p>
+                </div>
                 <a href={isDetailPage ? `/admin/${section}` : '/admin'}>
                   <ArrowLeft size={17} /> {isDetailPage ? `Back to ${pageTitle}` : 'Back to dashboard'}
                 </a>
-              )}
-            </div>
-          </header>
+              </div>
+            </header>
+          )}
 
           <div className="admin-workspace-content">{children}</div>
 

@@ -3834,6 +3834,14 @@ button:hover {
   text-decoration: none;
 }
 
+.admin-sidebar-mobile-head {
+  display: contents;
+}
+
+.admin-sidebar-menu-button {
+  display: none;
+}
+
 .admin-sidebar-brand img {
   width: 46px;
   height: 46px;
@@ -4005,12 +4013,42 @@ button:hover {
     padding: 16px;
   }
 
+  .admin-sidebar-mobile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+
   .admin-sidebar-brand {
+    min-height: 50px;
     padding-bottom: 12px;
   }
 
+  .admin-sidebar-menu-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-height: 42px;
+    padding: 0 13px;
+    border: 1px solid rgba(230,202,127,.35);
+    border-radius: 12px;
+    background: rgba(255,255,255,.09);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    box-shadow: none;
+  }
+
   .admin-sidebar-nav {
+    display: none;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-top: 14px;
+  }
+
+  .admin-sidebar-nav.mobile-open {
+    display: grid;
   }
 
   .admin-sidebar-create small,
