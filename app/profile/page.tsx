@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
-import { CheckCircle2, ClipboardCheck, Eye, FileUp, ShieldCheck, UsersRound } from 'lucide-react'
+import { CakeSlice, CheckCircle2, ClipboardCheck, Eye, FileUp, PartyPopper, ShieldCheck, UsersRound } from 'lucide-react'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -93,6 +93,9 @@ export default function ProfilePage() {
       second_profile_first_name: camper.second_profile_first_name,
       second_profile_last_name: camper.second_profile_last_name,
       second_profile_phone: camper.second_profile_phone,
+      birthday: camper.birthday || null,
+      second_profile_birthday: camper.second_profile_birthday || null,
+      birthday_celebration_opt_in: Boolean(camper.birthday_celebration_opt_in),
       mailing_address_line1: camper.mailing_address_line1,
       mailing_address_line2: camper.mailing_address_line2,
       mailing_city: camper.mailing_city,
@@ -125,10 +128,13 @@ export default function ProfilePage() {
       })
       .eq('id', camper.id)
 
-    if (error && /(directory_(opt_in|show_phone)|sms_opt_in)/i.test(error.message)) {
+    if (error && /(directory_(opt_in|show_phone)|sms_opt_in|birthday)/i.test(error.message)) {
       const {
         sms_opt_in,
         sms_opt_in_at,
+        birthday,
+        second_profile_birthday,
+        birthday_celebration_opt_in,
         ...fallbackUpdates
       } = profileUpdates
 
@@ -140,7 +146,7 @@ export default function ProfilePage() {
       setMessage(
         fallbackError
           ? fallbackError.message
-          : 'Profile saved. Directory preferences will be available after setup is complete.'
+          : 'Profile saved. Birthday and directory preferences will be available after setup is complete.'
       )
     } else if (error) {
       setMessage(error.message)
@@ -279,6 +285,61 @@ export default function ProfilePage() {
                 {item.label}
               </span>
             ))}
+          </div>
+        </section>
+
+        <section className="card camper-birthday-profile-card" style={{ marginBottom: '25px' }}>
+          <div className="camper-birthday-profile-heading">
+            <span><CakeSlice size={23} /></span>
+            <div>
+              <small>BUR OAKS BIRTHDAY CLUB</small>
+              <h2>Add your birthdays</h2>
+              <p>We’ll celebrate the month and day in the camper portal. Your birth year always stays private.</p>
+            </div>
+            <PartyPopper size={30} />
+          </div>
+
+          <div className="camper-birthday-profile-grid">
+            <label>
+              <span>{camper.first_name || 'Profile 1'}’s birthday</span>
+              <input
+                type="date"
+                value={camper.birthday || ''}
+                onChange={(event) => setCamper({ ...camper, birthday: event.target.value })}
+              />
+              <small>Profile 1</small>
+            </label>
+
+            <label>
+              <span>{camper.second_profile_first_name || 'Profile 2'}’s birthday</span>
+              <input
+                type="date"
+                value={camper.second_profile_birthday || ''}
+                onChange={(event) => setCamper({ ...camper, second_profile_birthday: event.target.value })}
+              />
+              <small>Optional second camper</small>
+            </label>
+          </div>
+
+          <label className="camper-birthday-celebration-toggle">
+            <input
+              type="checkbox"
+              checked={Boolean(camper.birthday_celebration_opt_in)}
+              onChange={(event) =>
+                setCamper({ ...camper, birthday_celebration_opt_in: event.target.checked })
+              }
+            />
+            <span>
+              <strong>Include us on the monthly birthday board</strong>
+              <small>Other signed-in campers will see first name, last initial, lot, and birthday month/day. They will never see the birth year.</small>
+            </span>
+          </label>
+
+          <div className="camper-birthday-profile-actions">
+            <button type="button" onClick={saveProfile} disabled={saving}>
+              {saving ? 'Saving…' : 'Save Birthday Details'}
+            </button>
+            {message && <p>{message}</p>}
           </div>
         </section>
 

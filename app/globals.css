@@ -10639,3 +10639,427 @@ tbody tr:hover {
     grid-template-columns:1fr;
   }
 }
+
+/* CAMPER BIRTHDAY CLUB */
+.camper-birthday-profile-card{
+  position:relative;
+  overflow:hidden;
+  border-color:#ead8a8!important;
+  background:
+    radial-gradient(circle at 96% 0%,rgba(232,179,82,.2),transparent 32%),
+    linear-gradient(135deg,#fffdf7,#f8f1df 55%,#edf5ea)!important;
+}
+.camper-birthday-profile-card:after{
+  content:"";
+  position:absolute;
+  right:-45px;
+  bottom:-65px;
+  width:190px;
+  height:190px;
+  border:28px solid rgba(49,95,61,.055);
+  border-radius:999px;
+  pointer-events:none;
+}
+.camper-birthday-profile-heading{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:14px;
+  margin-bottom:20px;
+}
+.camper-birthday-profile-heading>span{
+  display:grid;
+  width:52px;
+  height:52px;
+  place-items:center;
+  border-radius:18px;
+  background:linear-gradient(135deg,#315f3d,#1d4129);
+  color:#ffe19b;
+  box-shadow:0 12px 25px rgba(49,95,61,.17);
+}
+.camper-birthday-profile-heading>svg{
+  color:#bd7d23;
+}
+.camper-birthday-profile-heading small{
+  color:#a66f23;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.15em;
+}
+.camper-birthday-profile-heading h2{
+  margin:4px 0 0;
+  color:#263f2e;
+  font:500 30px Georgia,serif;
+}
+.camper-birthday-profile-heading p{
+  margin:5px 0 0;
+  color:#69736b;
+  font-size:12px;
+  line-height:1.45;
+}
+.camper-birthday-profile-grid{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.camper-birthday-profile-grid label{
+  display:grid;
+  gap:6px;
+  padding:15px;
+  border:1px solid rgba(177,137,62,.22);
+  border-radius:17px;
+  background:rgba(255,255,255,.78);
+}
+.camper-birthday-profile-grid label>span{
+  color:#304637;
+  font-size:12px;
+  font-weight:900;
+}
+.camper-birthday-profile-grid input{
+  width:100%;
+}
+.camper-birthday-profile-grid small{
+  color:#7a837c;
+  font-size:10px;
+  font-weight:800;
+}
+.camper-birthday-celebration-toggle{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  margin-top:13px;
+  padding:15px;
+  border:1px solid #cbdcc9;
+  border-radius:17px;
+  background:rgba(239,247,236,.86);
+}
+.camper-birthday-celebration-toggle input{
+  flex:0 0 auto;
+  width:19px;
+  height:19px;
+  margin-top:1px;
+}
+.camper-birthday-celebration-toggle span{
+  display:grid;
+  gap:3px;
+}
+.camper-birthday-celebration-toggle strong{
+  color:#294331;
+  font-size:13px;
+}
+.camper-birthday-celebration-toggle small{
+  color:#627067;
+  font-size:11px;
+  line-height:1.45;
+}
+.camper-birthday-profile-actions{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  margin-top:14px;
+}
+.camper-birthday-profile-actions button{
+  min-height:43px;
+  border:0!important;
+  background:#315f3d!important;
+  color:#fff!important;
+}
+.camper-birthday-profile-actions p{
+  margin:0;
+  color:#315f3d;
+  font-size:12px;
+  font-weight:850;
+}
+
+.portal-birthday-club{
+  position:relative;
+  overflow:hidden;
+  margin:0 28px 22px;
+  padding:23px;
+  border:1px solid #e7d39f;
+  border-radius:27px;
+  background:
+    radial-gradient(circle at 92% 4%,rgba(234,183,91,.24),transparent 31%),
+    radial-gradient(circle at 8% 100%,rgba(74,124,85,.16),transparent 28%),
+    linear-gradient(135deg,#fffdf7,#f9f0d9 52%,#eef5eb);
+  box-shadow:0 18px 42px rgba(68,57,29,.1);
+}
+.portal-birthday-confetti{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+.portal-birthday-confetti i{
+  position:absolute;
+  width:8px;
+  height:16px;
+  border-radius:3px;
+  background:#d6a240;
+  opacity:.22;
+  transform:rotate(24deg);
+}
+.portal-birthday-confetti i:nth-child(1){top:18px;left:7%;background:#315f3d;transform:rotate(54deg)}
+.portal-birthday-confetti i:nth-child(2){top:34px;left:43%;background:#b85f50;transform:rotate(-38deg)}
+.portal-birthday-confetti i:nth-child(3){top:17px;right:18%;background:#4278a1;transform:rotate(71deg)}
+.portal-birthday-confetti i:nth-child(4){bottom:24px;left:22%;background:#b85f50;transform:rotate(12deg)}
+.portal-birthday-confetti i:nth-child(5){bottom:16px;right:31%;background:#315f3d;transform:rotate(-60deg)}
+.portal-birthday-confetti i:nth-child(6){top:48%;right:12px;background:#d6a240;transform:rotate(43deg)}
+.portal-birthday-heading{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:14px;
+  margin-bottom:17px;
+}
+.portal-birthday-icon{
+  display:grid;
+  width:55px;
+  height:55px;
+  place-items:center;
+  border-radius:19px;
+  background:linear-gradient(135deg,#315f3d,#1f432b);
+  color:#ffe29c;
+  box-shadow:0 12px 28px rgba(49,95,61,.19);
+}
+.portal-birthday-heading>svg{
+  color:#b87522;
+}
+.portal-birthday-heading small{
+  color:#a66e20;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.15em;
+}
+.portal-birthday-heading h2{
+  margin:4px 0 0;
+  color:#263f2e;
+  font:500 31px Georgia,serif;
+}
+.portal-birthday-heading p{
+  margin:5px 0 0;
+  color:#68746c;
+  font-size:12px;
+}
+.portal-birthday-grid{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:11px;
+}
+.portal-birthday-grid article{
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:13px;
+  min-height:112px;
+  padding:13px;
+  border:1px solid rgba(173,139,74,.22);
+  border-radius:20px;
+  background:rgba(255,255,255,.82);
+  box-shadow:0 9px 22px rgba(60,54,38,.055);
+}
+.portal-birthday-grid article.today{
+  border-color:#d2a84f;
+  background:linear-gradient(135deg,#fff7db,#fff);
+  box-shadow:0 12px 28px rgba(163,116,29,.13);
+}
+.portal-birthday-date{
+  display:grid;
+  width:62px;
+  height:72px;
+  place-items:center;
+  align-content:center;
+  border-radius:17px;
+  background:#315f3d;
+  color:#fff;
+}
+.portal-birthday-date small{
+  color:#f4d890;
+  font-size:9px;
+  font-weight:950;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+}
+.portal-birthday-date strong{
+  font:500 31px/1 Georgia,serif;
+}
+.portal-birthday-person{
+  display:grid;
+  min-width:0;
+}
+.portal-birthday-person>small{
+  color:#a66f22;
+  font-size:8px;
+  font-weight:950;
+  letter-spacing:.1em;
+}
+.portal-birthday-person>strong{
+  overflow:hidden;
+  margin-top:3px;
+  color:#273f2f;
+  font-size:15px;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.portal-birthday-person>span{
+  color:#728078;
+  font-size:11px;
+}
+.portal-birthday-person em{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  justify-self:start;
+  margin-top:5px;
+  color:#8b6528;
+  font-size:10px;
+  font-style:normal;
+  font-weight:900;
+}
+.portal-birthday-grid button,
+.portal-birthday-own{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  min-height:38px;
+  padding:0 11px;
+  border:1px solid #d8bd7d!important;
+  border-radius:999px;
+  background:#fff8e5!important;
+  color:#76541e!important;
+  font-size:10px;
+  font-weight:950;
+  white-space:nowrap;
+  box-shadow:none!important;
+}
+.portal-birthday-grid button:disabled{
+  opacity:.7;
+}
+.portal-birthday-own{
+  border-color:#bcd2ba!important;
+  background:#edf6eb!important;
+  color:#315f3d!important;
+}
+.portal-birthday-empty{
+  position:relative;
+  z-index:1;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:13px;
+  padding:17px;
+  border:1px dashed #d8c18d;
+  border-radius:19px;
+  background:rgba(255,255,255,.66);
+  color:#315f3d;
+}
+.portal-birthday-empty strong{
+  color:#2b4332;
+  font-size:14px;
+}
+.portal-birthday-empty p{
+  margin:3px 0 0;
+  color:#6d7870;
+  font-size:11px;
+}
+.portal-birthday-empty a{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  color:#315f3d;
+  font-size:11px;
+  font-weight:950;
+  text-decoration:none;
+}
+.portal-birthday-message{
+  position:relative;
+  z-index:1;
+  margin:13px 0 0;
+  padding:10px 12px;
+  border-radius:13px;
+  background:#315f3d;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+.portal-birthday-privacy{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  gap:6px;
+  margin-top:12px;
+  color:#66736b;
+  font-size:10px;
+  font-weight:800;
+}
+
+@media(max-width:800px){
+  .portal-birthday-club{
+    margin:0 14px 18px;
+    padding:18px;
+    border-radius:23px;
+  }
+  .portal-birthday-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:560px){
+  .camper-birthday-profile-heading{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+  .camper-birthday-profile-heading>svg{
+    display:none;
+  }
+  .camper-birthday-profile-grid{
+    grid-template-columns:1fr;
+  }
+  .camper-birthday-profile-actions{
+    align-items:stretch;
+    flex-direction:column;
+  }
+  .portal-birthday-heading{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+  .portal-birthday-heading>svg{
+    display:none;
+  }
+  .portal-birthday-heading h2{
+    font-size:26px;
+  }
+  .portal-birthday-heading p{
+    line-height:1.45;
+  }
+  .portal-birthday-grid article{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+  .portal-birthday-grid article>button,
+  .portal-birthday-grid article>.portal-birthday-own{
+    grid-column:1/-1;
+    width:100%;
+  }
+  .portal-birthday-empty{
+    grid-template-columns:auto minmax(0,1fr);
+  }
+  .portal-birthday-empty a{
+    grid-column:1/-1;
+    justify-content:center;
+    min-height:38px;
+    border-radius:999px;
+    background:#315f3d;
+    color:#fff;
+  }
+}

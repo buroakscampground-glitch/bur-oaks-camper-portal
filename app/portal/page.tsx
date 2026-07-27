@@ -5,6 +5,7 @@ import {
   ArrowRight,
   AlertTriangle,
   Bell,
+  CakeSlice,
   CalendarDays,
   CheckCircle2,
   ChevronRight,
@@ -13,11 +14,13 @@ import {
   Droplets,
   FileText,
   Gauge,
+  Gift,
   Home,
   LogOut,
   MapPin,
   Megaphone,
   MessageCircle,
+  PartyPopper,
   ReceiptText,
   ShieldCheck,
   Soup,
@@ -145,6 +148,30 @@ function getPortalSeason() {
   return 'winter'
 }
 
+type BirthdayEntry = {
+  recipientCamperId: string
+  profile: 'primary' | 'secondary'
+  name: string
+  lotNumber: string | null
+  day: number
+  isToday: boolean
+  isMine: boolean
+  wishCount: number
+  sentByMe: boolean
+}
+
+type BirthdayBoard = {
+  monthName: string
+  birthdays: BirthdayEntry[]
+  setupRequired: boolean
+}
+
+const emptyBirthdayBoard: BirthdayBoard = {
+  monthName: new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()),
+  birthdays: [],
+  setupRequired: false,
+}
+
 export default function CamperPortalPage() {
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
@@ -162,6 +189,9 @@ export default function CamperPortalPage() {
   const [requestingPump, setRequestingPump] = useState(false)
   const [showPumpConfirm, setShowPumpConfirm] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [birthdayBoard, setBirthdayBoard] = useState<BirthdayBoard>(emptyBirthdayBoard)
+  const [birthdaySending, setBirthdaySending] = useState('')
+  const [birthdayMessage, setBirthdayMessage] = useState('')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -195,7 +225,10 @@ export default function CamperPortalPage() {
         setCamper(camperData)
 
         const today = new Date().toISOString().split('T')[0]
-        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult] =
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult, birthdayResult] =
           await Promise.all([
             supabase
               .from('invoices')
@@ -257,6 +290,13 @@ export default function CamperPortalPage() {
               .is('read_by_admin_at', null)
               .order('created_at', { ascending: false })
               .limit(3),
+            session?.access_token
+              ? fetch('/api/birthdays', {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                })
+                  .then((response) => response.json())
+                  .catch(() => null)
+              : Promise.resolve(null),
           ])
 
         setInvoices(invoiceResult.data || [])
@@ -276,6 +316,13 @@ export default function CamperPortalPage() {
         setUnreadOfficeMessages(messageResult.count || 0)
         setPumpOutRequests(pumpOutResult.data || [])
         setOfficePendingMessages(pendingOfficeResult.data || [])
+        if (birthdayResult?.success) {
+          setBirthdayBoard({
+            monthName: birthdayResult.monthName || emptyBirthdayBoard.monthName,
+            birthdays: birthdayResult.birthdays || [],
+            setupRequired: Boolean(birthdayResult.setupRequired),
+          })
+        }
       } catch (error) {
         console.error('Unable to load camper portal:', error)
       } finally {
@@ -377,6 +424,60 @@ export default function CamperPortalPage() {
 
     setPumpMessage(`Sewer pump-out requested for Lot ${camper?.lot_number || 'your site'}. $10 will be added to your next electric bill.${emailNote}`)
     setRequestingPump(false)
+  }
+
+  async function sendBirthdayWish(birthday: BirthdayEntry) {
+    const key = `${birthday.recipientCamperId}:${birthday.profile}`
+    if (birthdaySending || birthday.sentByMe || birthday.isMine) return
+
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session?.access_token) {
+      window.location.href = '/login'
+      return
+    }
+
+    setBirthdaySending(key)
+    setBirthdayMessage(`Sending birthday cheer to ${birthday.name}…`)
+
+    try {
+      const response = await fetch('/api/birthdays', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          recipientCamperId: birthday.recipientCamperId,
+          profile: birthday.profile,
+        }),
+      })
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        setBirthdayMessage(result?.error || 'Unable to send birthday cheer right now.')
+        return
+      }
+
+      if (result?.board) {
+        setBirthdayBoard({
+          monthName: result.board.monthName || birthdayBoard.monthName,
+          birthdays: result.board.birthdays || [],
+          setupRequired: Boolean(result.board.setupRequired),
+        })
+      }
+      setBirthdayMessage(
+        result?.alreadySent
+          ? `You already sent ${birthday.name} birthday cheer this year.`
+          : `🎉 Birthday cheer sent to ${birthday.name}!`
+      )
+    } catch {
+      setBirthdayMessage('Unable to send birthday cheer right now.')
+    } finally {
+      setBirthdaySending('')
+    }
   }
 
   if (loading) {
@@ -840,6 +941,77 @@ export default function CamperPortalPage() {
               <strong>{upcomingDinners[0] ? `${upcomingDinners[0].month} ${upcomingDinners[0].day}` : 'View menu'}</strong>
             </span>
           </a>
+        </section>
+
+        <section className="portal-birthday-club" aria-label={`${birthdayBoard.monthName} camper birthdays`}>
+          <div className="portal-birthday-confetti" aria-hidden="true">
+            <i /><i /><i /><i /><i /><i />
+          </div>
+          <div className="portal-birthday-heading">
+            <span className="portal-birthday-icon"><CakeSlice size={27} /></span>
+            <div>
+              <small>BUR OAKS BIRTHDAY CLUB</small>
+              <h2>{birthdayBoard.monthName} birthdays</h2>
+              <p>A little campground cheer for the neighbors celebrating this month.</p>
+            </div>
+            <PartyPopper size={32} />
+          </div>
+
+          {birthdayBoard.birthdays.length ? (
+            <div className="portal-birthday-grid">
+              {birthdayBoard.birthdays.map((birthday) => {
+                const wishKey = `${birthday.recipientCamperId}:${birthday.profile}`
+                const isSending = birthdaySending === wishKey
+
+                return (
+                  <article className={birthday.isToday ? 'today' : ''} key={wishKey}>
+                    <div className="portal-birthday-date">
+                      <small>{birthdayBoard.monthName.slice(0, 3)}</small>
+                      <strong>{birthday.day}</strong>
+                    </div>
+                    <div className="portal-birthday-person">
+                      <small>{birthday.isToday ? 'CELEBRATING TODAY!' : 'BIRTHDAY COMING UP'}</small>
+                      <strong>{birthday.name}</strong>
+                      <span>{birthday.lotNumber ? `Lot ${birthday.lotNumber}` : 'Bur Oaks camper'}</span>
+                      {birthday.wishCount > 0 && (
+                        <em><Gift size={13} /> {birthday.wishCount} birthday wish{birthday.wishCount === 1 ? '' : 'es'}</em>
+                      )}
+                    </div>
+                    {birthday.isMine ? (
+                      <span className="portal-birthday-own">
+                        <Sparkles size={16} /> That’s you!
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={birthday.sentByMe || isSending || Boolean(birthdaySending)}
+                        onClick={() => sendBirthdayWish(birthday)}
+                      >
+                        {birthday.sentByMe ? <CheckCircle2 size={16} /> : <Gift size={16} />}
+                        {isSending ? 'Sending…' : birthday.sentByMe ? 'Wish sent' : 'Send birthday cheer'}
+                      </button>
+                    )}
+                  </article>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="portal-birthday-empty">
+              <Gift size={25} />
+              <div>
+                <strong>No birthdays have been shared for {birthdayBoard.monthName} yet.</strong>
+                <p>Add yours in your camper profile and choose to join the birthday board.</p>
+              </div>
+              <a href="/profile">Add my birthday <ArrowRight size={16} /></a>
+            </div>
+          )}
+
+          {birthdayMessage && <p className="portal-birthday-message">{birthdayMessage}</p>}
+          {!birthdayBoard.setupRequired && (
+            <div className="portal-birthday-privacy">
+              <ShieldCheck size={14} /> Birth years stay private. Only month, day, first name, last initial, and lot are shared.
+            </div>
+          )}
         </section>
 
         {!onboardingComplete && (
