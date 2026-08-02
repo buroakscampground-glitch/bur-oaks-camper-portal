@@ -29,21 +29,7 @@ async function findCamperForEmail(client: any, userEmail: string) {
   return activeMatches.length === 1 ? activeMatches[0] : null
 }
 
-function assuranceLevelFromToken(token: string) {
-  try {
-    const payload = token.split('.')[1]
-    if (!payload) return 'aal1'
-    const decoded = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
-    return decoded?.aal === 'aal2' ? 'aal2' : 'aal1'
-  } catch {
-    return 'aal1'
-  }
-}
-
-export async function getAuthenticatedContext(
-  request: Request,
-  options: { allowPrivilegedAal1?: boolean } = {}
-) {
+export async function getAuthenticatedContext(request: Request) {
   const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -79,16 +65,5 @@ export async function getAuthenticatedContext(
     return null
   }
 
-  const assuranceLevel = assuranceLevelFromToken(token)
-  const role = String(camper.role || 'camper').toLowerCase()
-
-  if (
-    !options.allowPrivilegedAal1 &&
-    ['admin', 'maintenance'].includes(role) &&
-    assuranceLevel !== 'aal2'
-  ) {
-    return null
-  }
-
-  return { user: data.user, camper, admin, assuranceLevel }
+  return { user: data.user, camper, admin }
 }

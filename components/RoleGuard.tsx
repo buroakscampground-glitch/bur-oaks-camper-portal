@@ -36,11 +36,6 @@ export default function RoleGuard({
         const result = await response.json().catch(() => null)
         const role = String(result?.role || '').toLowerCase()
 
-        if (response.ok && result?.mfaRequired) {
-          window.location.replace('/mfa')
-          return
-        }
-
         if (response.ok && allowedRolesKey.split(',').includes(role)) {
           setAllowed(true)
           return

@@ -4,7 +4,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 export const runtime = 'nodejs'
 
 export async function GET(request: Request) {
-  const context = await getAuthenticatedContext(request, { allowPrivilegedAal1: true })
+  const context = await getAuthenticatedContext(request)
 
   if (!context) {
     return NextResponse.json(
@@ -14,11 +14,8 @@ export async function GET(request: Request) {
   }
 
   const role = String(context.camper.role || 'camper').toLowerCase()
-  const mfaRequired = ['admin', 'maintenance'].includes(role) && context.assuranceLevel !== 'aal2'
   const destination =
-    mfaRequired
-      ? '/mfa'
-      : role === 'admin'
+    role === 'admin'
       ? '/admin'
       : role === 'maintenance'
         ? '/maintenance/dashboard'
@@ -33,5 +30,5 @@ export async function GET(request: Request) {
     )
   }
 
-  return NextResponse.json({ role, destination, camper_id: context.camper.id, mfaRequired })
+  return NextResponse.json({ role, destination, camper_id: context.camper.id })
 }
