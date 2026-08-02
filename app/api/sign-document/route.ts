@@ -13,7 +13,7 @@ function getIpAddress(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'sign-document', 10, 60_000)
+  const rateLimit = await checkRateLimit(request, 'sign-document', 10, 60_000)
 
   if (!rateLimit.allowed) {
     return NextResponse.json(
@@ -86,48 +86,33 @@ export async function POST(request: Request) {
     ].join('|')
 
     const signatureRecordHash = createHash('sha256').update(signaturePayload).digest('hex')
-    const firstSignatureAlreadyRecorded = Boolean(document.signed_at || document.signed_email)
-    const signingSecondSlot = requiresTwoSignatures && firstSignatureAlreadyRecorded
-    const nextSignatureStatus = requiresTwoSignatures && !signingSecondSlot
-      ? 'pending_second_signature'
-      : 'signed'
-    const updatePayload = signingSecondSlot
-      ? {
-          signature_status: nextSignatureStatus,
-          second_signed_at: signedAt,
-          second_signed_name: cleanName,
-          second_signed_email: context.user.email,
-          second_signed_user_id: context.user.id,
-          second_signature_ip: signatureIp,
-          second_signature_user_agent: signatureUserAgent,
-          second_signature_consent_text: consentText,
-          second_signature_record_hash: signatureRecordHash,
-        }
-      : {
-          signature_status: nextSignatureStatus,
-          signed_at: signedAt,
-          signed_name: cleanName,
-          signed_email: context.user.email,
-          signed_user_id: context.user.id,
-          signature_ip: signatureIp,
-          signature_user_agent: signatureUserAgent,
-          signature_consent_text: consentText,
-          signature_record_hash: signatureRecordHash,
-        }
-
-    const { error: updateError } = await context.admin
-      .from('documents')
-      .update(updatePayload)
-      .eq('id', document.id)
-      .eq('camper_id', context.camper.id)
-      .neq('signature_status', 'signed')
+    const { data: signatureRows, error: updateError } = await context.admin.rpc(
+      'record_document_signature_atomic',
+      {
+        p_document_id: document.id,
+        p_camper_id: context.camper.id,
+        p_user_id: context.user.id,
+        p_email: context.user.email,
+        p_name: cleanName,
+        p_signed_at: signedAt,
+        p_ip: signatureIp,
+        p_user_agent: signatureUserAgent,
+        p_consent: consentText,
+        p_record_hash: signatureRecordHash,
+      }
+    )
 
     if (updateError) {
+      const conflict = updateError.code === '23505'
       return NextResponse.json(
-        { error: 'Signature fields are not ready yet. Please run the latest Supabase migration.' },
-        { status: 500 }
+        { error: conflict ? updateError.message : 'Unable to record the signature safely. Please try again.' },
+        { status: conflict ? 409 : updateError.code === 'P0002' ? 404 : 500 }
       )
     }
+
+    const signatureResult = Array.isArray(signatureRows) ? signatureRows[0] : signatureRows
+    const nextSignatureStatus = signatureResult?.result_status || 'signed'
+    const signedSlot = signatureResult?.signed_slot || 'first'
 
     return NextResponse.json({
       success: true,
@@ -135,8 +120,8 @@ export async function POST(request: Request) {
       signatureRecordHash,
       consentText,
       signatureStatus: nextSignatureStatus,
-      signedSlot: signingSecondSlot ? 'second' : 'first',
-      requiresTwoSignatures,
+      signedSlot,
+      requiresTwoSignatures: signatureResult?.requires_two ?? requiresTwoSignatures,
     })
   } catch (error) {
     console.error('Unable to sign document:', error)

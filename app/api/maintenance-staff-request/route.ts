@@ -2,10 +2,15 @@ import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { getSiteUrl } from '../../../lib/site-url'
+import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
+  const rateLimit = await checkRateLimit(request, 'maintenance-staff-request', 10, 10 * 60_000)
+  if (!rateLimit.allowed) return NextResponse.json({ error: 'Too many work requests. Please wait and try again.' }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } })
+
   const context = await getAuthenticatedContext(request)
 
   if (!context) {
@@ -18,9 +23,10 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const title = String(body.title || '').trim()
-  const description = String(body.description || '').trim()
-  const priority = String(body.priority || 'Normal').trim() || 'Normal'
+  const title = String(body.title || '').trim().slice(0, 120)
+  const description = String(body.description || '').trim().slice(0, 5000)
+  const requestedPriority = String(body.priority || 'Normal').trim()
+  const priority = ['Low', 'Normal', 'High', 'Urgent'].includes(requestedPriority) ? requestedPriority : 'Normal'
 
   if (!title || !description) {
     return NextResponse.json({ error: 'Please enter a title and description.' }, { status: 400 })
@@ -57,7 +63,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const origin = new URL(request.url).origin
+    const origin = getSiteUrl()
     const alertTitle = `Maintenance staff request: ${ticket.title || 'Work request'}`
     const alertMessage = `${reporterName} submitted a work request for admin approval.`
 

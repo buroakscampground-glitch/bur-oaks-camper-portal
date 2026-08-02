@@ -52,10 +52,30 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Document not found.' }, { status: 404 })
   }
 
-  const storagePath = String(document.file_url || '')
-  if (storagePath) {
+  let bucket = 'camper-documents'
+  let storagePath = String(document.file_url || '')
+
+  if (/^https?:\/\//i.test(storagePath)) {
+    try {
+      const parsedUrl = new URL(storagePath)
+      const marker = '/storage/v1/object/public/'
+      const markerIndex = parsedUrl.pathname.indexOf(marker)
+      if (markerIndex >= 0) {
+        const combinedPath = decodeURIComponent(parsedUrl.pathname.slice(markerIndex + marker.length))
+        const separatorIndex = combinedPath.indexOf('/')
+        bucket = combinedPath.slice(0, separatorIndex)
+        storagePath = combinedPath.slice(separatorIndex + 1)
+      } else {
+        storagePath = ''
+      }
+    } catch {
+      storagePath = ''
+    }
+  }
+
+  if (storagePath && ['Documents', 'camper-documents'].includes(bucket)) {
     const { error: storageError } = await context.admin.storage
-      .from('camper-documents')
+      .from(bucket)
       .remove([storagePath])
 
     if (storageError) {

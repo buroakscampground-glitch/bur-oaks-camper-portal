@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Download, Search, WalletCards } from 'lucide-react'
-import * as XLSX from "xlsx"
 import { supabase } from "../../../lib/supabase"
 
 export default function OpenBalancePage() {
@@ -82,20 +81,19 @@ export default function OpenBalancePage() {
     )
   }, [balances, search])
 
-  function exportToExcel() {
-    const exportData = balances.map((row) => ({
-      Lot: row.lot,
-      Camper: row.camper,
-      Balance: row.balance,
-      OpenInvoices: row.invoiceCount,
-      DaysLate: row.daysLate,
-      Status: row.status,
-    }))
-
-    const worksheet = XLSX.utils.json_to_sheet(exportData)
-    const workbook = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Open Balances")
-    XLSX.writeFile(workbook, `Open-Balances-${new Date().toISOString().slice(0, 10)}.xlsx`)
+  function exportToSpreadsheet() {
+    const quote = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
+    const rows = [
+      ['Lot', 'Camper', 'Balance', 'Open Invoices', 'Days Late', 'Status'],
+      ...balances.map((row) => [row.lot, row.camper, row.balance.toFixed(2), row.invoiceCount, row.daysLate, row.status]),
+    ]
+    const csv = rows.map((row) => row.map(quote).join(',')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `Open-Balances-${new Date().toISOString().slice(0, 10)}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
@@ -107,7 +105,7 @@ export default function OpenBalancePage() {
           <h1>Open Balances</h1>
           <p>See who owes, how long it has been open, and jump straight into the camper invoice record.</p>
         </div>
-        <button type="button" className="admin-open-export" onClick={exportToExcel}>
+        <button type="button" className="admin-open-export" onClick={exportToSpreadsheet}>
           <Download size={17} /> Export
         </button>
       </section>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
-import { applyAvailableCreditsToInvoice, formatCreditMoney } from '../../../lib/account-credits'
+import { createInvoiceBundle, formatCreditMoney } from '../../../lib/account-credits'
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 
@@ -28,6 +28,8 @@ export default function AdminElectricPage() {
   const [includeWaterTrash, setIncludeWaterTrash] = useState(false)
   const [waterTrashFee, setWaterTrashFee] = useState('20')
   const [waterTrashFeeOptions, setWaterTrashFeeOptions] = useState(defaultCampgroundBillingSettings.waterTrashFees)
+  const [manualPumpChargeOption, setManualPumpChargeOption] = useState('none')
+  const [manualPumpCustomAmount, setManualPumpCustomAmount] = useState('')
   const [newCreditAmount, setNewCreditAmount] = useState('')
   const [newCreditReason, setNewCreditReason] = useState('Electric billing credit')
   const [newCreditNotes, setNewCreditNotes] = useState('')
@@ -150,6 +152,15 @@ const liveSecondAmount =
     : 0
 
 const selectedWaterTrashFee = includeWaterTrash ? Number(waterTrashFee || 0) : 0
+const manualPumpChargeInput =
+  manualPumpChargeOption === 'custom'
+    ? Number(manualPumpCustomAmount || 0)
+    : manualPumpChargeOption === '10' || manualPumpChargeOption === '20'
+      ? Number(manualPumpChargeOption)
+      : 0
+const manualPumpCharge = Number.isFinite(manualPumpChargeInput)
+  ? Number(manualPumpChargeInput.toFixed(2))
+  : 0
 const selectedPumpOuts = pumpOuts.filter((request) => request.camper_id === camperId)
 const pumpOutChargeTotal = selectedPumpOuts.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
 const pumpOutUnitPreview = selectedPumpOuts.length ? Number((pumpOutChargeTotal / selectedPumpOuts.length).toFixed(2)) : 10
@@ -160,7 +171,7 @@ const availableCreditTotal = selectedAccountCredits.reduce((sum, credit) => sum 
 const newCreditValue = Number(newCreditAmount || 0)
 const estimatedCreditTotal =
   availableCreditTotal + (Number.isFinite(newCreditValue) && newCreditValue > 0 ? newCreditValue : 0)
-const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee + pumpOutChargeTotal + siteServiceChargeTotal
+const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee + manualPumpCharge + pumpOutChargeTotal + siteServiceChargeTotal
 const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTotal)
 
   async function saveElectricAndCreateInvoice() {
@@ -180,11 +191,26 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
     const secondCurrent = Number(secondCurrentReading)
     const secondRateNumber = Number(secondRate || rate)
     const waterTrashAmount = includeWaterTrash ? Number(waterTrashFee) : 0
+    const manualPumpAmountInput =
+      manualPumpChargeOption === 'custom'
+        ? Number(manualPumpCustomAmount)
+        : manualPumpChargeOption === '10' || manualPumpChargeOption === '20'
+          ? Number(manualPumpChargeOption)
+          : 0
+    const manualPumpAmount = Number.isFinite(manualPumpAmountInput)
+      ? Number(manualPumpAmountInput.toFixed(2))
+      : 0
     const creditAmountToAdd = Number(newCreditAmount || 0)
     const kwhUsed = current - previous
     const amountDue = Number((kwhUsed * rateNumber).toFixed(2))
     const secondKwhUsed = includeSecondMeter ? secondCurrent - secondPrevious : 0
     const secondAmountDue = includeSecondMeter ? Number((secondKwhUsed * secondRateNumber).toFixed(2)) : 0
+
+    if (manualPumpChargeOption === 'custom' && (!Number.isFinite(manualPumpAmountInput) || manualPumpAmountInput < 0.01)) {
+      setMessage('Please enter a manual pumping charge of at least $0.01, or choose None.')
+      setSaving(false)
+      return
+    }
 
     if (!Number.isFinite(previous) || !Number.isFinite(current) || !Number.isFinite(rateNumber) || !Number.isFinite(waterTrashAmount)) {
       setMessage('Please enter valid numeric values for readings and rate.')
@@ -204,7 +230,7 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
       return
     }
 
-    if (previous < 0 || current < 0 || rateNumber <= 0 || waterTrashAmount < 0 || (includeSecondMeter && (secondPrevious < 0 || secondCurrent < 0 || secondRateNumber <= 0))) {
+    if (previous < 0 || current < 0 || rateNumber <= 0 || waterTrashAmount < 0 || manualPumpAmount < 0 || (includeSecondMeter && (secondPrevious < 0 || secondCurrent < 0 || secondRateNumber <= 0))) {
       setMessage('Readings and rate must be positive values.')
       setSaving(false)
       return
@@ -313,41 +339,13 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 
     const activeSiteServices = freshSiteServices || []
     const siteServiceTotal = Number(activeSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0).toFixed(2))
-    const totalDue = Number((amountDue + secondAmountDue + waterTrashAmount + pumpOutTotal + siteServiceTotal).toFixed(2))
+    const totalDue = Number((amountDue + secondAmountDue + waterTrashAmount + manualPumpAmount + pumpOutTotal + siteServiceTotal).toFixed(2))
 
     const selectedCamper = campers.find((c) => c.id === camperId)
     const invoiceNumber = `ELECTRIC-${selectedCamper?.lot_number || 'UNKNOWN'}-${Date.now()}`
 
-    const { data: invoice, error: invoiceError } = await supabase
-      .from('invoices')
-      .insert({
-        camper_id: camperId,
-        invoice_number: invoiceNumber,
-        invoice_type: [
-          'Electric',
-          includeSecondMeter ? 'Second Meter' : '',
-          includeWaterTrash ? 'Water/Trash' : '',
-          pumpOutTotal > 0 ? 'Sewer Pump-Out' : '',
-          siteServiceTotal > 0 ? 'Site Services' : '',
-        ].filter(Boolean).join(' + '),
-        subtotal: totalDue,
-        late_fee: 0,
-        total_due: totalDue,
-        due_date: dueDate,
-        status: 'sent',
-      })
-      .select()
-      .single()
-
-    if (invoiceError || !invoice) {
-      setMessage(invoiceError?.message || 'Failed to create electric invoice.')
-      setSaving(false)
-      return
-    }
-
     const invoiceItems = [
       {
-        invoice_id: invoice.id,
         description: `Electric Usage - Main meter - ${kwhUsed} kWh used @ $${rateNumber.toFixed(2)}/kWh`,
         quantity: kwhUsed,
         unit_price: rateNumber,
@@ -357,7 +355,6 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 
     if (includeSecondMeter) {
       invoiceItems.push({
-        invoice_id: invoice.id,
         description: `${secondMeterReason || 'Second meter'} - ${secondKwhUsed} kWh used @ $${secondRateNumber.toFixed(2)}/kWh`,
         quantity: secondKwhUsed,
         unit_price: secondRateNumber,
@@ -367,7 +364,6 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 
     if (includeWaterTrash) {
       invoiceItems.push({
-        invoice_id: invoice.id,
         description: `Water/Trash Fee - $${waterTrashAmount.toFixed(2)}`,
         quantity: 1,
         unit_price: waterTrashAmount,
@@ -375,10 +371,18 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
       })
     }
 
+    if (manualPumpAmount > 0) {
+      invoiceItems.push({
+        description: `Manual Pumping Charge - $${manualPumpAmount.toFixed(2)}`,
+        quantity: 1,
+        unit_price: manualPumpAmount,
+        total: manualPumpAmount,
+      })
+    }
+
     if (pumpOutTotal > 0) {
       const pumpOutUnitPrice = activePumpOuts.length ? Number((pumpOutTotal / activePumpOuts.length).toFixed(2)) : 10
       invoiceItems.push({
-        invoice_id: invoice.id,
         description: `${activePumpOuts.length} Sewer Pump-Out${activePumpOuts.length === 1 ? '' : 's'} @ $${pumpOutUnitPrice.toFixed(2)} each`,
         quantity: activePumpOuts.length,
         unit_price: pumpOutUnitPrice,
@@ -388,21 +392,11 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 
     for (const charge of activeSiteServices) {
       invoiceItems.push({
-        invoice_id: invoice.id,
         description: `${charge.service_label} - ${new Date(charge.performed_at).toLocaleDateString()}`,
         quantity: 1,
         unit_price: Number(charge.charge_amount || 0),
         total: Number(charge.charge_amount || 0),
       })
-    }
-
-    const { error: itemError } = await supabase.from('invoice_items').insert(invoiceItems)
-
-    if (itemError) {
-      await supabase.from('invoices').delete().eq('id', invoice.id)
-      setMessage(itemError.message)
-      setSaving(false)
-      return
     }
 
     const readingRows = [
@@ -414,7 +408,6 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
         kwh_used: kwhUsed,
         rate_per_kwh: rateNumber,
         amount_due: amountDue,
-        invoice_id: invoice.id,
       },
     ]
 
@@ -427,89 +420,58 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
         kwh_used: secondKwhUsed,
         rate_per_kwh: secondRateNumber,
         amount_due: secondAmountDue,
-        invoice_id: invoice.id,
       })
-    }
-
-    const { error: readingError } = await supabase.from('electric_readings').insert(readingRows)
-
-    if (readingError) {
-      await supabase.from('invoice_items').delete().eq('invoice_id', invoice.id)
-      await supabase.from('invoices').delete().eq('id', invoice.id)
-      setMessage(readingError.message)
-      setSaving(false)
-      return
-    }
-
-    if (activePumpOuts.length > 0) {
-      const { error: pumpOutBillingError } = await supabase
-        .from('sewer_pump_out_requests')
-        .update({
-          billed_invoice_id: invoice.id,
-          billed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .in('id', activePumpOuts.map((request) => request.id))
-
-      if (pumpOutBillingError) {
-        setMessage(`Electric invoice was created, but pump-out requests were not marked billed: ${pumpOutBillingError.message}`)
-        setSaving(false)
-        return
-      }
-    }
-
-    if (activeSiteServices.length > 0) {
-      const { error: siteServiceBillingError } = await supabase
-        .from('site_service_charges')
-        .update({
-          billed_invoice_id: invoice.id,
-          billed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .in('id', activeSiteServices.map((charge) => charge.id))
-
-      if (siteServiceBillingError) {
-        setMessage(`Electric invoice was created, but site service charges were not marked billed: ${siteServiceBillingError.message}`)
-        setSaving(false)
-        return
-      }
     }
 
     const {
       data: { user },
     } = await supabase.auth.getUser()
-
-    if (creditAmountToAdd > 0) {
-      const camperName = `${selectedCamper?.first_name || ''} ${selectedCamper?.last_name || ''}`.trim() || 'Camper'
-      const { error: creditInsertError } = await supabase.from('account_credits').insert({
-        camper_id: camperId,
-        lot_number: selectedCamper?.lot_number || null,
-        camper_name: camperName,
-        original_amount: Number(creditAmountToAdd.toFixed(2)),
-        remaining_amount: Number(creditAmountToAdd.toFixed(2)),
-        reason: newCreditReason.trim(),
-        notes: newCreditNotes.trim() || null,
-        created_by: user?.email || null,
+    const camperName = `${selectedCamper?.first_name || ''} ${selectedCamper?.last_name || ''}`.trim() || 'Camper'
+    let invoice: any
+    let creditResult = { appliedTotal: 0, remainingDue: totalDue, paidInFull: false }
+    try {
+      const bundle = await createInvoiceBundle({
+        client: supabase,
+        operationKey: `electric-invoice:${camperId}:${readingDate}`,
+        invoice: {
+          camper_id: camperId,
+          invoice_number: invoiceNumber,
+          invoice_type: [
+            'Electric',
+            includeSecondMeter ? 'Second Meter' : '',
+            includeWaterTrash ? 'Water/Trash' : '',
+            manualPumpAmount > 0 ? 'Manual Pumping Charge' : '',
+            pumpOutTotal > 0 ? 'Sewer Pump-Out' : '',
+            siteServiceTotal > 0 ? 'Site Services' : '',
+          ].filter(Boolean).join(' + '),
+          subtotal: totalDue,
+          late_fee: 0,
+          total_due: totalDue,
+          due_date: dueDate,
+        },
+        items: invoiceItems,
+        readings: readingRows,
+        pumpOutIds: activePumpOuts.map((request) => request.id),
+        siteServiceIds: activeSiteServices.map((charge) => charge.id),
+        newCredit: creditAmountToAdd > 0 ? {
+          amount: Number(creditAmountToAdd.toFixed(2)),
+          lot_number: selectedCamper?.lot_number || null,
+          camper_name: camperName,
+          reason: newCreditReason.trim(),
+          notes: newCreditNotes.trim() || null,
+        } : null,
+        appliedBy: user?.email || null,
       })
+      invoice = bundle.invoice
+      creditResult = bundle.credit
 
-      if (creditInsertError) {
-        setMessage(`Electric invoice was created, but the new account credit could not be added: ${creditInsertError.message}`)
+      if (bundle.duplicate) {
+        setMessage('An electric invoice already exists for this camper and reading date. No duplicate was created.')
         setSaving(false)
         return
       }
-    }
-
-    let creditResult = { appliedTotal: 0, remainingDue: totalDue, paidInFull: false }
-    try {
-      creditResult = await applyAvailableCreditsToInvoice({
-        client: supabase,
-        camperId,
-        invoiceId: invoice.id,
-        invoiceTotal: totalDue,
-        appliedBy: user?.email || null,
-      })
     } catch (creditError: any) {
-      setMessage(`Electric invoice was created, but account credit could not be applied: ${creditError.message}`)
+      setMessage(creditError.message || 'Unable to create the electric invoice safely.')
       setSaving(false)
       return
     }
@@ -522,6 +484,10 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 
     if (includeWaterTrash) {
       resultMessage += ` + Water/Trash: $${waterTrashAmount.toFixed(2)}`
+    }
+
+    if (manualPumpAmount > 0) {
+      resultMessage += ` + Manual Pumping Charge: $${manualPumpAmount.toFixed(2)}`
     }
 
     if (pumpOutTotal > 0) {
@@ -582,6 +548,8 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
     setDueDate('')
     setIncludeWaterTrash(false)
     setWaterTrashFee('20')
+    setManualPumpChargeOption('none')
+    setManualPumpCustomAmount('')
     setNewCreditAmount('')
     setNewCreditReason('Electric billing credit')
     setNewCreditNotes('')
@@ -720,6 +688,13 @@ setTimeout(() => {
         </p>
       )}
 
+      {manualPumpCharge > 0 && (
+        <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
+          <span>Manual pumping charge</span>
+          <strong>${manualPumpCharge.toFixed(2)}</strong>
+        </p>
+      )}
+
       {pumpOutChargeTotal > 0 && (
         <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
           <span>{selectedPumpOuts.length} sewer pump-out{selectedPumpOuts.length === 1 ? '' : 's'} × {`$${pumpOutUnitPreview.toFixed(2)}`}</span>
@@ -742,7 +717,7 @@ setTimeout(() => {
       )}
     </div>
 
-    {(includeSecondMeter || includeWaterTrash || pumpOutChargeTotal > 0 || siteServiceChargeTotal > 0 || estimatedCreditTotal > 0) && (
+    {(includeSecondMeter || includeWaterTrash || manualPumpCharge > 0 || pumpOutChargeTotal > 0 || siteServiceChargeTotal > 0 || estimatedCreditTotal > 0) && (
       <>
         <h2>
           ${liveInvoiceAfterCredits.toFixed(2)}
@@ -751,6 +726,7 @@ setTimeout(() => {
           Estimated Total After Credits
           {includeSecondMeter ? ' with second meter' : ''}
           {includeWaterTrash ? ' with Water/Trash' : ''}
+          {manualPumpCharge > 0 ? ` + $${manualPumpCharge.toFixed(2)} manual pumping charge` : ''}
           {pumpOutChargeTotal > 0 ? ` + ${selectedPumpOuts.length} sewer pump-out${selectedPumpOuts.length === 1 ? '' : 's'}` : ''}
           {siteServiceChargeTotal > 0 ? ` + ${selectedSiteServices.length} site service charge${selectedSiteServices.length === 1 ? '' : 's'}` : ''}
         </p>
@@ -914,6 +890,87 @@ setTimeout(() => {
                   </label>
                 ))}
               </div>
+            )}
+          </section>
+
+          <section
+            style={{
+              marginBottom: '14px',
+              padding: '16px',
+              border: manualPumpCharge > 0 ? '2px solid #2f5d3a' : '1px solid #d8ded5',
+              borderRadius: '14px',
+              background: manualPumpCharge > 0 ? '#eef6eb' : '#f8faf7',
+            }}
+          >
+            <strong>Add a manual pumping charge</strong>
+            <p className="muted" style={{ margin: '4px 0 12px' }}>
+              Use this for a pumping charge that is not already listed as a camper pump-out request.
+            </p>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
+                gap: '10px',
+              }}
+            >
+              {[
+                { value: 'none', label: 'None' },
+                { value: '10', label: '$10' },
+                { value: '20', label: '$20' },
+                { value: 'custom', label: 'Enter amount' },
+              ].map((option) => (
+                <label
+                  key={option.value}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    minHeight: '48px',
+                    padding: '10px',
+                    border: manualPumpChargeOption === option.value ? '2px solid #2f5d3a' : '1px solid #d8ded5',
+                    borderRadius: '12px',
+                    background: manualPumpChargeOption === option.value ? '#ffffff' : '#f3f5f1',
+                    cursor: 'pointer',
+                    fontWeight: 800,
+                  }}
+                >
+                  <input
+                    checked={manualPumpChargeOption === option.value}
+                    onChange={() => {
+                      setManualPumpChargeOption(option.value)
+                      if (option.value !== 'custom') setManualPumpCustomAmount('')
+                    }}
+                    type="radio"
+                    name="manual-pump-charge"
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+
+            {manualPumpChargeOption === 'custom' && (
+              <label style={{ display: 'grid', gap: '6px', marginTop: '12px' }}>
+                <span style={{ fontWeight: 800 }}>Custom pumping amount</span>
+                <input
+                  aria-label="Custom pumping charge amount"
+                  inputMode="decimal"
+                  min="0.01"
+                  placeholder="Enter amount, for example 35.00"
+                  step="0.01"
+                  type="number"
+                  value={manualPumpCustomAmount}
+                  onChange={(e) => setManualPumpCustomAmount(e.target.value)}
+                />
+              </label>
+            )}
+
+            {manualPumpCharge > 0 && (
+              <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: '12px 0 0', padding: '12px', borderRadius: '12px', background: '#fff' }}>
+                <span>Added to this invoice</span>
+                <strong>${manualPumpCharge.toFixed(2)}</strong>
+              </p>
             )}
           </section>
 

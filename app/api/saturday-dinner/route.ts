@@ -3,6 +3,7 @@ import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { getSiteUrl } from '../../../lib/site-url'
 
 export const runtime = 'nodejs'
 
@@ -97,7 +98,7 @@ export async function POST(request: Request) {
 
   const title = `Saturday dinner: Site ${context.camper.lot_number || 'Unknown'} ${status}`
   const message = `${camperName} marked ${status} for ${dinner.month} ${dinner.day} ${dinner.menu}${bringing ? ` and is bringing ${bringing}` : ''}.`
-  const origin = new URL(request.url).origin
+  const origin = getSiteUrl()
 
   await createAdminNotification(context.admin, {
     type: 'saturday_dinner',

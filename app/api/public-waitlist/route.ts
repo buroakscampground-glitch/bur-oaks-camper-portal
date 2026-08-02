@@ -16,7 +16,7 @@ function clean(value: unknown, maxLength = 500) {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'public-waitlist', 8, 10 * 60_000)
+  const rateLimit = await checkRateLimit(request, 'public-waitlist', 8, 10 * 60_000)
 
   if (!rateLimit.allowed) {
     return NextResponse.json(

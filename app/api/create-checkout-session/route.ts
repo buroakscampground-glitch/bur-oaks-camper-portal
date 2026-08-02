@@ -3,11 +3,12 @@ import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { calculateCardProcessingFeeCents, loadPaymentFeeSettings } from '../../../lib/payment-fees'
+import { getSiteUrl } from '../../../lib/site-url'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'checkout', 10, 60_000)
+  const rateLimit = await checkRateLimit(request, 'checkout', 10, 60_000)
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many checkout attempts. Please wait a moment.' },
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
     }
 
     const stripe = new Stripe(key)
-    const origin = new URL(request.url).origin
+    const origin = getSiteUrl()
     const verifiedInvoiceIds = invoices.map((invoice) => String(invoice.id))
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',

@@ -4,23 +4,45 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 
-function isAllowedInsuranceFile(file: File) {
-  return (
-    /\.(pdf|docx|doc|png|jpe?g|webp|heic)$/i.test(file.name) ||
-    [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'image/png',
-      'image/jpeg',
-      'image/webp',
-      'image/heic',
-    ].includes(file.type)
-  )
+const safeFileTypes: Record<string, { extensions: string[]; mime: string }> = {
+  pdf: { extensions: ['pdf'], mime: 'application/pdf' },
+  doc: { extensions: ['doc'], mime: 'application/msword' },
+  docx: { extensions: ['docx'], mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' },
+  png: { extensions: ['png'], mime: 'image/png' },
+  jpg: { extensions: ['jpg', 'jpeg'], mime: 'image/jpeg' },
+  webp: { extensions: ['webp'], mime: 'image/webp' },
+  heic: { extensions: ['heic'], mime: 'image/heic' },
+}
+
+function detectInsuranceFile(bytes: ArrayBuffer) {
+  const buffer = Buffer.from(bytes)
+  if (buffer.subarray(0, 5).toString() === '%PDF-') return 'pdf'
+  if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return 'png'
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpg'
+  if (buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP') return 'webp'
+  if (buffer.subarray(4, 8).toString() === 'ftyp' && /heic|heix|hevc|mif1/i.test(buffer.subarray(8, 16).toString())) return 'heic'
+  if (buffer.subarray(0, 8).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]))) return 'doc'
+  if (
+    buffer[0] === 0x50 && buffer[1] === 0x4b &&
+    buffer.includes(Buffer.from('[Content_Types].xml')) &&
+    buffer.includes(Buffer.from('word/'))
+  ) return 'docx'
+  return ''
+}
+
+function validateInsuranceFile(file: File, bytes: ArrayBuffer) {
+  const detected = detectInsuranceFile(bytes)
+  const details = safeFileTypes[detected]
+  const extension = file.name.split('.').pop()?.toLowerCase() || ''
+  const genericMime = !file.type || file.type === 'application/octet-stream'
+
+  return details && details.extensions.includes(extension) && (genericMime || file.type === details.mime)
+    ? details
+    : null
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'golf-cart-insurance-upload', 8, 10 * 60_000)
+  const rateLimit = await checkRateLimit(request, 'golf-cart-insurance-upload', 8, 10 * 60_000)
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many uploads. Please wait before trying again.' },
@@ -42,13 +64,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Choose a golf cart insurance file first.' }, { status: 400 })
     }
 
-    if (!isAllowedInsuranceFile(file)) {
-      return NextResponse.json(
-        { error: 'Golf cart insurance must be a PDF, Word document, or image.' },
-        { status: 400 }
-      )
-    }
-
     if (file.size > MAX_INSURANCE_SIZE) {
       return NextResponse.json(
         { error: 'Golf cart insurance files must be 20 MB or smaller.' },
@@ -59,11 +74,19 @@ export async function POST(request: Request) {
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-')
     const filePath = `${context.camper.id}/golf-cart-insurance/${crypto.randomUUID()}-${safeName}`
     const bytes = await file.arrayBuffer()
+    const validatedType = validateInsuranceFile(file, bytes)
+
+    if (!validatedType) {
+      return NextResponse.json(
+        { error: 'That file content does not match a supported PDF, Word document, or image.' },
+        { status: 400 }
+      )
+    }
 
     const { error: uploadError } = await context.admin.storage
       .from('camper-documents')
       .upload(filePath, bytes, {
-        contentType: file.type || undefined,
+        contentType: validatedType.mime,
         upsert: false,
       })
 

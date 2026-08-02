@@ -71,7 +71,10 @@ export async function GET(request: Request) {
       kind = 'due_today'
       automationKey = 'invoice-due-today'
       emailAutomationKey = 'invoice-due-today-email'
-    } else if (daysUntilDue < 0) {
+    } else if (
+      daysUntilDue < 0 &&
+      ([1, 7, 14, 30].includes(Math.abs(daysUntilDue)) || (Math.abs(daysUntilDue) > 30 && Math.abs(daysUntilDue) % 30 === 0))
+    ) {
       kind = 'past_due'
       automationKey = 'invoice-past-due'
       emailAutomationKey = 'invoice-past-due-email'

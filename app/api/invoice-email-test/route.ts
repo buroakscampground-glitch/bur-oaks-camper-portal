@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { invoiceEmailProviderStatus, sendInvoiceEmailTest } from '../../../lib/invoice-emailing'
 import { portalInviteEmailProviderStatus } from '../../../lib/portal-invite-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { getSiteUrl } from '../../../lib/site-url'
 
 export const runtime = 'nodejs'
 
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const to = String(body.to || context.user.email || 'buroakscampground@gmail.com').trim()
-  const result = await sendInvoiceEmailTest(to, new URL(request.url).origin)
+  const result = await sendInvoiceEmailTest(to, getSiteUrl())
   const providerStatus = (result as any).providerStatus || invoiceEmailProviderStatus()
 
   return NextResponse.json({

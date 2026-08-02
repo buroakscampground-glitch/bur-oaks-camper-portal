@@ -3,6 +3,8 @@ import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { eventFlyers2026 } from '../../../lib/event-flyers'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { getSiteUrl } from '../../../lib/site-url'
+import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -117,6 +119,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await checkRateLimit(request, 'event-rsvp', 20, 10 * 60_000)
+  if (!rateLimit.allowed) return NextResponse.json({ error: 'Too many RSVP changes. Please wait and try again.' }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } })
+
   const context = await getAuthenticatedContext(request)
 
   if (!context) {
@@ -158,7 +163,7 @@ export async function POST(request: Request) {
       throw error
     }
 
-    const origin = new URL(request.url).origin
+    const origin = getSiteUrl()
     const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'A camper'
     const title = `Site ${context.camper.lot_number || 'Unknown'} RSVP: ${response}`
     const message = `${camperName} selected "${response}" for ${flyer.title}.`

@@ -49,7 +49,7 @@ async function generateSetupUrl(context: any, email: string, origin: string) {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'bulk-camper-invites', 12, 60 * 60_000)
+  const rateLimit = await checkRateLimit(request, 'bulk-camper-invites', 12, 60 * 60_000)
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Bulk setup links were clicked too many times. Please wait before trying again.' },

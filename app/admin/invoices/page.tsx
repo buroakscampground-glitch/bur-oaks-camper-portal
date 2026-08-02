@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
-import { applyAvailableCreditsToInvoice, formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../lib/account-credits'
+import { createInvoiceBundle, deleteInvoiceWithCreditRestore, formatCreditMoney } from '../../../lib/account-credits'
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import AdminQuickText from '../../../components/AdminQuickText'
@@ -103,9 +103,14 @@ export default function AdminInvoicesPage() {
     const total = Number(amount)
 
     try {
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert({
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      const bundle = await createInvoiceBundle({
+        client: supabase,
+        operationKey: `manual-invoice:${invoiceNumber.trim().toLowerCase()}`,
+        invoice: {
           camper_id: camperId,
           invoice_number: invoiceNumber.trim(),
           invoice_type: description.trim() || 'Campground Charge',
@@ -113,34 +118,23 @@ export default function AdminInvoicesPage() {
           late_fee: 0,
           total_due: total,
           due_date: dueDate,
-          status: 'sent',
-        })
-        .select()
-        .single()
-
-      if (invoiceError) throw invoiceError
-
-      const { error: itemError } = await supabase.from('invoice_items').insert({
-        invoice_id: invoice.id,
-        description: description.trim() || 'Campground Charge',
-        quantity: 1,
-        unit_price: total,
-        total,
-      })
-
-      if (itemError) throw itemError
-
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      const creditResult = await applyAvailableCreditsToInvoice({
-        client: supabase,
-        camperId,
-        invoiceId: invoice.id,
-        invoiceTotal: total,
+        },
+        items: [{
+          description: description.trim() || 'Campground Charge',
+          quantity: 1,
+          unit_price: total,
+          total,
+        }],
         appliedBy: user?.email || null,
       })
+      const invoice = bundle.invoice
+      const creditResult = bundle.credit
+
+      if (bundle.duplicate) {
+        setMessage('That invoice number was already created. No duplicate charge or notification was sent.')
+        await loadInvoices()
+        return
+      }
 
       let resultMessage = creditResult.appliedTotal > 0
         ? `Invoice created. Applied ${formatCreditMoney(creditResult.appliedTotal)} account credit.`
@@ -190,28 +184,7 @@ export default function AdminInvoicesPage() {
     setMessage('')
 
     try {
-      const restoreResult = await restoreCreditsForDeletedInvoice(supabase, invoice.id)
-
-      const { error: reminderError } = await supabase
-        .from('text_reminders')
-        .delete()
-        .eq('invoice_id', invoice.id)
-
-      if (reminderError && !['42P01', 'PGRST205'].includes(reminderError.code || '')) throw reminderError
-
-      const { error: itemError } = await supabase
-        .from('invoice_items')
-        .delete()
-        .eq('invoice_id', invoice.id)
-
-      if (itemError) throw itemError
-
-      const { error } = await supabase
-        .from('invoices')
-        .delete()
-        .eq('id', invoice.id)
-
-      if (error) throw error
+      const restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id)
 
       setMessage(
         restoreResult.restoredTotal > 0

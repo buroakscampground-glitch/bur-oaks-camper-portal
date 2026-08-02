@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
-import { applyAvailableCreditsToInvoice } from '../../../lib/account-credits'
+import { createInvoiceBundle } from '../../../lib/account-credits'
 import { notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 
 export default function BulkInvoicesPage() {
@@ -18,7 +18,7 @@ export default function BulkInvoicesPage() {
   }, [])
 
   async function loadCampers() {
-    const { data, error } = await supabase.from('campers').select('*')
+    const { data, error } = await supabase.from('campers').select('*').eq('active', true)
 
     if (error) {
       setMessage(error.message)
@@ -48,11 +48,14 @@ export default function BulkInvoicesPage() {
     } = await supabase.auth.getUser()
 
     for (const camper of campers) {
-      const invoiceNumber = `${invoiceType.replace(/\s+/g, '-').toUpperCase()}-${camper.lot_number}-${Date.now()}`
+      const operationKey = `bulk-invoice:${invoiceType.trim().toLowerCase()}:${dueDate}:${camper.id}`
+      const invoiceNumber = `${invoiceType.replace(/\s+/g, '-').toUpperCase()}-${camper.lot_number}-${dueDate}`
 
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert({
+      try {
+        const bundle = await createInvoiceBundle({
+          client: supabase,
+          operationKey,
+          invoice: {
           camper_id: camper.id,
           invoice_number: invoiceNumber,
           invoice_type: invoiceType,
@@ -60,37 +63,16 @@ export default function BulkInvoicesPage() {
           late_fee: 0,
           total_due: total,
           due_date: dueDate,
-          status: 'sent',
-        })
-        .select()
-        .single()
-
-      if (invoiceError) {
-        setMessage(invoiceError.message)
-        return
-      }
-
-      const { error: itemError } = await supabase.from('invoice_items').insert({
-        invoice_id: invoice.id,
-        description: invoiceType,
-        quantity: 1,
-        unit_price: total,
-        total,
-      })
-
-      if (itemError) {
-        setMessage(itemError.message)
-        return
-      }
-
-      try {
-        const creditResult = await applyAvailableCreditsToInvoice({
-          client: supabase,
-          camperId: camper.id,
-          invoiceId: invoice.id,
-          invoiceTotal: total,
+          },
+          items: [{ description: invoiceType, quantity: 1, unit_price: total, total }],
           appliedBy: user?.email || null,
         })
+        const invoice = bundle.invoice
+        const creditResult = bundle.credit
+
+        if (bundle.duplicate) {
+          continue
+        }
 
         if (creditResult.appliedTotal > 0) creditApplied++
         if (creditResult.paidInFull) {
@@ -99,21 +81,17 @@ export default function BulkInvoicesPage() {
           const autoPay = await attemptAutoPay(invoice.id)
           if (autoPay.charged) autoPaid++
         }
-      } catch (error) {
-        console.error('Credit or AutoPay attempt failed:', error)
-      }
-
-      try {
         const textResult = await notifyInvoiceCreated(invoice.id)
         if (textResult.status === 'sent') textSent++
         else if (textResult.status === 'failed') textFailed++
         else textSkipped++
-      } catch (error) {
-        console.error('Invoice text alert failed:', error)
+        created++
+      } catch (error: any) {
+        console.error('Bulk invoice failed:', error)
         textFailed++
+        setMessage(`Stopped after ${created} invoices: ${error.message || 'Unable to create the next invoice.'}`)
+        return
       }
-
-      created++
     }
 
     setMessage(

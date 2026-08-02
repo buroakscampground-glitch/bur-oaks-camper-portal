@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { sendPaymentReceivedAlert } from '../../../lib/payment-alerts'
+import { getSiteUrl } from '../../../lib/site-url'
 
 export const runtime = 'nodejs'
 
@@ -21,7 +22,7 @@ function autoPayMethodLabel(paymentMethod: Stripe.PaymentMethod) {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'process-autopay', 60, 60_000)
+  const rateLimit = await checkRateLimit(request, 'process-autopay', 60, 60_000)
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many AutoPay processing requests.' },
@@ -76,10 +77,15 @@ export async function POST(request: Request) {
 
     const stripe = new Stripe(key)
     const customers = await stripe.customers.list({ email: camper.email, limit: 10 })
-    const customer =
-      customers.data.find(
-        (item) => item.metadata.camper_id === String(camper.id)
-      ) || customers.data[0]
+    const matchingCustomers = customers.data.filter(
+      (item) => item.metadata.camper_id === String(camper.id)
+    )
+
+    if (matchingCustomers.length > 1) {
+      return NextResponse.json({ charged: false, reason: 'duplicate_customer_profiles' })
+    }
+
+    const customer = matchingCustomers[0]
 
     const preference = customer?.metadata.autopay_preference
     const eligible =
@@ -138,7 +144,7 @@ export async function POST(request: Request) {
         camperId: invoice.camper_id,
         amountPaid: Number(invoice.total_due || 0),
         paymentType: 'AutoPay',
-        origin: new URL(request.url).origin,
+        origin: getSiteUrl(),
       })
 
       return NextResponse.json({ charged: true, paymentIntentId: intent.id, ...alertResult })

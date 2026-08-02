@@ -2,12 +2,17 @@ import { NextResponse } from 'next/server'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { getSiteUrl } from '../../../lib/site-url'
+import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 const allowedUnits = new Set(['each', 'bottle', 'box', 'case', 'roll', 'bag', 'gallon'])
 
 export async function POST(request: Request) {
+  const rateLimit = await checkRateLimit(request, 'maintenance-supplies', 15, 10 * 60_000)
+  if (!rateLimit.allowed) return NextResponse.json({ error: 'Too many supply requests. Please wait and try again.' }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } })
+
   const context = await getAuthenticatedContext(request)
 
   if (!context) {
@@ -80,7 +85,7 @@ export async function POST(request: Request) {
   let emailMessage = ''
 
   try {
-    const origin = new URL(request.url).origin
+    const origin = getSiteUrl()
     const emailResult = await sendAdminAlertEmail({
       subject: alertTitle,
       heading: alertTitle,

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { ArrowLeft, CheckCircle2, ClipboardCopy, Printer, ReceiptText, Trash2, WalletCards } from "lucide-react"
 import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
-import { restoreCreditsForDeletedInvoice } from "../../../../lib/account-credits"
+import { deleteInvoiceWithCreditRestore } from "../../../../lib/account-credits"
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from "../../../../lib/payment-fees"
 import AdminQuickText from "../../../../components/AdminQuickText"
 
@@ -100,7 +100,7 @@ export default function CamperBalancePage() {
 
     let restoredTotal = 0
     try {
-      const restoreResult = await restoreCreditsForDeletedInvoice(supabase, invoice.id)
+      const restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id)
       restoredTotal = restoreResult.restoredTotal
     } catch (error: any) {
       setBusyInvoiceId("")
@@ -108,39 +108,7 @@ export default function CamperBalancePage() {
       return
     }
 
-    const { error: reminderError } = await supabase
-      .from("text_reminders")
-      .delete()
-      .eq("invoice_id", invoice.id)
-
-    if (reminderError && !["42P01", "PGRST205"].includes(reminderError.code || "")) {
-      setBusyInvoiceId("")
-      setMessage(reminderError.message)
-      return
-    }
-
-    const { error: itemError } = await supabase
-      .from("invoice_items")
-      .delete()
-      .eq("invoice_id", invoice.id)
-
-    if (itemError) {
-      setBusyInvoiceId("")
-      setMessage(itemError.message)
-      return
-    }
-
-    const { error } = await supabase
-      .from("invoices")
-      .delete()
-      .eq("id", invoice.id)
-
     setBusyInvoiceId("")
-
-    if (error) {
-      setMessage(error.message)
-      return
-    }
 
     setMessage(
       restoredTotal > 0

@@ -3,7 +3,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'document-url', 30, 60_000)
+  const rateLimit = await checkRateLimit(request, 'document-url', 30, 60_000)
 
   if (!rateLimit.allowed) {
     return NextResponse.json(

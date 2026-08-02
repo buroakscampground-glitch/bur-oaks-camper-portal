@@ -2,17 +2,22 @@ import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { getSiteUrl } from '../../../lib/site-url'
+import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
 export async function POST(request: Request) {
+  const rateLimit = await checkRateLimit(request, 'admin-alert', 20, 10 * 60_000)
+  if (!rateLimit.allowed) return NextResponse.json({ error: 'Too many alert requests. Please wait and try again.' }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } })
+
   const context = await getAuthenticatedContext(request)
 
   if (!context) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const origin = new URL(request.url).origin
+  const origin = getSiteUrl()
   const body = await request.json().catch(() => ({}))
   const role = String(context.camper.role || '').toLowerCase()
   const canAlertAnyTicket = role === 'admin' || role === 'maintenance'

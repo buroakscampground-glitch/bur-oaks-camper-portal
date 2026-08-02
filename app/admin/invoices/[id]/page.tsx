@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, FileText, Printer, ReceiptText, Trash2 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
-import { formatCreditMoney, restoreCreditsForDeletedInvoice } from '../../../../lib/account-credits'
+import { deleteInvoiceWithCreditRestore, formatCreditMoney } from '../../../../lib/account-credits'
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../../lib/invoice-display'
 import AdminQuickText from '../../../../components/AdminQuickText'
@@ -80,46 +80,14 @@ export default function InvoiceDetailPage() {
 
     let restoreResult = { restoredTotal: 0 }
     try {
-      restoreResult = await restoreCreditsForDeletedInvoice(supabase, invoice.id)
+      restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id)
     } catch (error: any) {
       setMessage(error.message || 'Unable to restore account credit before deleting this invoice.')
       setBusy(false)
       return
     }
 
-    const { error: reminderError } = await supabase
-      .from('text_reminders')
-      .delete()
-      .eq('invoice_id', invoice.id)
-
-    if (reminderError && !['42P01', 'PGRST205'].includes(reminderError.code || '')) {
-      setMessage(reminderError.message)
-      setBusy(false)
-      return
-    }
-
-    const { error: itemError } = await supabase
-      .from('invoice_items')
-      .delete()
-      .eq('invoice_id', invoice.id)
-
-    if (itemError) {
-      setMessage(itemError.message)
-      setBusy(false)
-      return
-    }
-
-    const { error } = await supabase
-      .from('invoices')
-      .delete()
-      .eq('id', invoice.id)
-
     setBusy(false)
-
-    if (error) {
-      setMessage(error.message)
-      return
-    }
 
     window.alert(
       restoreResult.restoredTotal > 0

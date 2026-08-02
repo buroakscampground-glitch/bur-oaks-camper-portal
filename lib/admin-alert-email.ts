@@ -1,4 +1,5 @@
 import { escapeHtml } from './portal-invite-email'
+import { getSiteUrl } from './site-url'
 
 type AdminAlertEmailInput = {
   subject: string
@@ -128,6 +129,17 @@ export async function sendAdminAlertEmail({
     .filter(Boolean)
   const from = providerStatus.from
   const replyTo = providerStatus.replyTo
+  let safeActionUrl = ''
+
+  if (actionUrl) {
+    try {
+      const siteOrigin = new URL(getSiteUrl()).origin
+      const parsed = new URL(actionUrl, getSiteUrl())
+      if (parsed.origin === siteOrigin) safeActionUrl = parsed.toString()
+    } catch {
+      safeActionUrl = ''
+    }
+  }
 
   const visibleDetails = details.filter((detail) => detail.value !== null && detail.value !== undefined && detail.value !== '')
   const text = [
@@ -136,7 +148,7 @@ export async function sendAdminAlertEmail({
     message,
     '',
     ...visibleDetails.map((detail) => `${detail.label}: ${detail.value}`),
-    actionUrl ? `\nOpen: ${actionUrl}` : '',
+    safeActionUrl ? `\nOpen: ${safeActionUrl}` : '',
   ].join('\n')
 
   const detailRows = visibleDetails
@@ -165,8 +177,8 @@ export async function sendAdminAlertEmail({
               : ''
           }
           ${
-            actionUrl
-              ? `<a href="${actionUrl}" style="display:inline-block;margin-top:6px;background:#2f5b3b;color:#fff;text-decoration:none;padding:13px 17px;border-radius:12px;font-weight:700">${escapeHtml(actionLabel)}</a>`
+            safeActionUrl
+              ? `<a href="${escapeHtml(safeActionUrl)}" style="display:inline-block;margin-top:6px;background:#2f5b3b;color:#fff;text-decoration:none;padding:13px 17px;border-radius:12px;font-weight:700">${escapeHtml(actionLabel)}</a>`
               : ''
           }
         </div>

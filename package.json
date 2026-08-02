@@ -6,24 +6,22 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@stripe/stripe-js": "^9.7.0",
-    "@supabase/auth-helpers-nextjs": "^0.15.0",
-    "@supabase/supabase-js": "latest",
-    "@tailwindcss/postcss": "^4.3.0",
-    "lucide-react": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "stripe": "^22.2.0",
-    "xlsx": "^0.18.5"
+    "@stripe/stripe-js": "9.7.0",
+    "@supabase/supabase-js": "2.105.4",
+    "@tailwindcss/postcss": "4.3.0",
+    "lucide-react": "1.16.0",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "stripe": "22.2.0"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "autoprefixer": "latest",
-    "postcss": "latest",
-    "tailwindcss": "latest",
-    "typescript": "latest"
+    "@types/node": "25.8.0",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "autoprefixer": "10.5.0",
+    "postcss": "8.5.14",
+    "tailwindcss": "4.3.0",
+    "typescript": "6.0.3"
   }
 }

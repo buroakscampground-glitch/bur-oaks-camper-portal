@@ -140,9 +140,7 @@ export async function sendInvoiceText({
   }
 
   const message = buildInvoiceSms(invoice, kind)
-  const result = await sendTwilioSms({ to: phone, body: message })
-
-  const logRow = {
+  const reservationRow = {
     camper_id: camper.id,
     invoice_id: invoice.id,
     reminder_type:
@@ -157,17 +155,23 @@ export async function sendInvoiceText({
               : 'Past Due Invoice',
     message,
     sent_at: new Date().toISOString(),
-    status: result.sent ? 'sent' : 'failed',
+    status: 'sending',
     recipient_phone: phone,
     provider: 'twilio',
-    provider_message_id: result.sent ? result.providerMessageId : null,
-    error_message: result.sent ? null : result.error,
+    provider_message_id: null,
+    error_message: null,
     sent_by: sentBy,
     reminder_date: reminderDate,
     automation_key: automationKey,
   }
 
-  const { error: logError } = await client.from('text_reminders').insert(logRow)
+  // Reserve the unique automation key before contacting Twilio so concurrent
+  // requests cannot both send the same message.
+  const { data: reservation, error: logError } = await client
+    .from('text_reminders')
+    .insert(reservationRow)
+    .select('id')
+    .single()
 
   if (logError?.code === '23505') {
     return { status: 'skipped', reason: 'This invoice text was already handled today.' }
@@ -175,6 +179,21 @@ export async function sendInvoiceText({
 
   if (logError) {
     return { status: 'failed', error: logError.message }
+  }
+
+  const result = await sendTwilioSms({ to: phone, body: message })
+  const { error: updateError } = await client
+    .from('text_reminders')
+    .update({
+      status: result.sent ? 'sent' : 'failed',
+      provider_message_id: result.sent ? result.providerMessageId : null,
+      error_message: result.sent ? null : result.error,
+      sent_at: new Date().toISOString(),
+    })
+    .eq('id', reservation.id)
+
+  if (updateError) {
+    console.error('Unable to finalize invoice text reminder log:', updateError.code)
   }
 
   if (!result.sent) {

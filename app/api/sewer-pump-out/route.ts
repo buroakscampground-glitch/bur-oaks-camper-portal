@@ -4,6 +4,8 @@ import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getSewerPumpOutFeeForLot, isHoldingTankPumpOutLot } from '../../../lib/sewer-pump-fees'
+import { getSiteUrl } from '../../../lib/site-url'
+import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -29,6 +31,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await checkRateLimit(request, 'sewer-pump-out', 5, 10 * 60_000)
+  if (!rateLimit.allowed) return NextResponse.json({ error: 'Too many pump-out requests. Please wait and try again.' }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } })
+
   const context = await getAuthenticatedContext(request)
 
   if (!context) {
@@ -44,50 +49,41 @@ export async function POST(request: Request) {
     ? ' This is a holding-tank site, so the holding-tank pump-out rate applies.'
     : ''
 
-  const { data: existingRequest, error: existingError } = await context.admin
-    .from('sewer_pump_out_requests')
-    .select('*')
-    .eq('camper_id', context.camper.id)
-    .is('billed_at', null)
-    .neq('status', 'cancelled')
-    .order('requested_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  const { data: requestResults, error } = await context.admin.rpc('request_sewer_pump_out_atomic', {
+    p_camper_id: context.camper.id,
+    p_lot_number: context.camper.lot_number,
+    p_camper_name: camperName,
+    p_charge_amount: pumpCharge,
+    p_notes: notes,
+  })
 
-  if (existingError) {
-    return NextResponse.json({ error: existingError.message }, { status: 500 })
+  if (error) {
+    return NextResponse.json(
+      { error: ['42883', 'PGRST202'].includes(error.code || '') ? 'The pump-out security update is not installed yet.' : 'Unable to save the pump-out request.' },
+      { status: 500 }
+    )
   }
 
-  if (existingRequest) {
+  const requestResult = Array.isArray(requestResults) ? requestResults[0] : requestResults
+  const requestRow = requestResult?.request_row
+
+  if (requestResult?.duplicate) {
     return NextResponse.json({
       success: true,
       duplicate: true,
-      request: existingRequest,
+      request: requestRow,
       emailStatus: 'skipped',
       emailMessage: 'This camper already has an open sewer pump-out request.',
     })
   }
 
-  const { data: requestRow, error } = await context.admin
-    .from('sewer_pump_out_requests')
-    .insert({
-      camper_id: context.camper.id,
-      lot_number: context.camper.lot_number,
-      camper_name: camperName,
-      status: 'requested',
-      charge_amount: pumpCharge,
-      notes,
-    })
-    .select('*')
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!requestRow?.id) {
+    return NextResponse.json({ error: 'Unable to verify the saved pump-out request.' }, { status: 500 })
   }
 
   const title = `Sewer pump-out requested: Site ${context.camper.lot_number || 'Unknown'}`
   const message = `${camperName} requested a sewer pump-out. A $${pumpCharge.toFixed(2)} charge is pending for the next electric bill.${holdingTankNote}${notes ? ` Note: ${notes}` : ''}`
-  const origin = new URL(request.url).origin
+  const origin = getSiteUrl()
 
   await createAdminNotification(context.admin, {
     type: 'sewer_pump_out',

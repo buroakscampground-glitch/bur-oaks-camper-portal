@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { getSiteUrl } from '../../../lib/site-url'
 
 export const runtime = 'nodejs'
 
@@ -21,19 +22,24 @@ function getStripe() {
 async function findCustomer(
   stripe: Stripe,
   email: string,
-  userId: string
+  userId: string,
+  camperId: string
 ) {
   const customers = await stripe.customers.list({ email, limit: 10 })
-
-  return (
-    customers.data.find(
-      (customer) => customer.metadata.supabase_user_id === userId
-    ) || customers.data[0]
+  const exactMatches = customers.data.filter((customer) =>
+    customer.metadata.supabase_user_id === userId ||
+    customer.metadata.camper_id === camperId
   )
+
+  if (exactMatches.length > 1) {
+    throw new Error('Multiple AutoPay profiles were found for this camper. Please contact the office before changing AutoPay.')
+  }
+
+  return exactMatches[0] || null
 }
 
 export async function POST(request: Request) {
-  const rateLimit = checkRateLimit(request, 'autopay', 20, 60_000)
+  const rateLimit = await checkRateLimit(request, 'autopay', 20, 60_000)
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: 'Too many AutoPay requests. Please wait a moment.' },
@@ -52,7 +58,7 @@ export async function POST(request: Request) {
     const action = body.action
     const stripe = getStripe()
     const email = context.user.email!
-    let customer = await findCustomer(stripe, email, context.user.id)
+    let customer = await findCustomer(stripe, email, context.user.id, String(context.camper.id))
 
     if (action === 'status') {
       if (!customer) {
@@ -153,7 +159,7 @@ export async function POST(request: Request) {
       })
     }
 
-    const origin = new URL(request.url).origin
+    const origin = getSiteUrl()
     const session = await stripe.checkout.sessions.create({
       mode: 'setup',
       currency: 'usd',

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { sendPaymentReceivedAlert } from '../../../lib/payment-alerts'
+import { getSiteUrl } from '../../../lib/site-url'
 
 export const runtime = 'nodejs'
 
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
             camperId,
             amountPaid,
             paymentType: 'Online payment',
-            origin: request.headers.get('origin'),
+            origin: getSiteUrl(),
           })
         }
       }
@@ -190,7 +191,7 @@ export async function POST(request: Request) {
           camperId: invoice?.camper_id,
           amountPaid,
           paymentType: 'AutoPay',
-          origin: request.headers.get('origin'),
+          origin: getSiteUrl(),
         })
       }
     }

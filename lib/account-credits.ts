@@ -40,150 +40,93 @@ export async function applyAvailableCreditsToInvoice({
     return { appliedTotal: 0, remainingDue: startingTotal, paidInFull: startingTotal <= 0 }
   }
 
-  const { data: credits, error } = await client
-    .from('account_credits')
-    .select('*')
-    .eq('camper_id', camperId)
-    .eq('status', 'active')
-    .gt('remaining_amount', 0)
-    .order('created_at', { ascending: true })
+  const { data, error } = await client.rpc('apply_account_credits_to_invoice_atomic', {
+    p_camper_id: camperId,
+    p_invoice_id: invoiceId,
+    p_invoice_total: startingTotal,
+    p_applied_by: appliedBy || null,
+  })
 
-  if (error?.code === '42P01' || error?.code === 'PGRST205') {
-    return { appliedTotal: 0, remainingDue: startingTotal, paidInFull: false }
-  }
-
-  if (error) throw error
-
-  let remainingDue = startingTotal
-  let appliedTotal = 0
-  const applications: any[] = []
-
-  for (const credit of credits || []) {
-    if (remainingDue <= 0) break
-
-    const available = Number(credit.remaining_amount || 0)
-    const amountApplied = Number(Math.min(available, remainingDue).toFixed(2))
-    if (amountApplied <= 0) continue
-
-    const newRemaining = Number((available - amountApplied).toFixed(2))
-
-    const { error: creditError } = await client
-      .from('account_credits')
-      .update({
-        remaining_amount: newRemaining,
-        status: newRemaining <= 0 ? 'used' : 'active',
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', credit.id)
-
-    if (creditError) throw creditError
-
-    applications.push({
-      credit_id: credit.id,
-      camper_id: camperId,
-      invoice_id: invoiceId,
-      amount_applied: amountApplied,
-      applied_by: appliedBy || null,
-    })
-
-    appliedTotal = Number((appliedTotal + amountApplied).toFixed(2))
-    remainingDue = Number((remainingDue - amountApplied).toFixed(2))
-  }
-
-  if (applications.length > 0) {
-    const { error: applicationError } = await client
-      .from('account_credit_applications')
-      .insert(applications)
-
-    if (applicationError) throw applicationError
-
-    const { error: itemError } = await client.from('invoice_items').insert({
-      invoice_id: invoiceId,
-      description: `Account credit applied - ${formatCreditMoney(appliedTotal)}`,
-      quantity: 1,
-      unit_price: -appliedTotal,
-      total: -appliedTotal,
-    })
-
-    if (itemError) throw itemError
-
-    const { error: invoiceError } = await client
-      .from('invoices')
-      .update({
-        total_due: remainingDue,
-        status: remainingDue <= 0 ? 'paid' : 'sent',
-        ...(remainingDue <= 0
-          ? {
-              paid_at: new Date().toISOString(),
-              payment_method: 'Account credit',
-              payment_reference: `Credit applied: ${formatCreditMoney(appliedTotal)}`,
-            }
-          : {}),
-      })
-      .eq('id', invoiceId)
-
-    if (invoiceError) throw invoiceError
+  if (error) {
+    if (['42883', 'PGRST202'].includes(error.code || '')) {
+      throw new Error('The billing security migration has not been installed yet.')
+    }
+    throw error
   }
 
   return {
-    appliedTotal,
-    remainingDue,
-    paidInFull: remainingDue <= 0,
+    appliedTotal: Number(data?.appliedTotal || 0),
+    remainingDue: Number(data?.remainingDue ?? startingTotal),
+    paidInFull: data?.paidInFull === true,
   }
 }
 
-export async function restoreCreditsForDeletedInvoice(client: any, invoiceId: string) {
+export async function createInvoiceBundle({
+  client,
+  operationKey,
+  invoice,
+  items,
+  readings = [],
+  pumpOutIds = [],
+  siteServiceIds = [],
+  newCredit = null,
+  appliedBy = null,
+}: {
+  client: any
+  operationKey: string
+  invoice: Record<string, unknown>
+  items: Array<Record<string, unknown>>
+  readings?: Array<Record<string, unknown>>
+  pumpOutIds?: string[]
+  siteServiceIds?: string[]
+  newCredit?: Record<string, unknown> | null
+  appliedBy?: string | null
+}) {
+  const { data, error } = await client.rpc('create_invoice_bundle_atomic', {
+    p_operation_key: operationKey,
+    p_invoice: invoice,
+    p_items: items,
+    p_readings: readings,
+    p_pump_out_ids: pumpOutIds,
+    p_site_service_ids: siteServiceIds,
+    p_new_credit: newCredit,
+    p_applied_by: appliedBy,
+  })
+
+  if (error) {
+    if (['42883', 'PGRST202'].includes(error.code || '')) {
+      throw new Error('The billing security migration has not been installed yet.')
+    }
+    throw error
+  }
+
+  const createdInvoice = data?.invoice
+  if (!createdInvoice?.id) throw new Error('The invoice could not be verified after creation.')
+
+  return {
+    invoice: createdInvoice,
+    duplicate: data?.duplicate === true,
+    credit: {
+      appliedTotal: Number(data?.credit?.appliedTotal || 0),
+      remainingDue: Number(data?.credit?.remainingDue ?? invoice.total_due ?? 0),
+      paidInFull: data?.credit?.paidInFull === true,
+    },
+  }
+}
+
+export async function deleteInvoiceWithCreditRestore(client: any, invoiceId: string) {
   if (!invoiceId) return { restoredTotal: 0 }
 
-  const { data: applications, error } = await client
-    .from('account_credit_applications')
-    .select('*')
-    .eq('invoice_id', invoiceId)
+  const { data, error } = await client.rpc('delete_invoice_with_credit_restore_atomic', {
+    p_invoice_id: invoiceId,
+  })
 
-  if (error?.code === '42P01' || error?.code === 'PGRST205') return { restoredTotal: 0 }
-  if (error) throw error
-
-  let restoredTotal = 0
-
-  for (const application of applications || []) {
-    const amount = Number(application.amount_applied || 0)
-    if (amount <= 0 || !application.credit_id) continue
-
-    const { data: credit, error: creditLookupError } = await client
-      .from('account_credits')
-      .select('remaining_amount,original_amount,status')
-      .eq('id', application.credit_id)
-      .maybeSingle()
-
-    if (creditLookupError) throw creditLookupError
-    if (!credit || credit.status === 'voided') continue
-
-    const restoredRemaining = Number(Math.min(
-      Number(credit.original_amount || 0),
-      Number(credit.remaining_amount || 0) + amount
-    ).toFixed(2))
-
-    const { error: updateError } = await client
-      .from('account_credits')
-      .update({
-        remaining_amount: restoredRemaining,
-        status: restoredRemaining > 0 ? 'active' : credit.status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', application.credit_id)
-
-    if (updateError) throw updateError
-    restoredTotal = Number((restoredTotal + amount).toFixed(2))
+  if (error) {
+    if (['42883', 'PGRST202'].includes(error.code || '')) {
+      throw new Error('The billing security migration has not been installed yet.')
+    }
+    throw error
   }
 
-  if ((applications || []).length > 0) {
-    const { error: deleteError } = await client
-      .from('account_credit_applications')
-      .delete()
-      .eq('invoice_id', invoiceId)
-
-    if (deleteError) throw deleteError
-  }
-
-  return { restoredTotal }
+  return { restoredTotal: Number(data || 0) }
 }

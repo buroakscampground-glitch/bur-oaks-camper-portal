@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { adminAlertEmailProviderStatus, adminAlertRecipients, sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { getSiteUrl } from '../../../lib/site-url'
 
 export const runtime = 'nodejs'
 
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
         { label: 'Reply-to', value: replyTo },
         { label: 'Triggered by', value: context.user.email },
       ],
-      actionUrl: `${new URL(request.url).origin}/admin`,
+      actionUrl: `${getSiteUrl()}/admin`,
       actionLabel: 'Open admin dashboard',
     })
 

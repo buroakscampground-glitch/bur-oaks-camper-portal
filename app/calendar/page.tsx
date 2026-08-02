@@ -127,17 +127,14 @@ export default function CalendarPage() {
 
         <section className="camper-events-overview">
           <article><CalendarDays size={20} /><span><small>Upcoming</small><strong>{upcomingEvents.length}</strong></span></article>
-          <article><UsersRound size={20} /><span><small>Total RSVPs</small><strong>{rsvps.length}</strong></span></article>
-          <article><CheckCircle2 size={20} /><span><small>Your responses</small><strong>{rsvps.filter((r) => r.camper_id === camper?.id).length}</strong></span></article>
+          <article><UsersRound size={20} /><span><small>Your RSVPs</small><strong>{rsvps.length}</strong></span></article>
+          <article><CheckCircle2 size={20} /><span><small>You are going</small><strong>{rsvps.filter((r) => r.response === 'Going').length}</strong></span></article>
         </section>
 
         <div className="camper-event-grid">
           {events.map((event) => {
             const eventRsvps = rsvps.filter((r) => r.event_id === event.id)
             const myRsvp = eventRsvps.find((r) => r.camper_id === camper?.id)
-
-            const goingCount = eventRsvps.filter((r) => r.response === 'Going').length
-            const maybeCount = eventRsvps.filter((r) => r.response === 'Maybe').length
 
             return (
               <section className="camper-event-card" key={event.id}>
@@ -155,11 +152,6 @@ export default function CalendarPage() {
                       <MapPin size={15} /> {event.location}
                     </p>
                   )}
-
-                  <div className="camper-event-counts">
-                    <span>✅ {goingCount} going</span>
-                    <span>🤔 {maybeCount} maybe</span>
-                  </div>
 
                   {myRsvp && (
                     <div className="camper-event-rsvp-status">

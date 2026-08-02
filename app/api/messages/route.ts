@@ -3,6 +3,8 @@ import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { sendCamperMessageEmail } from '../../../lib/camper-message-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { getSiteUrl } from '../../../lib/site-url'
+import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -162,6 +164,9 @@ export async function DELETE(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const rateLimit = await checkRateLimit(request, 'office-messages', 30, 10 * 60_000)
+  if (!rateLimit.allowed) return NextResponse.json({ error: 'Too many messages. Please wait and try again.' }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } })
+
   const context = await getAuthenticatedContext(request)
 
   if (!context) {
@@ -233,7 +238,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    const origin = new URL(request.url).origin
+    const origin = getSiteUrl()
     let emailSentCount = 0
     let emailSkippedCount = 0
     let emailFailedCount = 0
@@ -313,7 +318,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  const origin = new URL(request.url).origin
+  const origin = getSiteUrl()
   let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
   let emailMessage = ''
 
