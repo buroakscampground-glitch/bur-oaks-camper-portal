@@ -11100,3 +11100,8 @@ tbody tr:hover {
     color:#fff;
   }
 }
+/* Pending bank payments stay visible but cannot be paid a second time. */
+.account-invoice-total>span.processing,.admin-invoice-record-total em.processing,.admin-invoice-status.processing{background:#e5eef7;color:#35658a}
+.account-processing-mark,.camper-invoice-processing{display:inline-flex;align-items:center;gap:7px;color:#35658a;font-size:11px;font-weight:900}
+.account-invoice-check>span.processing,.admin-invoice-record-icon.processing{background:#e5eef7;color:#35658a}
+.camper-invoice-detail-summary strong.processing{color:#35658a}

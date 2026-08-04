@@ -59,6 +59,13 @@ export async function POST(request: Request) {
       )
     }
 
+    if (invoices.some((invoice) => invoice.status === 'processing')) {
+      return NextResponse.json(
+        { error: 'A payment is already processing for one or more selected invoices. Please do not pay again.' },
+        { status: 409 }
+      )
+    }
+
     const invoiceSubtotalCents = invoices.reduce((sum, invoice) => {
       return sum + Math.round(Number(invoice.total_due || 0) * 100)
     }, 0)

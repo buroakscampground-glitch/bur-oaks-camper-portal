@@ -11,6 +11,7 @@ import {
   CircleDollarSign,
   CreditCard,
   FileText,
+  Hourglass,
   Leaf,
   LockKeyhole,
   MessageSquareText,
@@ -56,6 +57,10 @@ function formatDate(value?: string) {
 function invoiceStatusBadge(invoice: any) {
   if (invoice.status === 'paid') {
     return { label: 'Paid', className: 'paid', detail: 'Thank you — this invoice is complete.' }
+  }
+
+  if (invoice.status === 'processing') {
+    return { label: 'Payment processing', className: 'processing', detail: 'Your bank payment is underway. Please do not pay again.' }
   }
 
   if (!invoice.due_date) {
@@ -235,12 +240,13 @@ export default function InvoicesPage() {
   }
 
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
+  const payableInvoices = invoices.filter((invoice) => invoice.status !== 'paid' && invoice.status !== 'processing')
   const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid')
   const openTotal = openInvoices.reduce(
     (sum, invoice) => sum + Number(invoice.total_due || 0),
     0
   )
-  const selectedTotal = openInvoices
+  const selectedTotal = payableInvoices
     .filter((invoice) => selectedInvoices.includes(invoice.id))
     .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const selectedProcessingFee = selectedInvoices.length ? calculateCardProcessingFee(selectedTotal, feeSettings) : 0
@@ -286,7 +292,7 @@ export default function InvoicesPage() {
   }
 
   async function handlePaySelected() {
-    const invoicesToPay = openInvoices.filter((invoice) =>
+    const invoicesToPay = payableInvoices.filter((invoice) =>
       selectedInvoices.includes(invoice.id)
     )
     if (invoicesToPay.length > 0) await handlePayment(invoicesToPay)
@@ -387,7 +393,7 @@ export default function InvoicesPage() {
               </div>
             </div>
 
-            {openInvoices.length > 0 && (
+            {payableInvoices.length > 0 && (
               <div className="account-selection-bar">
                 <div>
                   <strong>{selectedInvoices.length || 'No'} selected</strong>
@@ -399,7 +405,7 @@ export default function InvoicesPage() {
                   )}
                 </div>
                 <div>
-                  <button type="button" className="account-text-button" onClick={() => setSelectedInvoices(openInvoices.map((invoice) => invoice.id))}>Select all open</button>
+                  <button type="button" className="account-text-button" onClick={() => setSelectedInvoices(payableInvoices.map((invoice) => invoice.id))}>Select all payable</button>
                   {selectedInvoices.length > 0 && <button type="button" className="account-text-button" onClick={() => setSelectedInvoices([])}>Clear</button>}
                   <button type="button" className="account-pay-button" onClick={handlePaySelected} disabled={selectedInvoices.length === 0 || checkoutLoading}>
                     <LockKeyhole size={15} /> {checkoutLoading ? 'Opening checkout…' : `Pay ${formatMoney(selectedChargeTotal)}`}
@@ -408,7 +414,7 @@ export default function InvoicesPage() {
               </div>
             )}
 
-            {openInvoices.length > 0 && (
+            {payableInvoices.length > 0 && (
               <div className="account-processing-fee-disclosure">
                 <strong>{feeSettings.label}</strong>
                 <span>
@@ -429,6 +435,7 @@ export default function InvoicesPage() {
               <div className="account-invoice-list">
                 {visibleInvoices.map((invoice) => {
                   const isPaid = invoice.status === 'paid'
+                  const isProcessing = invoice.status === 'processing'
                   const isSelected = selectedInvoices.includes(invoice.id)
                   const statusBadge = invoiceStatusBadge(invoice)
                   const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
@@ -445,6 +452,8 @@ export default function InvoicesPage() {
                       <div className="account-invoice-check">
                         {isPaid ? (
                           <span><Check size={17} /></span>
+                        ) : isProcessing ? (
+                          <span className="processing"><Hourglass size={16} /></span>
                         ) : (
                           <label aria-label={`Select invoice ${invoice.invoice_number}`}>
                             <input type="checkbox" checked={isSelected} onChange={() => toggleInvoice(invoice.id)} />
@@ -479,8 +488,10 @@ export default function InvoicesPage() {
                       </div>
                       <div className="account-invoice-total">
                         <strong>{formatMoney(invoice.total_due)}</strong>
-                        <span className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</span>
-                        {!isPaid && (
+                        <span className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
+                          {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : 'Payment due'}
+                        </span>
+                        {!isPaid && !isProcessing && (
                           <small>
                             Card checkout: {formatMoney(invoice.total_due)} invoice + {formatMoney(processingFee)} card fee = {formatMoney(payToday)}
                           </small>
@@ -490,7 +501,9 @@ export default function InvoicesPage() {
                         <a className="account-view-invoice" href={`/invoices/${invoice.id}`}>
                           View invoice
                         </a>
-                        {!isPaid ? (
+                        {isProcessing ? (
+                          <span className="account-processing-mark"><Hourglass size={17} /> Do not pay again</span>
+                        ) : !isPaid ? (
                           <button type="button" onClick={() => handlePayInvoice(invoice)} disabled={processingInvoiceId === invoice.id || checkoutLoading}>
                             {processingInvoiceId === invoice.id ? 'Opening…' : 'Pay now'} <ChevronRight size={16} />
                           </button>

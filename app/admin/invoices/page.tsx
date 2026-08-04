@@ -344,12 +344,13 @@ export default function AdminInvoicesPage() {
             <div className="admin-invoice-records">
               {visibleInvoices.map((invoice) => {
                 const isPaid = invoice.status === 'paid'
+                const isProcessing = invoice.status === 'processing'
                 const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
                 const cardTotal = Number(invoice.total_due || 0) + processingFee
                 return (
                   <article className="admin-invoice-record" key={invoice.id}>
-                    <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : 'open'}`}>
-                      {isPaid ? <CheckCircle2 size={20} /> : <ReceiptText size={20} />}
+                    <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}`}>
+                      {isPaid ? <CheckCircle2 size={20} /> : isProcessing ? <Loader2 size={20} /> : <ReceiptText size={20} />}
                     </span>
                     <span className="admin-invoice-record-camper">
                       <small>Lot {invoice.campers?.lot_number || '—'} · Invoice #{invoice.invoice_number}</small>
@@ -359,8 +360,10 @@ export default function AdminInvoicesPage() {
                     <span className="admin-invoice-record-date"><CalendarDays size={14} /><span><small>Due</small><strong>{formatDate(invoice.due_date)}</strong></span></span>
                     <span className="admin-invoice-record-total">
                       <strong>{formatMoney(invoice.total_due)}</strong>
-                      <em className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</em>
-                      {!isPaid && (
+                      <em className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
+                        {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : 'Payment due'}
+                      </em>
+                      {!isPaid && !isProcessing && (
                         <small>
                           Card pay total: {formatMoney(cardTotal)}
                           <br />

@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
+  Hourglass,
   LockKeyhole,
   Printer,
   ReceiptText,
@@ -127,6 +128,7 @@ export default function CamperInvoiceDetailPage() {
   }
 
   const isPaid = invoice.status === 'paid'
+  const isProcessing = invoice.status === 'processing'
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
   const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
   const payToday = Number(invoice.total_due || 0) + processingFee
@@ -157,7 +159,9 @@ export default function CamperInvoiceDetailPage() {
         <section className="camper-invoice-detail-summary">
           <article>
             <small>Status</small>
-            <strong className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</strong>
+            <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
+              {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : 'Payment due'}
+            </strong>
           </article>
           <article>
             <small>Due date</small>
@@ -194,7 +198,7 @@ export default function CamperInvoiceDetailPage() {
             <p><span>Subtotal</span><strong>{formatMoney(subtotal || invoice.subtotal || invoice.total_due)}</strong></p>
             <p><span>Late fee</span><strong>{formatMoney(invoice.late_fee)}</strong></p>
             <p className="grand-total"><span>Total due</span><strong>{formatMoney(invoice.total_due)}</strong></p>
-            {!isPaid && (
+            {!isPaid && !isProcessing && (
               <>
                 <p><span>{feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>
                 <p className="grand-total"><span>Total charged by card today</span><strong>{formatMoney(payToday)}</strong></p>
@@ -208,6 +212,8 @@ export default function CamperInvoiceDetailPage() {
           <div className="camper-invoice-detail-actions">
             {isPaid ? (
               <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice is paid</span>
+            ) : isProcessing ? (
+              <span className="camper-invoice-processing"><Hourglass size={18} /> Bank payment processing — please do not pay again</span>
             ) : (
               <button type="button" onClick={payInvoice} disabled={paying}>
                 <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : `Pay ${formatMoney(payToday)}`} <ChevronRight size={16} />

@@ -126,6 +126,7 @@ export default function InvoiceDetailPage() {
   }
 
   const isPaid = invoice?.status === 'paid'
+  const isProcessing = invoice?.status === 'processing'
   const cardProcessingFee = calculateCardProcessingFee(Number(invoice?.total_due || 0), feeSettings)
   const cardPayTotal = Number(invoice?.total_due || 0) + cardProcessingFee
 
@@ -179,7 +180,7 @@ export default function InvoiceDetailPage() {
             </p>
           </div>
           <div className="admin-invoice-detail-actions">
-            {!isPaid && (
+            {!isPaid && !isProcessing && (
               <button type="button" onClick={markPaid} disabled={busy}>
                 <CheckCircle2 size={16} /> Mark paid
               </button>
@@ -200,7 +201,9 @@ export default function InvoiceDetailPage() {
           </article>
           <article>
             <small>Status</small>
-            <strong className={isPaid ? 'paid' : 'open'}>{isPaid ? 'Paid' : 'Payment due'}</strong>
+            <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
+              {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : 'Payment due'}
+            </strong>
           </article>
           <article>
             <small>Due date</small>
@@ -214,8 +217,8 @@ export default function InvoiceDetailPage() {
               <small>FULL BREAKDOWN</small>
               <h2>How this invoice total was calculated</h2>
             </div>
-            <span className={isPaid ? 'admin-invoice-status paid' : 'admin-invoice-status open'}>
-              {isPaid ? 'Paid' : 'Open'}
+            <span className={isPaid ? 'admin-invoice-status paid' : isProcessing ? 'admin-invoice-status processing' : 'admin-invoice-status open'}>
+              {isPaid ? 'Paid' : isProcessing ? 'Processing' : 'Open'}
             </span>
           </div>
 
