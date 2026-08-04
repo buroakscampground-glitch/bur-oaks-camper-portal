@@ -16,6 +16,7 @@ import {
 import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { useEffect, useState } from 'react'
+import PublicLiveChat from './PublicLiveChat'
 
 const navItems = [
   ['About', '/about'],
@@ -178,7 +179,7 @@ function PublicMobileActions() {
 }
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
-  return <div className="public-site"><PublicHeader />{children}<PublicFooter /><PublicMobileActions /></div>
+  return <div className="public-site"><PublicHeader />{children}<PublicFooter /><PublicMobileActions /><PublicLiveChat /></div>
 }
 
 export function PageHero({

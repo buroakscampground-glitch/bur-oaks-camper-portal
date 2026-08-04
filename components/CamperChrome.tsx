@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import LiveChatWidget from './PublicLiveChat'
 
 const camperPages: Record<string, string> = {
   '/portal': 'Portal Home',
@@ -150,6 +151,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
               <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
             </footer>
           )}
+          <LiveChatWidget />
         </div>
       </div>
     </div>

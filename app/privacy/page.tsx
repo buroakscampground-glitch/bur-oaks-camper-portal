@@ -4,7 +4,7 @@ export default function PrivacyPage() {
       <article className="legal-card">
         <p className="legal-kicker">BUR OAKS CAMPGROUND</p>
         <h1>Privacy Notice</h1>
-        <p className="muted">Last updated July 14, 2026</p>
+        <p className="muted">Last updated August 4, 2026</p>
 
         <h2>Information we use</h2>
         <p>We use camper account, contact, billing, vehicle, emergency-contact, maintenance, event, and electric-usage information to operate the campground and provide portal services.</p>
@@ -20,6 +20,10 @@ export default function PrivacyPage() {
 
         <h2>Website analytics</h2>
         <p>We use Google Analytics to understand website visits, referring sources, device and browser information, and interactions such as calls, directions, review links, and membership inquiries. Google Analytics may use cookies or similar browser storage. We use this information in aggregate to improve the website and do not sell this information. You can restrict cookies through your browser settings.</p>
+
+        <h2>Website live chat</h2>
+        <p>Our public website may use tawk.to to provide live chat and receive messages when campground staff are offline. If you use the chat, tawk.to processes the information you choose to provide, along with technical information needed to operate and secure the chat service, such as device, browser, IP address, and chat-session information. Do not send payment-card numbers, passwords, medical information, or other highly sensitive information through website chat.</p>
+        <p>Chat messages may be reviewed by authorized Bur Oaks staff to answer questions, follow up on requests, prevent abuse, and improve campground service. Live chat is intended for general questions and is not monitored for emergencies.</p>
 
         <h2>Your choices</h2>
         <p>You may update your profile, directory preference, and AutoPay enrollment through the portal. Contact the campground office to request access, correction, or deletion of other account information, subject to legal and operational recordkeeping requirements.</p>
