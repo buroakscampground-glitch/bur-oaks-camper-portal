@@ -130,3 +130,39 @@ export async function deleteInvoiceWithCreditRestore(client: any, invoiceId: str
 
   return { restoredTotal: Number(data || 0) }
 }
+
+export async function updateInvoiceBundle({
+  client,
+  invoiceId,
+  invoiceNumber,
+  invoiceType,
+  dueDate,
+  lateFee,
+  items,
+}: {
+  client: any
+  invoiceId: string
+  invoiceNumber: string
+  invoiceType: string
+  dueDate?: string | null
+  lateFee: number
+  items: Array<{ description: string; quantity: number; unit_price: number }>
+}) {
+  const { data, error } = await client.rpc('update_invoice_bundle_atomic', {
+    p_invoice_id: invoiceId,
+    p_invoice_number: invoiceNumber,
+    p_invoice_type: invoiceType,
+    p_due_date: dueDate || null,
+    p_late_fee: lateFee,
+    p_items: items,
+  })
+
+  if (error) {
+    if (['42883', 'PGRST202'].includes(error.code || '')) {
+      throw new Error('The invoice editing migration has not been installed yet.')
+    }
+    throw error
+  }
+
+  return data
+}

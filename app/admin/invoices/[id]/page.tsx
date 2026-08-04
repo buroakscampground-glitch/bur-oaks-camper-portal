@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, FileText, Printer, ReceiptText, Trash2 } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, FileText, Pencil, Plus, Printer, ReceiptText, Save, Trash2, X } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
-import { deleteInvoiceWithCreditRestore, formatCreditMoney } from '../../../../lib/account-credits'
+import { deleteInvoiceWithCreditRestore, formatCreditMoney, updateInvoiceBundle } from '../../../../lib/account-credits'
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../../lib/invoice-display'
 import AdminQuickText from '../../../../components/AdminQuickText'
@@ -25,6 +25,13 @@ function formatDate(value?: string) {
   })
 }
 
+type EditableInvoiceItem = {
+  key: string
+  description: string
+  quantity: string
+  unitPrice: string
+}
+
 export default function InvoiceDetailPage() {
   const params = useParams()
   const router = useRouter()
@@ -35,6 +42,13 @@ export default function InvoiceDetailPage() {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
+  const [appliedCredit, setAppliedCredit] = useState(0)
+  const [editing, setEditing] = useState(false)
+  const [editInvoiceNumber, setEditInvoiceNumber] = useState('')
+  const [editInvoiceType, setEditInvoiceType] = useState('')
+  const [editDueDate, setEditDueDate] = useState('')
+  const [editLateFee, setEditLateFee] = useState('0')
+  const [editItems, setEditItems] = useState<EditableInvoiceItem[]>([])
 
   useEffect(() => {
     loadInvoice()
@@ -54,11 +68,18 @@ export default function InvoiceDetailPage() {
     }
   }, [])
 
+  useEffect(() => {
+    if (editing && ['paid', 'processing'].includes(String(invoice?.status || '').toLowerCase())) {
+      setEditing(false)
+      setMessage('Editing closed because this invoice payment status changed.')
+    }
+  }, [editing, invoice?.status])
+
   async function loadInvoice(showLoading = true) {
     if (showLoading) setLoading(true)
     const invoiceId = String(params.id || '')
 
-    const [invoiceResult, itemResult, paymentFeeSettings] = await Promise.all([
+    const [invoiceResult, itemResult, creditResult, paymentFeeSettings] = await Promise.all([
       supabase
         .from('invoices')
         .select(`
@@ -77,12 +98,19 @@ export default function InvoiceDetailPage() {
         .select('*')
         .eq('invoice_id', invoiceId)
         .order('created_at', { ascending: true }),
+      supabase
+        .from('account_credit_applications')
+        .select('amount_applied')
+        .eq('invoice_id', invoiceId),
       loadPaymentFeeSettings(supabase),
     ])
 
     setFeeSettings(paymentFeeSettings)
     setInvoice(invoiceResult.data || null)
     setInvoiceItems(itemResult.data || [])
+    setAppliedCredit(
+      (creditResult.data || []).reduce((sum, application) => sum + Number(application.amount_applied || 0), 0)
+    )
     if (showLoading) setLoading(false)
   }
 
@@ -149,6 +177,97 @@ export default function InvoiceDetailPage() {
     loadInvoice()
   }
 
+  function beginEditing() {
+    if (!invoice || isPaid || isProcessing) return
+
+    setEditInvoiceNumber(String(invoice.invoice_number || ''))
+    setEditInvoiceType(String(invoice.invoice_type || 'Campground charge'))
+    setEditDueDate(String(invoice.due_date || '').slice(0, 10))
+    setEditLateFee(String(Number(invoice.late_fee || 0)))
+    setEditItems(
+      invoiceItems.length
+        ? invoiceItems.map((item) => ({
+            key: String(item.id || crypto.randomUUID()),
+            description: String(item.description || ''),
+            quantity: String(Number(item.quantity || 1)),
+            unitPrice: String(Number(item.unit_price || 0)),
+          }))
+        : [{
+            key: crypto.randomUUID(),
+            description: String(invoice.invoice_type || 'Campground charge'),
+            quantity: '1',
+            unitPrice: String(Number(invoice.subtotal ?? invoice.total_due ?? 0)),
+          }]
+    )
+    setMessage('')
+    setEditing(true)
+  }
+
+  function updateEditItem(key: string, field: keyof Omit<EditableInvoiceItem, 'key'>, value: string) {
+    setEditItems((current) => current.map((item) => item.key === key ? { ...item, [field]: value } : item))
+  }
+
+  function addEditItem() {
+    setEditItems((current) => [
+      ...current,
+      { key: crypto.randomUUID(), description: '', quantity: '1', unitPrice: '0' },
+    ])
+  }
+
+  function removeEditItem(key: string) {
+    setEditItems((current) => current.length > 1 ? current.filter((item) => item.key !== key) : current)
+  }
+
+  async function saveInvoiceEdits() {
+    if (!invoice || isPaid || isProcessing) return
+
+    if (!editInvoiceNumber.trim() || !editInvoiceType.trim()) {
+      setMessage('Invoice number and invoice type are required.')
+      return
+    }
+
+    const normalizedItems = editItems.map((item) => ({
+      description: item.description.trim(),
+      quantity: Number(item.quantity),
+      unit_price: Number(item.unitPrice),
+    }))
+
+    if (
+      appliedCredit <= 0 &&
+      normalizedItems.some((item) => !item.description || !Number.isFinite(item.quantity) || item.quantity <= 0 || !Number.isFinite(item.unit_price))
+    ) {
+      setMessage('Every item needs a description, valid quantity, and valid price.')
+      return
+    }
+
+    setBusy(true)
+    setMessage('Saving invoice changes…')
+
+    try {
+      const result = await updateInvoiceBundle({
+        client: supabase,
+        invoiceId: invoice.id,
+        invoiceNumber: editInvoiceNumber.trim(),
+        invoiceType: editInvoiceType.trim(),
+        dueDate: editDueDate || null,
+        lateFee: Number(editLateFee || 0),
+        items: normalizedItems,
+      })
+
+      setEditing(false)
+      setMessage(
+        result?.amountsLocked
+          ? 'Invoice details saved. Amounts stayed locked because account credit was already applied.'
+          : 'Invoice changes saved successfully.'
+      )
+      await loadInvoice(false)
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to save invoice changes.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const isPaid = invoice?.status === 'paid'
   const isProcessing = invoice?.status === 'processing'
   const cardProcessingFee = calculateCardProcessingFee(Number(invoice?.total_due || 0), feeSettings)
@@ -167,6 +286,11 @@ export default function InvoiceDetailPage() {
   const calculatedTotal = Number((itemSubtotal + lateFee).toFixed(2))
   const invoiceTotal = Number(invoice?.total_due || 0)
   const totalDifference = Number((invoiceTotal - calculatedTotal).toFixed(2))
+  const editSubtotal = editItems.reduce(
+    (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0),
+    0
+  )
+  const editTotal = editSubtotal + Number(editLateFee || 0)
 
   if (loading) {
     return (
@@ -204,7 +328,12 @@ export default function InvoiceDetailPage() {
             </p>
           </div>
           <div className="admin-invoice-detail-actions">
-            {!isPaid && !isProcessing && (
+            {!isPaid && !isProcessing && !editing && (
+              <button type="button" onClick={beginEditing} disabled={busy}>
+                <Pencil size={16} /> Edit invoice
+              </button>
+            )}
+            {!isPaid && !isProcessing && !editing && (
               <button type="button" onClick={markPaid} disabled={busy}>
                 <CheckCircle2 size={16} /> Mark paid
               </button>
@@ -212,7 +341,7 @@ export default function InvoiceDetailPage() {
             <button type="button" onClick={() => window.print()}>
               <Printer size={16} /> Print
             </button>
-            <button type="button" className="danger" onClick={deleteInvoice} disabled={busy || isProcessing}>
+            <button type="button" className="danger" onClick={deleteInvoice} disabled={busy || isProcessing || editing}>
               <Trash2 size={16} /> {isProcessing ? 'Payment locked' : 'Delete'}
             </button>
           </div>
@@ -234,6 +363,51 @@ export default function InvoiceDetailPage() {
             <strong>{formatDate(invoice.due_date)}</strong>
           </article>
         </div>
+
+        {editing && (
+          <section className="admin-invoice-editor">
+            <div className="admin-invoice-editor-heading">
+              <div>
+                <small>EDIT OPEN INVOICE</small>
+                <h2>Correct invoice details</h2>
+                <p>Changes appear on the camper’s invoice after you save.</p>
+              </div>
+              <button type="button" onClick={() => setEditing(false)} disabled={busy}><X size={16} /> Cancel</button>
+            </div>
+
+            <div className="admin-invoice-editor-grid">
+              <label><span>Invoice number</span><input value={editInvoiceNumber} onChange={(event) => setEditInvoiceNumber(event.target.value)} /></label>
+              <label><span>Invoice type</span><input value={editInvoiceType} onChange={(event) => setEditInvoiceType(event.target.value)} /></label>
+              <label><span>Due date</span><input type="date" value={editDueDate} onChange={(event) => setEditDueDate(event.target.value)} /></label>
+              <label><span>Late fee</span><input type="number" min="0" step="0.01" value={editLateFee} onChange={(event) => setEditLateFee(event.target.value)} disabled={appliedCredit > 0} /></label>
+            </div>
+
+            {appliedCredit > 0 ? (
+              <div className="admin-invoice-editor-lock">
+                <CreditCard size={18} />
+                <span><strong>Amounts are protected</strong><small>{formatMoney(appliedCredit)} in account credit was already applied. You can edit the invoice number, type, and due date, but not its charges.</small></span>
+              </div>
+            ) : (
+              <div className="admin-invoice-editor-items">
+                <div><strong>Itemized charges</strong><button type="button" onClick={addEditItem}><Plus size={15} /> Add charge</button></div>
+                {editItems.map((item) => (
+                  <article key={item.key}>
+                    <label><span>Description</span><input value={item.description} onChange={(event) => updateEditItem(item.key, 'description', event.target.value)} /></label>
+                    <label><span>Quantity</span><input type="number" min="0.01" step="0.01" value={item.quantity} onChange={(event) => updateEditItem(item.key, 'quantity', event.target.value)} /></label>
+                    <label><span>Price each</span><input type="number" step="0.01" value={item.unitPrice} onChange={(event) => updateEditItem(item.key, 'unitPrice', event.target.value)} /></label>
+                    <strong>{formatMoney(Number(item.quantity || 0) * Number(item.unitPrice || 0))}</strong>
+                    <button type="button" className="danger" onClick={() => removeEditItem(item.key)} disabled={editItems.length === 1} aria-label={`Remove ${item.description || 'invoice item'}`}><Trash2 size={15} /></button>
+                  </article>
+                ))}
+              </div>
+            )}
+
+            <div className="admin-invoice-editor-footer">
+              <span><small>Updated invoice total</small><strong>{appliedCredit > 0 ? formatMoney(invoice.total_due) : formatMoney(editTotal)}</strong></span>
+              <button type="button" onClick={saveInvoiceEdits} disabled={busy}><Save size={16} /> {busy ? 'Saving…' : 'Save invoice changes'}</button>
+            </div>
+          </section>
+        )}
 
         <section className="camper-invoice-detail-card admin-invoice-breakdown-card">
           <div className="camper-invoice-detail-heading">
