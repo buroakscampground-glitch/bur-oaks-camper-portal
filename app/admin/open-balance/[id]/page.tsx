@@ -64,6 +64,12 @@ export default function CamperBalancePage() {
   }
 
   async function markPaid(invoiceId: string) {
+    const invoice = invoices.find((item) => item.id === invoiceId)
+    if (invoice?.status === "processing") {
+      setMessage("Wait for Stripe to finish this payment before changing its status.")
+      return
+    }
+
     const confirmed = window.confirm("Mark this invoice as paid?")
     if (!confirmed) return
 
@@ -90,6 +96,11 @@ export default function CamperBalancePage() {
   }
 
   async function deleteInvoice(invoice: any) {
+    if (invoice.status === "processing") {
+      setMessage("This invoice has a payment processing and cannot be deleted.")
+      return
+    }
+
     const confirmed = window.confirm(
       `Delete invoice #${invoice.invoice_number} permanently?\n\nThis removes the invoice and its itemized charge lines.`
     )
@@ -209,12 +220,18 @@ Bur Oaks Campground
                   </small>
                 </div>
                 <div className="admin-open-invoice-actions">
-                  <button type="button" onClick={() => markPaid(invoice.id)} disabled={busyInvoiceId === invoice.id}>
-                    <CheckCircle2 size={15} /> Mark paid
-                  </button>
-                  <button className="danger" type="button" onClick={() => deleteInvoice(invoice)} disabled={busyInvoiceId === invoice.id}>
-                    <Trash2 size={15} /> Delete
-                  </button>
+                  {invoice.status === "processing" ? (
+                    <span>Stripe payment processing — changes locked</span>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => markPaid(invoice.id)} disabled={busyInvoiceId === invoice.id}>
+                        <CheckCircle2 size={15} /> Mark paid
+                      </button>
+                      <button className="danger" type="button" onClick={() => deleteInvoice(invoice)} disabled={busyInvoiceId === invoice.id}>
+                        <Trash2 size={15} /> Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </article>
             ))}

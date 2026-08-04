@@ -109,8 +109,12 @@ export async function sendInvoiceText({
     return { status: 'failed', error: invoiceError?.message || 'Invoice was not found.' }
   }
 
-  if (String(invoice.status || '').toLowerCase() === 'paid') {
-    return { status: 'skipped', reason: 'Invoice is already paid.' }
+  const invoiceStatus = String(invoice.status || '').toLowerCase()
+  if (invoiceStatus === 'paid' || invoiceStatus === 'processing') {
+    return {
+      status: 'skipped',
+      reason: invoiceStatus === 'paid' ? 'Invoice is already paid.' : 'A payment is already processing.',
+    }
   }
 
   const camper = invoiceCamper(invoice)

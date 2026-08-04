@@ -360,10 +360,13 @@ export async function POST(request: Request) {
         if (invoiceLookupError) throw invoiceLookupError
 
         if (invoice.status === 'paid') {
+          if (invoice.payment_reference !== intent.id) {
+            await notifyDuplicatePayment(intent.id, intent.amount_received || intent.amount, [invoice])
+          }
           return NextResponse.json({ received: true, alreadyPaid: true })
         }
 
-        const { error } = await supabaseAdmin
+        const { data: updatedInvoices, error } = await supabaseAdmin
           .from('invoices')
           .update({
             status: 'paid',
@@ -376,8 +379,14 @@ export async function POST(request: Request) {
             payment_reference: intent.id,
           })
           .eq('id', invoiceId)
+          .neq('status', 'paid')
+          .select('id')
 
         if (error) throw error
+        if (!updatedInvoices?.length) {
+          await notifyDuplicatePayment(intent.id, intent.amount_received || intent.amount, [invoice])
+          return NextResponse.json({ received: true, duplicatePayment: true })
+        }
 
         const amountPaid = Number(invoice?.total_due || 0)
 
@@ -392,7 +401,7 @@ export async function POST(request: Request) {
       }
     }
 
-    if (event.type === 'payment_intent.payment_failed') {
+    if (event.type === 'payment_intent.payment_failed' || event.type === 'payment_intent.canceled') {
       const intent = event.data.object as Stripe.PaymentIntent
       const invoiceIds = paymentIntentInvoiceIds(intent)
 
@@ -410,6 +419,22 @@ export async function POST(request: Request) {
           .eq('payment_reference', intent.id)
 
         if (failedIntentError) throw failedIntentError
+      }
+
+      if (intent.metadata.purpose === 'autopay_invoice' && intent.metadata.invoice_id) {
+        const { error: failedAutoPayError } = await supabaseAdmin
+          .from('invoices')
+          .update({
+            status: 'sent',
+            paid_at: null,
+            payment_method: null,
+            payment_reference: null,
+          })
+          .eq('id', intent.metadata.invoice_id)
+          .eq('status', 'processing')
+          .eq('payment_reference', intent.id)
+
+        if (failedAutoPayError) throw failedAutoPayError
       }
     }
 

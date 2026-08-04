@@ -73,6 +73,11 @@ export default function InvoiceDetailPage() {
   }
 
   async function deleteInvoice() {
+    if (invoice?.status === 'processing') {
+      setMessage('This invoice has a payment processing and cannot be deleted.')
+      return
+    }
+
     if (!invoice || !confirm('Delete this invoice permanently? This also removes its itemized charge lines.')) return
 
     setBusy(true)
@@ -99,6 +104,11 @@ export default function InvoiceDetailPage() {
   }
 
   async function markPaid() {
+    if (invoice?.status === 'processing') {
+      setMessage('Wait for Stripe to finish this payment before changing its status.')
+      return
+    }
+
     if (!invoice || !confirm('Mark this invoice as paid?')) return
 
     setBusy(true)
@@ -188,8 +198,8 @@ export default function InvoiceDetailPage() {
             <button type="button" onClick={() => window.print()}>
               <Printer size={16} /> Print
             </button>
-            <button type="button" className="danger" onClick={deleteInvoice} disabled={busy}>
-              <Trash2 size={16} /> Delete
+            <button type="button" className="danger" onClick={deleteInvoice} disabled={busy || isProcessing}>
+              <Trash2 size={16} /> {isProcessing ? 'Payment locked' : 'Delete'}
             </button>
           </div>
         </div>

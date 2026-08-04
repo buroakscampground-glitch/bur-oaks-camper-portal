@@ -53,6 +53,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ charged: false, reason: 'not_open' })
     }
 
+    if (invoice.status === 'processing') {
+      return NextResponse.json({
+        charged: false,
+        initiated: true,
+        reason: 'already_processing',
+        message: 'A payment is already processing for this invoice. No additional AutoPay charge was started.',
+      })
+    }
+
     const category = invoiceCategory(invoice.invoice_type || '')
 
     if (!category) {
@@ -128,7 +137,7 @@ export async function POST(request: Request) {
     )
 
     if (intent.status === 'succeeded') {
-      await context.admin
+      const { data: updatedInvoices, error: paidUpdateError } = await context.admin
         .from('invoices')
         .update({
           status: 'paid',
@@ -137,6 +146,19 @@ export async function POST(request: Request) {
           payment_reference: intent.id,
         })
         .eq('id', invoice.id)
+        .neq('status', 'paid')
+        .select('id')
+
+      if (paidUpdateError) throw paidUpdateError
+
+      if (!updatedInvoices?.length) {
+        return NextResponse.json({
+          charged: true,
+          duplicate: true,
+          paymentIntentId: intent.id,
+          reason: 'invoice_was_already_paid',
+        })
+      }
 
       const alertResult = await sendPaymentReceivedAlert({
         admin: context.admin,
@@ -151,6 +173,19 @@ export async function POST(request: Request) {
     }
 
     if (intent.status === 'processing') {
+      const { error: processingUpdateError } = await context.admin
+        .from('invoices')
+        .update({
+          status: 'processing',
+          paid_at: null,
+          payment_method: paymentMethodLabel,
+          payment_reference: intent.id,
+        })
+        .eq('id', invoice.id)
+        .neq('status', 'paid')
+
+      if (processingUpdateError) throw processingUpdateError
+
       return NextResponse.json({
         charged: false,
         initiated: true,

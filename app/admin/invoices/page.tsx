@@ -173,6 +173,11 @@ export default function AdminInvoicesPage() {
   }
 
   async function deleteInvoice(invoice: any) {
+    if (invoice.status === 'processing') {
+      setMessage('This invoice has a payment processing and cannot be deleted.')
+      return
+    }
+
     const camperName = `${invoice.campers?.first_name || ''} ${invoice.campers?.last_name || ''}`.trim()
     const confirmed = confirm(
       `Delete invoice #${invoice.invoice_number} for ${camperName || `Lot ${invoice.campers?.lot_number || '—'}`}?\n\nThis permanently removes the invoice and its itemized charges.`
@@ -373,8 +378,8 @@ export default function AdminInvoicesPage() {
                     </span>
                     <span className="admin-invoice-record-actions">
                       <a href={`/admin/invoices/${invoice.id}`}>View <ArrowRight size={14} /></a>
-                      <button type="button" onClick={() => deleteInvoice(invoice)} disabled={deletingInvoiceId === invoice.id}>
-                        <Trash2 size={14} /> {deletingInvoiceId === invoice.id ? 'Deleting…' : 'Delete'}
+                      <button type="button" onClick={() => deleteInvoice(invoice)} disabled={isProcessing || deletingInvoiceId === invoice.id}>
+                        <Trash2 size={14} /> {isProcessing ? 'Payment locked' : deletingInvoiceId === invoice.id ? 'Deleting…' : 'Delete'}
                       </button>
                     </span>
                   </article>

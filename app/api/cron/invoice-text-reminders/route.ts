@@ -39,6 +39,7 @@ export async function GET(request: Request) {
     .from('invoices')
     .select('id,due_date,status,total_due')
     .neq('status', 'paid')
+    .neq('status', 'processing')
     .gt('total_due', 0)
     .not('due_date', 'is', null)
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
+import { createHash } from 'crypto'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { calculateCardProcessingFeeCents, loadPaymentFeeSettings } from '../../../lib/payment-fees'
@@ -113,6 +114,17 @@ export async function POST(request: Request) {
     const stripe = new Stripe(key)
     const origin = getSiteUrl()
     const verifiedInvoiceIds = invoices.map((invoice) => String(invoice.id))
+    const checkoutWindow = Math.floor(Date.now() / (60 * 60 * 1000))
+    const checkoutFingerprint = createHash('sha256')
+      .update([
+        String(context.camper.id),
+        [...verifiedInvoiceIds].sort().join(','),
+        String(invoiceSubtotalCents),
+        String(processingFeeCents),
+        String(checkoutWindow),
+      ].join('|'))
+      .digest('hex')
+      .slice(0, 40)
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: lineItems,
@@ -136,6 +148,8 @@ export async function POST(request: Request) {
           processing_fee_cents: String(processingFeeCents),
         },
       },
+    }, {
+      idempotencyKey: `invoice-checkout-${checkoutFingerprint}`,
     })
 
     return NextResponse.json({ success: true, id: session.id, url: session.url })
