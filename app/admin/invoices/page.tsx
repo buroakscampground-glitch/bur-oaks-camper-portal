@@ -90,6 +90,20 @@ export default function AdminInvoicesPage() {
     loadWorkspace()
   }, [])
 
+  useEffect(() => {
+    const refreshStatuses = () => loadInvoices()
+    const timer = window.setInterval(refreshStatuses, 30_000)
+
+    window.addEventListener('focus', refreshStatuses)
+    window.addEventListener('pageshow', refreshStatuses)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshStatuses)
+      window.removeEventListener('pageshow', refreshStatuses)
+    }
+  }, [])
+
   async function createInvoice() {
     setMessage('')
 

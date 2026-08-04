@@ -164,6 +164,30 @@ export default function InvoicesPage() {
     loadAccount()
   }, [])
 
+  useEffect(() => {
+    if (!camper?.id) return
+
+    async function refreshInvoiceStatuses() {
+      const { data } = await supabase
+        .from('invoices')
+        .select('*, invoice_items(*)')
+        .eq('camper_id', camper.id)
+        .order('due_date', { ascending: false })
+
+      if (data) setInvoices(data)
+    }
+
+    const timer = window.setInterval(refreshInvoiceStatuses, 30_000)
+    window.addEventListener('focus', refreshInvoiceStatuses)
+    window.addEventListener('pageshow', refreshInvoiceStatuses)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshInvoiceStatuses)
+      window.removeEventListener('pageshow', refreshInvoiceStatuses)
+    }
+  }, [camper?.id])
+
   async function refreshAutoPayStatus() {
     try {
       const status = await getAutoPayStatus()

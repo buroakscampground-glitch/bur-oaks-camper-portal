@@ -77,6 +77,34 @@ export default function CamperInvoiceDetailPage() {
     loadInvoice()
   }, [invoiceId])
 
+  useEffect(() => {
+    if (!camper?.id) return
+
+    async function refreshInvoiceStatus() {
+      const { data } = await supabase
+        .from('invoices')
+        .select('*, invoice_items(*)')
+        .eq('id', invoiceId)
+        .eq('camper_id', camper.id)
+        .maybeSingle()
+
+      if (data) {
+        setInvoice(data)
+        setItems(Array.isArray(data.invoice_items) ? data.invoice_items : [])
+      }
+    }
+
+    const timer = window.setInterval(refreshInvoiceStatus, 30_000)
+    window.addEventListener('focus', refreshInvoiceStatus)
+    window.addEventListener('pageshow', refreshInvoiceStatus)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshInvoiceStatus)
+      window.removeEventListener('pageshow', refreshInvoiceStatus)
+    }
+  }, [camper?.id, invoiceId])
+
   async function payInvoice() {
     if (!invoice) return
 

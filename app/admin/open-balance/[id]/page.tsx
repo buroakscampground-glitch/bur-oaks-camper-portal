@@ -39,6 +39,20 @@ export default function CamperBalancePage() {
     loadData()
   }, [])
 
+  useEffect(() => {
+    const refreshStatuses = () => loadData()
+    const timer = window.setInterval(refreshStatuses, 30_000)
+
+    window.addEventListener("focus", refreshStatuses)
+    window.addEventListener("pageshow", refreshStatuses)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener("focus", refreshStatuses)
+      window.removeEventListener("pageshow", refreshStatuses)
+    }
+  }, [])
+
   async function loadData() {
     const camperId = params.id
 

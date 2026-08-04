@@ -40,8 +40,22 @@ export default function InvoiceDetailPage() {
     loadInvoice()
   }, [])
 
-  async function loadInvoice() {
-    setLoading(true)
+  useEffect(() => {
+    const refreshStatus = () => loadInvoice(false)
+    const timer = window.setInterval(refreshStatus, 30_000)
+
+    window.addEventListener('focus', refreshStatus)
+    window.addEventListener('pageshow', refreshStatus)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshStatus)
+      window.removeEventListener('pageshow', refreshStatus)
+    }
+  }, [])
+
+  async function loadInvoice(showLoading = true) {
+    if (showLoading) setLoading(true)
     const invoiceId = String(params.id || '')
 
     const [invoiceResult, itemResult, paymentFeeSettings] = await Promise.all([
@@ -69,7 +83,7 @@ export default function InvoiceDetailPage() {
     setFeeSettings(paymentFeeSettings)
     setInvoice(invoiceResult.data || null)
     setInvoiceItems(itemResult.data || [])
-    setLoading(false)
+    if (showLoading) setLoading(false)
   }
 
   async function deleteInvoice() {
