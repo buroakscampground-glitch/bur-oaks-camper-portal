@@ -6,6 +6,7 @@ import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
 export const runtime = 'nodejs'
 
 const propertyId = '6a71c26a2502921d483eba05'
+const chatInboxUrl = `https://dashboard.tawk.to/#/inbox/${propertyId}/all`
 const alertPhone = formatSmsPhone(
   process.env.TAWK_CHAT_ALERT_PHONE || '618-882-8063'
 )
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
   const smsBody = [
     `Bur Oaks Live Chat: New chat from ${visitorName}.`,
     messageSummary,
-    'Open the tawk.to app to reply.',
+    `Open the chat inbox to reply: ${chatInboxUrl}`,
     'Reply STOP to opt out.',
   ].join(' ')
 
