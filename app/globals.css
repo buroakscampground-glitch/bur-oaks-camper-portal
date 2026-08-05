@@ -11121,10 +11121,12 @@ tbody tr:hover {
 .maintenance-print-sheet{display:none}
 @media print{
   @page{size:letter;margin:.4in}
-  html,body{margin:0!important;background:#fff!important;color:#18231c!important}
+  html,body{width:100%!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;background:#fff!important;color:#18231c!important}
   body *{visibility:hidden!important}
+  .admin-workspace-page,.admin-workspace-shell,.admin-workspace-main,.admin-workspace-content,.admin-workspace-content>.page,.admin-workspace-content>.page>.container{display:block!important;width:100%!important;max-width:none!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;overflow:visible!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important}
+  .admin-sidebar,.admin-workspace-header,.admin-workspace-footer,.maintenance-screen-only,.global-back-button,.tawk-min-container,.tawk-button-circle{display:none!important}
   .maintenance-print-sheet,.maintenance-print-sheet *{visibility:visible!important}
-  .maintenance-print-sheet{display:block!important;position:absolute;top:0;left:0;width:100%;font:10pt/1.35 Arial,Helvetica,sans-serif;color:#18231c}
+  .maintenance-print-sheet{display:block!important;position:relative!important;top:auto!important;left:auto!important;width:100%!important;max-width:none!important;margin:0!important;font:10pt/1.35 Arial,Helvetica,sans-serif;color:#18231c;break-after:avoid-page;page-break-after:avoid}
   .maintenance-print-sheet *{box-sizing:border-box}
   .maintenance-print-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:13px;border-bottom:3px solid #234b31}
   .maintenance-print-brand{display:flex;align-items:center;gap:11px}
