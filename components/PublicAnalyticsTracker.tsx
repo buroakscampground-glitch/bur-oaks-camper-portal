@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import { trackPublicEvent } from '../lib/publicAnalytics'
 
 function linkLocation(link: HTMLAnchorElement) {
@@ -12,6 +13,16 @@ function linkLocation(link: HTMLAnchorElement) {
 }
 
 export default function PublicAnalyticsTracker() {
+  const pathname = usePathname()
+
+  useEffect(() => {
+    trackPublicEvent('page_view', {
+      page_title: document.title,
+      page_location: window.location.href,
+      page_path: `${pathname}${window.location.search}`,
+    })
+  }, [pathname])
+
   useEffect(() => {
     function trackClick(event: MouseEvent) {
       const target = event.target

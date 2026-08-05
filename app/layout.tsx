@@ -5,6 +5,7 @@ import GlobalBackButton from '../components/GlobalBackButton'
 import CamperChrome from '../components/CamperChrome'
 import AuthLinkRedirect from '../components/AuthLinkRedirect'
 import GoogleAnalytics from '../components/GoogleAnalytics'
+import PublicAnalyticsTracker from '../components/PublicAnalyticsTracker'
 
 const siteUrl = 'https://www.buroakscampground.com'
 
@@ -89,9 +90,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
+      <head>
+        <GoogleAnalytics />
+      </head>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(campgroundSchema) }} />
-        <GoogleAnalytics />
+        <PublicAnalyticsTracker />
         <AuthLinkRedirect />
         <CamperChrome>{children}</CamperChrome>
         <GlobalBackButton />
