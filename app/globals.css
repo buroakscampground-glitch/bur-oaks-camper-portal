@@ -11116,3 +11116,51 @@ tbody tr:hover {
 .admin-invoice-editor-footer{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 24px;border-top:1px solid #e8e6dd;background:#f5f7f2}.admin-invoice-editor-footer span{display:grid;gap:3px}.admin-invoice-editor-footer small{color:#7c877f;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.admin-invoice-editor-footer strong{color:#263c2d;font:500 23px Georgia,serif}.admin-invoice-editor-footer button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:43px;padding:0 16px;border:0;border-radius:11px;background:#315f3d;color:#fff;font-weight:900}.admin-invoice-editor-footer button:disabled{opacity:.6}
 @media(max-width:850px){.admin-invoice-editor-grid{grid-template-columns:1fr 1fr}.admin-invoice-editor-items article{grid-template-columns:1fr 1fr}.admin-invoice-editor-items article>label:first-child{grid-column:1/-1}.admin-invoice-editor-items article>strong{text-align:left}.admin-invoice-editor-items article>button{justify-self:end}}
 @media(max-width:560px){.admin-invoice-editor-heading,.admin-invoice-editor-footer{align-items:stretch;flex-direction:column}.admin-invoice-editor-grid{grid-template-columns:1fr}.admin-invoice-editor-items article{grid-template-columns:1fr}.admin-invoice-editor-items article>label:first-child{grid-column:auto}.admin-invoice-editor-items article>button{justify-self:start}.admin-invoice-editor-footer button{width:100%}}
+
+/* Professional maintenance work-order print sheet */
+.maintenance-print-sheet{display:none}
+@media print{
+  @page{size:letter;margin:.4in}
+  html,body{margin:0!important;background:#fff!important;color:#18231c!important}
+  body *{visibility:hidden!important}
+  .maintenance-print-sheet,.maintenance-print-sheet *{visibility:visible!important}
+  .maintenance-print-sheet{display:block!important;position:absolute;top:0;left:0;width:100%;font:10pt/1.35 Arial,Helvetica,sans-serif;color:#18231c}
+  .maintenance-print-sheet *{box-sizing:border-box}
+  .maintenance-print-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding-bottom:13px;border-bottom:3px solid #234b31}
+  .maintenance-print-brand{display:flex;align-items:center;gap:11px}
+  .maintenance-print-brand img{width:58px;height:58px;object-fit:contain}
+  .maintenance-print-brand strong{display:block;color:#213d2a;font:700 18pt Georgia,serif}
+  .maintenance-print-brand span{display:block;margin-top:2px;color:#55645a;font-size:8pt;font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+  .maintenance-print-title{text-align:right}
+  .maintenance-print-title span{display:block;color:#8b6826;font-size:8pt;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+  .maintenance-print-title strong{display:block;margin-top:3px;color:#213d2a;font-size:15pt}
+  .maintenance-print-summary{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;padding:14px 0 11px}
+  .maintenance-print-job-title span,.maintenance-print-section h2{color:#8b6826;font-size:7.5pt;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+  .maintenance-print-job-title h1{margin:3px 0 0;color:#182c20;font:700 20pt/1.1 Georgia,serif}
+  .maintenance-print-priority{flex:0 0 auto;padding:6px 10px;border:1px solid #7d8b80;border-radius:4px;background:#f4f6f3;font-size:8pt;font-weight:800;text-transform:uppercase}
+  .maintenance-print-priority.high,.maintenance-print-priority.emergency,.maintenance-print-priority.urgent{border-color:#9b342d;background:#fff0ef;color:#8c2f29}
+  .maintenance-print-details{display:grid;grid-template-columns:repeat(4,1fr);margin:0 0 12px;border-top:1px solid #728076;border-left:1px solid #728076}
+  .maintenance-print-details div{min-height:49px;padding:7px 8px;border-right:1px solid #728076;border-bottom:1px solid #728076}
+  .maintenance-print-details dt{color:#667269;font-size:6.8pt;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+  .maintenance-print-details dd{margin:4px 0 0;color:#18231c;font-size:9.5pt;font-weight:700}
+  .maintenance-print-section{margin-top:11px;break-inside:avoid}
+  .maintenance-print-section h2{margin:0;padding:6px 8px;border:1px solid #728076;background:#edf2ed;color:#274b31}
+  .maintenance-print-section>p{min-height:45px;margin:0;padding:9px;border:1px solid #728076;border-top:0;white-space:pre-wrap}
+  .maintenance-print-section>small{display:block;margin:0;padding:0 9px 7px;border-right:1px solid #728076;border-bottom:1px solid #728076;border-left:1px solid #728076;color:#667269;font-size:7.5pt}
+  .maintenance-print-work-performed>p{min-height:74px}
+  .maintenance-print-writing-lines{height:78px;border-right:1px solid #728076;border-bottom:1px solid #728076;border-left:1px solid #728076;background:repeating-linear-gradient(to bottom,#fff 0,#fff 25px,#c9d0ca 26px)}
+  .maintenance-print-parts-table{width:100%;border-collapse:collapse;table-layout:fixed}
+  .maintenance-print-parts-table th,.maintenance-print-parts-table td{height:25px;padding:4px 6px;border:1px solid #728076;text-align:left}
+  .maintenance-print-parts-table th{background:#f7f8f6;color:#4e5d53;font-size:7pt;text-transform:uppercase}
+  .maintenance-print-parts-table th:first-child{width:11%}
+  .maintenance-print-parts-table th:nth-child(2){width:42%}
+  .maintenance-print-closeout{display:grid;grid-template-columns:1fr 1.2fr;gap:18px;margin-top:13px;padding-top:10px;border-top:2px solid #234b31;break-inside:avoid}
+  .maintenance-print-checks{display:flex;flex-wrap:wrap;align-content:flex-start;gap:7px 13px}
+  .maintenance-print-checks strong{width:100%;color:#274b31;font-size:8pt;text-transform:uppercase}
+  .maintenance-print-checks span{font-size:8pt;white-space:nowrap}
+  .maintenance-print-signatures{display:grid;grid-template-columns:2fr .8fr;gap:10px 12px}
+  .maintenance-print-signatures div{display:grid;grid-template-columns:auto 1fr;align-items:end;gap:6px;color:#536057;font-size:7pt}
+  .maintenance-print-signatures i{display:block;height:18px;border-bottom:1px solid #35443a}
+  .maintenance-print-footer{display:flex;justify-content:space-between;gap:15px;margin-top:14px;padding-top:7px;border-top:1px solid #a7afa9;color:#59665e;font-size:7pt}
+  .maintenance-print-footer strong{color:#274b31;text-align:right}
+}

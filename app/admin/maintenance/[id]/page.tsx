@@ -10,6 +10,12 @@ import MaintenanceConversation from '../../../../components/MaintenanceConversat
 import { markAdminAlertsSeen } from '../../../../lib/admin-alert-actions'
 import MaintenancePartsPanel from '../../../../components/MaintenancePartsPanel'
 
+function formatWorkOrderDate(value?: string | null) {
+  if (!value) return '—'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleDateString()
+}
+
 export default function MaintenanceTicketPage() {
   const params = useParams()
   const router = useRouter()
@@ -185,7 +191,87 @@ export default function MaintenanceTicketPage() {
   return (
     <main className="page">
       <div className="container">
-        <section className="card admin-maintenance-detail-card">
+        <section className="maintenance-print-sheet" aria-hidden="true">
+          <header className="maintenance-print-header">
+            <div className="maintenance-print-brand">
+              <img src="/bur-oaks-logo.png" alt="" />
+              <div>
+                <strong>Bur Oaks Campground</strong>
+                <span>Maintenance Department</span>
+              </div>
+            </div>
+            <div className="maintenance-print-title">
+              <span>Official Work Order</span>
+              <strong>WO-{String(ticket.id).slice(0, 8).toUpperCase()}</strong>
+            </div>
+          </header>
+
+          <section className="maintenance-print-summary">
+            <div className="maintenance-print-job-title">
+              <span>Work Requested</span>
+              <h1>{ticket.title}</h1>
+            </div>
+            <div className={`maintenance-print-priority ${String(ticket.priority || 'normal').toLowerCase()}`}>
+              {ticket.priority || 'Normal'} Priority
+            </div>
+          </section>
+
+          <dl className="maintenance-print-details">
+            <div><dt>Lot / Site</dt><dd>{ticket.lot_number || 'N/A'}</dd></div>
+            <div><dt>Category</dt><dd>{ticket.category || 'General'}</dd></div>
+            <div><dt>Status</dt><dd>{status || ticket.status || 'Open'}</dd></div>
+            <div><dt>Assigned To</dt><dd>{assignedTo || 'Open'}</dd></div>
+            <div><dt>Reported By</dt><dd>{ticket.reported_by || 'N/A'}</dd></div>
+            <div><dt>Date Reported</dt><dd>{formatWorkOrderDate(ticket.created_at)}</dd></div>
+            <div><dt>Office Approval</dt><dd>{ticket.admin_approved ? 'Approved' : 'Pending'}</dd></div>
+            <div><dt>Approved Date</dt><dd>{formatWorkOrderDate(ticket.approved_at)}</dd></div>
+          </dl>
+
+          <section className="maintenance-print-section">
+            <h2>Problem / Requested Work</h2>
+            <p>{ticket.description || 'No description was provided.'}</p>
+            {Array.isArray(ticket.photo_urls) && ticket.photo_urls.length > 0 && (
+              <small>Reference photos are attached to this work order in the maintenance portal.</small>
+            )}
+          </section>
+
+          <section className="maintenance-print-section maintenance-print-work-performed">
+            <h2>Work Performed / Technician Notes</h2>
+            {completionNotes.trim() ? <p>{completionNotes}</p> : <div className="maintenance-print-writing-lines" aria-hidden="true" />}
+          </section>
+
+          <section className="maintenance-print-section">
+            <h2>Materials / Parts Used</h2>
+            <table className="maintenance-print-parts-table">
+              <thead><tr><th>Qty.</th><th>Part or Material</th><th>Source / Notes</th></tr></thead>
+              <tbody>
+                <tr><td>&nbsp;</td><td></td><td></td></tr>
+                <tr><td>&nbsp;</td><td></td><td></td></tr>
+                <tr><td>&nbsp;</td><td></td><td></td></tr>
+              </tbody>
+            </table>
+          </section>
+
+          <section className="maintenance-print-closeout">
+            <div className="maintenance-print-checks">
+              <strong>Job Result</strong>
+              <span>□ Completed</span><span>□ Waiting for Parts</span><span>□ Follow-Up Needed</span>
+            </div>
+            <div className="maintenance-print-signatures">
+              <div><span>Technician Signature</span><i /></div>
+              <div><span>Date</span><i /></div>
+              <div><span>Office Review</span><i /></div>
+              <div><span>Date</span><i /></div>
+            </div>
+          </section>
+
+          <footer className="maintenance-print-footer">
+            <span>10303 Oaks Rd. · Alhambra, IL 62001 · 618-488-7927</span>
+            <strong>Return completed work order to the campground office.</strong>
+          </footer>
+        </section>
+
+        <section className="card admin-maintenance-detail-card maintenance-screen-only">
           <button type="button" onClick={() => router.push('/admin/maintenance')} className="admin-maintenance-back-button">
             ← Back to all work orders
           </button>
