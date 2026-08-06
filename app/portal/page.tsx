@@ -99,8 +99,8 @@ const serviceLinks = [
   },
   {
     href: '/messages',
-    title: 'Message the Office',
-    description: 'Send a private note to Bur Oaks and see replies.',
+    title: 'Chat with the Office',
+    description: 'Chat privately with Bur Oaks and see your replies.',
     icon: MessageCircle,
     accent: 'blue',
   },
@@ -1038,7 +1038,7 @@ export default function CamperPortalPage() {
           <a className={unreadOfficeMessages > 0 ? 'attention' : ''} href="/messages">
             <MessageCircle size={20} />
             <span>
-              <small>{unreadOfficeMessages > 0 ? 'New office message' : 'Messages'}</small>
+              <small>{unreadOfficeMessages > 0 ? 'New office message' : 'Chat with the Office'}</small>
               <strong>{unreadOfficeMessages > 0 ? `${unreadOfficeMessages} unread` : 'Contact office'}</strong>
             </span>
           </a>

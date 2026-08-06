@@ -138,8 +138,8 @@ export default function CamperMessagesPage() {
       <section className="office-inbox-hero camper">
         <a href="/portal"><ArrowLeft size={17} /> Back to portal</a>
         <div>
-          <span><MessageCircle size={16} /> OFFICE INBOX</span>
-          <h1>Message the Bur Oaks office.</h1>
+          <span><MessageCircle size={16} /> CHAT WITH THE OFFICE</span>
+          <h1>Chat with the Bur Oaks office.</h1>
           <p>Ask a question, send a note, or follow up without hunting for a phone number. The office gets an email alert when you send a message.</p>
         </div>
       </section>

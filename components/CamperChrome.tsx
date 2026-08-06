@@ -26,7 +26,7 @@ const camperPages: Record<string, string> = {
   '/portal': 'Portal Home',
   '/invoices': 'Invoices & AutoPay',
   '/profile': 'Camper Profile',
-  '/messages': 'Message the Office',
+  '/messages': 'Chat with the Office',
   '/documents': 'My Documents',
   '/electric': 'Electric Usage',
   '/calendar': 'Events Calendar',
@@ -41,7 +41,7 @@ const camperPages: Record<string, string> = {
 const camperNav = [
   { href: '/portal', label: 'Portal Home', note: 'Weekend snapshot', icon: Home },
   { href: '/invoices', label: 'Invoices', note: 'Pay or AutoPay', icon: ReceiptText },
-  { href: '/messages', label: 'Office Inbox', note: 'Private messages', icon: MessageCircle },
+  { href: '/messages', label: 'Chat with the Office', note: 'Private messages', icon: MessageCircle },
   { href: '/maintenance', label: 'Maintenance', note: 'Requests & status', icon: Wrench },
   { href: '/documents', label: 'Documents', note: 'Leases & files', icon: FileText },
   { href: '/electric', label: 'Electric', note: 'Usage history', icon: Zap },
