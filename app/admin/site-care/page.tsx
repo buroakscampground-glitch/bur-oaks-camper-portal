@@ -1,20 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, ClipboardCheck, Eye, Leaf, Search, Send, Sparkles } from 'lucide-react'
+import { CheckCircle2, ClipboardCheck, Eye, Leaf, Search, Send, Sparkles } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 const templates = [
+  { key: 'weed-eat', title: 'Weed eat around site', message: 'Please weed eat around your camper, shed, deck, and other site edges so the lot stays neat.' },
+  { key: 'spray-weeds', title: 'Spray weeds', message: 'Please spray or remove the weeds around your site, including the camper, shed, deck, and gravel areas.' },
   { key: 'under-camper', title: 'Clear storage under camper', message: 'Please remove stored items from underneath your camper so the site stays neat and follows campground appearance rules.' },
-  { key: 'mower-in-shed', title: 'Store lawn mower in shed', message: 'Please move the lawn mower into your shed when it is not being used.' },
-  { key: 'mow-trim', title: 'Mow or trim around site', message: 'The grass and edges around your site need to be mowed or trimmed.' },
-  { key: 'loose-clutter', title: 'Remove loose clutter', message: 'Please tidy and store the loose items around your site so the area looks neat.' },
-  { key: 'fire-pit', title: 'Clean up fire pit area', message: 'Please clean up the fire pit area and remove any trash or items that do not belong there.' },
-  { key: 'tools-equipment', title: 'Store tools and equipment', message: 'Please place tools and outdoor equipment inside the shed or another approved storage area.' },
-  { key: 'pet-area', title: 'Clean up pet area', message: 'Please clean up the pet area around your site.' },
-  { key: 'parking', title: 'Correct vehicle or cart parking', message: 'Please move vehicles or golf carts into the approved parking area for your site.' },
-  { key: 'shed-deck', title: 'Shed or deck needs attention', message: 'The shed or deck area needs a little cleanup or attention to meet campground appearance standards.' },
-  { key: 'decorations', title: 'Remove seasonal decorations', message: 'Please remove seasonal decorations that are no longer in season.' },
+  { key: 'mower-in-shed', title: 'No lawn mower outside', message: 'Lawn mowers cannot be stored outside. Please move your mower into the shed when it is not being used.' },
+  { key: 'outside-fridge', title: 'No refrigerator outside', message: 'Refrigerators cannot be kept outside at the site. Please remove the outside refrigerator or move it into an approved enclosed area.' },
+  { key: 'propane-limit', title: 'Only one propane tank', message: 'Only one propane tank may be stored outside at your site. Please remove or properly store any additional tanks.' },
+  { key: 'pressure-wash', title: 'Pressure wash camper', message: 'The outside of your camper needs to be pressure washed or cleaned to remove dirt, mildew, or buildup.' },
+  { key: 'bike-storage', title: 'Store bikes neatly', message: 'Please organize and store bicycles neatly beside the camper or in the shed so they are not scattered around the site.' },
+  { key: 'secure-trash', title: 'Secure trash from raccoons', message: 'Raccoons have gotten into the trash at your site. Please clean up the area and keep all trash in a securely closed container.' },
+  { key: 'loose-clutter', title: 'Remove loose clutter', message: 'Please tidy and store loose items around your site so the area stays neat and follows campground appearance rules.' },
 ]
 
 function camperName(camper: any) {
