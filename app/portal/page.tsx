@@ -926,6 +926,48 @@ export default function CamperPortalPage() {
 
         </section>
 
+        <section className="portal-arrival-card" aria-label="Today at your site">
+          <div className="portal-arrival-main">
+            <span><Sparkles size={16} /> {formatFriendlyToday()}</span>
+            <h2>Lot {camper?.lot_number || '—'} is ready for the weekend.</h2>
+            <p>{portalMood}. Weather, billing, documents, dinners, and requests are all gathered here so you do not have to hunt around.</p>
+            {unreadOfficeMessages > 0 && (
+              <a className="portal-office-message-alert" href="/messages">
+                <span><MessageCircle size={17} /> New message from office</span>
+                <strong>{unreadOfficeMessages}</strong>
+              </a>
+            )}
+            <div className="portal-arrival-actions">
+              <a href={weekendFocus.href}>{weekendFocus.action} <ArrowRight size={16} /></a>
+              <a href="/dinners">Saturday dinners</a>
+              <a href="/maintenance">Need help?</a>
+            </div>
+          </div>
+
+          <div className="portal-arrival-status">
+            <a href="/invoices" className={openInvoices.length ? 'attention' : 'good'}>
+              <small>Balance</small>
+              <strong>{openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00'}</strong>
+              <em>{openInvoices.length ? `${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'} open` : 'Nothing due'}</em>
+            </a>
+            <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'good'}>
+              <small>Documents</small>
+              <strong>{documentsNeedingSignature.length || documents.length}</strong>
+              <em>{documentsNeedingSignature.length ? 'Need signature' : 'Ready'}</em>
+            </a>
+            <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'good'}>
+              <small>Requests</small>
+              <strong>{activeMaintenance.length || '0'}</strong>
+              <em>{activeMaintenance.length ? latestMaintenanceStatus : 'No active work'}</em>
+            </a>
+            <a href={nextDinner ? `/dinners?date=${nextDinner.date}` : '/dinners'} className="good">
+              <small>Next dinner</small>
+              <strong>{nextDinner ? `${nextDinner.month} ${nextDinner.day}` : 'Menu'}</strong>
+              <em>{nextDinner?.menu || 'View schedule'}</em>
+            </a>
+          </div>
+        </section>
+
         {activeSiteCare.length > 0 && (
           <section className="portal-site-care" id="site-care" aria-label="Site care notices from the office">
             <div className="portal-site-care-heading">
@@ -970,48 +1012,6 @@ export default function CamperPortalPage() {
             {siteCareMessage && <p className="portal-site-care-message">{siteCareMessage}</p>}
           </section>
         )}
-
-        <section className="portal-arrival-card" aria-label="Today at your site">
-          <div className="portal-arrival-main">
-            <span><Sparkles size={16} /> {formatFriendlyToday()}</span>
-            <h2>Lot {camper?.lot_number || '—'} is ready for the weekend.</h2>
-            <p>{portalMood}. Weather, billing, documents, dinners, and requests are all gathered here so you do not have to hunt around.</p>
-            {unreadOfficeMessages > 0 && (
-              <a className="portal-office-message-alert" href="/messages">
-                <span><MessageCircle size={17} /> New message from office</span>
-                <strong>{unreadOfficeMessages}</strong>
-              </a>
-            )}
-            <div className="portal-arrival-actions">
-              <a href={weekendFocus.href}>{weekendFocus.action} <ArrowRight size={16} /></a>
-              <a href="/dinners">Saturday dinners</a>
-              <a href="/maintenance">Need help?</a>
-            </div>
-          </div>
-
-          <div className="portal-arrival-status">
-            <a href="/invoices" className={openInvoices.length ? 'attention' : 'good'}>
-              <small>Balance</small>
-              <strong>{openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00'}</strong>
-              <em>{openInvoices.length ? `${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'} open` : 'Nothing due'}</em>
-            </a>
-            <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'good'}>
-              <small>Documents</small>
-              <strong>{documentsNeedingSignature.length || documents.length}</strong>
-              <em>{documentsNeedingSignature.length ? 'Need signature' : 'Ready'}</em>
-            </a>
-            <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'good'}>
-              <small>Requests</small>
-              <strong>{activeMaintenance.length || '0'}</strong>
-              <em>{activeMaintenance.length ? latestMaintenanceStatus : 'No active work'}</em>
-            </a>
-            <a href={nextDinner ? `/dinners?date=${nextDinner.date}` : '/dinners'} className="good">
-              <small>Next dinner</small>
-              <strong>{nextDinner ? `${nextDinner.month} ${nextDinner.day}` : 'Menu'}</strong>
-              <em>{nextDinner?.menu || 'View schedule'}</em>
-            </a>
-          </div>
-        </section>
 
         <section className="portal-quick-actions portal-quick-actions-top" aria-label="Camper quick actions">
           <a className={openInvoices.length ? 'attention' : ''} href="/invoices">
