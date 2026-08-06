@@ -90,7 +90,7 @@ export default function AdminSiteCarePage() {
       setMessage('')
       setDueDate('')
       setPriority('Standard')
-      setFeedback('Site care notice sent. It is now showing in the camper portal.')
+      setFeedback(result.smsMessage || 'Site care notice sent. It is now showing in the camper portal.')
     } catch (error: any) {
       setFeedback(error?.message || 'Unable to send this notice.')
     } finally {

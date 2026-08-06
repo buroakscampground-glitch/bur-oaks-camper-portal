@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
 
 export const runtime = 'nodejs'
 
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
 
   const { data: targetCamper, error: camperError } = await context.admin
     .from('campers')
-    .select('id,first_name,last_name,lot_number,active')
+    .select('id,first_name,last_name,lot_number,phone,sms_opt_in,active')
     .eq('id', camperId)
     .eq('active', true)
     .maybeSingle()
@@ -67,7 +68,53 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to send this site care notice.' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, notice })
+  if (!targetCamper.sms_opt_in) {
+    return NextResponse.json({
+      success: true,
+      notice,
+      smsStatus: 'skipped',
+      smsMessage: 'Portal notice sent. This camper has not opted in to text alerts.',
+    })
+  }
+
+  const phone = formatSmsPhone(targetCamper.phone)
+  if (!phone) {
+    return NextResponse.json({
+      success: true,
+      notice,
+      smsStatus: 'skipped',
+      smsMessage: 'Portal notice sent. This camper does not have a valid mobile number saved.',
+    })
+  }
+
+  const textMessage = 'Your site has a new item that needs attention. Please sign in to your camper portal to review it.'
+  const smsResult = await sendTwilioSms({
+    to: phone,
+    body: `Bur Oaks Campground: ${textMessage}\nhttps://www.buroakscampground.com/login\nReply STOP to opt out.`,
+  })
+
+  await context.admin.from('text_reminders').insert({
+    camper_id: targetCamper.id,
+    invoice_id: null,
+    reminder_type: 'Site Care Notice',
+    message: textMessage,
+    sent_at: new Date().toISOString(),
+    status: smsResult.sent ? 'sent' : 'failed',
+    recipient_phone: phone,
+    provider: 'twilio',
+    provider_message_id: smsResult.sent ? smsResult.providerMessageId : null,
+    error_message: smsResult.sent ? null : smsResult.error,
+    sent_by: context.user.email || 'Bur Oaks Admin',
+  })
+
+  return NextResponse.json({
+    success: true,
+    notice,
+    smsStatus: smsResult.sent ? 'sent' : 'failed',
+    smsMessage: smsResult.sent
+      ? 'Portal notice and text alert sent.'
+      : `Portal notice sent, but the text alert failed: ${smsResult.error}`,
+  })
 }
 
 export async function PATCH(request: Request) {
