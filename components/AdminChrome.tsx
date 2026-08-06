@@ -7,6 +7,7 @@ import {
   BookOpen,
   CalendarDays,
   CircleDollarSign,
+  ClipboardCheck,
   ClipboardList,
   FileText,
   Hammer,
@@ -63,6 +64,7 @@ const pageNames: Record<string, string> = {
   reports: 'Monthly Reports',
   settings: 'Campground Settings',
   'pump-outs': 'Pump-Out Requests',
+  'site-care': 'Site Care Notices',
 }
 
 const navGroups = [
@@ -97,6 +99,7 @@ const navGroups = [
   {
     label: 'Operations',
     links: [
+      { href: '/admin/site-care', label: 'Site Care', icon: ClipboardCheck },
       { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench },
       { href: '/admin/maintenance/supplies', label: 'Supply Requests', icon: ShoppingBasket },
       { href: '/admin/pump-outs', label: 'Pump-Outs', icon: Hammer },

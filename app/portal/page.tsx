@@ -12,10 +12,12 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   Droplets,
+  Eye,
   FileText,
   Gauge,
   Gift,
   Home,
+  Leaf,
   LogOut,
   MapPin,
   Megaphone,
@@ -192,6 +194,9 @@ export default function CamperPortalPage() {
   const [birthdayBoard, setBirthdayBoard] = useState<BirthdayBoard>(emptyBirthdayBoard)
   const [birthdaySending, setBirthdaySending] = useState('')
   const [birthdayMessage, setBirthdayMessage] = useState('')
+  const [siteCareNotices, setSiteCareNotices] = useState<any[]>([])
+  const [siteCareUpdating, setSiteCareUpdating] = useState('')
+  const [siteCareMessage, setSiteCareMessage] = useState('')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -228,7 +233,7 @@ export default function CamperPortalPage() {
         const {
           data: { session },
         } = await supabase.auth.getSession()
-        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult, birthdayResult] =
+        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult, birthdayResult, siteCareResult] =
           await Promise.all([
             supabase
               .from('invoices')
@@ -297,6 +302,12 @@ export default function CamperPortalPage() {
                   .then((response) => response.json())
                   .catch(() => null)
               : Promise.resolve(null),
+            supabase
+              .from('site_care_notices')
+              .select('*')
+              .eq('camper_id', camperData.id)
+              .neq('status', 'Resolved')
+              .order('created_at', { ascending: false }),
           ])
 
         setInvoices(invoiceResult.data || [])
@@ -316,6 +327,7 @@ export default function CamperPortalPage() {
         setUnreadOfficeMessages(messageResult.count || 0)
         setPumpOutRequests(pumpOutResult.data || [])
         setOfficePendingMessages(pendingOfficeResult.data || [])
+        setSiteCareNotices(siteCareResult.data || [])
         if (birthdayResult?.success) {
           setBirthdayBoard({
             monthName: birthdayResult.monthName || emptyBirthdayBoard.monthName,
@@ -347,6 +359,30 @@ export default function CamperPortalPage() {
   async function handleLogout() {
     await supabase.auth.signOut()
     window.location.href = '/login'
+  }
+
+  async function updateSiteCareNotice(noticeId: string, action: 'acknowledge' | 'ready_for_review') {
+    setSiteCareUpdating(noticeId)
+    setSiteCareMessage('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/site-care-notices', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token || ''}`,
+        },
+        body: JSON.stringify({ id: noticeId, action }),
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(result?.error || 'Unable to update this notice.')
+      setSiteCareNotices((current) => current.map((notice) => notice.id === noticeId ? result.notice : notice))
+      setSiteCareMessage(action === 'acknowledge' ? 'Thank you. The office can see that you received this notice.' : 'Thank you. The office has been told this is ready for review.')
+    } catch (error: any) {
+      setSiteCareMessage(error?.message || 'Unable to update this notice.')
+    } finally {
+      setSiteCareUpdating('')
+    }
   }
 
   function dismissPortalAlert(alertId: string) {
@@ -511,6 +547,7 @@ export default function CamperPortalPage() {
   const activePumpOutRequests = pumpOutRequests.filter(
     (request) => request.status !== 'cancelled' && !request.billed_at
   )
+  const activeSiteCare = siteCareNotices.filter((notice) => notice.status !== 'Resolved')
   const latestMaintenance = maintenanceTickets[0]
   const latestMaintenanceStatus = getMaintenanceDisplayStatus(latestMaintenance)
   const maintenanceHeadline = activeMaintenance.length
@@ -573,7 +610,14 @@ export default function CamperPortalPage() {
   ]
   const completedTasks = firstLoginTasks.filter((task) => task.complete).length
   const onboardingComplete = completedTasks === firstLoginTasks.length
-  const weekendFocus = documentsNeedingSignature.length
+  const weekendFocus = activeSiteCare.length
+    ? {
+        href: '#site-care',
+        title: 'Site care notice',
+        detail: `${activeSiteCare.length} site item${activeSiteCare.length === 1 ? '' : 's'} from the office to review.`,
+        action: 'Review site care',
+      }
+    : documentsNeedingSignature.length
     ? {
         href: '/documents',
         title: 'Signature needed',
@@ -616,6 +660,7 @@ export default function CamperPortalPage() {
     (activeMaintenance.length ? 1 : 0) +
     (activePumpOutRequests.length ? 1 : 0) +
     (officePendingMessages.length ? 1 : 0)
+    + (activeSiteCare.length ? 1 : 0)
   const nextDinner = upcomingDinners[0]
   const portalMood = urgentCount
     ? `${urgentCount} thing${urgentCount === 1 ? '' : 's'} need attention`
@@ -659,6 +704,15 @@ export default function CamperPortalPage() {
     { label: 'Texts', value: camper?.sms_opt_in ? 'On' : 'Off', complete: camper?.sms_opt_in === true },
   ]
   const whatIsNew = [
+    ...(activeSiteCare.length
+      ? [{
+          href: '#site-care',
+          label: 'Site care',
+          title: `${activeSiteCare.length} notice${activeSiteCare.length === 1 ? '' : 's'} from the office`,
+          tone: 'urgent',
+          icon: ClipboardCheck,
+        }]
+      : []),
     ...(unreadOfficeMessages > 0
       ? [{
           href: '/messages',
@@ -724,6 +778,15 @@ export default function CamperPortalPage() {
       : []),
   ].slice(0, 5)
   const camperCockpitItems = [
+    ...activeSiteCare.slice(0, 2).map((notice) => ({
+      href: '#site-care',
+      label: 'Site care',
+      title: notice.title,
+      detail: notice.message,
+      status: notice.status,
+      tone: notice.priority === 'Important' ? 'red' : 'gold',
+      icon: ClipboardCheck,
+    })),
     ...openInvoices.slice(0, 2).map((invoice) => ({
       href: '/invoices',
       label: 'Billing',
@@ -862,6 +925,51 @@ export default function CamperPortalPage() {
           </div>
 
         </section>
+
+        {activeSiteCare.length > 0 && (
+          <section className="portal-site-care" id="site-care" aria-label="Site care notices from the office">
+            <div className="portal-site-care-heading">
+              <span className="portal-site-care-icon"><Leaf size={25} /></span>
+              <div>
+                <small>A FRIENDLY NOTE FROM THE OFFICE</small>
+                <h2>Let’s keep your site looking its best.</h2>
+                <p>These items stay here until they are handled, so you do not have to search through texts.</p>
+              </div>
+              <span className="portal-site-care-count">{activeSiteCare.length} active</span>
+            </div>
+
+            <div className="portal-site-care-list">
+              {activeSiteCare.map((notice) => (
+                <article className={notice.priority === 'Important' ? 'important' : ''} key={notice.id}>
+                  <div className="portal-site-care-notice-top">
+                    <span><ClipboardCheck size={18} /></span>
+                    <div>
+                      <small>{notice.priority === 'Important' ? 'IMPORTANT SITE ITEM' : 'SITE CARE ITEM'}{notice.due_date ? ` · REQUESTED BY ${formatDate(notice.due_date)}` : ''}</small>
+                      <h3>{notice.title}</h3>
+                    </div>
+                    <em>{notice.status}</em>
+                  </div>
+                  <p>{notice.message}</p>
+                  <div className="portal-site-care-actions">
+                    {notice.status === 'Open' && (
+                      <button type="button" disabled={siteCareUpdating === notice.id} onClick={() => updateSiteCareNotice(notice.id, 'acknowledge')}>
+                        <Eye size={16} /> I understand
+                      </button>
+                    )}
+                    {notice.status !== 'Ready for Review' ? (
+                      <button className="complete" type="button" disabled={siteCareUpdating === notice.id} onClick={() => updateSiteCareNotice(notice.id, 'ready_for_review')}>
+                        <CheckCircle2 size={16} /> This is taken care of
+                      </button>
+                    ) : (
+                      <span><CheckCircle2 size={16} /> Office review requested</span>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+            {siteCareMessage && <p className="portal-site-care-message">{siteCareMessage}</p>}
+          </section>
+        )}
 
         <section className="portal-arrival-card" aria-label="Today at your site">
           <div className="portal-arrival-main">
