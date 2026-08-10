@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Droplets, Printer, Search, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 
 const statusLabels: Record<string, string> = {
   requested: 'Needs Pumped',
@@ -87,6 +88,10 @@ export default function AdminPumpOutsPage() {
   const activeRequests = requests.filter((request) => request.status !== 'cancelled' && !request.billed_at)
   const completedUnbilled = requests.filter((request) => request.status === 'completed' && !request.billed_at)
   const pendingChargeTotal = activeRequests.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
+  const pendingGallons = activeRequests.reduce(
+    (sum, request) => sum + Number(request.gallons_used || getSewerPumpOutGallonsForCharge(request.charge_amount)),
+    0
+  )
 
   return (
     <main className="admin-pump-page">
@@ -101,6 +106,7 @@ export default function AdminPumpOutsPage() {
         <article><small>Needs attention</small><strong>{activeRequests.length}</strong></article>
         <article><small>Pumped, not billed</small><strong>{completedUnbilled.length}</strong></article>
         <article><small>Pending charges</small><strong>${pendingChargeTotal.toFixed(2)}</strong></article>
+        <article><small>Gallons on active list</small><strong>{pendingGallons.toLocaleString()}</strong></article>
       </section>
 
       <section className="admin-pump-toolbar">
@@ -129,7 +135,7 @@ export default function AdminPumpOutsPage() {
                 <h2>{request.camper_name}</h2>
                 <p>{request.notes || 'No notes. Camper requested sewer pump-out from the portal.'}</p>
                 <em>
-                  ${Number(request.charge_amount || 10).toFixed(2)}
+                  {Number(request.gallons_used || getSewerPumpOutGallonsForCharge(request.charge_amount)).toLocaleString()} gallons · ${Number(request.charge_amount || 10).toFixed(2)}
                   {isBilled ? ` · billed on ${new Date(request.billed_at).toLocaleDateString()}` : ' · pending next electric bill'}
                 </em>
               </div>

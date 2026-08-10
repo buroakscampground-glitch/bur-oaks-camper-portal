@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, CalendarDays, Download, FileSpreadsheet, Printer, ReceiptText, Search } from 'lucide-react'
+import { ArrowLeft, BarChart3, CalendarDays, Download, Droplets, FileSpreadsheet, Printer, ReceiptText, Search } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 
 const categoryColors: Record<string, string> = {
   Electric: '#2f6fad',
@@ -28,6 +29,15 @@ function monthRange(monthValue: string) {
     start,
     end,
     label: start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+  }
+}
+
+function yearRange(monthValue: string) {
+  const year = Number(monthValue.split('-')[0])
+  return {
+    year,
+    start: new Date(year, 0, 1),
+    end: new Date(year + 1, 0, 1),
   }
 }
 
@@ -108,11 +118,15 @@ function csvEscape(value: unknown) {
 export default function AdminMonthlyReportsPage() {
   const [month, setMonth] = useState(monthInputValue())
   const [invoices, setInvoices] = useState<any[]>([])
+  const [yearInvoices, setYearInvoices] = useState<any[]>([])
+  const [pumpOuts, setPumpOuts] = useState<any[]>([])
+  const [yearPumpOuts, setYearPumpOuts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
 
   const range = useMemo(() => monthRange(month), [month])
+  const annualRange = useMemo(() => yearRange(month), [month])
 
   useEffect(() => {
     loadReport()
@@ -122,30 +136,51 @@ export default function AdminMonthlyReportsPage() {
     setLoading(true)
     setMessage('')
 
-    const { data, error } = await supabase
-      .from('invoices')
-      .select(`
-        *,
-        campers (
-          id,
-          first_name,
-          last_name,
-          lot_number,
-          email
-        ),
-        invoice_items (*)
-      `)
-      .eq('status', 'paid')
-      .gte('paid_at', range.start.toISOString())
-      .lt('paid_at', range.end.toISOString())
-      .order('paid_at', { ascending: false })
+    const [invoiceResult, yearInvoiceResult, pumpOutResult, yearPumpOutResult] = await Promise.all([
+      supabase
+        .from('invoices')
+        .select(`
+          *,
+          campers (
+            id,
+            first_name,
+            last_name,
+            lot_number,
+            email
+          ),
+          invoice_items (*)
+        `)
+        .eq('status', 'paid')
+        .gte('paid_at', range.start.toISOString())
+        .lt('paid_at', range.end.toISOString())
+        .order('paid_at', { ascending: false }),
+      supabase
+        .from('invoices')
+        .select('id,total_due,paid_at')
+        .eq('status', 'paid')
+        .gte('paid_at', annualRange.start.toISOString())
+        .lt('paid_at', annualRange.end.toISOString()),
+      supabase
+        .from('sewer_pump_out_requests')
+        .select('id,lot_number,camper_name,charge_amount,gallons_used,notes,completed_at,billed_at')
+        .eq('status', 'completed')
+        .gte('completed_at', range.start.toISOString())
+        .lt('completed_at', range.end.toISOString())
+        .order('completed_at', { ascending: false }),
+      supabase
+        .from('sewer_pump_out_requests')
+        .select('id,charge_amount,gallons_used,completed_at')
+        .eq('status', 'completed')
+        .gte('completed_at', annualRange.start.toISOString())
+        .lt('completed_at', annualRange.end.toISOString()),
+    ])
 
-    if (error) {
-      setMessage(error.message)
-      setInvoices([])
-    } else {
-      setInvoices(data || [])
-    }
+    const errors = [invoiceResult.error, yearInvoiceResult.error, pumpOutResult.error, yearPumpOutResult.error].filter(Boolean)
+    setMessage(errors.map((error) => error?.message).join(' '))
+    setInvoices(invoiceResult.data || [])
+    setYearInvoices(yearInvoiceResult.data || [])
+    setPumpOuts(pumpOutResult.data || [])
+    setYearPumpOuts(yearPumpOutResult.data || [])
 
     setLoading(false)
   }
@@ -243,6 +278,30 @@ export default function AdminMonthlyReportsPage() {
     }
   })
 
+  const pumpOutGallons = (request: any) => Number(
+    request.gallons_used || getSewerPumpOutGallonsForCharge(request.charge_amount)
+  )
+  const totalPumpOutGallons = pumpOuts.reduce((sum, request) => sum + pumpOutGallons(request), 0)
+  const holdingTankPumpOuts = pumpOuts.filter((request) => pumpOutGallons(request) === 150).length
+  const standardPumpOuts = pumpOuts.filter((request) => pumpOutGallons(request) === 30).length
+  const annualMonths = useMemo(() => {
+    return Array.from({ length: 12 }, (_, monthIndex) => {
+      const revenue = yearInvoices
+        .filter((invoice) => new Date(invoice.paid_at).getMonth() === monthIndex)
+        .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+      const gallons = yearPumpOuts
+        .filter((request) => new Date(request.completed_at).getMonth() === monthIndex)
+        .reduce((sum, request) => sum + pumpOutGallons(request), 0)
+      return {
+        label: new Date(annualRange.year, monthIndex, 1).toLocaleDateString('en-US', { month: 'short' }),
+        revenue,
+        gallons,
+      }
+    })
+  }, [annualRange.year, yearInvoices, yearPumpOuts])
+  const annualMaxRevenue = Math.max(...annualMonths.map((entry) => entry.revenue), 1)
+  const annualMaxGallons = Math.max(...annualMonths.map((entry) => entry.gallons), 1)
+
   function exportCsv() {
     const rows = [
       [
@@ -291,6 +350,29 @@ export default function AdminMonthlyReportsPage() {
     URL.revokeObjectURL(url)
   }
 
+  function exportPumpOutCsv() {
+    const rows = [
+      ['Completed Date', 'Lot', 'Camper', 'Gallons Used', 'Charge', 'Billed Date', 'Notes'],
+      ...pumpOuts.map((request) => [
+        formatDateTime(request.completed_at),
+        request.lot_number || '',
+        request.camper_name || '',
+        pumpOutGallons(request),
+        Number(request.charge_amount || 0).toFixed(2),
+        formatDateTime(request.billed_at),
+        request.notes || '',
+      ]),
+    ]
+    const csv = rows.map((row) => row.map(csvEscape).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `bur-oaks-pump-out-gallons-${month}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <main className="admin-report-page">
       <div className="admin-report-shell">
@@ -301,8 +383,8 @@ export default function AdminMonthlyReportsPage() {
             <p className="admin-report-eyebrow"><FileSpreadsheet size={16} /> Monthly money report</p>
             <h1>What came in, when, and what it was for.</h1>
             <p>
-              Pick a month to see paid invoices, detailed line items, payment methods,
-              camper lots, and export-ready bookkeeping details.
+              Pick a month to see paid invoices, detailed line items, pump-out gallons,
+              camper lots, and a full-year comparison.
             </p>
           </div>
 
@@ -435,6 +517,98 @@ export default function AdminMonthlyReportsPage() {
                 </p>
               )) : <p className="admin-report-empty">No itemized charges found for this month.</p>}
             </div>
+          </div>
+        </section>
+
+        <section className="admin-report-panel">
+          <div className="admin-report-heading">
+            <div>
+              <span><BarChart3 size={14} /> YEAR AT A GLANCE</span>
+              <h2>Compare every month in {annualRange.year}</h2>
+            </div>
+          </div>
+
+          <div className="admin-report-year-charts">
+            <article>
+              <div className="admin-report-chart-title">
+                <div><small>PAID REVENUE</small><strong>{formatMoney(annualMonths.reduce((sum, entry) => sum + entry.revenue, 0))}</strong></div>
+                <span>Year total</span>
+              </div>
+              <div className="admin-report-bars" aria-label={`${annualRange.year} paid revenue by month`}>
+                {annualMonths.map((entry) => (
+                  <div key={`revenue-${entry.label}`}>
+                    <span>{entry.revenue ? formatMoney(entry.revenue) : '$0'}</span>
+                    <i><b style={{ height: `${Math.max(entry.revenue ? 5 : 1, (entry.revenue / annualMaxRevenue) * 100)}%` }} /></i>
+                    <small>{entry.label}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <article>
+              <div className="admin-report-chart-title">
+                <div><small>PUMP-OUT USAGE</small><strong>{annualMonths.reduce((sum, entry) => sum + entry.gallons, 0).toLocaleString()} gal</strong></div>
+                <span>Year total</span>
+              </div>
+              <div className="admin-report-bars gallons" aria-label={`${annualRange.year} pump-out gallons by month`}>
+                {annualMonths.map((entry) => (
+                  <div key={`gallons-${entry.label}`}>
+                    <span>{entry.gallons.toLocaleString()}</span>
+                    <i><b style={{ height: `${Math.max(entry.gallons ? 5 : 1, (entry.gallons / annualMaxGallons) * 100)}%` }} /></i>
+                    <small>{entry.label}</small>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section className="admin-report-panel admin-report-pump-record">
+          <div className="admin-report-heading">
+            <div>
+              <span><Droplets size={14} /> STATE PUMP-OUT RECORD</span>
+              <h2>Gallons pumped in {range.label}</h2>
+            </div>
+            <button type="button" className="admin-report-export-secondary" onClick={exportPumpOutCsv} disabled={!pumpOuts.length}>
+              <Download size={16} /> Export gallon log
+            </button>
+          </div>
+
+          <div className="admin-report-pump-kpis">
+            <article><small>Total gallons</small><strong>{totalPumpOutGallons.toLocaleString()}</strong><em>{pumpOuts.length} completed pump-out{pumpOuts.length === 1 ? '' : 's'}</em></article>
+            <article><small>150-gallon visits</small><strong>{holdingTankPumpOuts}</strong><em>$15 holding-tank service</em></article>
+            <article><small>30-gallon visits</small><strong>{standardPumpOuts}</strong><em>$10 standard service</em></article>
+          </div>
+
+          <div className="admin-report-table-wrap">
+            <table className="admin-report-table admin-report-pump-table">
+              <thead>
+                <tr>
+                  <th>Date pumped</th>
+                  <th>Lot</th>
+                  <th>Camper</th>
+                  <th>Gallons</th>
+                  <th>Charge</th>
+                  <th>Billed</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pumpOuts.length ? pumpOuts.map((request) => (
+                  <tr key={request.id}>
+                    <td>{formatDateTime(request.completed_at)}</td>
+                    <td><strong>{request.lot_number || '—'}</strong></td>
+                    <td>{request.camper_name || 'Camper'}</td>
+                    <td><strong>{pumpOutGallons(request).toLocaleString()}</strong></td>
+                    <td>{formatMoney(request.charge_amount)}</td>
+                    <td>{request.billed_at ? formatDateTime(request.billed_at) : 'Not billed yet'}</td>
+                    <td>{request.notes || '—'}</td>
+                  </tr>
+                )) : (
+                  <tr><td colSpan={7}>No completed pump-outs found for this month.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </section>
 

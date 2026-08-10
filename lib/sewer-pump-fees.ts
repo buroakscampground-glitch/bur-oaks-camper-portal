@@ -26,6 +26,8 @@ const holdingTankPumpOutLots = new Set([
 ])
 
 export const holdingTankPumpOutFee = 15
+export const holdingTankPumpOutGallons = 150
+export const standardPumpOutGallons = 30
 
 export function normalizeLotNumber(lotNumber: string | null | undefined) {
   return String(lotNumber || '')
@@ -41,4 +43,10 @@ export function isHoldingTankPumpOutLot(lotNumber: string | null | undefined) {
 
 export function getSewerPumpOutFeeForLot(lotNumber: string | null | undefined, defaultFee: number) {
   return isHoldingTankPumpOutLot(lotNumber) ? holdingTankPumpOutFee : defaultFee
+}
+
+export function getSewerPumpOutGallonsForCharge(chargeAmount: number | string | null | undefined) {
+  return Number(chargeAmount || 0) === holdingTankPumpOutFee
+    ? holdingTankPumpOutGallons
+    : standardPumpOutGallons
 }
