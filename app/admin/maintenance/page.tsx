@@ -7,6 +7,7 @@ import {
   ArrowRight,
   ClipboardList,
   Hammer,
+  Printer,
   Search,
   ShieldCheck,
   Trash2,
@@ -30,6 +31,7 @@ export default function MaintenancePage() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [archivedCount, setArchivedCount] = useState(0)
   const [creating, setCreating] = useState(false)
+  const [sendingWorkOrders, setSendingWorkOrders] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -147,6 +149,21 @@ export default function MaintenancePage() {
     loadTickets()
   }
 
+  async function sendWorkOrdersNow() {
+    if (!window.confirm('Send all active approved work orders to Gmail and the Epson printer now?')) return
+    setSendingWorkOrders(true)
+    setMessage('Creating the work-order packet and sending it to Gmail and the Epson printer…')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/maintenance-work-order-report', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+    })
+    const result = await response.json().catch(() => null)
+    setMessage(result?.message || result?.error || 'Unable to send the work-order packet.')
+    setSendingWorkOrders(false)
+  }
+
   async function setApproval(id: string, approved: boolean) {
     const {
       data: { user },
@@ -219,6 +236,14 @@ export default function MaintenancePage() {
           <a href="/admin/maintenance/archive">Completed ticket archive <ArrowRight size={16} /></a>
           <a href="/admin/maintenance/supplies">Supply requests <ArrowRight size={16} /></a>
           <a href="/admin/maintenance/inventory">Manage inventory & receipts <ArrowRight size={16} /></a>
+          <button
+            type="button"
+            onClick={sendWorkOrdersNow}
+            disabled={sendingWorkOrders}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 38, marginTop: 22, border: '1px solid rgba(255,255,255,.24)', background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 12, fontWeight: 900 }}
+          >
+            <Printer size={16} /> {sendingWorkOrders ? 'Sending…' : 'Print Active Work Orders Now'}
+          </button>
         </div>
       </section>
 
