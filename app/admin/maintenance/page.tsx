@@ -150,9 +150,9 @@ export default function MaintenancePage() {
   }
 
   async function sendWorkOrdersNow() {
-    if (!window.confirm('Send all active approved work orders to Gmail and the Epson printer now?')) return
+    if (!window.confirm('Send new approved work orders that have not printed yet to Gmail and the Epson printer now?')) return
     setSendingWorkOrders(true)
-    setMessage('Creating the work-order packet and sending it to Gmail and the Epson printer…')
+    setMessage('Creating the new work-order packet and sending it to Gmail and the Epson printer…')
 
     const { data: { session } } = await supabase.auth.getSession()
     const response = await fetch('/api/maintenance-work-order-report', {
@@ -175,7 +175,7 @@ export default function MaintenancePage() {
         admin_approved: approved,
         approved_at: approved ? new Date().toISOString() : null,
         approved_by: approved ? user?.email || 'Admin' : null,
-        ...(approved ? {} : { status: 'Open', assigned_to: 'Open' }),
+        ...(approved ? { work_order_printed_at: null } : { status: 'Open', assigned_to: 'Open' }),
       })
       .eq('id', id)
 
@@ -242,7 +242,7 @@ export default function MaintenancePage() {
             disabled={sendingWorkOrders}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 7, minHeight: 38, marginTop: 22, border: '1px solid rgba(255,255,255,.24)', background: 'rgba(255,255,255,.12)', color: '#fff', fontSize: 12, fontWeight: 900 }}
           >
-            <Printer size={16} /> {sendingWorkOrders ? 'Sending…' : 'Print Active Work Orders Now'}
+            <Printer size={16} /> {sendingWorkOrders ? 'Sending…' : 'Print New Work Orders Now'}
           </button>
         </div>
       </section>

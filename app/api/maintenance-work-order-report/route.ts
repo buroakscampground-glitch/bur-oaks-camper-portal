@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   try {
     const result = await sendMaintenanceWorkOrderReport(context.admin, todayInCentral())
     if (result.skipped) {
-      return NextResponse.json({ success: true, skipped: true, itemCount: 0, message: 'No active approved work orders to print.' })
+      return NextResponse.json({ success: true, skipped: true, itemCount: 0, message: 'No new approved work orders are waiting to print.' })
     }
 
     const success = Boolean(result.office?.sent && result.printer?.sent)
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
       office: result.office,
       printer: result.printer,
       message: success
-        ? `Sent ${result.orders.length} active work order${result.orders.length === 1 ? '' : 's'} to Gmail and the Epson printer.`
+        ? `Sent ${result.orders.length} new work order${result.orders.length === 1 ? '' : 's'} to Gmail and the Epson printer. ${result.orders.length === 1 ? 'It is' : 'They are'} now marked printed.`
         : `The packet was created, but one or more deliveries failed. Gmail: ${result.office?.sent ? 'sent' : result.office?.error}. Printer: ${result.printer?.sent ? 'sent' : result.printer?.error}.`,
     }, { status: success ? 200 : 502 })
   } catch (error: any) {

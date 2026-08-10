@@ -12,6 +12,7 @@ export type MaintenanceWorkOrder = {
   reported_by?: string | null
   created_at?: string | null
   approved_at?: string | null
+  work_order_printed_at?: string | null
   photo_urls?: string[] | null
 }
 
@@ -158,9 +159,9 @@ function drawWorkOrderPage(page: PDFPage, order: MaintenanceWorkOrder, regular: 
 
 export async function buildMaintenanceWorkOrdersPdf(orders: MaintenanceWorkOrder[], reportDate: string) {
   const pdf = await PDFDocument.create()
-  pdf.setTitle(`Bur Oaks Active Maintenance Work Orders - ${reportDate}`)
+  pdf.setTitle(`Bur Oaks New Maintenance Work Orders - ${reportDate}`)
   pdf.setAuthor('Bur Oaks Campground')
-  pdf.setSubject('Daily active maintenance work-order packet')
+  pdf.setSubject('New maintenance work orders awaiting their first print')
   const regular = await pdf.embedFont(StandardFonts.Helvetica)
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
 
@@ -172,12 +173,13 @@ export async function buildMaintenanceWorkOrdersPdf(orders: MaintenanceWorkOrder
   return pdf.save()
 }
 
-export async function loadActiveMaintenanceWorkOrders(client: any) {
+export async function loadNewMaintenanceWorkOrders(client: any) {
   const { data, error } = await client
     .from('maintenance_tickets')
-    .select('id,title,description,category,priority,status,assigned_to,lot_number,reported_by,created_at,approved_at,photo_urls')
+    .select('id,title,description,category,priority,status,assigned_to,lot_number,reported_by,created_at,approved_at,work_order_printed_at,photo_urls')
     .eq('admin_approved', true)
     .neq('status', 'Completed')
+    .is('work_order_printed_at', null)
     .order('priority', { ascending: true })
     .order('created_at', { ascending: true })
 
@@ -198,9 +200,9 @@ function emailFrom() {
 
 async function sendWorkOrderEmail(to: string, pdfBytes: Uint8Array, reportDate: string, count: number): Promise<DeliveryResult> {
   const from = emailFrom()
-  const filename = `bur-oaks-active-work-orders-${reportDate}.pdf`
-  const subject = `Bur Oaks active maintenance work orders - ${reportDate}`
-  const text = `Bur Oaks daily maintenance packet for ${reportDate}. ${count} active approved work order${count === 1 ? '' : 's'}. Each work order is on its own printable page.`
+  const filename = `bur-oaks-new-work-orders-${reportDate}.pdf`
+  const subject = `Bur Oaks new maintenance work orders - ${reportDate}`
+  const text = `Bur Oaks maintenance packet for ${reportDate}. ${count} new approved work order${count === 1 ? '' : 's'} ready for its first print. Each work order is on its own printable page.`
   const attachment = Buffer.from(pdfBytes).toString('base64')
 
   if (!from) return { sent: false, provider: null, error: 'The campground email sender is not configured.' }
@@ -247,7 +249,7 @@ async function sendWorkOrderEmail(to: string, pdfBytes: Uint8Array, reportDate: 
 }
 
 export async function sendMaintenanceWorkOrderReport(client: any, reportDate: string) {
-  const orders = await loadActiveMaintenanceWorkOrders(client)
+  const orders = await loadNewMaintenanceWorkOrders(client)
   if (!orders.length) return { orders, pdfBytes: null, office: null, printer: null, skipped: true }
 
   const pdfBytes = await buildMaintenanceWorkOrdersPdf(orders, reportDate)
@@ -257,6 +259,15 @@ export async function sendMaintenanceWorkOrderReport(client: any, reportDate: st
     sendWorkOrderEmail(officeEmail, pdfBytes, reportDate, orders.length),
     sendWorkOrderEmail(printerEmail, pdfBytes, reportDate, orders.length),
   ])
+
+  if (printer.sent) {
+    const { error } = await client
+      .from('maintenance_tickets')
+      .update({ work_order_printed_at: new Date().toISOString() })
+      .in('id', orders.map((order) => order.id))
+
+    if (error) throw new Error(`The printer received the packet, but the work orders could not be marked printed: ${error.message}`)
+  }
 
   return { orders, pdfBytes, office, printer, skipped: false, officeEmail, printerEmail }
 }

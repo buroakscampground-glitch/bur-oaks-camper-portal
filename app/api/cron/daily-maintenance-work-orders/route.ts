@@ -60,7 +60,7 @@ export async function GET(request: Request) {
         status: 'sent', item_count: 0, office_email_status: 'skipped', printer_email_status: 'skipped',
         completed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }).eq('id', reservation.id)
-      return NextResponse.json({ success: true, skipped: true, reason: 'No active approved work orders.', itemCount: 0 })
+      return NextResponse.json({ success: true, skipped: true, reason: 'No new approved work orders are waiting to print.', itemCount: 0 })
     }
 
     const office = result.office!
