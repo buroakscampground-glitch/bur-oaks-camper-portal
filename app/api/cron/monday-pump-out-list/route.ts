@@ -41,8 +41,10 @@ export async function GET(request: Request) {
   }
 
   const current = centralNow()
-  if (current.weekday !== 'Mon' || current.hour !== 7) {
-    return NextResponse.json({ success: true, skipped: true, reason: 'Not Monday at 7:00 AM Central.', current })
+  // Vercel Hobby permits one cron invocation per day. 13:00 UTC lands at
+  // 8:00 AM Central during daylight time and 7:00 AM during standard time.
+  if (current.weekday !== 'Mon' || (current.hour !== 7 && current.hour !== 8)) {
+    return NextResponse.json({ success: true, skipped: true, reason: 'Not the scheduled Monday-morning Central window.', current })
   }
 
   const admin = adminClient()
