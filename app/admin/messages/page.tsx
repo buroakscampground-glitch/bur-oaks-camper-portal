@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Bell, CheckCircle2, Mail, MessageCircle, Search, Send, UserRound, UsersRound, X } from 'lucide-react'
+import { ArrowLeft, Bell, CheckCircle2, Clock3, Inbox, Mail, MessageCircle, RefreshCw, Search, Send, UserRound, UsersRound, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 function formatMessageTime(value?: string) {
@@ -23,12 +23,15 @@ export default function AdminMessagesPage() {
   const [selectedCamperId, setSelectedCamperId] = useState('')
   const [messages, setMessages] = useState<any[]>([])
   const [search, setSearch] = useState('')
+  const [listMode, setListMode] = useState<'inbox' | 'all'>('inbox')
+  const [mobileThreadOpen, setMobileThreadOpen] = useState(false)
   const [draft, setDraft] = useState('')
   const [selectedCamperIds, setSelectedCamperIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
   const activeThreadRequest = useRef('')
+  const messageListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     loadConversations()
@@ -37,12 +40,20 @@ export default function AdminMessagesPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const camperId = params.get('camperId')
-    if (camperId) setSelectedCamperId(camperId)
+    if (camperId) {
+      setSelectedCamperId(camperId)
+      setMobileThreadOpen(true)
+    }
   }, [])
 
   useEffect(() => {
     if (selectedCamperId) loadThread(selectedCamperId)
   }, [selectedCamperId])
+
+  useEffect(() => {
+    if (!messageListRef.current) return
+    messageListRef.current.scrollTop = messageListRef.current.scrollHeight
+  }, [messages, selectedCamperId])
 
   async function authHeaders(): Promise<Record<string, string>> {
     const {
@@ -63,8 +74,9 @@ export default function AdminMessagesPage() {
       setNotice(result.error || 'Unable to open inbox.')
     } else {
       setConversations(result.conversations || [])
-      if (!selectedCamperId && result.conversations?.[0]?.camper?.id) {
-        setSelectedCamperId(result.conversations[0].camper.id)
+      const firstMessageConversation = result.conversations?.find((conversation: any) => conversation.messageCount > 0)
+      if (!selectedCamperId && firstMessageConversation?.camper?.id) {
+        setSelectedCamperId(firstMessageConversation.camper.id)
       }
     }
 
@@ -147,14 +159,15 @@ export default function AdminMessagesPage() {
     const term = search.trim().toLowerCase()
     return conversations.filter((conversation) => {
       const camper = conversation.camper
-      return !term || `${camperName(camper)} ${camper.lot_number || ''} ${camper.email || ''}`.toLowerCase().includes(term)
+      const belongsInMode = listMode === 'all' || conversation.messageCount > 0
+      return belongsInMode && (!term || `${camperName(camper)} ${camper.lot_number || ''} ${camper.email || ''}`.toLowerCase().includes(term))
     })
-  }, [conversations, search])
+  }, [conversations, listMode, search])
   const selectedConversation = conversations.find((conversation) => String(conversation.camper.id) === String(selectedCamperId))
 
   useEffect(() => {
     const term = search.trim()
-    if (!term || filteredConversations.length === 0) return
+    if (!term || filteredConversations.length === 0 || mobileThreadOpen) return
 
     const selectedIsVisible = filteredConversations.some(
       (conversation) => String(conversation.camper.id) === String(selectedCamperId)
@@ -163,7 +176,7 @@ export default function AdminMessagesPage() {
     if (!selectedIsVisible) {
       setSelectedCamperId(String(filteredConversations[0].camper.id))
     }
-  }, [filteredConversations, search, selectedCamperId])
+  }, [filteredConversations, search, selectedCamperId, mobileThreadOpen])
 
   const unreadTotal = conversations.reduce((sum, conversation) => sum + Number(conversation.unreadCount || 0), 0)
   const selectedBulkCount = selectedCamperIds.length
@@ -186,6 +199,18 @@ export default function AdminMessagesPage() {
     setSelectedCamperIds(Array.from(new Set(filteredConversations.map((conversation) => String(conversation.camper.id)))))
   }
 
+  function openConversation(camperId: string) {
+    setSelectedCamperIds([])
+    setSelectedCamperId(camperId)
+    setMobileThreadOpen(true)
+  }
+
+  function showInbox() {
+    setMobileThreadOpen(false)
+    setSelectedCamperIds([])
+    setNotice('')
+  }
+
   return (
     <main className="office-inbox-page admin">
       <section className="office-inbox-hero">
@@ -200,29 +225,57 @@ export default function AdminMessagesPage() {
         </div>
       </section>
 
-      <section className="office-inbox-shell admin">
+      <section className={`office-inbox-shell admin ${mobileThreadOpen ? 'thread-open' : ''}`}>
         <aside className="office-conversation-list">
+          <div className="office-list-heading">
+            <div>
+              <small>OFFICE MAILBOX</small>
+              <h2>{listMode === 'inbox' ? 'Conversations' : 'Camper directory'}</h2>
+            </div>
+            <button type="button" onClick={loadConversations} disabled={loading} aria-label="Refresh inbox">
+              <RefreshCw size={16} className={loading ? 'spinning' : ''} />
+            </button>
+          </div>
+
+          <div className="office-inbox-tabs" role="tablist" aria-label="Message list">
+            <button type="button" className={listMode === 'inbox' ? 'active' : ''} onClick={() => setListMode('inbox')}>
+              <Inbox size={15} /> Inbox {unreadTotal > 0 && <strong>{unreadTotal}</strong>}
+            </button>
+            <button type="button" className={listMode === 'all' ? 'active' : ''} onClick={() => setListMode('all')}>
+              <UsersRound size={15} /> All campers
+            </button>
+          </div>
+
           <label className="office-inbox-search">
             <Search size={16} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search camper, lot, or email" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder={listMode === 'inbox' ? 'Search conversations' : 'Search camper, lot, or email'} />
           </label>
 
-          <div className="office-bulk-toolbar">
+          {listMode === 'all' && <div className="office-bulk-toolbar">
             <button type="button" onClick={selectAllVisible} disabled={filteredConversations.length === 0}>
               <UsersRound size={15} /> Select all visible
             </button>
             {selectedBulkCount > 0 && (
-              <button type="button" onClick={() => setSelectedCamperIds([])}>
-                <X size={15} /> Clear {selectedBulkCount}
-              </button>
+              <>
+                <button type="button" className="primary" onClick={() => setMobileThreadOpen(true)}>
+                  <Send size={15} /> Message {selectedBulkCount}
+                </button>
+                <button type="button" onClick={() => setSelectedCamperIds([])}>
+                  <X size={15} /> Clear
+                </button>
+              </>
             )}
-          </div>
+          </div>}
 
           <div className="office-conversations">
             {loading ? (
               <p className="office-message-empty">Opening inbox…</p>
             ) : filteredConversations.length === 0 ? (
-              <p className="office-message-empty">No campers found.</p>
+              <div className="office-message-empty mailbox-empty">
+                <CheckCircle2 size={27} />
+                <strong>{listMode === 'inbox' ? 'Your inbox is clear' : 'No campers found'}</strong>
+                <span>{listMode === 'inbox' ? 'New camper messages will appear here.' : 'Try another name, lot, or email.'}</span>
+              </div>
             ) : (
               filteredConversations.map((conversation) => {
                 const camper = conversation.camper
@@ -234,18 +287,19 @@ export default function AdminMessagesPage() {
                     className={`office-conversation-row ${selected ? 'selected' : ''} ${checked ? 'checked' : ''}`}
                     key={camper.id}
                   >
-                    <label className="office-conversation-check" aria-label={`Select ${camperName(camper)}`}>
+                    {listMode === 'all' && <label className="office-conversation-check" aria-label={`Select ${camperName(camper)}`}>
                       <input
                         type="checkbox"
                         checked={checked}
                         onChange={() => toggleCamperSelection(String(camper.id))}
                       />
-                    </label>
-                    <button type="button" className="office-conversation-open" onClick={() => setSelectedCamperId(camper.id)}>
+                    </label>}
+                    <button type="button" className="office-conversation-open" onClick={() => openConversation(String(camper.id))}>
                       <span><UserRound size={17} /></span>
                       <div>
                         <strong>Lot {camper.lot_number || '—'} · {camperName(camper)}</strong>
                         <small>{conversation.lastMessage?.body || camper.email || 'No messages yet'}</small>
+                        {conversation.lastMessage?.created_at && <time><Clock3 size={11} /> {formatMessageTime(conversation.lastMessage.created_at)}</time>}
                       </div>
                       {conversation.unreadCount > 0 && <em>{conversation.unreadCount}</em>}
                     </button>
@@ -258,6 +312,9 @@ export default function AdminMessagesPage() {
 
         <section className="office-inbox-thread">
           <div className="office-inbox-thread-header">
+            <button type="button" className="office-mobile-inbox-back" onClick={showInbox}>
+              <ArrowLeft size={17} /> Back to inbox
+            </button>
             <div>
               <small>Lot {selectedConversation?.camper?.lot_number || '—'}</small>
               <h2>{selectedBulkLabel}</h2>
@@ -275,7 +332,7 @@ export default function AdminMessagesPage() {
             </div>
           )}
 
-          <div className="office-message-list">
+          <div className="office-message-list" ref={messageListRef}>
             {selectedBulkCount > 0 ? (
               <p className="office-message-empty">You are sending one office message to all selected campers. Individual conversation history will stay in each camper thread.</p>
             ) : !selectedCamperId ? (
