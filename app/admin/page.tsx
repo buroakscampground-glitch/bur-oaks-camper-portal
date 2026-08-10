@@ -20,6 +20,7 @@ import {
   MessageCircle,
   ReceiptText,
   Rocket,
+  Search,
   ShieldCheck,
   Settings,
   Soup,
@@ -137,6 +138,7 @@ export default function AdminPage() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [stats, setStats] = useState<AdminStats>(emptyStats)
   const [cockpitItems, setCockpitItems] = useState<CockpitItem[]>([])
+  const [toolSearch, setToolSearch] = useState('')
 
   useEffect(() => {
     checkAdmin()
@@ -429,143 +431,53 @@ export default function AdminPage() {
     )
   }
 
-  const dailyOperations = [
+  const operationGroups = [
     {
-      href: '/admin/campers',
-      title: 'Campers',
-      description: 'Add, edit, archive, and manage camper accounts.',
-      detail: `${stats.campers} active`,
-      icon: Users,
-      tone: 'green',
+      label: 'Money & billing',
+      items: [
+        { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} unpaid`, icon: ReceiptText },
+        { href: '/admin/open-balance', title: 'Open balances', detail: `$${stats.balance.toFixed(2)} outstanding`, icon: CircleDollarSign },
+        { href: '/admin/electric', title: 'Electric billing', detail: `${stats.electric} readings`, icon: Zap },
+        { href: '/admin/reports', title: 'Reports', detail: 'Monthly & annual', icon: FileSpreadsheet },
+        { href: '/admin/credits', title: 'Account credits', detail: `$${stats.activeCreditBalance.toFixed(2)} active`, icon: WalletCards },
+      ],
     },
     {
-      href: '/admin/invoices',
-      title: 'Invoices & Billing',
-      description: 'Create invoices, review balances, and track payments.',
-      detail: `${stats.unpaidInvoices} unpaid`,
-      alertCount: stats.paymentAlerts,
-      alertLabel: 'new payment alert',
-      alertType: 'payment_received',
-      icon: ReceiptText,
-      tone: 'gold',
+      label: 'Campground operations',
+      items: [
+        { href: '/admin/maintenance', title: 'Maintenance', detail: `${stats.openMaintenance + stats.inProgressMaintenance} active`, icon: Wrench },
+        { href: '/admin/maintenance/supplies', title: 'Supply requests', detail: `${stats.activeSupplyRequests} active`, icon: ShoppingBasket },
+        { href: '/admin/pump-outs', title: 'Pump-outs', detail: `${stats.pumpOuts} active`, icon: Droplets },
+        { href: '/admin/site-care', title: 'Site care', detail: `${stats.activeSiteCare} active`, icon: ClipboardCheck },
+        { href: '/admin/site-services', title: 'Site services', detail: `${stats.siteServices} unbilled`, icon: SprayCan },
+      ],
     },
     {
-      href: '/admin/reports',
-      title: 'Monthly Reports',
-      description: 'See detailed money received by month, camper, payment method, and charge type.',
-      detail: 'Bookkeeping view',
-      icon: FileSpreadsheet,
-      tone: 'blue',
+      label: 'Campers & records',
+      items: [
+        { href: '/admin/campers', title: 'Camper accounts', detail: `${stats.campers} active`, icon: Users },
+        { href: '/admin/directory', title: 'Directory', detail: 'Quick camper lookup', icon: UserRoundSearch },
+        { href: '/admin/documents', title: 'Documents', detail: `${stats.documentActions} need action`, icon: FileText },
+        { href: '/admin/gatecards', title: 'Gate cards', detail: 'Access control', icon: KeyRound },
+        { href: '/admin/waitlist', title: 'Waitlist', detail: `${stats.waitlist} waiting`, icon: ClipboardList },
+        { href: '/admin/archived-campers', title: 'Camper archive', detail: `${stats.archivedCampers} records`, icon: Archive },
+      ],
     },
     {
-      href: '/admin/credits',
-      title: 'Account Credits',
-      description: 'Add overpayment credits and future billing adjustments.',
-      detail: `$${stats.activeCreditBalance.toFixed(2)} active`,
-      icon: WalletCards,
-      tone: 'green',
-    },
-    {
-      href: '/admin/electric',
-      title: 'Electric',
-      description: 'Enter readings and create usage-based invoices.',
-      detail: `${stats.electric} readings`,
-      icon: Zap,
-      tone: 'blue',
-    },
-    {
-      href: '/admin/pump-outs',
-      title: 'Sewer Pump-Outs',
-      description: 'See who needs pumped and what will be added to electric bills.',
-      detail: `${stats.pumpOuts} active`,
-      alertCount: stats.pumpOutAlerts,
-      alertLabel: 'pump-out alert',
-      alertType: 'sewer_pump_out',
-      icon: Droplets,
-      tone: 'red',
-    },
-    {
-      href: '/admin/site-services',
-      title: 'Site Services',
-      description: 'Add weed eating, weed spraying, and pressure washing charges.',
-      detail: `${stats.siteServices} unbilled`,
-      icon: SprayCan,
-      tone: 'gold',
-    },
-    {
-      href: '/admin/site-care',
-      title: 'Site Care',
-      description: 'Send quick appearance and upkeep notices to camper portals.',
-      detail: `${stats.activeSiteCare} active`,
-      icon: ClipboardCheck,
-      tone: stats.activeSiteCare > 0 ? 'gold' : 'green',
-    },
-    {
-      href: '/admin/maintenance',
-      title: 'Maintenance',
-      description: 'Manage repairs, assignments, and work orders.',
-      detail: `${stats.openMaintenance + stats.inProgressMaintenance} active · ${stats.pendingMaintenance} pending`,
-      alertCount: stats.maintenanceAlerts,
-      alertLabel: 'maintenance alert',
-      alertType: 'maintenance_request',
-      icon: Wrench,
-      tone: stats.emergencyMaintenance > 0 ? 'red' : 'orange',
-    },
-    {
-      href: '/admin/maintenance/supplies',
-      title: 'Supply Requests',
-      description: 'See what maintenance needs and keep the shopping list moving.',
-      detail: `${stats.activeSupplyRequests} active`,
-      icon: ShoppingBasket,
-      tone: stats.activeSupplyRequests > 0 ? 'red' : 'green',
-    },
-    {
-      href: '/admin/map',
-      title: 'Lots & Sites',
-      description: 'View occupied, vacant, and maintenance lots.',
-      detail: 'Visual campground map',
-      icon: Map,
-      tone: 'plum',
-    },
-    {
-      href: '/admin/waitlist',
-      title: 'Waitlist',
-      description: 'Track prospects and convert them into campers.',
-      detail: `${stats.waitlist} waiting`,
-      icon: ClipboardList,
-      tone: 'slate',
+      label: 'Communication & community',
+      items: [
+        { href: '/admin/messages', title: 'Office messages', detail: `${stats.messageAlerts} unread`, icon: MessageCircle },
+        { href: '/admin/texts', title: 'Text alerts', detail: 'Send camper notices', icon: BellRing },
+        { href: '/admin/announcements', title: 'Announcements', detail: `${stats.announcements} active`, icon: Megaphone },
+        { href: '/admin/events', title: 'Events', detail: `${stats.events} scheduled`, icon: CalendarDays },
+        { href: '/admin/rsvps', title: 'Event RSVPs', detail: `${stats.rsvps} responses`, icon: UsersRound },
+        { href: '/admin/dinners', title: 'Saturday dinners', detail: `${stats.nextDinnerGoing} going`, icon: Soup },
+        { href: '/admin/notifications', title: 'Notifications', detail: `${stats.totalUnreadAlerts} unread`, icon: BellRing },
+        { href: '/admin/settings', title: 'Settings', detail: 'Campground options', icon: Settings },
+        { href: '/admin/launch', title: 'Launch checklist', detail: 'System readiness', icon: Rocket },
+      ],
     },
   ]
-
-  const communityTools = [
-    { href: '/admin/events', title: 'Events', detail: `${stats.events} events`, icon: CalendarDays },
-    { href: '/admin/dinners', title: 'Saturday Dinners', detail: 'Menu & potluck', icon: Soup },
-    { href: '/admin/rsvps', title: 'RSVPs', detail: `${stats.rsvps} responses`, alertCount: stats.rsvpAlerts, alertLabel: 'new RSVP alert', alertType: 'event_rsvp', icon: UsersRound },
-    { href: '/admin/announcements', title: 'Announcements', detail: `${stats.announcements} active`, icon: Megaphone },
-    { href: '/admin/messages', title: 'Messages', detail: `${stats.messageAlerts} unread`, alertCount: stats.messageAlerts, alertLabel: 'new message', icon: MessageCircle },
-    { href: '/admin/notifications', title: 'Notifications', detail: `${stats.totalUnreadAlerts} unread`, alertCount: stats.totalUnreadAlerts, alertLabel: 'new notification', icon: BellRing },
-    { href: '/admin/texts', title: 'Text Alerts', detail: 'Camper notices', icon: BellRing },
-    { href: '/admin/settings', title: 'Settings', detail: 'Payment fees', icon: Settings },
-    { href: '/admin/documents', title: 'Documents', detail: `${stats.documentActions} need signatures`, icon: FileText },
-    { href: '/admin/launch', title: 'Launch Checklist', detail: 'Go-live readiness', icon: Rocket },
-    { href: '/admin/gatecards', title: 'Gate Cards', detail: 'Access control', icon: KeyRound },
-    { href: '/admin/directory', title: 'Directory', detail: 'Camper lookup', icon: UserRoundSearch },
-    { href: '/admin/archived-campers', title: 'Archive', detail: `${stats.archivedCampers} records`, icon: Archive },
-  ]
-
-  const toDoTotal =
-    stats.totalUnreadAlerts +
-    stats.pendingMaintenance +
-    stats.activeSupplyRequests +
-    stats.activeSiteCare +
-    stats.pastDueInvoices +
-    stats.dueSoonInvoices +
-    stats.pumpOuts +
-    stats.siteServices +
-    stats.documentActions +
-    stats.messageAlerts +
-    stats.pendingDinnerResponses +
-    stats.needsContactInfo
 
   const toDoItems = [
     {
@@ -587,7 +499,7 @@ export default function AdminPage() {
     {
       href: '/admin/maintenance',
       title: 'Maintenance approvals',
-      count: stats.pendingMaintenance,
+      count: stats.pendingMaintenance + stats.emergencyMaintenance,
       detail: `${stats.openMaintenance + stats.inProgressMaintenance} approved active · ${stats.emergencyMaintenance} emergency`,
       icon: Wrench,
       urgent: stats.emergencyMaintenance > 0 || stats.pendingMaintenance > 0,
@@ -627,15 +539,15 @@ export default function AdminPage() {
     {
       href: '/admin/dinners',
       title: 'Saturday dinner',
-      count: stats.nextDinnerGoing,
+      count: stats.pendingDinnerResponses,
       detail: `${stats.nextDinnerGuests} plates · ${stats.nextDinnerDishes} bringing food · ${stats.pendingDinnerResponses} no response`,
       icon: Soup,
-      urgent: stats.pendingDinnerResponses > 0,
+      urgent: false,
     },
     {
       href: '/admin/rsvps',
       title: 'Event RSVPs',
-      count: stats.nextEventRsvps,
+      count: stats.rsvpAlerts,
       detail: stats.rsvpAlerts ? `${stats.rsvpAlerts} new RSVP alerts` : 'Upcoming event responses',
       icon: UsersRound,
       urgent: stats.rsvpAlerts > 0,
@@ -664,257 +576,157 @@ export default function AdminPage() {
         ? `${stats.insuranceMissing} optional golf cart insurance files not uploaded`
         : 'Optional golf cart insurance files are on file',
       icon: Users,
-      urgent: stats.needsContactInfo > 0,
+      urgent: false,
     },
   ]
 
+  const activeAttentionItems = toDoItems.filter((item) => item.urgent && item.count > 0)
+  const attentionTotal = activeAttentionItems.reduce((total, item) => total + item.count, 0)
+  const normalizedToolSearch = toolSearch.trim().toLowerCase()
+
   return (
-    <main className="admin-command-page">
-      <div className="admin-command-shell">
-        <section className="admin-command-hero">
-          <nav className="admin-command-topbar">
-            <a href="/admin" className="admin-command-brand">
-              <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
-              <span>
-                <strong>Bur Oaks</strong>
-                <small>Operations Center</small>
-              </span>
-            </a>
+    <main className="admin-command-page admin-desk-page">
+      <div className="admin-command-shell admin-desk-shell">
+        <header className="admin-desk-header">
+          <div>
+            <span className="admin-desk-eyebrow">Bur Oaks operations desk</span>
+            <h1>Today at the campground</h1>
+            <p>Important work first. Every admin tool is organized once below.</p>
+          </div>
+          <div className="admin-desk-header-actions">
+            <span>
+              <CalendarDays size={17} />
+              {new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                month: 'long',
+                day: 'numeric',
+              })}
+            </span>
+            <button type="button" onClick={handleLogout}>
+              <LogOut size={17} /> Sign out
+            </button>
+          </div>
+        </header>
 
-            <div className="admin-command-actions">
-              <span className="admin-command-date">
-                <CalendarDays size={16} />
-                <span>
-                  <small>Today</small>
-                  <strong>
-                    {new Date().toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                    })}
-                  </strong>
-                </span>
-              </span>
-              <span className="admin-live-status">
-                <i /> Systems online
-              </span>
-              <button type="button" onClick={handleLogout}>
-                <LogOut size={17} /> Sign out
-              </button>
-            </div>
-          </nav>
-
-          <div className="admin-command-intro">
-            <div className="admin-command-eyebrow">
-              <TentTree size={16} /> Campground operations
-            </div>
-            <h1>Good work starts with a clear view.</h1>
-            <p>
-              Your command center for campers, billing, maintenance, and the
-              day-to-day details that keep Bur Oaks running beautifully.
-            </p>
-            <div className="admin-command-hero-actions">
-              <a href="/admin/launch"><Rocket size={18} /> Open launch checklist</a>
-              <a href="/admin/notifications">Review alerts</a>
-            </div>
+        <section className="admin-desk-summary" aria-label="Campground overview">
+          <div className={attentionTotal ? 'needs-attention' : ''}>
+            <span>Needs attention</span>
+            <strong>{attentionTotal}</strong>
+            <small>{activeAttentionItems.length} areas</small>
+          </div>
+          <div>
+            <span>Open balance</span>
+            <strong>${stats.balance.toFixed(2)}</strong>
+            <small>{stats.unpaidInvoices} unpaid invoices</small>
+          </div>
+          <div>
+            <span>Active campers</span>
+            <strong>{stats.campers}</strong>
+            <small>Current accounts</small>
+          </div>
+          <div>
+            <span>Maintenance active</span>
+            <strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong>
+            <small>{stats.pendingMaintenance} awaiting approval</small>
           </div>
         </section>
 
-        <section className="admin-kpi-grid" aria-label="Campground overview">
-          <a href="/admin/invoices" className="admin-kpi-card">
-            <span className="admin-kpi-icon green"><CircleDollarSign size={23} /></span>
-            <span><small>Revenue collected</small><strong>${stats.totalRevenue.toFixed(2)}</strong><em>Paid invoices</em></span>
-          </a>
-          <a href="/admin/open-balance" className="admin-kpi-card">
-            <span className="admin-kpi-icon gold"><ReceiptText size={23} /></span>
-            <span><small>Open balance</small><strong>${stats.balance.toFixed(2)}</strong><em>{stats.unpaidInvoices} unpaid invoices</em></span>
-          </a>
-          <a href="/admin/campers" className="admin-kpi-card">
-            <span className="admin-kpi-icon blue"><Users size={23} /></span>
-            <span><small>Active campers</small><strong>{stats.campers}</strong><em>Current accounts</em></span>
-          </a>
-          <a href="/admin/maintenance" className="admin-kpi-card">
-            <span className="admin-kpi-icon orange"><Wrench size={23} /></span>
-            <span><small>Approved maintenance</small><strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong><em>{stats.pendingMaintenance} awaiting approval</em></span>
-          </a>
-        </section>
-
-        <section className="admin-command-panel admin-today-panel admin-todo-panel">
-          <div className="admin-command-heading">
-            <div><span>COMMAND COCKPIT</span><h2>Everything that needs your attention</h2></div>
-            <a href="/admin/notifications">Open notifications <ArrowRight size={16} /></a>
-          </div>
-          {toDoTotal ? (
-            <div className="admin-cockpit attention">
-              <div className="admin-cockpit-radar">
-                <span className="admin-cockpit-sweep" />
-                <div>
-                  <small>Operations telemetry</small>
-                  <strong>{toDoTotal}</strong>
-                  <em>active signals</em>
-                </div>
+        <div className="admin-desk-workspace">
+          <section className="admin-desk-attention">
+            <div className="admin-desk-section-heading">
+              <div>
+                <span>Priority work</span>
+                <h2>Needs attention</h2>
               </div>
+              <strong>{attentionTotal}</strong>
+            </div>
 
-              <div className="admin-cockpit-readout">
-                <small>Today’s command status</small>
-                <h3>Action needed, but it is under control.</h3>
-                <p>Pump-outs, maintenance, unread office messages, billing pressure, dinner activity, and camper cleanup are rolled into this one board.</p>
-                <div>
-                  <a href="/admin/pump-outs"><Droplets size={16} /> Pump-outs</a>
-                  <a href="/admin/maintenance"><Wrench size={16} /> Maintenance</a>
-                  <a href="/admin/messages"><MessageCircle size={16} /> Messages</a>
-                  <a href="/admin/open-balance"><ReceiptText size={16} /> Billing</a>
-                </div>
-              </div>
-
-              <div className="admin-cockpit-gauges">
-                {toDoItems.slice(0, 8).map((item) => {
+            {activeAttentionItems.length ? (
+              <div className="admin-desk-attention-list">
+                {activeAttentionItems.map((item) => {
                   const Icon = item.icon
                   return (
-                    <a href={item.href} className={item.urgent ? 'hot' : ''} key={item.title}>
-                      <Icon size={18} />
-                      <span>
-                        <small>{item.title}</small>
-                        <strong>{item.count || 'OK'}</strong>
-                      </span>
-                    </a>
-                  )
-                })}
-              </div>
-            </div>
-          ) : (
-            <div className="admin-command-clear">
-              <ShieldCheck size={23} />
-              <span><strong>All quiet at Bur Oaks.</strong><small>No urgent work is waiting right now.</small></span>
-            </div>
-          )}
-
-          <div className="admin-cockpit-live">
-            <div className="admin-cockpit-live-head">
-              <span><Gauge size={18} /> Live request queue</span>
-              <small>{cockpitItems.length ? `${cockpitItems.length} newest signals` : 'Nothing waiting'}</small>
-            </div>
-            {cockpitItems.length ? (
-              <div className="admin-cockpit-stream">
-                {cockpitItems.map((item) => {
-                  const Icon =
-                    item.type === 'pump' ? Droplets :
-                    item.type === 'supply' ? ShoppingBasket :
-                    item.type === 'site-care' ? ClipboardCheck :
-                    item.type === 'maintenance' ? Wrench :
-                    item.type === 'message' ? MessageCircle :
-                    ReceiptText
-
-                  return (
-                    <a href={item.href} className={`admin-cockpit-signal ${item.tone}`} key={item.id}>
-                      <span><Icon size={19} /></span>
-                      <div>
-                        <small>{item.label}</small>
+                    <a href={item.href} key={item.title}>
+                      <span className="admin-desk-row-icon"><Icon size={19} /></span>
+                      <span className="admin-desk-row-copy">
                         <strong>{item.title}</strong>
-                        <p>{item.detail}</p>
-                      </div>
-                      <em>{item.status}</em>
+                        <small>{item.detail}</small>
+                      </span>
+                      <em>{item.count}</em>
+                      <ArrowRight size={17} />
                     </a>
                   )
                 })}
               </div>
             ) : (
-              <div className="admin-cockpit-empty">
-                <ShieldCheck size={24} />
-                <strong>No open requests in the cockpit.</strong>
-                <p>New site care notices, supply requests, pump-outs, maintenance tickets, unread messages, and billing pressure will appear here automatically.</p>
+              <div className="admin-desk-all-clear">
+                <ShieldCheck size={28} />
+                <strong>Everything is caught up.</strong>
+                <p>New requests and items requiring action will appear here.</p>
               </div>
             )}
-          </div>
-        </section>
+          </section>
 
-        <details className="admin-dashboard-drawer admin-tools-drawer">
-          <summary>
-            <span><Gauge size={18} /> All admin shortcuts</span>
-            <small>{dailyOperations.length} tools — tap to open the full shortcut screen</small>
-            <ArrowRight size={18} />
-          </summary>
-          <div className="admin-tools-drawer-content">
-            <div className="admin-operation-grid">
-              {dailyOperations.map((item) => {
-                const Icon = item.icon
-                const alertCount = item.alertCount || 0
+          <section className="admin-desk-directory">
+            <div className="admin-desk-directory-head">
+              <div>
+                <span>Admin directory</span>
+                <h2>Everything else, one click away</h2>
+              </div>
+              <label>
+                <Search size={17} />
+                <input
+                  type="search"
+                  value={toolSearch}
+                  onChange={(event) => setToolSearch(event.target.value)}
+                  placeholder="Find a tool"
+                  aria-label="Find an admin tool"
+                />
+              </label>
+            </div>
+
+            <div className="admin-desk-groups">
+              {operationGroups.map((group) => {
+                const matchingItems = group.items.filter((item) =>
+                  `${item.title} ${item.detail}`.toLowerCase().includes(normalizedToolSearch),
+                )
+
+                if (!matchingItems.length) return null
+
                 return (
-                  <a href={item.href} className="admin-operation-card" key={item.href}>
-                    {alertCount > 0 && (
-                      <span className="admin-attention-badge" aria-label={`${alertCount} ${item.alertLabel}${alertCount === 1 ? '' : 's'}`}>
-                        {alertCount}
-                      </span>
-                    )}
-                    <span className={`admin-operation-icon ${item.tone}`}><Icon size={24} /></span>
-                    <span className="admin-operation-copy"><strong>{item.title}</strong><small>{item.description}</small><em>{item.detail}</em></span>
-                    <ArrowRight size={19} />
-                  </a>
+                  <section className="admin-desk-group" key={group.label}>
+                    <h3>{group.label}</h3>
+                    <div>
+                      {matchingItems.map((item) => {
+                        const Icon = item.icon
+                        return (
+                          <a href={item.href} key={item.href}>
+                            <Icon size={18} />
+                            <span><strong>{item.title}</strong><small>{item.detail}</small></span>
+                            <ArrowRight size={15} />
+                          </a>
+                        )
+                      })}
+                    </div>
+                  </section>
                 )
               })}
             </div>
-          </div>
-        </details>
 
-        <details className="admin-dashboard-drawer">
+            {normalizedToolSearch && !operationGroups.some((group) =>
+              group.items.some((item) => `${item.title} ${item.detail}`.toLowerCase().includes(normalizedToolSearch)),
+            ) && <p className="admin-desk-no-results">No admin tools match “{toolSearch}”.</p>}
+          </section>
+        </div>
+
+        <details className="admin-desk-weather">
           <summary>
             <span><CalendarDays size={18} /> Weather and planning</span>
-            <small>Open the full campground forecast</small>
+            <small>Open campground forecast</small>
             <ArrowRight size={18} />
           </summary>
           <AdminWeather />
         </details>
-
-        <section className="admin-command-panel admin-community-panel">
-          <div className="admin-command-heading">
-            <div><span>COMMUNITY & RECORDS</span><h2>Stay connected and organized</h2></div>
-          </div>
-
-          <div className="admin-community-grid">
-            {communityTools.map((item) => {
-              const Icon = item.icon
-              const alertCount = item.alertCount || 0
-              return (
-                <a href={item.href} className="admin-community-card" key={item.href}>
-                  {alertCount > 0 && (
-                    <span className="admin-attention-badge small" aria-label={`${alertCount} ${item.alertLabel}${alertCount === 1 ? '' : 's'}`}>
-                      {alertCount}
-                    </span>
-                  )}
-                  <Icon size={21} />
-                  <span><strong>{item.title}</strong><small>{item.detail}</small></span>
-                  <ArrowRight size={17} />
-                </a>
-              )
-            })}
-          </div>
-        </section>
-
-        {(stats.maintenanceAlerts > 0 || stats.paymentAlerts > 0 || stats.rsvpAlerts > 0) && (
-          <section className="admin-command-panel admin-alert-review-panel">
-            <div className="admin-command-heading">
-              <div><span>ATTENTION</span><h2>New activity waiting for review</h2></div>
-              <p>Clear a dot after you have handled that group.</p>
-            </div>
-            <div className="admin-alert-review-grid">
-              {stats.maintenanceAlerts > 0 && (
-                <button type="button" onClick={() => markAlertsSeen('maintenance_request')}>
-                  <Wrench size={18} /> Mark maintenance seen <strong>{stats.maintenanceAlerts}</strong>
-                </button>
-              )}
-              {stats.paymentAlerts > 0 && (
-                <button type="button" onClick={() => markAlertsSeen('payment_received')}>
-                  <ReceiptText size={18} /> Mark payments seen <strong>{stats.paymentAlerts}</strong>
-                </button>
-              )}
-              {stats.rsvpAlerts > 0 && (
-                <button type="button" onClick={() => markAlertsSeen('event_rsvp')}>
-                  <UsersRound size={18} /> Mark RSVPs seen <strong>{stats.rsvpAlerts}</strong>
-                </button>
-              )}
-            </div>
-          </section>
-        )}
 
         <footer className="admin-command-footer">
           <span>Bur Oaks Campground</span>
