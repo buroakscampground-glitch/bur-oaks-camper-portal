@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Droplets, Search, XCircle } from 'lucide-react'
+import { CheckCircle2, Droplets, Printer, Search, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 const statusLabels: Record<string, string> = {
@@ -16,6 +16,7 @@ export default function AdminPumpOutsPage() {
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
   const [savingId, setSavingId] = useState('')
+  const [sendingReport, setSendingReport] = useState(false)
 
   useEffect(() => {
     loadRequests()
@@ -49,6 +50,21 @@ export default function AdminPumpOutsPage() {
     setSavingId('')
     setMessage(error ? error.message : 'Pump-out request updated.')
     if (!error) loadRequests()
+  }
+
+  async function sendPumpOutReportNow() {
+    if (!window.confirm('Send today\'s pump-out list to Gmail and the Epson printer now?')) return
+    setSendingReport(true)
+    setMessage('Creating the PDF and sending it to Gmail and the Epson printer…')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/pump-out-report', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+    })
+    const result = await response.json().catch(() => null)
+    setMessage(result?.message || result?.error || 'Unable to send the pump-out list.')
+    setSendingReport(false)
   }
 
   const visibleRequests = useMemo(() => {
@@ -96,6 +112,9 @@ export default function AdminPumpOutsPage() {
           <option value="cancelled">Cancelled</option>
           <option value="all">All</option>
         </select>
+        <button type="button" onClick={sendPumpOutReportNow} disabled={sendingReport}>
+          <Printer size={16} /> {sendingReport ? 'Sending…' : 'Send / Print List Now'}
+        </button>
       </section>
 
       <section className="admin-pump-list">
