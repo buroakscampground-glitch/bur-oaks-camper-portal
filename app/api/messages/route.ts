@@ -63,6 +63,20 @@ export async function GET(request: Request) {
         messageCount: thread.length,
       }
     })
+      .sort((left: any, right: any) => {
+        const unreadDifference = Number(right.unreadCount || 0) - Number(left.unreadCount || 0)
+        if (unreadDifference !== 0) return unreadDifference
+
+        const leftTime = left.lastMessage?.created_at ? new Date(left.lastMessage.created_at).getTime() : 0
+        const rightTime = right.lastMessage?.created_at ? new Date(right.lastMessage.created_at).getTime() : 0
+        if (rightTime !== leftTime) return rightTime - leftTime
+
+        return String(left.camper?.lot_number || '').localeCompare(
+          String(right.camper?.lot_number || ''),
+          undefined,
+          { numeric: true, sensitivity: 'base' }
+        )
+      })
 
     return NextResponse.json({ success: true, conversations })
   }
