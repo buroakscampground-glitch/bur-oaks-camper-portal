@@ -6,6 +6,7 @@ import {
   Bell,
   BookOpen,
   CalendarDays,
+  CalendarClock,
   CircleDollarSign,
   ClipboardCheck,
   ClipboardList,
@@ -65,6 +66,7 @@ const pageNames: Record<string, string> = {
   settings: 'Campground Settings',
   'pump-outs': 'Pump-Out Requests',
   'site-care': 'Site Care Notices',
+  renewals: 'Season Renewal Forecast',
 }
 
 const navGroups = [
@@ -91,6 +93,7 @@ const navGroups = [
     label: 'Campers',
     links: [
       { href: '/admin/campers', label: 'Camper Records', icon: Users },
+      { href: '/admin/renewals', label: 'Renewal Forecast', icon: CalendarClock },
       { href: '/admin/documents', label: 'Documents & Leases', icon: FileText },
       { href: '/admin/waitlist', label: 'Waitlist', icon: BookOpen },
       { href: '/admin/directory', label: 'Directory', icon: Mail },
