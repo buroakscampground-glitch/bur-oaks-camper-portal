@@ -1,0 +1,157 @@
+import { createClient } from '@supabase/supabase-js'
+import { NextResponse } from 'next/server'
+import { todayInCentral } from '../../../../lib/invoice-texting'
+import { formatSmsPhone, sendTwilioSms } from '../../../../lib/twilio-sms'
+
+export const dynamic = 'force-dynamic'
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mzywctpxnpejglnspyqi.supabase.co'
+
+function adminClient() {
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  return key ? createClient(supabaseUrl, key) : null
+}
+
+function isAuthorized(request: Request) {
+  const secret = process.env.CRON_SECRET
+  return Boolean(secret && request.headers.get('authorization') === `Bearer ${secret}`)
+}
+
+function shiftMonths(value: string, amount: number) {
+  const [year, month, day] = value.split('-').map(Number)
+  const target = new Date(year, month - 1 + amount, 1, 12)
+  const last = new Date(target.getFullYear(), target.getMonth() + 1, 0, 12).getDate()
+  target.setDate(Math.min(day, last))
+  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`
+}
+
+function addYear(value: string) {
+  const [year, month, day] = value.split('-').map(Number)
+  const last = new Date(year + 1, month, 0, 12).getDate()
+  return `${year + 1}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`
+}
+
+export async function GET(request: Request) {
+  if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  const admin = adminClient()
+  if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
+
+  const today = todayInCentral()
+
+  // After a camper renews and the anniversary passes, prepare their next yearly cycle.
+  const { data: completedCycles } = await admin
+    .from('season_renewals')
+    .select('id,contract_end_date,status')
+    .eq('status', 'Renewing')
+    .lt('contract_end_date', today)
+
+  for (const cycle of completedCycles || []) {
+    if (!cycle.contract_end_date) continue
+    await admin.from('season_renewals').update({
+      contract_start_date: cycle.contract_end_date,
+      contract_end_date: addYear(cycle.contract_end_date),
+      renewal_sent_at: null,
+      status: 'Not Started',
+      decision_recorded_at: null,
+      renewal_document_id: null,
+      last_automation_at: null,
+      automation_error: null,
+    }).eq('id', cycle.id)
+  }
+
+  const [{ data: records, error: recordError }, { data: templates, error: templateError }] = await Promise.all([
+    admin.from('season_renewals').select('id,camper_id,lot_number,contract_end_date,renewal_sent_at,status').is('renewal_sent_at', null).eq('status', 'Not Started'),
+    admin.from('document_templates').select('*').order('created_at', { ascending: false }),
+  ])
+
+  if (recordError || templateError) return NextResponse.json({ error: recordError?.message || templateError?.message }, { status: 500 })
+
+  const due = (records || []).filter((record) => record.contract_end_date && shiftMonths(record.contract_end_date, -4) <= today)
+  const renewalTemplate = (templates || []).find((template) => /renewal/i.test(`${template.document_name || ''} ${template.document_type || ''}`))
+  const results: any[] = []
+
+  for (const record of due) {
+    if (!renewalTemplate) {
+      const message = 'No renewal form was found in the admin document library.'
+      await admin.from('season_renewals').update({ automation_error: message, last_automation_at: new Date().toISOString() }).eq('id', record.id)
+      results.push({ renewalId: record.id, status: 'failed', error: message })
+      continue
+    }
+
+    const { data: camper, error: camperError } = await admin
+      .from('campers')
+      .select('id,first_name,last_name,lot_number,phone,sms_opt_in,active')
+      .eq('id', record.camper_id)
+      .eq('active', true)
+      .maybeSingle()
+
+    if (camperError || !camper) {
+      const message = 'The active camper record could not be found.'
+      await admin.from('season_renewals').update({ automation_error: message, last_automation_at: new Date().toISOString() }).eq('id', record.id)
+      results.push({ renewalId: record.id, status: 'failed', error: message })
+      continue
+    }
+
+    const originalName = String(renewalTemplate.storage_path).split('/').pop() || 'seasonal-renewal.pdf'
+    const cleanName = originalName.replace(/^[0-9a-f-]{36}-/i, '')
+    const destinationPath = `${camper.id}/${crypto.randomUUID()}-${cleanName}`
+    const { error: copyError } = await admin.storage.from('camper-documents').copy(renewalTemplate.storage_path, destinationPath)
+
+    if (copyError) {
+      await admin.from('season_renewals').update({ automation_error: copyError.message, last_automation_at: new Date().toISOString() }).eq('id', record.id)
+      results.push({ renewalId: record.id, status: 'failed', error: copyError.message })
+      continue
+    }
+
+    const cycleYear = String(record.contract_end_date).slice(0, 4)
+    const { data: document, error: documentError } = await admin.from('documents').insert({
+      camper_id: camper.id,
+      document_name: `${cycleYear} ${renewalTemplate.document_name}`,
+      document_type: renewalTemplate.document_type || 'Seasonal Renewal',
+      file_url: destinationPath,
+      signature_status: 'pending',
+    }).select('id').single()
+
+    if (documentError || !document) {
+      await admin.storage.from('camper-documents').remove([destinationPath])
+      const message = documentError?.message || 'Unable to assign renewal document.'
+      await admin.from('season_renewals').update({ automation_error: message, last_automation_at: new Date().toISOString() }).eq('id', record.id)
+      results.push({ renewalId: record.id, status: 'failed', error: message })
+      continue
+    }
+
+    let smsStatus = 'skipped'
+    const phone = camper.sms_opt_in ? formatSmsPhone(camper.phone) : ''
+    if (phone) {
+      const text = `Bur Oaks Campground: Your seasonal renewal form is ready. Please review it in your camper portal and let the office know your decision by ${shiftMonths(record.contract_end_date, -3)}.\nhttps://www.buroakscampground.com/documents\nReply STOP to opt out.`
+      const sms = await sendTwilioSms({ to: phone, body: text })
+      smsStatus = sms.sent ? 'sent' : 'failed'
+      await admin.from('text_reminders').insert({
+        camper_id: camper.id,
+        invoice_id: null,
+        reminder_type: 'Season Renewal',
+        message: text,
+        sent_at: new Date().toISOString(),
+        status: smsStatus,
+        recipient_phone: phone,
+        provider: 'twilio',
+        provider_message_id: sms.sent ? sms.providerMessageId : null,
+        error_message: sms.sent ? null : sms.error,
+        sent_by: 'season-renewal-cron',
+      })
+    }
+
+    await admin.from('season_renewals').update({
+      renewal_sent_at: today,
+      status: 'Awaiting Response',
+      renewal_document_id: document.id,
+      last_automation_at: new Date().toISOString(),
+      automation_error: null,
+    }).eq('id', record.id)
+
+    results.push({ renewalId: record.id, lot: camper.lot_number, status: 'sent', smsStatus })
+  }
+
+  return NextResponse.json({ success: true, today, checked: records?.length || 0, due: due.length, results })
+}
+
