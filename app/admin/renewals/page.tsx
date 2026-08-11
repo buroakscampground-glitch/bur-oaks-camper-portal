@@ -184,6 +184,7 @@ export default function AdminRenewalsPage() {
   const [siteHistoryTab, setSiteHistoryTab] = useState<SiteHistoryTab>('care')
   const [siteHistoryLoading, setSiteHistoryLoading] = useState(false)
   const [siteHistoryError, setSiteHistoryError] = useState('')
+  const [siteDecisionMessage, setSiteDecisionMessage] = useState('')
 
   useEffect(() => { loadPage() }, [])
 
@@ -227,6 +228,7 @@ export default function AdminRenewalsPage() {
     setSiteHistory(null)
     setSiteHistoryTab('care')
     setSiteHistoryError('')
+    setSiteDecisionMessage('')
     setSiteHistoryLoading(true)
 
     try {
@@ -332,16 +334,21 @@ export default function AdminRenewalsPage() {
   async function setSendDecision(camper: Camper, approve: boolean) {
     setSaving(camper.id)
     setFeedback('')
+    setSiteDecisionMessage('')
     try {
       const saved = await saveThroughAdminApi(camper, approve ? 'approve' : 'decline')
       setRenewals((current) => [...current.filter((record) => record.camper_id !== camper.id), saved])
       setDrafts((current) => ({ ...current, [camper.id]: draftFrom(saved) }))
-      setFeedback(approve
+      const decisionMessage = approve
         ? `Lot ${camper.lot_number || '—'} is approved. The renewal will send automatically on schedule.`
-        : `Lot ${camper.lot_number || '—'} is marked not renewing and will not receive an automatic renewal.`)
+        : `Lot ${camper.lot_number || '—'} is marked not renewing and will not receive an automatic renewal.`
+      setFeedback(decisionMessage)
+      setSiteDecisionMessage(decisionMessage)
       setExpanded('')
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'The decision could not be saved.')
+      const decisionError = error instanceof Error ? error.message : 'The decision could not be saved.'
+      setFeedback(decisionError)
+      setSiteDecisionMessage(decisionError)
     } finally {
       setSaving('')
     }
@@ -395,6 +402,8 @@ export default function AdminRenewalsPage() {
   const safeRows = rows.filter((row) => row.safe || row.approvedToSend)
   const needsSetup = rows.filter((row) => row.needsSetup)
   const selectedRow = rows.find((row) => row.camper.id === selectedSiteId)
+  const selectedRenewing = Boolean(selectedRow?.approvedToSend || selectedRow?.renewal?.status === 'Renewing')
+  const selectedNotRenewing = Boolean(selectedRow?.renewal?.status === 'Camper Leaving' || selectedRow?.renewal?.status === 'Campground Not Renewing')
 
   const timeline = useMemo(() => {
     const events: Record<string, { send: number; response: number; opening: number }> = {}
@@ -426,6 +435,7 @@ export default function AdminRenewalsPage() {
         .renewal-hero h1{color:#fff!important}
         .renewal-annual-help{grid-column:1/-1;display:flex;gap:7px;padding:12px 13px;border-radius:12px;background:#eef5ec;color:#49624f;font-size:11px}.renewal-annual-help strong{white-space:nowrap}.renewal-board{order:-1}
         .site-history-overlay{position:fixed;inset:0;z-index:1200;display:flex;justify-content:flex-end}.site-history-backdrop{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border:0!important;border-radius:0!important;background:rgba(10,30,18,.52)!important;box-shadow:none!important;backdrop-filter:blur(4px)}.site-history-panel{position:relative;width:min(720px,calc(100vw - 40px));height:100%;overflow:auto;background:#f4f5ef;box-shadow:-24px 0 65px rgba(16,42,25,.24);animation:siteHistoryIn .2s ease-out}.site-history-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 24px;border-bottom:1px solid #dce1d8;background:rgba(248,249,245,.96);backdrop-filter:blur(16px)}.site-history-header small{display:block;color:#9a762c;font-size:9px;font-weight:900;letter-spacing:.14em}.site-history-header h2{margin:5px 0 0;font:500 29px Georgia,serif}.site-history-header p{margin:4px 0 0;color:#68736b;font-size:11px}.site-history-close{display:grid!important;place-items:center!important;flex:0 0 42px!important;width:42px!important;height:42px!important;padding:0!important;border:1px solid #d6ddd3!important;border-radius:50%!important;background:#fff!important;color:#294632!important;box-shadow:none!important}.site-history-content{display:grid;gap:15px;padding:20px 24px 30px}.site-history-loading{display:grid;place-items:center;min-height:360px;text-align:center;color:#607066}.site-history-loading svg{animation:siteHistorySpin 1s linear infinite}.site-history-loading strong{display:block;margin-top:12px}.site-history-error{padding:18px;border:1px solid #edc7bd;border-radius:16px;background:#fff1ed;color:#873e35}.site-history-error button{display:block!important;margin-top:12px!important;background:#315f3d!important;color:#fff!important}.site-history-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.site-history-stat{padding:14px;border:1px solid #dde1d8;border-radius:15px;background:#fff}.site-history-stat span{display:flex;align-items:center;gap:6px;color:#7b806f;font-size:9px;font-weight:900;text-transform:uppercase}.site-history-stat strong{display:block;margin-top:7px;color:#294632;font:600 23px Georgia,serif}.site-history-stat.warning{border-color:#edd4a1;background:#fff8e8}.site-history-stat.alert{border-color:#e9bbb4;background:#fff1ee}.site-history-actions{display:flex;flex-wrap:wrap;gap:8px}.site-history-actions button,.site-history-actions a{display:inline-flex!important;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 13px!important;border:1px solid #d4dcd1!important;border-radius:999px!important;background:#fff!important;color:#315f3d!important;font-size:11px!important;font-weight:900!important;text-decoration:none;box-shadow:none!important}.site-history-actions button:first-child{border-color:#315f3d!important;background:#315f3d!important;color:#fff!important}.site-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:5px;border:1px solid #dce1d8;border-radius:14px;background:#e9ede6}.site-history-tabs button{display:flex!important;align-items:center;justify-content:center;gap:7px;padding:10px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:#5e6d63!important;font-size:11px!important;box-shadow:none!important}.site-history-tabs button.active{background:#fff!important;color:#315f3d!important;box-shadow:0 5px 14px rgba(35,59,41,.08)!important}.site-history-list{display:grid;gap:9px}.site-history-list-head{display:flex;align-items:end;justify-content:space-between;gap:10px;padding:5px 2px}.site-history-list-head h3{margin:0;font:500 22px Georgia,serif}.site-history-list-head span{color:#7b806f;font-size:10px}.site-history-item{padding:15px;border:1px solid #dde1d8;border-radius:16px;background:#fff}.site-history-item-top{display:flex;align-items:start;justify-content:space-between;gap:12px}.site-history-item strong{font-size:12px}.site-history-item p{margin:8px 0 0;color:#647067;font-size:11px;line-height:1.45}.site-history-item small{display:block;margin-top:8px;color:#899088;font-size:9px}.site-history-badge{flex:0 0 auto;padding:5px 8px;border-radius:999px;background:#eaf2e8;color:#376143;font-size:8px;font-weight:900;text-transform:uppercase}.site-history-badge.open,.site-history-badge.late{background:#fae2dd;color:#933e35}.site-history-badge.review{background:#fff0cb;color:#835b16}.site-history-payment{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.site-history-payment-amount{text-align:right}.site-history-payment-amount strong{display:block;font:600 18px Georgia,serif}.site-history-payment-amount small{margin-top:3px}.site-history-empty{padding:34px 18px;border:1px dashed #cfd8cc;border-radius:17px;background:rgba(255,255,255,.55);color:#718078;text-align:center}.site-history-empty strong{display:block;margin-top:8px;color:#315f3d}.site-history-footnote{margin:0;color:#7e877f;font-size:9px;line-height:1.5}@keyframes siteHistoryIn{from{transform:translateX(24px);opacity:.55}to{transform:translateX(0);opacity:1}}@keyframes siteHistorySpin{to{transform:rotate(360deg)}}
+        .site-renewal-decision{padding:15px;border:1px solid #d7ddd3;border-radius:17px;background:#fff}.site-renewal-decision-head strong{font-size:13px}.site-renewal-decision-head small{display:block;margin-top:4px;color:#748078;font-size:10px;line-height:1.4}.site-renewal-decision-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.site-renewal-decision-buttons button{display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;min-height:48px!important;padding:11px!important;border-radius:13px!important;font-size:11px!important;font-weight:900!important;box-shadow:none!important}.site-renewal-decision-buttons .renew{border:1px solid #315f3d!important;background:#315f3d!important;color:#fff!important}.site-renewal-decision-buttons .do-not-renew{border:1px solid #a8443e!important;background:#a8443e!important;color:#fff!important}.site-renewal-decision-buttons button.selected{box-shadow:0 0 0 3px rgba(230,191,102,.5)!important}.site-renewal-decision-buttons button:disabled{opacity:.72!important}.site-decision-message{margin:10px 0 0;padding:9px 11px;border-radius:10px;background:#eef4eb;color:#315f3d;font-size:10px;font-weight:800}
         @media(max-width:680px){.renewal-hero,.renewal-summary{display:none}.renewal-board{padding:14px}.renewal-board-grid{grid-template-columns:1fr}.renewal-bucket{min-height:0}.renewal-annual-help{align-items:flex-start;flex-direction:column}.renewal-edit-actions .mark-sent{display:none!important}}
         @media(max-width:680px){.site-history-panel{width:100vw}.site-history-header{padding:17px 16px}.site-history-header h2{font-size:25px}.site-history-content{padding:15px 14px 24px}.site-history-summary{grid-template-columns:1fr 1fr}.site-history-actions{display:grid;grid-template-columns:1fr 1fr}.site-history-actions>*{width:100%}.site-history-payment{align-items:start}.site-history-payment-amount strong{font-size:16px}}
       `}</style>
@@ -534,6 +544,15 @@ export default function AdminRenewalsPage() {
               <article className={siteHistory.summary.lateInvoices ? 'site-history-stat alert' : 'site-history-stat'}><span><History size={13} /> Times late</span><strong>{siteHistory.summary.lateInvoices}</strong></article>
               <article className="site-history-stat"><span><CircleDollarSign size={13} /> Balance</span><strong>{formatMoney(siteHistory.summary.openBalance)}</strong></article>
             </section>
+
+            {selectedRow && <section className="site-renewal-decision" aria-label="Renewal decision">
+              <div className="site-renewal-decision-head"><strong>Renew this camper’s site?</strong><small>Green approves the scheduled renewal. Red stops the automatic renewal and marks this as a future opening.</small></div>
+              <div className="site-renewal-decision-buttons">
+                <button className={`renew${selectedRenewing ? ' selected' : ''}`} type="button" disabled={saving === selectedRow.camper.id} onClick={() => setSendDecision(selectedRow.camper, true)}><CheckCircle2 size={16} /> {saving === selectedRow.camper.id ? 'Saving…' : selectedRenewing ? 'Green · Renewing' : 'Green · Renew'}</button>
+                <button className={`do-not-renew${selectedNotRenewing ? ' selected' : ''}`} type="button" disabled={saving === selectedRow.camper.id} onClick={() => setSendDecision(selectedRow.camper, false)}><DoorOpen size={16} /> {saving === selectedRow.camper.id ? 'Saving…' : selectedNotRenewing ? 'Red · Do not renew' : 'Red · Do not renew'}</button>
+              </div>
+              {siteDecisionMessage && <p className="site-decision-message" role="status">{siteDecisionMessage}</p>}
+            </section>}
 
             <div className="site-history-actions">
               <button type="button" onClick={() => openRenewalEditor(selectedSiteId)}><CalendarCheck size={15} /> Update renewal</button>
