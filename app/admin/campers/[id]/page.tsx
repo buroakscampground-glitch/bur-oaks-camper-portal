@@ -23,6 +23,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
+import AddressFinder from '../../../../components/AddressFinder'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 
@@ -513,14 +514,28 @@ export default function CamperDetailPage() {
           <p className="admin-camper-panel-note">
             Required so Bur Oaks can mail paper notices, leases, billing items, or other campground documents if needed.
           </p>
+          <AddressFinder
+            initialAddress={[
+              camper.mailing_address_line1,
+              camper.mailing_city,
+              camper.mailing_state,
+              camper.mailing_zip,
+            ].filter(Boolean).join(', ')}
+            onSelect={(address) => {
+              updateField('mailing_address_line1', address.line1)
+              updateField('mailing_city', address.city)
+              updateField('mailing_state', address.state)
+              updateField('mailing_zip', address.zip)
+            }}
+          />
           <div className="admin-camper-form-grid">
-            <Field label="Street address" value={camper.mailing_address_line1} onChange={(value) => updateField('mailing_address_line1', value)} />
-            <Field label="Address line 2" value={camper.mailing_address_line2} onChange={(value) => updateField('mailing_address_line2', value)} />
+            <Field label="Street address" name="mailing-address-line1" autoComplete="address-line1" value={camper.mailing_address_line1} onChange={(value) => updateField('mailing_address_line1', value)} />
+            <Field label="Address line 2" name="mailing-address-line2" autoComplete="address-line2" value={camper.mailing_address_line2} onChange={(value) => updateField('mailing_address_line2', value)} />
           </div>
           <div className="admin-camper-form-grid three">
-            <Field label="City" value={camper.mailing_city} onChange={(value) => updateField('mailing_city', value)} />
-            <Field label="State" value={camper.mailing_state} onChange={(value) => updateField('mailing_state', value)} />
-            <Field label="ZIP" value={camper.mailing_zip} onChange={(value) => updateField('mailing_zip', value)} />
+            <Field label="City" name="mailing-city" autoComplete="address-level2" value={camper.mailing_city} onChange={(value) => updateField('mailing_city', value)} />
+            <Field label="State" name="mailing-state" autoComplete="address-level1" value={camper.mailing_state} onChange={(value) => updateField('mailing_state', value)} />
+            <Field label="ZIP" name="mailing-zip" autoComplete="postal-code" value={camper.mailing_zip} onChange={(value) => updateField('mailing_zip', value)} />
           </div>
         </ProfileSection>
 
@@ -719,19 +734,29 @@ function Field({
   onChange,
   type = 'text',
   icon,
+  name,
+  autoComplete,
 }: {
   label: string
   value: string | null
   onChange: (value: string) => void
   type?: string
   icon?: React.ReactNode
+  name?: string
+  autoComplete?: string
 }) {
   return (
     <label className="admin-camper-field">
       <span>{label}</span>
       <div className={icon ? 'with-icon' : ''}>
         {icon}
-        <input type={type} value={value || ''} onChange={(event) => onChange(event.target.value)} />
+        <input
+          type={type}
+          name={name}
+          autoComplete={autoComplete}
+          value={value || ''}
+          onChange={(event) => onChange(event.target.value)}
+        />
       </div>
     </label>
   )

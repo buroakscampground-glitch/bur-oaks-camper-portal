@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { CakeSlice, CheckCircle2, ClipboardCheck, Eye, FileUp, PartyPopper, ShieldCheck, UsersRound } from 'lucide-react'
+import AddressFinder from '../../components/AddressFinder'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -595,8 +596,28 @@ export default function ProfilePage() {
             Required so Bur Oaks can mail paper notices, leases, billing items, or other campground documents if needed.
           </p>
 
+          <AddressFinder
+            initialAddress={[
+              camper.mailing_address_line1,
+              camper.mailing_city,
+              camper.mailing_state,
+              camper.mailing_zip,
+            ].filter(Boolean).join(', ')}
+            onSelect={(address) =>
+              setCamper((current: any) => ({
+                ...current,
+                mailing_address_line1: address.line1,
+                mailing_city: address.city,
+                mailing_state: address.state,
+                mailing_zip: address.zip,
+              }))
+            }
+          />
+
           <input
             placeholder="Street address"
+            name="mailing-address-line1"
+            autoComplete="address-line1"
             value={camper.mailing_address_line1 || ''}
             onChange={(e) =>
               setCamper({
@@ -609,6 +630,8 @@ export default function ProfilePage() {
 
           <input
             placeholder="Apartment, unit, PO box, or address line 2"
+            name="mailing-address-line2"
+            autoComplete="address-line2"
             value={camper.mailing_address_line2 || ''}
             onChange={(e) =>
               setCamper({
@@ -622,6 +645,8 @@ export default function ProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px' }}>
             <input
               placeholder="City"
+              name="mailing-city"
+              autoComplete="address-level2"
               value={camper.mailing_city || ''}
               onChange={(e) =>
                 setCamper({
@@ -634,6 +659,8 @@ export default function ProfilePage() {
 
             <input
               placeholder="State"
+              name="mailing-state"
+              autoComplete="address-level1"
               value={camper.mailing_state || ''}
               onChange={(e) =>
                 setCamper({
@@ -646,6 +673,8 @@ export default function ProfilePage() {
 
             <input
               placeholder="ZIP"
+              name="mailing-zip"
+              autoComplete="postal-code"
               value={camper.mailing_zip || ''}
               onChange={(e) =>
                 setCamper({

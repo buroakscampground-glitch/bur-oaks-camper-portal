@@ -11869,3 +11869,127 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   .admin-desk-section-heading, .admin-desk-directory-head { padding: 17px; }
   .admin-desk-groups { padding: 18px 17px 4px; }
 }
+
+/* Shared mailing-address finder used by camper and admin profiles. */
+.address-finder {
+  margin: 16px 0 18px;
+  padding: 15px;
+  border: 1px solid #dce4d9;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #f5f8f1 0%, #fffdf8 100%);
+}
+
+.address-finder-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 11px;
+  color: #274733;
+}
+
+.address-finder-heading > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  border-radius: 11px;
+  background: #e1ecdf;
+}
+
+.address-finder-heading div {
+  display: grid;
+  gap: 2px;
+}
+
+.address-finder-heading strong {
+  font-size: 14px;
+}
+
+.address-finder-heading small {
+  color: #66736a;
+  font-size: 11px;
+}
+
+.address-finder form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.address-finder form label,
+.address-finder form input {
+  width: 100%;
+}
+
+.address-finder .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.address-finder form input {
+  min-height: 45px;
+  margin: 0;
+  border: 1px solid #cfd9cd;
+  border-radius: 11px;
+  background: #fff;
+}
+
+.address-finder form button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 45px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 11px;
+  background: #315f3d;
+  color: #fff;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.address-finder form button:disabled {
+  cursor: wait;
+  opacity: .72;
+}
+
+.address-finder-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 2px 0;
+  color: #9a4c32;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.address-finder-message.success {
+  color: #2e663e;
+}
+
+.address-finder-spinner {
+  animation: address-finder-spin .8s linear infinite;
+}
+
+@keyframes address-finder-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 560px) {
+  .address-finder form {
+    grid-template-columns: 1fr;
+  }
+
+  .address-finder form button {
+    width: 100%;
+  }
+}
