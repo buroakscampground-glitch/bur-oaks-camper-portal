@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, BarChart3, CalendarDays, Download, Droplets, FileSpreadsheet, Printer, ReceiptText, Search } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Download, Droplets, FileSpreadsheet, Landmark, Printer, ReceiptText, Search } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 
@@ -115,10 +115,32 @@ function csvEscape(value: unknown) {
   return `"${text.replace(/"/g, '""')}"`
 }
 
+function invoiceLineItems(invoice: any) {
+  const items = Array.isArray(invoice.invoice_items) && invoice.invoice_items.length
+    ? invoice.invoice_items
+    : [
+        {
+          id: `${invoice.id}-fallback`,
+          description: invoice.invoice_type || 'Invoice total',
+          quantity: 1,
+          unit_price: invoice.total_due,
+          total: invoice.total_due,
+        },
+      ]
+
+  return items.map((item: any) => ({
+    invoice,
+    item,
+    category: categoryForItem(item, invoice),
+  }))
+}
+
 export default function AdminMonthlyReportsPage() {
   const [month, setMonth] = useState(monthInputValue())
+  const [reportScope, setReportScope] = useState<'month' | 'year'>('month')
   const [invoices, setInvoices] = useState<any[]>([])
   const [yearInvoices, setYearInvoices] = useState<any[]>([])
+  const [outstandingInvoices, setOutstandingInvoices] = useState<any[]>([])
   const [pumpOuts, setPumpOuts] = useState<any[]>([])
   const [yearPumpOuts, setYearPumpOuts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -136,30 +158,38 @@ export default function AdminMonthlyReportsPage() {
     setLoading(true)
     setMessage('')
 
-    const [invoiceResult, yearInvoiceResult, pumpOutResult, yearPumpOutResult] = await Promise.all([
+    const invoiceSelect = `
+      *,
+      campers (
+        id,
+        first_name,
+        last_name,
+        lot_number,
+        email
+      ),
+      invoice_items (*)
+    `
+
+    const [invoiceResult, yearInvoiceResult, outstandingResult, pumpOutResult, yearPumpOutResult] = await Promise.all([
       supabase
         .from('invoices')
-        .select(`
-          *,
-          campers (
-            id,
-            first_name,
-            last_name,
-            lot_number,
-            email
-          ),
-          invoice_items (*)
-        `)
+        .select(invoiceSelect)
         .eq('status', 'paid')
         .gte('paid_at', range.start.toISOString())
         .lt('paid_at', range.end.toISOString())
         .order('paid_at', { ascending: false }),
       supabase
         .from('invoices')
-        .select('id,total_due,paid_at')
+        .select(invoiceSelect)
         .eq('status', 'paid')
         .gte('paid_at', annualRange.start.toISOString())
-        .lt('paid_at', annualRange.end.toISOString()),
+        .lt('paid_at', annualRange.end.toISOString())
+        .order('paid_at', { ascending: false }),
+      supabase
+        .from('invoices')
+        .select('id,invoice_number,invoice_type,total_due,due_date,status,created_at,campers(first_name,last_name,lot_number)')
+        .in('status', ['open', 'sent', 'overdue', 'processing'])
+        .order('due_date', { ascending: true }),
       supabase
         .from('sewer_pump_out_requests')
         .select('id,lot_number,camper_name,charge_amount,gallons_used,notes,completed_at,billed_at')
@@ -169,27 +199,32 @@ export default function AdminMonthlyReportsPage() {
         .order('completed_at', { ascending: false }),
       supabase
         .from('sewer_pump_out_requests')
-        .select('id,charge_amount,gallons_used,completed_at')
+        .select('id,lot_number,camper_name,charge_amount,gallons_used,notes,completed_at,billed_at')
         .eq('status', 'completed')
         .gte('completed_at', annualRange.start.toISOString())
         .lt('completed_at', annualRange.end.toISOString()),
     ])
 
-    const errors = [invoiceResult.error, yearInvoiceResult.error, pumpOutResult.error, yearPumpOutResult.error].filter(Boolean)
+    const errors = [invoiceResult.error, yearInvoiceResult.error, outstandingResult.error, pumpOutResult.error, yearPumpOutResult.error].filter(Boolean)
     setMessage(errors.map((error) => error?.message).join(' '))
     setInvoices(invoiceResult.data || [])
     setYearInvoices(yearInvoiceResult.data || [])
+    setOutstandingInvoices(outstandingResult.data || [])
     setPumpOuts(pumpOutResult.data || [])
     setYearPumpOuts(yearPumpOutResult.data || [])
 
     setLoading(false)
   }
 
+  const reportInvoices = reportScope === 'month' ? invoices : yearInvoices
+  const reportPumpOuts = reportScope === 'month' ? pumpOuts : yearPumpOuts
+  const reportLabel = reportScope === 'month' ? range.label : String(annualRange.year)
+
   const filteredInvoices = useMemo(() => {
     const term = search.trim().toLowerCase()
-    if (!term) return invoices
+    if (!term) return reportInvoices
 
-    return invoices.filter((invoice) => {
+    return reportInvoices.filter((invoice) => {
       const lot = String(invoice.campers?.lot_number || '')
       const name = camperName(invoice).toLowerCase()
       const invoiceNumber = String(invoice.invoice_number || '').toLowerCase()
@@ -202,43 +237,27 @@ export default function AdminMonthlyReportsPage() {
 
       return [lot, name, invoiceNumber, invoiceType, method, itemText].some((value) => value.includes(term))
     })
-  }, [invoices, search])
+  }, [reportInvoices, search])
 
   const lineItems = useMemo(() => {
-    return filteredInvoices.flatMap((invoice) => {
-      const items = Array.isArray(invoice.invoice_items) && invoice.invoice_items.length
-        ? invoice.invoice_items
-        : [
-            {
-              id: `${invoice.id}-fallback`,
-              description: invoice.invoice_type || 'Invoice total',
-              quantity: 1,
-              unit_price: invoice.total_due,
-              total: invoice.total_due,
-            },
-          ]
-
-      return items.map((item: any) => ({
-        invoice,
-        item,
-        category: categoryForItem(item, invoice),
-      }))
-    })
+    return filteredInvoices.flatMap(invoiceLineItems)
   }, [filteredInvoices])
 
-  const totalCollected = filteredInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-  const positiveLineTotal = lineItems
+  const allLineItems = useMemo(() => reportInvoices.flatMap(invoiceLineItems), [reportInvoices])
+
+  const totalCollected = reportInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const positiveLineTotal = allLineItems
     .filter((entry) => Number(entry.item.total || 0) > 0)
     .reduce((sum, entry) => sum + Number(entry.item.total || 0), 0)
   const creditsApplied = Math.abs(
-    lineItems
+    allLineItems
       .filter((entry) => Number(entry.item.total || 0) < 0)
       .reduce((sum, entry) => sum + Number(entry.item.total || 0), 0)
   )
 
   const paymentMethodTotals = useMemo(() => {
     const grouped = new Map<string, { label: string; count: number; total: number }>()
-    for (const invoice of filteredInvoices) {
+    for (const invoice of reportInvoices) {
       const label = invoice.payment_method || 'Paid before detailed tracking'
       const current = grouped.get(label) || { label, count: 0, total: 0 }
       current.count += 1
@@ -246,11 +265,11 @@ export default function AdminMonthlyReportsPage() {
       grouped.set(label, current)
     }
     return Array.from(grouped.values()).sort((a, b) => b.total - a.total)
-  }, [filteredInvoices])
+  }, [reportInvoices])
 
   const categoryTotals = useMemo(() => {
     const grouped = new Map<string, { label: string; count: number; total: number }>()
-    for (const entry of lineItems) {
+    for (const entry of allLineItems) {
       const amount = Number(entry.item.total || 0)
       const current = grouped.get(entry.category) || { label: entry.category, count: 0, total: 0 }
       current.count += 1
@@ -258,7 +277,7 @@ export default function AdminMonthlyReportsPage() {
       grouped.set(entry.category, current)
     }
     return Array.from(grouped.values()).sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
-  }, [lineItems])
+  }, [allLineItems])
 
   const positiveCategoryTotals = categoryTotals.filter((row) => row.total > 0)
   const categoryGrandTotal = positiveCategoryTotals.reduce((sum, row) => sum + row.total, 0)
@@ -281,9 +300,20 @@ export default function AdminMonthlyReportsPage() {
   const pumpOutGallons = (request: any) => Number(
     request.gallons_used || getSewerPumpOutGallonsForCharge(request.charge_amount)
   )
-  const totalPumpOutGallons = pumpOuts.reduce((sum, request) => sum + pumpOutGallons(request), 0)
-  const holdingTankPumpOuts = pumpOuts.filter((request) => pumpOutGallons(request) === 150).length
-  const standardPumpOuts = pumpOuts.filter((request) => pumpOutGallons(request) === 30).length
+  const totalPumpOutGallons = reportPumpOuts.reduce((sum, request) => sum + pumpOutGallons(request), 0)
+  const holdingTankPumpOuts = reportPumpOuts.filter((request) => pumpOutGallons(request) === 150).length
+  const standardPumpOuts = reportPumpOuts.filter((request) => pumpOutGallons(request) === 30).length
+  const averagePayment = reportInvoices.length ? totalCollected / reportInvoices.length : 0
+  const outstandingBalance = outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const today = new Date().toISOString().slice(0, 10)
+  const pastDueInvoices = outstandingInvoices.filter((invoice) => invoice.status !== 'processing' && invoice.due_date && invoice.due_date < today)
+  const pastDueBalance = pastDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const itemizedNet = positiveLineTotal - creditsApplied
+  const reconciliationDifference = totalCollected - itemizedNet
+  const onlineCollected = paymentMethodTotals
+    .filter((row) => /online|card|ach|stripe/i.test(row.label))
+    .reduce((sum, row) => sum + row.total, 0)
+  const officeCollected = totalCollected - onlineCollected
   const annualMonths = useMemo(() => {
     return Array.from({ length: 12 }, (_, monthIndex) => {
       const revenue = yearInvoices
@@ -321,7 +351,7 @@ export default function AdminMonthlyReportsPage() {
         'Unit Price',
         'Line Total',
       ],
-      ...lineItems.map(({ invoice, item, category }) => [
+      ...allLineItems.map(({ invoice, item, category }) => [
         formatDateTime(invoice.paid_at),
         invoice.campers?.lot_number || '',
         camperName(invoice),
@@ -345,7 +375,7 @@ export default function AdminMonthlyReportsPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `bur-oaks-monthly-money-report-${month}.csv`
+    link.download = `bur-oaks-${reportScope}-money-report-${reportScope === 'month' ? month : annualRange.year}.csv`
     link.click()
     URL.revokeObjectURL(url)
   }
@@ -353,7 +383,7 @@ export default function AdminMonthlyReportsPage() {
   function exportPumpOutCsv() {
     const rows = [
       ['Completed Date', 'Lot', 'Camper', 'Gallons Used', 'Charge', 'Billed Date', 'Notes'],
-      ...pumpOuts.map((request) => [
+      ...reportPumpOuts.map((request) => [
         formatDateTime(request.completed_at),
         request.lot_number || '',
         request.camper_name || '',
@@ -368,9 +398,19 @@ export default function AdminMonthlyReportsPage() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `bur-oaks-pump-out-gallons-${month}.csv`
+    link.download = `bur-oaks-pump-out-gallons-${reportScope === 'month' ? month : annualRange.year}.csv`
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  function printReport(section: 'full' | 'tax' | 'payments' | 'receivables' | 'pump-outs') {
+    document.body.dataset.reportPrint = section
+    const clearPrintMode = () => {
+      delete document.body.dataset.reportPrint
+      window.removeEventListener('afterprint', clearPrintMode)
+    }
+    window.addEventListener('afterprint', clearPrintMode)
+    window.setTimeout(() => window.print(), 50)
   }
 
   return (
@@ -378,73 +418,139 @@ export default function AdminMonthlyReportsPage() {
       <div className="admin-report-shell">
         <a href="/admin" className="admin-report-back"><ArrowLeft size={17} /> Back to Dashboard</a>
 
-        <section className="admin-report-hero">
+        <section className="admin-report-hero admin-report-print-header">
           <div>
-            <p className="admin-report-eyebrow"><FileSpreadsheet size={16} /> Monthly money report</p>
-            <h1>What came in, when, and what it was for.</h1>
+            <p className="admin-report-eyebrow"><FileSpreadsheet size={16} /> Business reporting center</p>
+            <h1>Every dollar and detail, ready when you need it.</h1>
             <p>
-              Pick a month to see paid invoices, detailed line items, pump-out gallons,
-              camper lots, and a full-year comparison.
+              Review a month or full year, prepare clean records for taxes, print payment detail,
+              and keep the state pump-out gallon log in one place.
             </p>
+            <strong className="admin-report-period">REPORT PERIOD · {reportLabel.toUpperCase()}</strong>
           </div>
 
           <div className="admin-report-controls">
-            <label>
-              <span>Report month</span>
-              <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
-            </label>
-            <button type="button" onClick={exportCsv} disabled={!lineItems.length}>
-              <Download size={16} /> Export CSV
+            <div className="admin-report-scope" role="group" aria-label="Report period">
+              <button className={reportScope === 'month' ? 'active' : ''} type="button" onClick={() => setReportScope('month')}>Month</button>
+              <button className={reportScope === 'year' ? 'active' : ''} type="button" onClick={() => setReportScope('year')}>Full year</button>
+            </div>
+            {reportScope === 'month' ? (
+              <label>
+                <span>Report month</span>
+                <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
+              </label>
+            ) : (
+              <label>
+                <span>Report year</span>
+                <input
+                  min="2020"
+                  max="2100"
+                  type="number"
+                  value={annualRange.year}
+                  onChange={(event) => setMonth(`${event.target.value || new Date().getFullYear()}-01`)}
+                />
+              </label>
+            )}
+            <button type="button" onClick={exportCsv} disabled={!allLineItems.length}>
+              <Download size={16} /> Export payment CSV
             </button>
-            <button type="button" onClick={() => window.print()}>
-              <Printer size={16} /> Print
+            <button type="button" onClick={() => printReport('full')}>
+              <Printer size={16} /> Print full report
             </button>
           </div>
         </section>
 
         {message && <p className="admin-report-message">{message}</p>}
 
-        <section className="admin-report-kpis">
+        <section className="admin-report-print-center">
+          <div>
+            <span><Printer size={17} /> PRINT CENTER</span>
+            <h2>Print only what you need.</h2>
+            <p>Each button creates a clean paper report without the sidebar, controls, or website clutter.</p>
+          </div>
+          <div>
+            <button type="button" onClick={() => printReport('tax')}><BookOpenCheck size={16} /> Tax summary</button>
+            <button type="button" onClick={() => printReport('payments')}><ReceiptText size={16} /> Payment detail</button>
+            <button type="button" onClick={() => printReport('receivables')}><Landmark size={16} /> Open balances</button>
+            <button type="button" onClick={() => printReport('pump-outs')}><Droplets size={16} /> Pump-out log</button>
+          </div>
+        </section>
+
+        <section className="admin-report-kpis admin-report-section admin-report-overview">
           <article>
             <span><ReceiptText size={21} /></span>
             <small>Money received</small>
             <strong>{formatMoney(totalCollected)}</strong>
-            <em>{range.label}</em>
+            <em>{reportLabel}</em>
           </article>
           <article>
             <span><CalendarDays size={21} /></span>
             <small>Paid invoices</small>
-            <strong>{filteredInvoices.length}</strong>
-            <em>{lineItems.length} itemized lines</em>
+            <strong>{reportInvoices.length}</strong>
+            <em>{allLineItems.length} itemized lines</em>
           </article>
           <article>
-            <span><FileSpreadsheet size={21} /></span>
-            <small>Charges before credits</small>
-            <strong>{formatMoney(positiveLineTotal)}</strong>
-            <em>Gross item lines</em>
+            <span><Landmark size={21} /></span>
+            <small>Average payment</small>
+            <strong>{formatMoney(averagePayment)}</strong>
+            <em>Per paid invoice</em>
           </article>
           <article>
-            <span><ReceiptText size={21} /></span>
-            <small>Credits applied</small>
-            <strong>{formatMoney(creditsApplied)}</strong>
-            <em>Reduces amount owed</em>
+            <span><AlertTriangle size={21} /></span>
+            <small>Past due now</small>
+            <strong>{formatMoney(pastDueBalance)}</strong>
+            <em>{pastDueInvoices.length} invoice{pastDueInvoices.length === 1 ? '' : 's'} need follow-up</em>
           </article>
         </section>
 
-        <section className="admin-report-panel">
+        <section className="admin-report-panel admin-report-tax-summary admin-report-section">
+          <div className="admin-report-heading">
+            <div>
+              <span><BookOpenCheck size={14} /> TAX PREPARATION SUMMARY</span>
+              <h2>Income records for {reportLabel}</h2>
+            </div>
+            <strong className="admin-report-prepared">Prepared {new Date().toLocaleDateString()}</strong>
+          </div>
+
+          <div className="admin-report-tax-grid">
+            <article className="admin-report-tax-total">
+              <small>Portal payments collected</small>
+              <strong>{formatMoney(totalCollected)}</strong>
+              <p>Paid invoices recorded by the Bur Oaks portal during this report period.</p>
+            </article>
+            <article><small>Positive invoice charges</small><strong>{formatMoney(positiveLineTotal)}</strong><p>Itemized charges before camper credits.</p></article>
+            <article><small>Camper credits applied</small><strong>−{formatMoney(creditsApplied)}</strong><p>Credits that reduced amounts owed.</p></article>
+            <article><small>Online card / ACH</small><strong>{formatMoney(onlineCollected)}</strong><p>Payments labeled online, card, ACH, or Stripe.</p></article>
+            <article><small>Office / other payments</small><strong>{formatMoney(officeCollected)}</strong><p>Cash, check, manual office, and older payment records.</p></article>
+            <article><small>Unitemized difference</small><strong>{formatMoney(reconciliationDifference)}</strong><p>Late fees or older invoices not represented by line items.</p></article>
+          </div>
+
+          <div className="admin-report-tax-ledger">
+            <div>
+              <h3>Income by bookkeeping category</h3>
+              {categoryTotals.length ? categoryTotals.map((row) => (
+                <p key={`tax-${row.label}`}><span>{row.label}</span><strong>{formatMoney(row.total)}</strong></p>
+              )) : <p className="admin-report-empty">No paid income recorded for this period.</p>}
+            </div>
+            <div>
+              <h3>Current accounts receivable</h3>
+              <p><span>All open / processing invoices</span><strong>{formatMoney(outstandingBalance)}</strong></p>
+              <p><span>Currently past due</span><strong>{formatMoney(pastDueBalance)}</strong></p>
+              <p><span>Open invoice count</span><strong>{outstandingInvoices.length}</strong></p>
+              <div className="admin-report-tax-note">
+                <AlertTriangle size={18} />
+                <span>This is a portal income summary, not a complete tax return. Add business expenses, bank records, Stripe fees and refunds, payroll, and depreciation before giving records to your tax preparer.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="admin-report-panel admin-report-section admin-report-tax-support">
           <div className="admin-report-heading">
             <div>
               <span>BREAKDOWNS</span>
               <h2>Where the money came from</h2>
             </div>
-            <label className="admin-report-search">
-              <Search size={16} />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search lot, camper, invoice, item, or method"
-              />
-            </label>
           </div>
 
           <div className="admin-report-money-map">
@@ -520,7 +626,7 @@ export default function AdminMonthlyReportsPage() {
           </div>
         </section>
 
-        <section className="admin-report-panel">
+        <section className="admin-report-panel admin-report-section admin-report-year-overview">
           <div className="admin-report-heading">
             <div>
               <span><BarChart3 size={14} /> YEAR AT A GLANCE</span>
@@ -563,19 +669,19 @@ export default function AdminMonthlyReportsPage() {
           </div>
         </section>
 
-        <section className="admin-report-panel admin-report-pump-record">
+        <section className="admin-report-panel admin-report-pump-record admin-report-section">
           <div className="admin-report-heading">
             <div>
               <span><Droplets size={14} /> STATE PUMP-OUT RECORD</span>
-              <h2>Gallons pumped in {range.label}</h2>
+              <h2>Gallons pumped in {reportLabel}</h2>
             </div>
-            <button type="button" className="admin-report-export-secondary" onClick={exportPumpOutCsv} disabled={!pumpOuts.length}>
+            <button type="button" className="admin-report-export-secondary" onClick={exportPumpOutCsv} disabled={!reportPumpOuts.length}>
               <Download size={16} /> Export gallon log
             </button>
           </div>
 
           <div className="admin-report-pump-kpis">
-            <article><small>Total gallons</small><strong>{totalPumpOutGallons.toLocaleString()}</strong><em>{pumpOuts.length} completed pump-out{pumpOuts.length === 1 ? '' : 's'}</em></article>
+            <article><small>Total gallons</small><strong>{totalPumpOutGallons.toLocaleString()}</strong><em>{reportPumpOuts.length} completed pump-out{reportPumpOuts.length === 1 ? '' : 's'}</em></article>
             <article><small>150-gallon visits</small><strong>{holdingTankPumpOuts}</strong><em>$15 holding-tank service</em></article>
             <article><small>30-gallon visits</small><strong>{standardPumpOuts}</strong><em>$10 standard service</em></article>
           </div>
@@ -594,7 +700,7 @@ export default function AdminMonthlyReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {pumpOuts.length ? pumpOuts.map((request) => (
+                {reportPumpOuts.length ? reportPumpOuts.map((request) => (
                   <tr key={request.id}>
                     <td>{formatDateTime(request.completed_at)}</td>
                     <td><strong>{request.lot_number || '—'}</strong></td>
@@ -612,12 +718,59 @@ export default function AdminMonthlyReportsPage() {
           </div>
         </section>
 
-        <section className="admin-report-panel">
+        <section className="admin-report-panel admin-report-section admin-report-receivables">
+          <div className="admin-report-heading">
+            <div>
+              <span><Landmark size={14} /> ACCOUNTS RECEIVABLE</span>
+              <h2>Money still owed today</h2>
+            </div>
+            <strong className="admin-report-prepared">{outstandingInvoices.length} open · {formatMoney(outstandingBalance)}</strong>
+          </div>
+
+          <div className="admin-report-receivable-summary">
+            <article><small>All open balances</small><strong>{formatMoney(outstandingBalance)}</strong><em>{outstandingInvoices.length} invoices</em></article>
+            <article><small>Past due</small><strong>{formatMoney(pastDueBalance)}</strong><em>{pastDueInvoices.length} need follow-up</em></article>
+            <article><small>Not past due</small><strong>{formatMoney(outstandingBalance - pastDueBalance)}</strong><em>Current or processing</em></article>
+          </div>
+
+          <div className="admin-report-table-wrap">
+            <table className="admin-report-table admin-report-receivable-table">
+              <thead><tr><th>Lot</th><th>Camper</th><th>Invoice</th><th>Charge</th><th>Status</th><th>Due date</th><th>Balance</th><th>Action</th></tr></thead>
+              <tbody>
+                {outstandingInvoices.length ? outstandingInvoices.map((invoice) => {
+                  const isPastDue = invoice.status !== 'processing' && invoice.due_date && invoice.due_date < today
+                  return (
+                    <tr className={isPastDue ? 'past-due' : ''} key={`open-${invoice.id}`}>
+                      <td><strong>{invoice.campers?.lot_number || '—'}</strong></td>
+                      <td>{camperName(invoice)}</td>
+                      <td>{invoice.invoice_number || '—'}</td>
+                      <td>{invoice.invoice_type || 'Campground charge'}</td>
+                      <td><strong>{isPastDue ? 'Past due' : invoice.status === 'processing' ? 'Processing' : 'Open'}</strong></td>
+                      <td>{formatShortDate(invoice.due_date)}</td>
+                      <td><strong>{formatMoney(invoice.total_due)}</strong></td>
+                      <td><a href={`/admin/invoices/${invoice.id}`}>Open invoice</a></td>
+                    </tr>
+                  )
+                }) : <tr><td colSpan={8}>No open balances. Everything is paid.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="admin-report-panel admin-report-section admin-report-payment-detail">
           <div className="admin-report-heading">
             <div>
               <span>PAID INVOICES</span>
-              <h2>Every payment received in {range.label}</h2>
+              <h2>Every payment received in {reportLabel}</h2>
             </div>
+            <label className="admin-report-search">
+              <Search size={16} />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search payment detail"
+              />
+            </label>
           </div>
 
           {loading ? (
@@ -647,7 +800,7 @@ export default function AdminMonthlyReportsPage() {
           )}
         </section>
 
-        <section className="admin-report-panel">
+        <section className="admin-report-panel admin-report-section admin-report-payment-detail">
           <div className="admin-report-heading">
             <div>
               <span>LINE ITEM DETAIL</span>

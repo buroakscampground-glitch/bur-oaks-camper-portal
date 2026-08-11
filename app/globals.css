@@ -11132,6 +11132,63 @@ tbody tr:hover {
 .account-invoice-check>span.processing,.admin-invoice-record-icon.processing{background:#e5eef7;color:#35658a}
 .camper-invoice-detail-summary strong.processing{color:#35658a}
 
+/* Reports: tax-ready summaries, period controls, and focused print packs */
+.admin-report-period{display:inline-flex;margin-top:18px;padding:7px 10px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(255,255,255,.08);color:#f2d68e;font-size:9px;letter-spacing:.13em}
+.admin-report-scope{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:rgba(255,255,255,.08)}
+.admin-report-scope button{min-height:34px!important;border:0!important;background:transparent!important;color:rgba(255,255,255,.72)!important}
+.admin-report-scope button.active{background:#fff!important;color:#315f3d!important}
+.admin-report-print-center{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:19px 22px;border:1px solid #d8dfd6;border-radius:20px;background:linear-gradient(135deg,#edf5eb,#fff);box-shadow:0 12px 30px rgba(34,54,38,.06)}
+.admin-report-print-center>div:first-child>span{display:inline-flex;align-items:center;gap:7px;color:#8b6b2b;font-size:9px;font-weight:950;letter-spacing:.13em}
+.admin-report-print-center h2{margin:5px 0 0;color:#263d2e;font:500 26px Georgia,serif}
+.admin-report-print-center p{margin:5px 0 0;color:#6c796f;font-size:11px}
+.admin-report-print-center>div:last-child{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
+.admin-report-print-center button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:39px;padding:0 12px;border:1px solid #cfd9ce!important;background:#fff!important;color:#315f3d!important;font-size:10px;font-weight:900}
+.admin-report-prepared{color:#718078;font-size:10px;white-space:nowrap}
+.admin-report-tax-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:20px 22px;background:linear-gradient(145deg,#f4f8f1,#fffaf0)}
+.admin-report-tax-grid article{min-width:0;padding:17px;border:1px solid #dde2da;border-radius:17px;background:#fff}
+.admin-report-tax-grid article.admin-report-tax-total{grid-row:span 2;display:grid;align-content:center;background:linear-gradient(145deg,#244a31,#315f3d);color:#fff}
+.admin-report-tax-grid small{display:block;color:#92702e;font-size:8px;font-weight:950;letter-spacing:.1em;text-transform:uppercase}
+.admin-report-tax-grid strong{display:block;margin-top:7px;color:#263d2e;font:500 25px Georgia,serif}
+.admin-report-tax-grid p{margin:6px 0 0;color:#718078;font-size:10px;line-height:1.45}
+.admin-report-tax-grid .admin-report-tax-total small{color:#e5c97d}.admin-report-tax-grid .admin-report-tax-total strong{color:#fff;font-size:39px}.admin-report-tax-grid .admin-report-tax-total p{color:rgba(255,255,255,.72)}
+.admin-report-tax-ledger{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid #ebe7dd}
+.admin-report-tax-ledger>div{padding:20px 22px}.admin-report-tax-ledger>div+div{border-left:1px solid #ebe7dd}
+.admin-report-tax-ledger h3{margin:0 0 10px;color:#263d2e;font-size:16px}
+.admin-report-tax-ledger p{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;padding:10px 0;border-top:1px solid #efede6;color:#5e6c63;font-size:11px}
+.admin-report-tax-ledger p:first-of-type{border-top:0}.admin-report-tax-ledger p strong{color:#263d2e;font-size:13px;white-space:nowrap}
+.admin-report-tax-note{display:flex;align-items:flex-start;gap:10px;margin-top:12px;padding:12px;border:1px solid #ead5a8;border-radius:13px;background:#fff8e8;color:#76591f;font-size:10px;line-height:1.5}.admin-report-tax-note svg{flex:0 0 auto}
+.admin-report-receivable-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:17px 22px;background:#f7faf6}.admin-report-receivable-summary article{padding:15px;border:1px solid #dfe4dc;border-radius:16px;background:#fff}.admin-report-receivable-summary small,.admin-report-receivable-summary em{display:block;color:#718078;font-size:9px;font-style:normal;font-weight:850}.admin-report-receivable-summary strong{display:block;margin:5px 0;color:#263d2e;font:500 26px Georgia,serif}.admin-report-receivable-table{min-width:920px}.admin-report-receivable-table tr.past-due{background:#fff5f2}.admin-report-receivable-table tr.past-due td:nth-child(5) strong{color:#a33d34}.admin-report-receivable-table a{color:#315f3d;font-weight:900}
+@media(max-width:920px){.admin-report-print-center{align-items:stretch;flex-direction:column}.admin-report-print-center>div:last-child{justify-content:flex-start}.admin-report-tax-grid{grid-template-columns:1fr 1fr}.admin-report-tax-grid article.admin-report-tax-total{grid-row:auto;grid-column:1/-1}.admin-report-tax-ledger{grid-template-columns:1fr}.admin-report-tax-ledger>div+div{border-top:1px solid #ebe7dd;border-left:0}}
+@media(max-width:640px){.admin-report-print-center>div:last-child{display:grid}.admin-report-tax-grid,.admin-report-receivable-summary{grid-template-columns:1fr;padding:13px}.admin-report-tax-grid article.admin-report-tax-total{grid-column:auto}.admin-report-tax-ledger>div{padding:17px}.admin-report-prepared{white-space:normal}}
+@media print{
+  @page{size:letter portrait;margin:.42in}
+  body[data-report-print] *{visibility:hidden!important}
+  body[data-report-print] .admin-report-page,body[data-report-print] .admin-report-page *{visibility:visible!important}
+  body[data-report-print] .admin-workspace-page,body[data-report-print] .admin-workspace-shell,body[data-report-print] .admin-workspace-main,body[data-report-print] .admin-workspace-content,body[data-report-print] .admin-report-page{display:block!important;width:100%!important;max-width:none!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;border:0!important;border-radius:0!important;background:#fff!important;box-shadow:none!important}
+  body[data-report-print] .admin-sidebar,body[data-report-print] .admin-workspace-header,body[data-report-print] .admin-workspace-footer,body[data-report-print] .admin-report-back,body[data-report-print] .admin-report-controls,body[data-report-print] .admin-report-print-center,body[data-report-print] .admin-report-search,body[data-report-print] .global-back-button,body[data-report-print] .tawk-min-container{display:none!important}
+  body[data-report-print] .admin-report-shell{display:block!important;max-width:none!important}
+  body[data-report-print] .admin-report-print-header{display:block!important;margin:0 0 14px!important;padding:0 0 12px!important;border-bottom:3px solid #315f3d!important;border-radius:0!important;background:#fff!important;color:#18231c!important;box-shadow:none!important}
+  body[data-report-print] .admin-report-print-header h1{max-width:none!important;margin-top:5px!important;color:#213d2a!important;font-size:24pt!important}
+  body[data-report-print] .admin-report-print-header p:not(.admin-report-eyebrow){margin-top:6px!important;color:#536057!important;font-size:9pt!important}
+  body[data-report-print] .admin-report-eyebrow,body[data-report-print] .admin-report-period{color:#8a6828!important}
+  body[data-report-print] .admin-report-period{margin-top:8px!important;border-color:#ccb97f!important;background:#fff!important}
+  body[data-report-print] .admin-report-section{margin:0 0 12px!important;border-radius:0!important;box-shadow:none!important;break-inside:auto}
+  body[data-report-print="tax"] .admin-report-section:not(.admin-report-tax-summary),body[data-report-print="payments"] .admin-report-section:not(.admin-report-payment-detail),body[data-report-print="receivables"] .admin-report-section:not(.admin-report-receivables),body[data-report-print="pump-outs"] .admin-report-section:not(.admin-report-pump-record){display:none!important}
+  body[data-report-print="payments"] .admin-report-payment-detail+ .admin-report-payment-detail{break-before:page}
+  body[data-report-print] .admin-report-tax-grid{grid-template-columns:repeat(3,1fr)!important;padding:10px!important}
+  body[data-report-print] .admin-report-tax-grid article{padding:10px!important}
+  body[data-report-print] .admin-report-tax-grid article.admin-report-tax-total{grid-row:span 2!important;grid-column:auto!important}
+  body[data-report-print] .admin-report-tax-grid .admin-report-tax-total strong{font-size:25pt!important}
+  body[data-report-print] .admin-report-tax-ledger{grid-template-columns:1fr 1fr!important}
+  body[data-report-print] .admin-report-tax-ledger>div{padding:10px!important}
+  body[data-report-print] .admin-report-heading{padding:10px 12px!important}
+  body[data-report-print] .admin-report-heading h2{font-size:18pt!important}
+  body[data-report-print] .admin-report-table-wrap{overflow:visible!important}
+  body[data-report-print] .admin-report-table{width:100%!important;min-width:0!important;table-layout:auto!important}
+  body[data-report-print] .admin-report-table th,body[data-report-print] .admin-report-table td{padding:5px!important;font-size:7pt!important}
+  body[data-report-print] .admin-report-pump-record{break-before:auto!important}
+}
+
 /* Safe admin invoice editor */
 .admin-invoice-editor{overflow:hidden;margin:0 0 22px;border:1px solid #d9ded5;border-radius:22px;background:#fff;box-shadow:0 16px 38px rgba(39,53,43,.09)}
 .admin-invoice-editor-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;padding:22px 24px;border-bottom:1px solid #e8e6dd;background:linear-gradient(135deg,#f8faf5,#fffaf0)}
