@@ -158,8 +158,14 @@ function nextAnnualDate(monthValue: string, dayValue: string) {
   return candidate >= today ? candidate : `${year + 1}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
+function annualContractDate(record?: Renewal) {
+  const savedDate = record?.contract_end_date || record?.contract_start_date || ''
+  if (!savedDate) return ''
+  return nextAnnualDate(String(Number(savedDate.slice(5, 7))), String(Number(savedDate.slice(8, 10))))
+}
+
 function draftFrom(record?: Renewal): Draft {
-  const annualDate = record?.contract_end_date || record?.contract_start_date || ''
+  const annualDate = annualContractDate(record)
   return {
     annual_month: annualDate ? String(Number(annualDate.slice(5, 7))) : '',
     annual_day: annualDate ? String(Number(annualDate.slice(8, 10))) : '',
@@ -378,7 +384,7 @@ export default function AdminRenewalsPage() {
     const today = todayISO()
     return campers.map((camper) => {
       const renewal = renewals.find((record) => record.camper_id === camper.id)
-      const contractEnd = renewal?.contract_end_date || ''
+      const contractEnd = annualContractDate(renewal)
       const sendDue = shiftDate(contractEnd, -4)
       const reviewDue = shiftDate(sendDue, 0, -14)
       const responseDue = shiftDate(contractEnd, -3)
