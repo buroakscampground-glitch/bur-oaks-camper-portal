@@ -177,8 +177,8 @@ export default function AdminSiteServicesPage() {
       </section>
 
       <section className="admin-site-service-stats">
-        <article><small>Pending services</small><strong>{activeCharges.length}</strong></article>
-        <article><small>Pending charges</small><strong>${pendingTotal.toFixed(2)}</strong></article>
+        <article><small>Work completed</small><strong>{activeCharges.length}</strong></article>
+        <article><small>Waiting to bill</small><strong>${pendingTotal.toFixed(2)}</strong></article>
         <article><small>Already billed</small><strong>{billedCharges.length}</strong></article>
       </section>
 
@@ -251,7 +251,7 @@ export default function AdminSiteServicesPage() {
       <section className="admin-site-service-toolbar">
         <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search lot, camper, service, or notes" /></label>
         <select value={filter} onChange={(event) => setFilter(event.target.value)}>
-          <option value="active">Active / unbilled</option>
+          <option value="active">Completed / waiting to bill</option>
           <option value="billed">Billed</option>
           <option value="cancelled">Cancelled</option>
           <option value="all">All</option>
@@ -265,14 +265,14 @@ export default function AdminSiteServicesPage() {
 
           return (
             <article className={`${isBilled ? 'billed' : ''} ${isCancelled ? 'cancelled' : ''}`} key={charge.id}>
-              <span>{isBilled ? 'Billed' : isCancelled ? 'Cancelled' : 'Pending'}</span>
+              <span>{isBilled ? 'Billed' : isCancelled ? 'Cancelled' : 'Done · Awaiting bill'}</span>
               <div>
                 <small>Lot {charge.lot_number || 'N/A'} · {new Date(charge.performed_at).toLocaleDateString()}</small>
                 <h2>{charge.service_label} · {charge.camper_name}</h2>
                 <p>{charge.notes || 'No notes added.'}</p>
                 <em>
                   ${Number(charge.charge_amount || 0).toFixed(2)}
-                  {isBilled ? ` · billed on ${new Date(charge.billed_at).toLocaleDateString()}` : ' · pending next electric bill'}
+                  {isBilled ? ` · billed on ${new Date(charge.billed_at).toLocaleDateString()}` : ' · work complete · waiting for next electric bill'}
                 </em>
               </div>
               <div className="admin-site-service-actions">

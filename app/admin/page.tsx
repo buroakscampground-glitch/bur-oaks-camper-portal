@@ -445,7 +445,7 @@ export default function AdminPage() {
         { href: '/admin/maintenance/supplies', title: 'Supply requests', detail: `${stats.activeSupplyRequests} active`, icon: ShoppingBasket },
         { href: '/admin/pump-outs', title: 'Pump-outs', detail: `${stats.pumpOuts} active`, icon: Droplets },
         { href: '/admin/site-care', title: 'Site care', detail: `${stats.activeSiteCare} active`, icon: ClipboardCheck },
-        { href: '/admin/site-services', title: 'Site services', detail: `${stats.siteServices} unbilled`, icon: SprayCan },
+        { href: '/admin/site-services', title: 'Site services', detail: `${stats.siteServices} completed · waiting to bill`, icon: SprayCan },
       ],
     },
     {
@@ -521,17 +521,9 @@ export default function AdminPage() {
       href: '/admin/pump-outs',
       title: 'Pump-outs to handle',
       count: stats.pumpOuts,
-      detail: 'Requested or not yet billed',
+      detail: stats.pumpOuts ? 'Still waiting to be pumped' : 'All requested pump-outs are handled',
       icon: Droplets,
       urgent: stats.pumpOuts > 0,
-    },
-    {
-      href: '/admin/site-services',
-      title: 'Site services to bill',
-      count: stats.siteServices,
-      detail: 'Weed, spray, pressure wash, misc',
-      icon: SprayCan,
-      urgent: stats.siteServices > 0,
     },
     {
       href: '/admin/dinners',
