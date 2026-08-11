@@ -9,12 +9,20 @@ import {
   CalendarClock,
   CheckCircle2,
   ChevronDown,
+  CircleDollarSign,
   Clock3,
   DoorOpen,
+  ExternalLink,
+  FileWarning,
+  History,
+  ListChecks,
+  LoaderCircle,
+  ReceiptText,
   Save,
   Search,
   Send,
   Sparkles,
+  X,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
@@ -46,16 +54,56 @@ type Renewal = {
 }
 
 type Draft = {
-  contract_start_date: string
-  contract_end_date: string
+  annual_month: string
+  annual_day: string
   renewal_sent_at: string
   status: RenewalStatus
   notes: string
 }
 
 type View = 'Action' | 'Openings' | 'All' | 'Setup'
+type SiteHistoryTab = 'care' | 'payments'
+
+type SiteCareNotice = {
+  id: string
+  title: string
+  message?: string | null
+  priority?: string | null
+  status?: string | null
+  due_date?: string | null
+  created_at?: string | null
+}
+
+type PaymentRecord = {
+  id: string
+  invoice_number?: string | null
+  invoice_type?: string | null
+  total_due?: number | null
+  late_fee?: number | null
+  due_date?: string | null
+  status?: string | null
+  paid_at?: string | null
+  payment_method?: string | null
+  created_at?: string | null
+  is_late?: boolean
+}
+
+type SiteHistory = {
+  camper: Camper & { email?: string | null; phone?: string | null }
+  notices: SiteCareNotice[]
+  invoices: PaymentRecord[]
+  summary: {
+    totalInvoices: number
+    paidInvoices: number
+    lateInvoices: number
+    openBalance: number
+    totalNotices: number
+    activeNotices: number
+  }
+}
 
 const statuses: RenewalStatus[] = ['Not Started', 'Awaiting Response', 'Renewing', 'Camper Leaving', 'Campground Not Renewing']
+const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 function camperName(camper: Camper) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
@@ -80,14 +128,41 @@ function formatDate(value?: string | null) {
   return new Date(`${value}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return 'Not recorded'
+  return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatMoney(value?: number | null) {
+  return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+}
+
+function formatAnnualDate(value?: string | null) {
+  if (!value) return 'Not set'
+  return new Date(`2000-${value.slice(5)}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })
+}
+
 function monthLabel(value: string) {
   return new Date(`${value}-01T12:00:00`).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
+function nextAnnualDate(monthValue: string, dayValue: string) {
+  const month = Number(monthValue)
+  const day = Number(dayValue)
+  if (!month || !day) return ''
+  const today = todayISO()
+  const year = Number(today.slice(0, 4))
+  const date = new Date(year, month - 1, day, 12)
+  if (date.getMonth() !== month - 1 || date.getDate() !== day) return ''
+  const candidate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return candidate >= today ? candidate : `${year + 1}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
 function draftFrom(record?: Renewal): Draft {
+  const annualDate = record?.contract_end_date || record?.contract_start_date || ''
   return {
-    contract_start_date: record?.contract_start_date || '',
-    contract_end_date: record?.contract_end_date || '',
+    annual_month: annualDate ? String(Number(annualDate.slice(5, 7))) : '',
+    annual_day: annualDate ? String(Number(annualDate.slice(8, 10))) : '',
     renewal_sent_at: record?.renewal_sent_at || '',
     status: record?.status || 'Not Started',
     notes: record?.notes || '',
@@ -104,8 +179,27 @@ export default function AdminRenewalsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [selectedSiteId, setSelectedSiteId] = useState('')
+  const [siteHistory, setSiteHistory] = useState<SiteHistory | null>(null)
+  const [siteHistoryTab, setSiteHistoryTab] = useState<SiteHistoryTab>('care')
+  const [siteHistoryLoading, setSiteHistoryLoading] = useState(false)
+  const [siteHistoryError, setSiteHistoryError] = useState('')
 
   useEffect(() => { loadPage() }, [])
+
+  useEffect(() => {
+    if (!selectedSiteId) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedSiteId('')
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [selectedSiteId])
 
   async function loadPage() {
     setLoading(true)
@@ -128,6 +222,50 @@ export default function AdminRenewalsPage() {
     setLoading(false)
   }
 
+  async function openSiteHistory(camper: Camper) {
+    setSelectedSiteId(camper.id)
+    setSiteHistory(null)
+    setSiteHistoryTab('care')
+    setSiteHistoryError('')
+    setSiteHistoryLoading(true)
+
+    try {
+      const sessionResult = await Promise.race([
+        supabase.auth.getSession(),
+        new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('Your login check took too long. Please try again.')), 7000)),
+      ])
+      const token = sessionResult.data.session?.access_token
+      if (!token) throw new Error('Your login has expired. Please sign in again.')
+
+      const controller = new AbortController()
+      const timer = window.setTimeout(() => controller.abort(), 12000)
+      try {
+        const response = await fetch(`/api/admin-site-history?camperId=${encodeURIComponent(camper.id)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
+        const result = await response.json().catch(() => null)
+        if (!response.ok || !result?.camper) throw new Error(result?.error || 'Site history could not be loaded.')
+        setSiteHistory(result as SiteHistory)
+      } finally {
+        window.clearTimeout(timer)
+      }
+    } catch (error) {
+      setSiteHistoryError(error instanceof DOMException && error.name === 'AbortError'
+        ? 'Site history took too long to load. Please try again.'
+        : error instanceof Error ? error.message : 'Site history could not be loaded.')
+    } finally {
+      setSiteHistoryLoading(false)
+    }
+  }
+
+  function openRenewalEditor(camperId: string) {
+    setSelectedSiteId('')
+    setView('All')
+    setExpanded(camperId)
+    window.setTimeout(() => document.getElementById(`renewal-${camperId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80)
+  }
+
   function updateDraft(camperId: string, field: keyof Draft, value: string) {
     setDrafts((current) => ({
       ...current,
@@ -135,79 +273,78 @@ export default function AdminRenewalsPage() {
     }))
   }
 
-  async function saveRenewal(camper: Camper, markSent = false) {
+  async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'mark-sent') {
     const existing = renewals.find((record) => record.camper_id === camper.id)
     const draft = drafts[camper.id] || draftFrom(existing)
-    const sentDate = markSent ? todayISO() : draft.renewal_sent_at || null
-    const nextStatus: RenewalStatus = markSent && draft.status === 'Not Started' ? 'Awaiting Response' : draft.status
+    const sessionResult = await Promise.race([
+      supabase.auth.getSession(),
+      new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('Your login check timed out. Please refresh and try again.')), 7000)),
+    ])
+    const token = sessionResult.data.session?.access_token
+    if (!token) throw new Error('Your login has expired. Please sign in again.')
 
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => controller.abort(), 12000)
+    try {
+      const response = await fetch('/api/admin-renewals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          action,
+          camperId: camper.id,
+          annualMonth: draft.annual_month,
+          annualDay: draft.annual_day,
+          renewalSentAt: draft.renewal_sent_at,
+          status: draft.status,
+          notes: draft.notes,
+        }),
+        signal: controller.signal,
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok || !result?.renewal) throw new Error(result?.error || 'The renewal could not be saved.')
+      return result.renewal as Renewal
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new Error('Saving took too long. Nothing was changed—please try again.')
+      }
+      throw error
+    } finally {
+      window.clearTimeout(timer)
+    }
+  }
+
+  async function saveRenewal(camper: Camper, markSent = false) {
     setSaving(camper.id)
     setFeedback('')
-    const decisionChanged = ['Renewing', 'Camper Leaving', 'Campground Not Renewing'].includes(nextStatus) && existing?.status !== nextStatus
-    const payload = {
-      camper_id: camper.id,
-      lot_number: camper.lot_number || null,
-      contract_start_date: draft.contract_start_date || null,
-      contract_end_date: draft.contract_end_date || null,
-      renewal_sent_at: sentDate,
-      status: nextStatus,
-      decision_recorded_at: decisionChanged ? todayISO() : existing?.decision_recorded_at || null,
-      notes: draft.notes.trim() || null,
-    }
-
-    const { data, error } = await supabase
-      .from('season_renewals')
-      .upsert(payload, { onConflict: 'camper_id' })
-      .select()
-      .single()
-
-    if (error) {
-      setFeedback(error.message)
-    } else {
-      const saved = data as Renewal
+    try {
+      const saved = await saveThroughAdminApi(camper, markSent ? 'mark-sent' : 'save')
       setRenewals((current) => [...current.filter((record) => record.camper_id !== camper.id), saved])
       setDrafts((current) => ({ ...current, [camper.id]: draftFrom(saved) }))
-      setFeedback(markSent ? `Renewal marked sent for Lot ${camper.lot_number || '—'}.` : `Renewal forecast saved for Lot ${camper.lot_number || '—'}.`)
+      setFeedback(markSent ? `Renewal marked sent for Lot ${camper.lot_number || '—'}.` : `Annual contract date saved for Lot ${camper.lot_number || '—'}. It will roll forward automatically each year.`)
       setExpanded('')
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'The renewal could not be saved.')
+    } finally {
+      setSaving('')
     }
-    setSaving('')
   }
 
   async function setSendDecision(camper: Camper, approve: boolean) {
-    const existing = renewals.find((record) => record.camper_id === camper.id)
-    const draft = drafts[camper.id] || draftFrom(existing)
     setSaving(camper.id)
     setFeedback('')
-
-    const { data, error } = await supabase
-      .from('season_renewals')
-      .upsert({
-        camper_id: camper.id,
-        lot_number: camper.lot_number || null,
-        contract_start_date: draft.contract_start_date || null,
-        contract_end_date: draft.contract_end_date || null,
-        renewal_sent_at: existing?.renewal_sent_at || null,
-        status: approve ? 'Not Started' : 'Campground Not Renewing',
-        auto_send_approved: approve,
-        auto_send_approved_at: approve ? new Date().toISOString() : null,
-        decision_recorded_at: approve ? null : todayISO(),
-        notes: draft.notes.trim() || null,
-      }, { onConflict: 'camper_id' })
-      .select()
-      .single()
-
-    if (error) {
-      setFeedback(error.message)
-    } else {
-      const saved = data as Renewal
+    try {
+      const saved = await saveThroughAdminApi(camper, approve ? 'approve' : 'decline')
       setRenewals((current) => [...current.filter((record) => record.camper_id !== camper.id), saved])
       setDrafts((current) => ({ ...current, [camper.id]: draftFrom(saved) }))
       setFeedback(approve
         ? `Lot ${camper.lot_number || '—'} is approved. The renewal will send automatically on schedule.`
         : `Lot ${camper.lot_number || '—'} is marked not renewing and will not receive an automatic renewal.`)
       setExpanded('')
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'The decision could not be saved.')
+    } finally {
+      setSaving('')
     }
-    setSaving('')
   }
 
   const rows = useMemo(() => {
@@ -257,6 +394,7 @@ export default function AdminRenewalsPage() {
   const reviewNeeded = rows.filter((row) => row.needsReview)
   const safeRows = rows.filter((row) => row.safe || row.approvedToSend)
   const needsSetup = rows.filter((row) => row.needsSetup)
+  const selectedRow = rows.find((row) => row.camper.id === selectedSiteId)
 
   const timeline = useMemo(() => {
     const events: Record<string, { send: number; response: number; opening: number }> = {}
@@ -286,7 +424,10 @@ export default function AdminRenewalsPage() {
         .renewal-board{padding:20px;border:1px solid #deddd4;border-radius:22px;background:#fff;box-shadow:0 12px 30px rgba(34,54,38,.06)}.renewal-board-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:13px}.renewal-board-head h2{margin:5px 0 0;font:500 28px Georgia,serif}.renewal-board-head p{margin:0;color:#6d786f;font-size:11px}.renewal-board-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.renewal-bucket{min-height:115px;padding:13px;border-radius:16px}.renewal-bucket.green{background:#eaf4e8;color:#285437}.renewal-bucket.gold{background:#fff3d7;color:#7b5717}.renewal-bucket.blue{background:#eaf1f3;color:#305b67}.renewal-bucket.red{background:#fae6e2;color:#913e37}.renewal-bucket>strong{display:block;font-size:12px}.renewal-bucket>small{display:block;margin-top:3px;opacity:.76;font-size:9px}.renewal-lot-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}.renewal-lot-chips button,.renewal-lot-chips span{display:inline-flex!important;min-height:0!important;padding:5px 7px!important;border:0!important;border-radius:999px!important;background:rgba(255,255,255,.76)!important;color:inherit!important;font-size:9px!important;font-weight:900!important;box-shadow:none!important}.renewal-row{border-color:#cfe0cd;background:#f1f8ef}.renewal-row.attention{border-color:#e8c888;background:#fff7e5}.renewal-row.opening{border-color:#e4aaa3;background:#fff0ed}.renewal-row.awaiting{border-color:#b9d0d6;background:#f0f6f7}.renewal-status{background:#d9ead6;color:#315f3d}.renewal-status.leaving{background:#f4cfc9;color:#913e37}.renewal-status.review{background:#f4dfac;color:#7b5717}.renewal-approval{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border-radius:14px;background:#fff7df}.renewal-approval strong{display:block;font-size:12px}.renewal-approval small{display:block;margin-top:3px;color:#756b55;font-size:10px}.renewal-approval div:last-child{display:flex;gap:8px}.renewal-approval .yes{background:#315f3d!important;color:#fff!important}.renewal-approval .no{background:#a8443e!important;color:#fff!important}
         @media(max-width:1050px){.renewal-board-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:680px){.renewal-board-grid{grid-template-columns:1fr 1fr}.renewal-board{padding:15px}.renewal-board-head{align-items:start;flex-direction:column}.renewal-approval{align-items:stretch;flex-direction:column}.renewal-approval div:last-child{display:grid;grid-template-columns:1fr 1fr}}
         .renewal-hero h1{color:#fff!important}
-        @media(max-width:680px){.renewal-hero{padding:20px}.renewal-hero h1{font-size:32px!important;line-height:1.05!important}.renewal-hero p{margin-top:8px;font-size:13px;line-height:1.45}}
+        .renewal-annual-help{grid-column:1/-1;display:flex;gap:7px;padding:12px 13px;border-radius:12px;background:#eef5ec;color:#49624f;font-size:11px}.renewal-annual-help strong{white-space:nowrap}.renewal-board{order:-1}
+        .site-history-overlay{position:fixed;inset:0;z-index:1200;display:flex;justify-content:flex-end}.site-history-backdrop{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border:0!important;border-radius:0!important;background:rgba(10,30,18,.52)!important;box-shadow:none!important;backdrop-filter:blur(4px)}.site-history-panel{position:relative;width:min(720px,calc(100vw - 40px));height:100%;overflow:auto;background:#f4f5ef;box-shadow:-24px 0 65px rgba(16,42,25,.24);animation:siteHistoryIn .2s ease-out}.site-history-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 24px;border-bottom:1px solid #dce1d8;background:rgba(248,249,245,.96);backdrop-filter:blur(16px)}.site-history-header small{display:block;color:#9a762c;font-size:9px;font-weight:900;letter-spacing:.14em}.site-history-header h2{margin:5px 0 0;font:500 29px Georgia,serif}.site-history-header p{margin:4px 0 0;color:#68736b;font-size:11px}.site-history-close{display:grid!important;place-items:center!important;flex:0 0 42px!important;width:42px!important;height:42px!important;padding:0!important;border:1px solid #d6ddd3!important;border-radius:50%!important;background:#fff!important;color:#294632!important;box-shadow:none!important}.site-history-content{display:grid;gap:15px;padding:20px 24px 30px}.site-history-loading{display:grid;place-items:center;min-height:360px;text-align:center;color:#607066}.site-history-loading svg{animation:siteHistorySpin 1s linear infinite}.site-history-loading strong{display:block;margin-top:12px}.site-history-error{padding:18px;border:1px solid #edc7bd;border-radius:16px;background:#fff1ed;color:#873e35}.site-history-error button{display:block!important;margin-top:12px!important;background:#315f3d!important;color:#fff!important}.site-history-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.site-history-stat{padding:14px;border:1px solid #dde1d8;border-radius:15px;background:#fff}.site-history-stat span{display:flex;align-items:center;gap:6px;color:#7b806f;font-size:9px;font-weight:900;text-transform:uppercase}.site-history-stat strong{display:block;margin-top:7px;color:#294632;font:600 23px Georgia,serif}.site-history-stat.warning{border-color:#edd4a1;background:#fff8e8}.site-history-stat.alert{border-color:#e9bbb4;background:#fff1ee}.site-history-actions{display:flex;flex-wrap:wrap;gap:8px}.site-history-actions button,.site-history-actions a{display:inline-flex!important;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 13px!important;border:1px solid #d4dcd1!important;border-radius:999px!important;background:#fff!important;color:#315f3d!important;font-size:11px!important;font-weight:900!important;text-decoration:none;box-shadow:none!important}.site-history-actions button:first-child{border-color:#315f3d!important;background:#315f3d!important;color:#fff!important}.site-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:5px;border:1px solid #dce1d8;border-radius:14px;background:#e9ede6}.site-history-tabs button{display:flex!important;align-items:center;justify-content:center;gap:7px;padding:10px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:#5e6d63!important;font-size:11px!important;box-shadow:none!important}.site-history-tabs button.active{background:#fff!important;color:#315f3d!important;box-shadow:0 5px 14px rgba(35,59,41,.08)!important}.site-history-list{display:grid;gap:9px}.site-history-list-head{display:flex;align-items:end;justify-content:space-between;gap:10px;padding:5px 2px}.site-history-list-head h3{margin:0;font:500 22px Georgia,serif}.site-history-list-head span{color:#7b806f;font-size:10px}.site-history-item{padding:15px;border:1px solid #dde1d8;border-radius:16px;background:#fff}.site-history-item-top{display:flex;align-items:start;justify-content:space-between;gap:12px}.site-history-item strong{font-size:12px}.site-history-item p{margin:8px 0 0;color:#647067;font-size:11px;line-height:1.45}.site-history-item small{display:block;margin-top:8px;color:#899088;font-size:9px}.site-history-badge{flex:0 0 auto;padding:5px 8px;border-radius:999px;background:#eaf2e8;color:#376143;font-size:8px;font-weight:900;text-transform:uppercase}.site-history-badge.open,.site-history-badge.late{background:#fae2dd;color:#933e35}.site-history-badge.review{background:#fff0cb;color:#835b16}.site-history-payment{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.site-history-payment-amount{text-align:right}.site-history-payment-amount strong{display:block;font:600 18px Georgia,serif}.site-history-payment-amount small{margin-top:3px}.site-history-empty{padding:34px 18px;border:1px dashed #cfd8cc;border-radius:17px;background:rgba(255,255,255,.55);color:#718078;text-align:center}.site-history-empty strong{display:block;margin-top:8px;color:#315f3d}.site-history-footnote{margin:0;color:#7e877f;font-size:9px;line-height:1.5}@keyframes siteHistoryIn{from{transform:translateX(24px);opacity:.55}to{transform:translateX(0);opacity:1}}@keyframes siteHistorySpin{to{transform:rotate(360deg)}}
+        @media(max-width:680px){.renewal-hero,.renewal-summary{display:none}.renewal-board{padding:14px}.renewal-board-grid{grid-template-columns:1fr}.renewal-bucket{min-height:0}.renewal-annual-help{align-items:flex-start;flex-direction:column}.renewal-edit-actions .mark-sent{display:none!important}}
+        @media(max-width:680px){.site-history-panel{width:100vw}.site-history-header{padding:17px 16px}.site-history-header h2{font-size:25px}.site-history-content{padding:15px 14px 24px}.site-history-summary{grid-template-columns:1fr 1fr}.site-history-actions{display:grid;grid-template-columns:1fr 1fr}.site-history-actions>*{width:100%}.site-history-payment{align-items:start}.site-history-payment-amount strong{font-size:16px}}
       `}</style>
 
       <section className="renewal-hero">
@@ -306,10 +447,10 @@ export default function AdminRenewalsPage() {
       <section className="renewal-board">
         <div className="renewal-board-head"><div><span className="renewal-eyebrow"><CalendarCheck size={15} /> QUICK SITE CALENDAR</span><h2>See every renewal position at a glance.</h2></div><p>Green is safe · Gold needs you · Blue awaits camper · Red is opening</p></div>
         <div className="renewal-board-grid">
-          <div className="renewal-bucket green"><strong>Green · Safe / renewing</strong><small>Not near renewal, approved, or renewing</small><div className="renewal-lot-chips">{safeRows.map((row) => <button key={row.camper.id} type="button" onClick={() => { setView('All'); setExpanded(row.camper.id) }}>Lot {row.camper.lot_number || '—'}</button>)}{!safeRows.length && <span>None</span>}</div></div>
-          <div className="renewal-bucket gold"><strong>Gold · Review now</strong><small>Choose yes or no before anything sends</small><div className="renewal-lot-chips">{reviewNeeded.map((row) => <button key={row.camper.id} type="button" onClick={() => { setView('All'); setExpanded(row.camper.id) }}>Lot {row.camper.lot_number || '—'}</button>)}{!reviewNeeded.length && <span>None</span>}</div></div>
-          <div className="renewal-bucket blue"><strong>Blue · Camper deciding</strong><small>Renewal sent; answer still pending</small><div className="renewal-lot-chips">{awaiting.map((row) => <button key={row.camper.id} type="button" onClick={() => { setView('All'); setExpanded(row.camper.id) }}>Lot {row.camper.lot_number || '—'}</button>)}{!awaiting.length && <span>None</span>}</div></div>
-          <div className="renewal-bucket red"><strong>Red · Site opening</strong><small>Camper leaving or office not renewing</small><div className="renewal-lot-chips">{confirmedOpenings.map((row) => <button key={row.camper.id} type="button" onClick={() => { setView('All'); setExpanded(row.camper.id) }}>Lot {row.camper.lot_number || '—'}</button>)}{!confirmedOpenings.length && <span>None</span>}</div></div>
+          <div className="renewal-bucket green"><strong>Green · Safe / renewing</strong><small>Not near renewal, approved, or renewing</small><div className="renewal-lot-chips">{safeRows.map((row) => <button key={row.camper.id} type="button" onClick={() => openSiteHistory(row.camper)} aria-label={`Open Lot ${row.camper.lot_number || 'unassigned'} history`}>Lot {row.camper.lot_number || '—'}</button>)}{!safeRows.length && <span>None</span>}</div></div>
+          <div className="renewal-bucket gold"><strong>Gold · Review now</strong><small>Choose yes or no before anything sends</small><div className="renewal-lot-chips">{reviewNeeded.map((row) => <button key={row.camper.id} type="button" onClick={() => openSiteHistory(row.camper)} aria-label={`Open Lot ${row.camper.lot_number || 'unassigned'} history`}>Lot {row.camper.lot_number || '—'}</button>)}{!reviewNeeded.length && <span>None</span>}</div></div>
+          <div className="renewal-bucket blue"><strong>Blue · Camper deciding</strong><small>Renewal sent; answer still pending</small><div className="renewal-lot-chips">{awaiting.map((row) => <button key={row.camper.id} type="button" onClick={() => openSiteHistory(row.camper)} aria-label={`Open Lot ${row.camper.lot_number || 'unassigned'} history`}>Lot {row.camper.lot_number || '—'}</button>)}{!awaiting.length && <span>None</span>}</div></div>
+          <div className="renewal-bucket red"><strong>Red · Site opening</strong><small>Camper leaving or office not renewing</small><div className="renewal-lot-chips">{confirmedOpenings.map((row) => <button key={row.camper.id} type="button" onClick={() => openSiteHistory(row.camper)} aria-label={`Open Lot ${row.camper.lot_number || 'unassigned'} history`}>Lot {row.camper.lot_number || '—'}</button>)}{!confirmedOpenings.length && <span>None</span>}</div></div>
         </div>
       </section>
 
@@ -324,12 +465,12 @@ export default function AdminRenewalsPage() {
         </section>
 
         <section className="renewal-panel">
-          <div className="renewal-panel-head"><div><span className="renewal-eyebrow"><CalendarCheck size={15} /> 12-MONTH TIMELINE</span><h2>What is coming up</h2><p>Send dates, camper deadlines, and confirmed openings by month.</p></div></div>
+          <div className="renewal-panel-head"><div><span className="renewal-eyebrow"><CalendarCheck size={15} /> FUTURE SCHEDULE</span><h2>What is coming up</h2><p>This is a calendar preview—not an urgent list. Only gold items need your attention.</p></div></div>
           <div className="timeline-list">
-            {timeline.map(([month, counts]) => <div className="timeline-row" key={month}><strong>{monthLabel(month)}</strong><span>{counts.send} to send</span><span>{counts.response} replies due</span><span>{counts.opening} opening</span></div>)}
+            {timeline.map(([month, counts]) => <div className="timeline-row" key={month}><strong>{monthLabel(month)}</strong><span>{counts.send} scheduled</span><span>{counts.response} replies due</span><span>{counts.opening} opening</span></div>)}
             {!timeline.length && <div className="renewal-empty"><CalendarClock size={28} /><strong>Add contract dates to build the calendar.</strong></div>}
           </div>
-          <div className="timeline-key"><span>Send = 4 months before end</span><span>Reply due = 3 months before end</span></div>
+          <div className="timeline-key"><span>Scheduled = renewal date coming later</span><span>Gold = needs your decision now</span></div>
         </section>
       </div>
 
@@ -342,23 +483,24 @@ export default function AdminRenewalsPage() {
         <div className="renewal-list">
           {visibleRows.map((row) => {
             const draft = drafts[row.camper.id] || draftFrom(row.renewal)
+            const annualPreview = nextAnnualDate(draft.annual_month, draft.annual_day)
             const isExpanded = expanded === row.camper.id
             const attention = row.responseOverdue || row.needsReview || row.sendOverdue || row.sendSoon || row.needsSetup || row.automationError
-            return <article className={`renewal-row${attention ? ' attention' : ''}${row.confirmedOpening ? ' opening' : ''}${row.renewal?.status === 'Awaiting Response' ? ' awaiting' : ''}`} key={row.camper.id}>
+            return <article id={`renewal-${row.camper.id}`} className={`renewal-row${attention ? ' attention' : ''}${row.confirmedOpening ? ' opening' : ''}${row.renewal?.status === 'Awaiting Response' ? ' awaiting' : ''}`} key={row.camper.id}>
               <div className="renewal-row-main">
                 <div className="renewal-person"><small>LOT {row.camper.lot_number || '—'}</small><strong>{camperName(row.camper)}</strong></div>
-                <div className="renewal-deadline contract-col"><small>Contract ends</small><strong>{formatDate(row.contractEnd)}</strong></div>
+                <div className="renewal-deadline contract-col"><small>Annual contract date</small><strong>{formatAnnualDate(row.contractEnd)}</strong></div>
                 <div className="renewal-deadline"><small>{row.renewal?.renewal_sent_at ? 'Camper answer due' : 'Renewal should be sent'}</small><strong>{formatDate(row.renewal?.renewal_sent_at ? row.responseDue : row.sendDue)}</strong></div>
                 <span className={`renewal-status${row.confirmedOpening ? ' leaving' : ''}${row.needsReview ? ' review' : ''}`}>{row.automationError ? 'Send problem' : row.needsSetup ? 'Needs dates' : row.needsReview ? 'Review now' : row.responseOverdue ? 'Reply overdue' : row.approvedToSend ? 'Approved to send' : row.renewal?.status || 'Not Started'}</span>
                 <button type="button" onClick={() => setExpanded(isExpanded ? '' : row.camper.id)}>{isExpanded ? 'Close' : 'Update'} <ChevronDown size={15} /></button>
               </div>
               {isExpanded && <div className="renewal-edit">
-                <label>Contract starts<input type="date" value={draft.contract_start_date} onChange={(event) => updateDraft(row.camper.id, 'contract_start_date', event.target.value)} /></label>
-                <label>Contract ends<input type="date" value={draft.contract_end_date} onChange={(event) => updateDraft(row.camper.id, 'contract_end_date', event.target.value)} /></label>
-                <label>Renewal sent<input type="date" value={draft.renewal_sent_at} onChange={(event) => updateDraft(row.camper.id, 'renewal_sent_at', event.target.value)} /></label>
+                <label>Annual contract month<select value={draft.annual_month} onChange={(event) => updateDraft(row.camper.id, 'annual_month', event.target.value)}><option value="">Choose month</option>{months.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}</select></label>
+                <label>Day<select value={draft.annual_day} onChange={(event) => updateDraft(row.camper.id, 'annual_day', event.target.value)}><option value="">Choose day</option>{Array.from({ length: 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}</select></label>
                 <label>Decision<select value={draft.status} onChange={(event) => updateDraft(row.camper.id, 'status', event.target.value)}>{statuses.map((status) => <option key={status}>{status}</option>)}</select></label>
-                {draft.contract_end_date && <div className="renewal-edit-dates"><span>Auto-send <strong>{formatDate(shiftDate(draft.contract_end_date, -4))}</strong></span><span>Camper reply due <strong>{formatDate(shiftDate(draft.contract_end_date, -3))}</strong></span><span>Possible opening <strong>{formatDate(shiftDate(draft.contract_end_date, 0, 1))}</strong></span>{row.renewal?.automation_error && <span><strong>Needs attention:</strong> {row.renewal.automation_error}</span>}</div>}
-                {!draft.renewal_sent_at && draft.contract_end_date && draft.status !== 'Camper Leaving' && <div className="renewal-approval"><div><strong>Should this camper receive an automatic renewal?</strong><small>Nothing will send unless you choose Yes. Choose No to mark this site as a future opening.</small></div><div><button className="no" type="button" disabled={saving === row.camper.id} onClick={() => setSendDecision(row.camper, false)}>No, not renewing</button><button className="yes" type="button" disabled={saving === row.camper.id} onClick={() => setSendDecision(row.camper, true)}>{row.approvedToSend ? 'Yes, approved' : 'Yes, send on date'}</button></div></div>}
+                <div className="renewal-annual-help"><strong>Enter this once.</strong><span>The year does not matter. Every renewal is for 12 months, so the system automatically moves this date forward each year.</span></div>
+                {annualPreview && <div className="renewal-edit-dates"><span>Annual date <strong>{formatAnnualDate(annualPreview)}</strong></span><span>Next automatic send <strong>{formatDate(shiftDate(annualPreview, -4))}</strong></span><span>Camper reply due <strong>{formatDate(shiftDate(annualPreview, -3))}</strong></span><span>Possible opening <strong>{formatDate(shiftDate(annualPreview, 0, 1))}</strong></span>{row.renewal?.automation_error && <span><strong>Needs attention:</strong> {row.renewal.automation_error}</span>}</div>}
+                {!draft.renewal_sent_at && annualPreview && draft.status !== 'Camper Leaving' && <div className="renewal-approval"><div><strong>Should this camper receive an automatic renewal?</strong><small>Nothing will send unless you choose Yes. Choose No to mark this site as a future opening.</small></div><div><button className="no" type="button" disabled={saving === row.camper.id} onClick={() => setSendDecision(row.camper, false)}>No, not renewing</button><button className="yes" type="button" disabled={saving === row.camper.id} onClick={() => setSendDecision(row.camper, true)}>{row.approvedToSend ? 'Yes, approved' : 'Yes, send on date'}</button></div></div>}
                 <label className="notes">Private notes<textarea value={draft.notes} onChange={(event) => updateDraft(row.camper.id, 'notes', event.target.value)} placeholder="Calls, conversations, special circumstances…" /></label>
                 <div className="renewal-edit-actions">{!draft.renewal_sent_at && <button className="mark-sent" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper, true)}><Send size={15} /> Mark renewal sent today</button>}<button className="save" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper)}>{saving === row.camper.id ? <Clock3 size={15} /> : <Save size={15} />} {saving === row.camper.id ? 'Saving…' : 'Save renewal record'}</button></div>
               </div>}
@@ -368,6 +510,72 @@ export default function AdminRenewalsPage() {
           {loading && <div className="renewal-none"><Clock3 size={31} /><strong>Loading renewal forecast…</strong></div>}
         </div>
       </section>
+
+      {selectedSiteId && <div className="site-history-overlay">
+        <button className="site-history-backdrop" type="button" onClick={() => setSelectedSiteId('')} aria-label="Close site history" />
+        <aside className="site-history-panel" role="dialog" aria-modal="true" aria-labelledby="site-history-title">
+          <header className="site-history-header">
+            <div>
+              <small>SITE RECORD · LOT {selectedRow?.camper.lot_number || siteHistory?.camper.lot_number || '—'}</small>
+              <h2 id="site-history-title">{selectedRow ? camperName(selectedRow.camper) : siteHistory ? camperName(siteHistory.camper) : 'Loading site history…'}</h2>
+              <p>{selectedRow?.renewal?.status || 'Renewal not started'} · Annual date {formatAnnualDate(selectedRow?.contractEnd)}</p>
+            </div>
+            <button className="site-history-close" type="button" onClick={() => setSelectedSiteId('')} aria-label="Close site history"><X size={20} /></button>
+          </header>
+
+          {siteHistoryLoading && <div className="site-history-loading"><div><LoaderCircle size={30} /><strong>Pulling the complete site record…</strong></div></div>}
+
+          {!siteHistoryLoading && siteHistoryError && <div className="site-history-content"><div className="site-history-error"><strong>Site history did not load.</strong><p>{siteHistoryError}</p>{selectedRow && <button type="button" onClick={() => openSiteHistory(selectedRow.camper)}>Try again</button>}</div></div>}
+
+          {!siteHistoryLoading && siteHistory && <div className="site-history-content">
+            <section className="site-history-summary" aria-label="Site history summary">
+              <article className={siteHistory.summary.activeNotices ? 'site-history-stat warning' : 'site-history-stat'}><span><FileWarning size={13} /> Active items</span><strong>{siteHistory.summary.activeNotices}</strong></article>
+              <article className="site-history-stat"><span><ListChecks size={13} /> All site care</span><strong>{siteHistory.summary.totalNotices}</strong></article>
+              <article className={siteHistory.summary.lateInvoices ? 'site-history-stat alert' : 'site-history-stat'}><span><History size={13} /> Times late</span><strong>{siteHistory.summary.lateInvoices}</strong></article>
+              <article className="site-history-stat"><span><CircleDollarSign size={13} /> Balance</span><strong>{formatMoney(siteHistory.summary.openBalance)}</strong></article>
+            </section>
+
+            <div className="site-history-actions">
+              <button type="button" onClick={() => openRenewalEditor(selectedSiteId)}><CalendarCheck size={15} /> Update renewal</button>
+              <a href={`/admin/campers/${selectedSiteId}`}><ExternalLink size={14} /> Full camper profile</a>
+              <a href="/admin/site-care"><FileWarning size={14} /> Full infraction list</a>
+              <a href="/admin/invoices"><ReceiptText size={14} /> All invoices</a>
+            </div>
+
+            <div className="site-history-tabs" role="tablist" aria-label="Site record lists">
+              <button className={siteHistoryTab === 'care' ? 'active' : ''} type="button" role="tab" aria-selected={siteHistoryTab === 'care'} onClick={() => setSiteHistoryTab('care')}><FileWarning size={15} /> Site care ({siteHistory.summary.totalNotices})</button>
+              <button className={siteHistoryTab === 'payments' ? 'active' : ''} type="button" role="tab" aria-selected={siteHistoryTab === 'payments'} onClick={() => setSiteHistoryTab('payments')}><ReceiptText size={15} /> Payments ({siteHistory.summary.totalInvoices})</button>
+            </div>
+
+            {siteHistoryTab === 'care' && <section className="site-history-list">
+              <div className="site-history-list-head"><h3>Infraction & site-care history</h3><span>{siteHistory.summary.activeNotices} still active</span></div>
+              {siteHistory.notices.map((notice) => {
+                const badgeClass = notice.status === 'Resolved' ? '' : notice.status === 'Ready for Review' ? 'review' : 'open'
+                return <article className="site-history-item" key={notice.id}>
+                  <div className="site-history-item-top"><strong>{notice.title}</strong><span className={`site-history-badge ${badgeClass}`}>{notice.status || 'Open'}</span></div>
+                  {notice.message && <p>{notice.message}</p>}
+                  <small>Added {formatDateTime(notice.created_at)}{notice.due_date ? ` · Requested by ${formatDate(notice.due_date)}` : ''}{notice.priority === 'Important' ? ' · Important' : ''}</small>
+                </article>
+              })}
+              {!siteHistory.notices.length && <div className="site-history-empty"><CheckCircle2 size={28} /><strong>No site-care infractions recorded.</strong><span>This camper has a clear history.</span></div>}
+            </section>}
+
+            {siteHistoryTab === 'payments' && <section className="site-history-list">
+              <div className="site-history-list-head"><h3>Invoice & payment history</h3><span>{siteHistory.summary.paidInvoices} paid · {siteHistory.summary.lateInvoices} late</span></div>
+              {siteHistory.invoices.map((invoice) => <article className="site-history-item site-history-payment" key={invoice.id}>
+                <div>
+                  <div className="site-history-item-top"><strong>{invoice.invoice_number || invoice.invoice_type || 'Invoice'}</strong><span className={`site-history-badge ${invoice.is_late ? 'late' : ''}`}>{invoice.is_late ? 'Late' : invoice.status || 'Open'}</span></div>
+                  <p>{invoice.invoice_type || 'Campground charge'}</p>
+                  <small>{invoice.paid_at ? `Paid ${formatDateTime(invoice.paid_at)}${invoice.payment_method ? ` · ${invoice.payment_method}` : ''}` : `Due ${formatDate(invoice.due_date)}`}{Number(invoice.late_fee || 0) > 0 ? ` · ${formatMoney(invoice.late_fee)} late fee` : ''}</small>
+                </div>
+                <div className="site-history-payment-amount"><strong>{formatMoney(invoice.total_due)}</strong><small>{String(invoice.status || 'open').toUpperCase()}</small></div>
+              </article>)}
+              {!siteHistory.invoices.length && <div className="site-history-empty"><ReceiptText size={28} /><strong>No invoices recorded.</strong></div>}
+              <p className="site-history-footnote">“Times late” counts invoices with a late fee, invoices paid after their due date, and invoices that are currently past due. Cancelled, void, and refunded invoices are not counted.</p>
+            </section>}
+          </div>}
+        </aside>
+      </div>}
     </main>
   )
 }
