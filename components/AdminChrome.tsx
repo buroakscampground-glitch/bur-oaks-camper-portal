@@ -62,7 +62,7 @@ const pageNames: Record<string, string> = {
   'individual-invoices': 'Individual Invoices',
   'site-services': 'Site Services',
   credits: 'Account Credits',
-  reports: 'Monthly Reports',
+  reports: 'Reports & Taxes',
   settings: 'Campground Settings',
   'pump-outs': 'Pump-Out Requests',
   'site-care': 'Site Care Notices',
