@@ -61,6 +61,7 @@ type Camper = {
   sms_opt_in_at: string | null
   camper_since_date: string | null
   celebration_messages_opt_in: boolean | null
+  event_reminders_opt_in: boolean | null
   office_notes: string | null
 }
 
@@ -99,6 +100,7 @@ const emptyCamper: Camper = {
   sms_opt_in_at: null,
   camper_since_date: '',
   celebration_messages_opt_in: false,
+  event_reminders_opt_in: false,
   office_notes: '',
 }
 
@@ -500,6 +502,9 @@ export default function CamperDetailPage() {
             </label>
             <div className="directory-safety-note">
               <ShieldCheck size={16} /> Personal birthday and anniversary greetings: {camper.celebration_messages_opt_in ? 'Camper opted in' : 'Not opted in'}.
+            </div>
+            <div className="directory-safety-note">
+              <ShieldCheck size={16} /> Wednesday event reminders: {camper.event_reminders_opt_in ? 'Camper opted in' : 'Not opted in'}.
             </div>
           </div>
         </ProfileSection>

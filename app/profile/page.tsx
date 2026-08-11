@@ -100,6 +100,10 @@ export default function ProfilePage() {
       celebration_messages_opt_in_at: camper.celebration_messages_opt_in
         ? camper.celebration_messages_opt_in_at || new Date().toISOString()
         : null,
+      event_reminders_opt_in: Boolean(camper.event_reminders_opt_in),
+      event_reminders_opt_in_at: camper.event_reminders_opt_in
+        ? camper.event_reminders_opt_in_at || new Date().toISOString()
+        : null,
       mailing_address_line1: camper.mailing_address_line1,
       mailing_address_line2: camper.mailing_address_line2,
       mailing_city: camper.mailing_city,
@@ -132,7 +136,7 @@ export default function ProfilePage() {
       })
       .eq('id', camper.id)
 
-    if (error && /(directory_(opt_in|show_phone)|sms_opt_in|birthday|celebration_messages)/i.test(error.message)) {
+    if (error && /(directory_(opt_in|show_phone)|sms_opt_in|birthday|celebration_messages|event_reminders)/i.test(error.message)) {
       const {
         sms_opt_in,
         sms_opt_in_at,
@@ -141,6 +145,8 @@ export default function ProfilePage() {
         birthday_celebration_opt_in,
         celebration_messages_opt_in,
         celebration_messages_opt_in_at,
+        event_reminders_opt_in,
+        event_reminders_opt_in_at,
         ...fallbackUpdates
       } = profileUpdates
 
@@ -152,7 +158,7 @@ export default function ProfilePage() {
       setMessage(
         fallbackError
           ? fallbackError.message
-          : 'Profile saved. Birthday, personal greeting, and directory preferences will be available after setup is complete.'
+          : 'Profile saved. Birthday, personal greeting, event reminder, and directory preferences will be available after setup is complete.'
       )
     } else if (error) {
       setMessage(error.message)
@@ -404,6 +410,28 @@ export default function ProfilePage() {
             </span>
           </label>
 
+          <label className="privacy-toggle event-reminders-toggle">
+            <input
+              type="checkbox"
+              checked={Boolean(camper.event_reminders_opt_in)}
+              onChange={(event) =>
+                setCamper({
+                  ...camper,
+                  event_reminders_opt_in: event.target.checked,
+                  event_reminders_opt_in_at: event.target.checked
+                    ? camper.event_reminders_opt_in_at || new Date().toISOString()
+                    : null,
+                })
+              }
+            />
+            <span>
+              <strong>Send me Wednesday event reminders</strong>
+              <small>
+                By checking this box, I agree to receive optional campground event reminders by email and, when Text Alerts are also turned on, by SMS. Reminders may be sent once each Wednesday beginning up to two weeks before an event, plus a final reminder on event day. Message and data rates may apply. Reply STOP to opt out of texts. This is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
+              </small>
+            </span>
+          </label>
+
           <div className="directory-safety-note">
             <ShieldCheck size={16} /> Text alerts are separate from the camper directory. Your phone number is not shared publicly.
           </div>
@@ -416,7 +444,7 @@ export default function ProfilePage() {
 
           <div style={{ marginTop: '16px' }}>
             <button onClick={saveProfile} disabled={saving}>
-              {saving ? 'Saving…' : 'Save Text Alert Preference'}
+              {saving ? 'Saving…' : 'Save Alert & Reminder Preferences'}
             </button>
             {message && <p style={{ marginBottom: 0 }}>{message}</p>}
           </div>

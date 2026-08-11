@@ -47,6 +47,13 @@ export default function SmsConsentPage() {
           <p>By checking this box, I agree to receive optional birthday and annual Bur Oaks camper-anniversary greetings by email and, when Text Alerts are also turned on, by SMS. Up to one anniversary greeting and one birthday greeting per saved profile each year. Message and data rates may apply. Reply STOP to opt out of texts. This is optional and is not a condition of campground service.</p>
         </blockquote>
 
+        <h2>Optional event reminders</h2>
+        <p>Weekly event reminders are controlled by their own unchecked box on the signed-in Profile page. The exact additional consent says:</p>
+        <blockquote>
+          <p><strong>Send me Wednesday event reminders.</strong></p>
+          <p>By checking this box, I agree to receive optional campground event reminders by email and, when Text Alerts are also turned on, by SMS. Reminders may be sent once each Wednesday beginning up to two weeks before an event, plus a final reminder on event day. Message and data rates may apply. Reply STOP to opt out of texts. This is optional and is not a condition of campground service.</p>
+        </blockquote>
+
         <h2>Consent checkbox wording</h2>
         <p>The checkbox label says:</p>
         <blockquote>
@@ -58,13 +65,13 @@ export default function SmsConsentPage() {
         <p>The opt-in box appears only after the camper signs in to the private portal. It appears near the saved phone number and text-alert settings on the camper <strong>Profile</strong> page and the camper <strong>Invoices</strong> page. It is not pre-checked.</p>
 
         <h2>Message types</h2>
-        <p>Opted-in campers may receive operational campground messages including invoice notices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices. Campers who separately choose personal greetings may also receive birthday and annual camper-anniversary messages.</p>
+        <p>Opted-in campers may receive operational campground messages including invoice notices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices. Campers who separately choose personal greetings may also receive birthday and annual camper-anniversary messages. Campers who separately choose event reminders may receive Wednesday reminders for events occurring within the next two weeks.</p>
 
         <h2>Opt out and help</h2>
         <p>Campers can reply <strong>STOP</strong> to opt out at any time. After opting out, a camper may receive one final confirmation message. Campers can reply <strong>HELP</strong> for help. Campers may also contact Bur Oaks Campground at <strong>buroakscampground@gmail.com</strong> or <strong>618-488-7927</strong>. Message and data rates may apply.</p>
 
         <h2>Message frequency and cost</h2>
-        <p>Message frequency varies based on account activity, invoice and payment activity, maintenance requests, utility notices, gate notices, office notices, and safety or weather-related operational alerts. Bur Oaks Campground does not charge campers to opt in to text alerts, but your mobile carrier may charge message or data rates according to your wireless plan.</p>
+        <p>Message frequency varies based on account activity, invoice and payment activity, maintenance requests, utility notices, gate notices, office notices, and safety or weather-related operational alerts. Optional event reminders may be sent once each Wednesday for each event occurring within the next 14 days, plus once on event day. Bur Oaks Campground does not charge campers to opt in to text alerts, but your mobile carrier may charge message or data rates according to your wireless plan.</p>
 
         <h2>Privacy and sharing</h2>
         <p>Bur Oaks Campground does not sell, rent, buy, trade, or share SMS opt-in information, phone numbers, or text messaging consent with third parties or affiliates for marketing, promotional, lead-generation, or advertising purposes. SMS consent is used only for Bur Oaks Campground account and campground operations communications. Service providers may process messages only as needed to deliver campground communications.</p>
