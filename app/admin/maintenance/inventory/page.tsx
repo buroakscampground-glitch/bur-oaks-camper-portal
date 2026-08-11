@@ -26,6 +26,15 @@ export default function AdminMaintenanceInventoryPage() {
 
   useEffect(() => {
     loadItems()
+
+    const refresh = () => loadItems()
+    const timer = window.setInterval(refresh, 30_000)
+    window.addEventListener('focus', refresh)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+    }
   }, [])
 
   async function loadItems() {
@@ -196,7 +205,7 @@ export default function AdminMaintenanceInventoryPage() {
             <h2>{editingId ? 'Update stock item' : 'Add inventory item'}</h2>
           </div>
 
-          <input placeholder="Item name — example: 20 amp breaker" value={form.item_name} onChange={(event) => updateField('item_name', event.target.value)} />
+          <input placeholder="Item name — example: bleach, hand soap, 20 amp breaker" value={form.item_name} onChange={(event) => updateField('item_name', event.target.value)} />
 
           <div className="admin-maintenance-inventory-row">
             <select value={form.category} onChange={(event) => updateField('category', event.target.value)}>

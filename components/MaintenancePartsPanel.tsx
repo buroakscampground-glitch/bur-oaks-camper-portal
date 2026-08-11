@@ -104,6 +104,12 @@ export default function MaintenancePartsPanel({
       return
     }
 
+    const stockBeforeUse = Number(selectedItem.stock_quantity || 0)
+    if (qty > stockBeforeUse) {
+      setMessage(`Only ${stockBeforeUse.toFixed(2)} ${selectedItem.unit || 'each'} are currently on hand.`)
+      return
+    }
+
     setSavingPart(true)
     setMessage('Saving part used…')
 
@@ -126,7 +132,16 @@ export default function MaintenancePartsPanel({
 
     setQuantity('1')
     setPartNotes('')
-    setMessage('Part saved and inventory count updated.')
+    const { data: updatedItem } = await supabase
+      .from('maintenance_inventory_items')
+      .select('stock_quantity')
+      .eq('id', selectedItem.id)
+      .single()
+
+    const remaining = Number(updatedItem?.stock_quantity ?? stockBeforeUse - qty)
+    setMessage(
+      `${selectedItem.item_name} was added to this work order. ${remaining.toFixed(2)} ${selectedItem.unit || 'each'} remain in inventory.`
+    )
     setSavingPart(false)
     loadEverything()
   }
@@ -224,6 +239,7 @@ export default function MaintenancePartsPanel({
         .maintenance-parts-panel textarea{min-height:96px}
         .maintenance-parts-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
         .maintenance-parts-grid button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;margin-top:10px;background:#315f3d!important;color:#fff!important}
+        .maintenance-parts-on-hand{margin:9px 0 0!important;padding:8px 10px;border-radius:10px;background:#edf4ea;color:#526458!important;font-size:11px!important}.maintenance-parts-on-hand strong{display:inline!important}
         .maintenance-parts-message{margin:12px 0 0;padding:11px 12px;border-radius:13px;background:#eef5ec;color:#315f3d;font-size:12px;font-weight:850}
         .maintenance-parts-history{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
         .maintenance-parts-history>div{padding:15px;border:1px solid #e2dfd4;border-radius:18px}
@@ -241,30 +257,41 @@ export default function MaintenancePartsPanel({
       <div className="maintenance-parts-heading">
         <span><PackageCheck size={18} /></span>
         <div>
-          <small>PARTS & RECEIPTS</small>
-          <h2>Inventory used on this work order</h2>
-          <p>Record parts as they are used. Stock counts update automatically.</p>
+          <small>SUPPLIES, PARTS & RECEIPTS</small>
+          <h2>Record supplies used on this work order</h2>
+          <p>Choose what you used and enter the quantity. It stays on this ticket and the stock total updates automatically.</p>
         </div>
       </div>
 
       <div className="maintenance-parts-grid">
         <article>
-          <strong><PlusCircle size={16} /> Add part used</strong>
+          <strong><PlusCircle size={16} /> Add supply or part used</strong>
           <select value={selectedItemId} onChange={(event) => setSelectedItemId(event.target.value)}>
-            <option value="">Choose inventory item</option>
+            <option value="">Choose from inventory</option>
             {items.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.item_name} · {Number(item.stock_quantity || 0).toFixed(2)} {item.unit || 'each'} on hand
+              <option value={item.id} key={item.id} disabled={Number(item.stock_quantity || 0) <= 0}>
+                {item.item_name} · {Number(item.stock_quantity || 0).toFixed(2)} {item.unit || 'each'} {Number(item.stock_quantity || 0) <= 0 ? '(out)' : 'on hand'}
               </option>
             ))}
           </select>
+          {selectedItem && (
+            <p className="maintenance-parts-on-hand">
+              Available now: <strong>{Number(selectedItem.stock_quantity || 0).toFixed(2)} {selectedItem.unit || 'each'}</strong>
+            </p>
+          )}
           <div className="maintenance-parts-row">
-            <input value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="Qty used" inputMode="decimal" />
+            <input
+              value={quantity}
+              onChange={(event) => setQuantity(event.target.value)}
+              placeholder="Quantity used"
+              inputMode="decimal"
+              aria-label="Quantity used"
+            />
             <input value={usedBy} onChange={(event) => setUsedBy(event.target.value)} placeholder="Used by" />
           </div>
-          <textarea value={partNotes} onChange={(event) => setPartNotes(event.target.value)} placeholder="Optional notes — example: replaced on bath house faucet." />
+          <textarea value={partNotes} onChange={(event) => setPartNotes(event.target.value)} placeholder="Optional note — example: used in bath house or installed on Lot 12." />
           <button type="button" onClick={addPartUsed} disabled={savingPart}>
-            {savingPart ? 'Saving…' : 'Save Part Used'}
+            {savingPart ? 'Updating inventory…' : 'Add to Work Order & Update Inventory'}
           </button>
         </article>
 
@@ -286,7 +313,7 @@ export default function MaintenancePartsPanel({
 
       <div className="maintenance-parts-history">
         <div>
-          <h3>Parts used</h3>
+          <h3>Supplies and parts used</h3>
           {parts.length === 0 ? (
             <p>No parts recorded yet.</p>
           ) : (

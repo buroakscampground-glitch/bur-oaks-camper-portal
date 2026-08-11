@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, ListChecks, PlusCircle, Wrench } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, ListChecks, PackageCheck, PlusCircle, Warehouse, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import MaintenanceSupplyRequestPanel from '../../../components/MaintenanceSupplyRequestPanel'
@@ -190,7 +190,10 @@ export default function MaintenanceDashboard() {
           <h1>Approved work orders only.</h1>
           <p>Use this screen in the field. New items you enter go to the office first. Only approved work shows in your queue.</p>
         </div>
-        <Link href="/maintenance/history">Completed history →</Link>
+        <div className="maintenance-staff-hero-links">
+          <Link href="/maintenance/dashboard/inventory"><Warehouse size={16} /> Supply inventory</Link>
+          <Link href="/maintenance/history">Completed history →</Link>
+        </div>
       </section>
 
       <section className="maintenance-staff-steps">
@@ -314,6 +317,9 @@ export default function MaintenanceDashboard() {
               <div className="maintenance-staff-ticket-actions">
                 <Link href={`/maintenance/dashboard/${ticket.id}`}>
                   <Eye size={15} /> Open details
+                </Link>
+                <Link className="record-supplies" href={`/maintenance/dashboard/${ticket.id}#work-order-supplies`}>
+                  <PackageCheck size={15} /> Record supplies used
                 </Link>
                 <button
                   onClick={() => updateTicket(ticket.id, { assigned_to: 'Maintenance Staff' }, 'Assigned to maintenance staff.')}

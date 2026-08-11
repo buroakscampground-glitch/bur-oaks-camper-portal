@@ -3664,6 +3664,31 @@ button:hover {
   }
 }
 
+/* Maintenance inventory shortcuts and work-order supply actions. */
+.maintenance-staff-hero-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.maintenance-staff-ticket-actions a.record-supplies {
+  border-color: #b7cfb8 !important;
+  background: #e9f3e7 !important;
+}
+
+@media (max-width: 680px) {
+  .maintenance-staff-hero-links {
+    display: grid;
+    width: 100%;
+  }
+
+  .maintenance-staff-hero-links a {
+    justify-content: center;
+    width: 100%;
+  }
+}
+
 /* CAMPER ACCOUNT CENTER */
 .camper-account-page { min-height: 100vh; padding: 24px; color: #26352b; background: radial-gradient(circle at 90% 5%, rgba(204,174,105,.14), transparent 24%), linear-gradient(180deg,#edf2ec 0%,#f7f5ef 34%,#f3f1eb 100%); }
 .account-shell { width: min(1280px,100%); margin: 0 auto; }

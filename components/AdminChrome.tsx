@@ -30,6 +30,7 @@ import {
   Users,
   Utensils,
   WalletCards,
+  Warehouse,
   Wrench,
   X,
   Zap,
@@ -104,6 +105,7 @@ const navGroups = [
     links: [
       { href: '/admin/site-care', label: 'Site Care', icon: ClipboardCheck },
       { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench },
+      { href: '/admin/maintenance/inventory', label: 'Inventory', icon: Warehouse },
       { href: '/admin/maintenance/supplies', label: 'Supply Requests', icon: ShoppingBasket },
       { href: '/admin/pump-outs', label: 'Pump-Outs', icon: Hammer },
       { href: '/admin/site-services', label: 'Site Services', icon: KeyRound },

@@ -181,7 +181,7 @@ export default function TicketDetailPage() {
         </article>
       </section>
 
-      <section className="maintenance-staff-detail-card maintenance-staff-notes-card">
+      <section id="work-order-supplies" className="maintenance-staff-detail-card maintenance-staff-notes-card">
         <MaintenancePartsPanel ticketId={ticket.id} mode="maintenance" />
       </section>
 
