@@ -75,6 +75,8 @@ export async function POST(request: Request) {
     ? 'Not Started'
     : action === 'decline'
       ? 'Campground Not Renewing'
+      : action === 'clear'
+        ? 'Not Started'
       : action === 'mark-sent' && status === 'Not Started'
         ? 'Awaiting Response'
         : status
@@ -88,8 +90,8 @@ export async function POST(request: Request) {
     renewal_sent_at: action === 'mark-sent' ? today : cleanText(body.renewalSentAt, 10) || existing?.renewal_sent_at || null,
     status: decisionStatus,
     notes: cleanText(body.notes, 3000) || null,
-    auto_send_approved: action === 'approve' ? true : action === 'decline' ? false : Boolean(existing?.auto_send_approved),
-    auto_send_approved_at: action === 'approve' ? now : action === 'decline' ? null : existing?.auto_send_approved_at || null,
+    auto_send_approved: action === 'approve' ? true : ['decline', 'clear'].includes(action) ? false : Boolean(existing?.auto_send_approved),
+    auto_send_approved_at: action === 'approve' ? now : ['decline', 'clear'].includes(action) ? null : existing?.auto_send_approved_at || null,
     decision_recorded_at: ['Renewing', 'Camper Leaving', 'Campground Not Renewing'].includes(decisionStatus)
       ? today
       : null,
