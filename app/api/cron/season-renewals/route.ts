@@ -31,6 +31,12 @@ function addYear(value: string) {
   return `${year + 1}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`
 }
 
+function shiftDays(value: string, amount: number) {
+  const [year, month, day] = value.split('-').map(Number)
+  const target = new Date(year, month - 1, day + amount, 12)
+  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`
+}
+
 export async function GET(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   const admin = adminClient()
@@ -54,19 +60,57 @@ export async function GET(request: Request) {
       status: 'Not Started',
       decision_recorded_at: null,
       renewal_document_id: null,
+      auto_send_approved: false,
+      auto_send_approved_at: null,
+      review_notified_at: null,
       last_automation_at: null,
       automation_error: null,
     }).eq('id', cycle.id)
   }
 
   const [{ data: records, error: recordError }, { data: templates, error: templateError }] = await Promise.all([
-    admin.from('season_renewals').select('id,camper_id,lot_number,contract_end_date,renewal_sent_at,status').is('renewal_sent_at', null).eq('status', 'Not Started'),
+    admin.from('season_renewals').select('id,camper_id,lot_number,contract_end_date,renewal_sent_at,status,auto_send_approved,review_notified_at').is('renewal_sent_at', null).eq('status', 'Not Started'),
     admin.from('document_templates').select('*').order('created_at', { ascending: false }),
   ])
 
   if (recordError || templateError) return NextResponse.json({ error: recordError?.message || templateError?.message }, { status: 500 })
 
-  const due = (records || []).filter((record) => record.contract_end_date && shiftMonths(record.contract_end_date, -4) <= today)
+  // Give the office a two-week review window. A renewal can never auto-send
+  // unless the office explicitly approves it on the Renewal Forecast page.
+  const reviewQueue = (records || []).filter((record) => {
+    if (!record.contract_end_date || record.review_notified_at || record.auto_send_approved) return false
+    return shiftDays(shiftMonths(record.contract_end_date, -4), -14) <= today
+  })
+
+  if (reviewQueue.length) {
+    const lots = reviewQueue.map((record) => record.lot_number || 'unknown').join(', ')
+    const now = new Date().toISOString()
+    await admin.from('admin_notifications').insert(reviewQueue.map((record) => ({
+      type: 'renewal_review',
+      title: `Review Lot ${record.lot_number || '—'} before renewal`,
+      message: `Choose Yes, send automatically or No, do not renew before ${shiftMonths(record.contract_end_date, -4)}. The renewal is held until you approve it.`,
+      lot_number: record.lot_number || null,
+      camper_id: record.camper_id,
+      source_table: 'season_renewals',
+      source_id: record.id,
+    })))
+
+    const alertPhone = formatSmsPhone(
+      process.env.RENEWAL_REVIEW_ALERT_PHONE ||
+      process.env.OWNER_ALERT_PHONE ||
+      process.env.ADMIN_ALERT_PHONE ||
+      '618-882-8063'
+    )
+    if (alertPhone) {
+      await sendTwilioSms({
+        to: alertPhone,
+        body: `Bur Oaks: Renewal review needed for Lot${reviewQueue.length === 1 ? '' : 's'} ${lots}. Please choose Yes or No in Admin > Renewals before the scheduled send date. https://www.buroakscampground.com/admin/renewals`,
+      })
+    }
+    await admin.from('season_renewals').update({ review_notified_at: now }).in('id', reviewQueue.map((record) => record.id))
+  }
+
+  const due = (records || []).filter((record) => record.auto_send_approved && record.contract_end_date && shiftMonths(record.contract_end_date, -4) <= today)
   const renewalTemplate = (templates || []).find((template) => /renewal/i.test(`${template.document_name || ''} ${template.document_type || ''}`))
   const results: any[] = []
 
@@ -152,6 +196,5 @@ export async function GET(request: Request) {
     results.push({ renewalId: record.id, lot: camper.lot_number, status: 'sent', smsStatus })
   }
 
-  return NextResponse.json({ success: true, today, checked: records?.length || 0, due: due.length, results })
+  return NextResponse.json({ success: true, today, checked: records?.length || 0, reviewNotifications: reviewQueue.length, due: due.length, results })
 }
-
