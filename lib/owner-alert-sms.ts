@@ -12,7 +12,7 @@ function ownerTextEnabled() {
 }
 
 function ownerTextTypes() {
-  const raw = process.env.OWNER_TEXT_ALERT_TYPES || 'maintenance_request,payment_received,direct_message,sewer_pump_out,saturday_dinner,event_rsvp'
+  const raw = process.env.OWNER_TEXT_ALERT_TYPES || 'maintenance_request,payment_received,direct_message,sewer_pump_out,saturday_dinner'
 
   return new Set(
     raw

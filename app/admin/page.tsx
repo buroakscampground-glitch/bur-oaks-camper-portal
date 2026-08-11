@@ -61,7 +61,6 @@ type AdminStats = {
   activeSiteCare: number
   maintenanceAlerts: number
   paymentAlerts: number
-  rsvpAlerts: number
   documentActions: number
   insuranceMissing: number
   pumpOuts: number
@@ -115,7 +114,6 @@ const emptyStats: AdminStats = {
   activeSiteCare: 0,
   maintenanceAlerts: 0,
   paymentAlerts: 0,
-  rsvpAlerts: 0,
   documentActions: 0,
   insuranceMissing: 0,
   pumpOuts: 0,
@@ -246,7 +244,7 @@ export default function AdminPage() {
       return !Number.isNaN(dueDate.getTime()) && dueDate >= today && dueDate <= dueSoonCutoff
     })
     const activeCredits = (creditResult.data || []).filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)
-    const activePumpOuts = pumpOuts.filter((request) => request.status !== 'cancelled' && !request.billed_at)
+    const pumpOutsNeedingService = pumpOuts.filter((request) => request.status === 'requested' && !request.billed_at)
     const insuredCamperIds = new Set(
       documents
         .filter((document) => document.document_type === 'Golf Cart Insurance')
@@ -276,17 +274,15 @@ export default function AdminPage() {
         tone: request.urgency === 'Urgent' ? 'red' : 'orange',
         createdAt: request.requested_at,
       })),
-      ...activePumpOuts.map((request: any): CockpitItem => ({
+      ...pumpOutsNeedingService.map((request: any): CockpitItem => ({
         id: `pump-${request.id}`,
         href: '/admin/pump-outs',
         type: 'pump',
-        label: request.status === 'completed' ? 'PUMPED / NOT BILLED' : 'PUMP-OUT REQUEST',
+        label: 'PUMP-OUT REQUEST',
         title: `Lot ${request.lot_number || 'N/A'} · ${request.camper_name || 'Camper'}`,
-        detail: request.status === 'completed'
-          ? `$${Number(request.charge_amount || 10).toFixed(2)} waiting for electric bill.`
-          : request.notes || 'Camper requested a sewer pump-out from the portal.',
-        status: request.status === 'completed' ? 'Completed, not billed' : 'Needs pumped',
-        tone: request.status === 'completed' ? 'green' : 'red',
+        detail: request.notes || 'Camper requested a sewer pump-out from the portal.',
+        status: 'Needs pumped',
+        tone: 'red',
         createdAt: request.requested_at,
       })),
       ...maintenance
@@ -375,7 +371,6 @@ export default function AdminPage() {
       activeSiteCare: activeSiteCare.length,
       maintenanceAlerts: notifications.filter((notification) => notification.type === 'maintenance_request').length,
       paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
-      rsvpAlerts: notifications.filter((notification) => notification.type === 'event_rsvp').length,
       pumpOutAlerts: notifications.filter((notification) => notification.type === 'sewer_pump_out').length,
       messageAlerts: unreadMessages.length || notifications.filter((notification) => notification.type === 'direct_message').length,
       documentActions: documents.filter((document) => {
@@ -383,9 +378,9 @@ export default function AdminPage() {
         return status !== 'signed' && status !== 'not_required'
       }).length,
       insuranceMissing: campers.filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
-      pumpOuts: activePumpOuts.length,
+      pumpOuts: pumpOutsNeedingService.length,
       siteServices: (siteServiceResult.data || []).filter((charge) => !charge.cancelled_at && !charge.billed_at).length,
-      totalUnreadAlerts: notifications.length,
+      totalUnreadAlerts: notifications.filter((notification) => notification.type !== 'event_rsvp').length,
       pastDueInvoices: pastDueInvoices.length,
       dueSoonInvoices: dueSoonInvoices.length,
       almostDueAmount: dueSoonInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
@@ -545,14 +540,6 @@ export default function AdminPage() {
       detail: `${stats.nextDinnerGuests} plates · ${stats.nextDinnerDishes} bringing food · ${stats.pendingDinnerResponses} no response`,
       icon: Soup,
       urgent: false,
-    },
-    {
-      href: '/admin/rsvps',
-      title: 'Event RSVPs',
-      count: stats.rsvpAlerts,
-      detail: stats.rsvpAlerts ? `${stats.rsvpAlerts} new RSVP alerts` : 'Upcoming event responses',
-      icon: UsersRound,
-      urgent: stats.rsvpAlerts > 0,
     },
     {
       href: '/admin/documents',

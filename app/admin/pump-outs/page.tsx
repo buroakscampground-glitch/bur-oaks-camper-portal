@@ -13,7 +13,7 @@ const statusLabels: Record<string, string> = {
 
 export default function AdminPumpOutsPage() {
   const [requests, setRequests] = useState<any[]>([])
-  const [filter, setFilter] = useState('active')
+  const [filter, setFilter] = useState('requested')
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
   const [savingId, setSavingId] = useState('')
@@ -48,8 +48,19 @@ export default function AdminPumpOutsPage() {
       .update(payload)
       .eq('id', id)
 
+    if (!error && ['completed', 'cancelled'].includes(status)) {
+      await supabase
+        .from('admin_notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('type', 'sewer_pump_out')
+        .eq('source_id', id)
+        .is('read_at', null)
+    }
+
     setSavingId('')
-    setMessage(error ? error.message : 'Pump-out request updated.')
+    setMessage(error ? error.message : status === 'completed'
+      ? 'Marked pumped. The charge remains queued for the next electric bill.'
+      : 'Pump-out request updated.')
     if (!error) loadRequests()
   }
 
@@ -86,6 +97,7 @@ export default function AdminPumpOutsPage() {
   }, [filter, requests, search])
 
   const activeRequests = requests.filter((request) => request.status !== 'cancelled' && !request.billed_at)
+  const needsPumping = requests.filter((request) => request.status === 'requested' && !request.billed_at)
   const completedUnbilled = requests.filter((request) => request.status === 'completed' && !request.billed_at)
   const pendingChargeTotal = activeRequests.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
   const pendingGallons = activeRequests.reduce(
@@ -103,7 +115,7 @@ export default function AdminPumpOutsPage() {
       </section>
 
       <section className="admin-pump-stats">
-        <article><small>Needs attention</small><strong>{activeRequests.length}</strong></article>
+        <article><small>Needs pumped</small><strong>{needsPumping.length}</strong></article>
         <article><small>Pumped, not billed</small><strong>{completedUnbilled.length}</strong></article>
         <article><small>Pending charges</small><strong>${pendingChargeTotal.toFixed(2)}</strong></article>
         <article><small>Gallons on active list</small><strong>{pendingGallons.toLocaleString()}</strong></article>
@@ -112,9 +124,9 @@ export default function AdminPumpOutsPage() {
       <section className="admin-pump-toolbar">
         <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search lot, camper, or note" /></label>
         <select value={filter} onChange={(event) => setFilter(event.target.value)}>
-          <option value="active">Active / unbilled</option>
           <option value="requested">Needs Pumped</option>
           <option value="completed">Pumped</option>
+          <option value="active">All current / unbilled</option>
           <option value="cancelled">Cancelled</option>
           <option value="all">All</option>
         </select>

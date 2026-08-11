@@ -88,59 +88,7 @@ export async function POST(request: Request) {
     }
 
     if (body.type === 'event_rsvp' && body.eventId && body.response) {
-      const { data: event, error } = await context.admin
-        .from('events')
-        .select('*')
-        .eq('id', body.eventId)
-        .single()
-
-      if (error || !event) {
-        return NextResponse.json({ error: 'Event not found' }, { status: 404 })
-      }
-
-      const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'A camper'
-      const title = `Site ${context.camper.lot_number || 'Unknown'} RSVP: ${body.response}`
-      const message = `${camperName} confirmed "${body.response}" for ${event.title || 'an event'}.`
-
-      await createAdminNotification(context.admin, {
-        type: 'event_rsvp',
-        title,
-        message,
-        lot_number: context.camper.lot_number,
-        camper_id: context.camper.id,
-        source_table: 'event_rsvps',
-        source_id: String(body.eventId),
-      }).catch((error) => console.error('Admin notification failed:', error))
-
-      let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
-      let emailMessage = ''
-
-      try {
-        const emailResult = await sendAdminAlertEmail({
-          subject: title,
-          heading: title,
-          message,
-          details: [
-            { label: 'Camper', value: camperName },
-            { label: 'Site', value: context.camper.lot_number },
-            { label: 'Event', value: event.title },
-            { label: 'Date', value: event.event_date },
-          ],
-          actionUrl: `${origin}/admin/rsvps`,
-          actionLabel: 'View RSVPs',
-        })
-
-        if ((emailResult as any)?.skipped) {
-          emailStatus = 'skipped'
-          emailMessage = (emailResult as any)?.reason || 'Email alert is not configured.'
-        }
-      } catch (error: any) {
-        emailStatus = 'failed'
-        emailMessage = error?.message || 'Admin alert email failed.'
-        console.error('Admin alert email failed:', error)
-      }
-
-      return NextResponse.json({ success: true, emailStatus, emailMessage })
+      return NextResponse.json({ success: true, informational: true })
     }
 
     return NextResponse.json({ error: 'Unsupported alert type' }, { status: 400 })

@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createAdminNotification } from '../../../lib/admin-notifications'
-import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { eventFlyers2026 } from '../../../lib/event-flyers'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
-import { getSiteUrl } from '../../../lib/site-url'
 import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -149,7 +146,7 @@ export async function POST(request: Request) {
       .eq('event_id', event.id)
       .eq('camper_id', context.camper.id)
 
-    const { data: rsvp, error } = await context.admin
+    const { error } = await context.admin
       .from('event_rsvps')
       .insert({
         event_id: event.id,
@@ -162,36 +159,6 @@ export async function POST(request: Request) {
     if (error) {
       throw error
     }
-
-    const origin = getSiteUrl()
-    const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'A camper'
-    const title = `Site ${context.camper.lot_number || 'Unknown'} RSVP: ${response}`
-    const message = `${camperName} selected "${response}" for ${flyer.title}.`
-
-    await createAdminNotification(context.admin, {
-      type: 'event_rsvp',
-      title,
-      message,
-      lot_number: context.camper.lot_number,
-      camper_id: context.camper.id,
-      source_table: 'event_rsvps',
-      source_id: String(rsvp?.id || event.id),
-    }).catch((notificationError) => console.error('Admin notification failed:', notificationError))
-
-    await sendAdminAlertEmail({
-      subject: title,
-      heading: title,
-      message,
-      details: [
-        { label: 'Camper', value: camperName },
-        { label: 'Site', value: context.camper.lot_number },
-        { label: 'Event', value: flyer.title },
-        { label: 'Date', value: flyer.displayDate },
-        { label: 'Response', value: response },
-      ],
-      actionUrl: `${origin}/admin/rsvps`,
-      actionLabel: 'View RSVPs',
-    }).catch((emailError) => console.error('Admin alert email failed:', emailError))
 
     const status = await getEventStatus(context, slug)
 

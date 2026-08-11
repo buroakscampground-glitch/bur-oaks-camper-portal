@@ -52,7 +52,7 @@ export default function AdminNotificationsPage() {
   const visible = notifications.filter((notification) => {
     const matchesFilter =
       filter === 'all' ||
-      (filter === 'unread' ? !notification.read_at : notification.type === filter)
+      (filter === 'unread' ? !notification.read_at && notification.type !== 'event_rsvp' : notification.type === filter)
     const term = search.trim().toLowerCase()
     const matchesSearch =
       !term ||
@@ -62,7 +62,7 @@ export default function AdminNotificationsPage() {
     return matchesFilter && matchesSearch
   })
 
-  const unreadCount = notifications.filter((notification) => !notification.read_at).length
+  const unreadCount = notifications.filter((notification) => !notification.read_at && notification.type !== 'event_rsvp').length
 
   return (
     <main className="admin-notifications-page">
@@ -70,7 +70,7 @@ export default function AdminNotificationsPage() {
         <div>
           <span><BellRing size={17} /> ADMIN NOTIFICATIONS</span>
           <h1>Everything that needs your attention.</h1>
-          <p>Payments, maintenance requests, RSVPs, and camper activity collected into one clean review queue.</p>
+          <p>Payments, maintenance requests, camper messages, and operational activity collected into one clean review queue.</p>
         </div>
         <button type="button" onClick={() => markSeen()} disabled={unreadCount === 0}>
           <CheckCheck size={17} /> Mark all handled
@@ -81,7 +81,7 @@ export default function AdminNotificationsPage() {
         <article><small>Unread</small><strong>{unreadCount}</strong></article>
         <article><small>Maintenance</small><strong>{notifications.filter((item) => item.type === 'maintenance_request' && !item.read_at).length}</strong></article>
         <article><small>Payments</small><strong>{notifications.filter((item) => item.type === 'payment_received' && !item.read_at).length}</strong></article>
-        <article><small>RSVPs</small><strong>{notifications.filter((item) => item.type === 'event_rsvp' && !item.read_at).length}</strong></article>
+        <article><small>Camper messages</small><strong>{notifications.filter((item) => item.type === 'direct_message' && !item.read_at).length}</strong></article>
       </section>
 
       <AdminQuickText
