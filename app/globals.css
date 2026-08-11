@@ -11134,7 +11134,7 @@ tbody tr:hover {
 
 /* Reports: tax-ready summaries, period controls, and focused print packs */
 .admin-report-period{display:inline-flex;margin-top:18px;padding:7px 10px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(255,255,255,.08);color:#f2d68e;font-size:9px;letter-spacing:.13em}
-main.admin-report-page .admin-report-hero h1{color:#fff}
+main.admin-report-page .admin-report-hero h1{color:#fff!important}
 .admin-report-scope{display:grid;grid-template-columns:1fr 1fr;gap:4px;padding:4px;border:1px solid rgba(255,255,255,.22);border-radius:12px;background:rgba(255,255,255,.08)}
 .admin-report-scope button{min-height:34px!important;border:0!important;background:transparent!important;color:rgba(255,255,255,.72)!important}
 .admin-report-scope button.active{background:#fff!important;color:#315f3d!important}
