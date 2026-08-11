@@ -10808,6 +10808,14 @@ tbody tr:hover {
   font-size:11px;
   line-height:1.45;
 }
+.camper-birthday-celebration-toggle.personal-greetings{
+  border-color:#dccb9f;
+  background:linear-gradient(135deg,rgba(255,250,232,.94),rgba(244,249,238,.92));
+}
+.camper-birthday-celebration-toggle.personal-greetings a{
+  color:#315f3d;
+  font-weight:850;
+}
 .camper-birthday-profile-actions{
   position:relative;
   z-index:1;

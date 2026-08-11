@@ -4,7 +4,7 @@ export default function TermsPage() {
       <article className="legal-card">
         <p className="legal-kicker">BUR OAKS CAMPER PORTAL</p>
         <h1>Portal Terms</h1>
-        <p className="muted">Last updated July 9, 2026</p>
+        <p className="muted">Last updated August 11, 2026</p>
 
         <h2>Portal access</h2>
         <p>Use the portal only for your own campground account. Keep your password private and notify the campground office if you believe your account has been accessed without permission.</p>
@@ -20,7 +20,7 @@ export default function TermsPage() {
 
         <h2>Mobile Messaging Terms</h2>
         <p><strong>Program name:</strong> Bur Oaks Campground Text Alerts.</p>
-        <p><strong>Program description:</strong> Bur Oaks Campground sends opted-in seasonal campers account and campground operational text messages. Messages may include new invoice notices, invoice due-date reminders, past-due reminders, payment confirmations, maintenance request updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing notices related to a camper portal account or campground operations.</p>
+        <p><strong>Program description:</strong> Bur Oaks Campground sends opted-in seasonal campers account and campground operational text messages. Messages may include new invoice notices, invoice due-date reminders, past-due reminders, payment confirmations, maintenance request updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing notices related to a camper portal account or campground operations. Campers who separately opt in to personal greetings may also receive birthday and annual camper-anniversary messages.</p>
         <p><strong>Dedicated SMS Terms:</strong> A public SMS-only terms page is available at <strong>www.buroakscampground.com/sms-terms</strong>.</p>
         <p><strong>Consent:</strong> Campers are not opted in automatically, and SMS consent is never bundled into a lease, payment, portal account, directory listing, or other agreement. To opt in, sign in to the private Bur Oaks Camper Portal at <strong>www.buroakscampground.com</strong>, open <strong>Profile</strong> or <strong>Invoices</strong>, enter or confirm your mobile phone number, and check the box labeled <strong>I agree to receive Bur Oaks Campground text alerts</strong>. The checkbox explains the message types, message frequency, message/data rates, HELP/STOP instructions, and links to these Terms, the Privacy Notice, and the SMS Consent page. A public explanation of the SMS consent process is available at <strong>www.buroakscampground.com/sms-consent</strong>.</p>
         <p><strong>Message frequency:</strong> Message frequency varies based on your account activity, billing activity, maintenance activity, utility notices, gate notices, office notices, and safety or weather-related operational alerts.</p>

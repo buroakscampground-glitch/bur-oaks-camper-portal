@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   ArrowLeft,
+  CalendarDays,
   Car,
   CheckCircle2,
   CircleDollarSign,
@@ -58,6 +59,8 @@ type Camper = {
   directory_show_phone: boolean | null
   sms_opt_in: boolean | null
   sms_opt_in_at: string | null
+  camper_since_date: string | null
+  celebration_messages_opt_in: boolean | null
   office_notes: string | null
 }
 
@@ -94,6 +97,8 @@ const emptyCamper: Camper = {
   directory_show_phone: false,
   sms_opt_in: false,
   sms_opt_in_at: null,
+  camper_since_date: '',
+  celebration_messages_opt_in: false,
   office_notes: '',
 }
 
@@ -215,6 +220,7 @@ export default function CamperDetailPage() {
         sms_opt_in_at: camper.sms_opt_in
           ? camper.sms_opt_in_at || new Date().toISOString()
           : null,
+        camper_since_date: camper.camper_since_date || null,
         office_notes: camper.office_notes?.trim() || null,
       })
       .eq('id', camperId)
@@ -454,6 +460,7 @@ export default function CamperDetailPage() {
             <Field label="First name" value={camper.first_name} onChange={(value) => updateField('first_name', value)} />
             <Field label="Last name" value={camper.last_name} onChange={(value) => updateField('last_name', value)} />
             <Field label="Lot / site number" value={camper.lot_number} onChange={(value) => updateField('lot_number', value)} icon={<MapPin />} />
+            <Field label="Camper since" type="date" value={camper.camper_since_date} onChange={(value) => updateField('camper_since_date', value)} icon={<CalendarDays />} />
             <label className="admin-camper-field">
               <span>Portal role</span>
               <select value={camper.role || 'camper'} onChange={(event) => updateField('role', event.target.value)}>
@@ -491,6 +498,9 @@ export default function CamperDetailPage() {
               />
               <span><strong>Camper agreed to receive text alerts</strong><small>Use only after they have given permission. Texts use the profile 1 phone number.</small></span>
             </label>
+            <div className="directory-safety-note">
+              <ShieldCheck size={16} /> Personal birthday and anniversary greetings: {camper.celebration_messages_opt_in ? 'Camper opted in' : 'Not opted in'}.
+            </div>
           </div>
         </ProfileSection>
 

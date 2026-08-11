@@ -96,6 +96,10 @@ export default function ProfilePage() {
       birthday: camper.birthday || null,
       second_profile_birthday: camper.second_profile_birthday || null,
       birthday_celebration_opt_in: Boolean(camper.birthday_celebration_opt_in),
+      celebration_messages_opt_in: Boolean(camper.celebration_messages_opt_in),
+      celebration_messages_opt_in_at: camper.celebration_messages_opt_in
+        ? camper.celebration_messages_opt_in_at || new Date().toISOString()
+        : null,
       mailing_address_line1: camper.mailing_address_line1,
       mailing_address_line2: camper.mailing_address_line2,
       mailing_city: camper.mailing_city,
@@ -128,13 +132,15 @@ export default function ProfilePage() {
       })
       .eq('id', camper.id)
 
-    if (error && /(directory_(opt_in|show_phone)|sms_opt_in|birthday)/i.test(error.message)) {
+    if (error && /(directory_(opt_in|show_phone)|sms_opt_in|birthday|celebration_messages)/i.test(error.message)) {
       const {
         sms_opt_in,
         sms_opt_in_at,
         birthday,
         second_profile_birthday,
         birthday_celebration_opt_in,
+        celebration_messages_opt_in,
+        celebration_messages_opt_in_at,
         ...fallbackUpdates
       } = profileUpdates
 
@@ -146,7 +152,7 @@ export default function ProfilePage() {
       setMessage(
         fallbackError
           ? fallbackError.message
-          : 'Profile saved. Birthday and directory preferences will be available after setup is complete.'
+          : 'Profile saved. Birthday, personal greeting, and directory preferences will be available after setup is complete.'
       )
     } else if (error) {
       setMessage(error.message)
@@ -332,6 +338,28 @@ export default function ProfilePage() {
             <span>
               <strong>Include us on the monthly birthday board</strong>
               <small>Other signed-in campers will see first name, last initial, lot, and birthday month/day. They will never see the birth year.</small>
+            </span>
+          </label>
+
+          <label className="camper-birthday-celebration-toggle personal-greetings">
+            <input
+              type="checkbox"
+              checked={Boolean(camper.celebration_messages_opt_in)}
+              onChange={(event) =>
+                setCamper({
+                  ...camper,
+                  celebration_messages_opt_in: event.target.checked,
+                  celebration_messages_opt_in_at: event.target.checked
+                    ? camper.celebration_messages_opt_in_at || new Date().toISOString()
+                    : null,
+                })
+              }
+            />
+            <span>
+              <strong>Send us private birthday and camping-anniversary greetings</strong>
+              <small>
+                By checking this box, I agree to receive optional birthday and annual Bur Oaks camper-anniversary greetings by email and, when Text Alerts are also turned on, by SMS. Up to one anniversary greeting and one birthday greeting per saved profile each year. Message and data rates may apply. Reply STOP to opt out of texts. This is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
+              </small>
             </span>
           </label>
 

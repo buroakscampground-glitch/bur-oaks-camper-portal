@@ -4,14 +4,14 @@ export default function SmsTermsPage() {
       <article className="legal-card">
         <p className="legal-kicker">BUR OAKS CAMPGROUND</p>
         <h1>SMS Text Messaging Terms</h1>
-        <p className="muted">Last updated July 9, 2026</p>
+        <p className="muted">Last updated August 11, 2026</p>
 
         <h2>Program name</h2>
         <p>Bur Oaks Campground Text Alerts.</p>
 
         <h2>Program description</h2>
         <p>
-          Bur Oaks Campground sends opted-in seasonal campers operational text messages related to their private camper portal account and campground operations. Messages may include new invoice notices, invoice due-date reminders, past-due reminders, payment confirmations, maintenance request updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices.
+          Bur Oaks Campground sends opted-in seasonal campers operational text messages related to their private camper portal account and campground operations. Messages may include new invoice notices, invoice due-date reminders, past-due reminders, payment confirmations, maintenance request updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices. Campers who separately opt in to personal greetings may also receive birthday and annual Bur Oaks camper-anniversary messages.
         </p>
 
         <h2>How consent is collected</h2>
@@ -21,10 +21,13 @@ export default function SmsTermsPage() {
         <p>
           SMS consent is a direct opt-in to Bur Oaks Campground only. Consent is not hidden inside a lease, payment authorization, AutoPay enrollment, portal account creation, camper directory listing, verbal conversation, or any other agreement. SMS consent is optional and is not required to stay at Bur Oaks Campground, use the camper portal, or receive campground services.
         </p>
+        <p>
+          Birthday and camper-anniversary texts require a second, unchecked <strong>personal greetings</strong> box on the Profile page in addition to the main Text Alerts opt-in. The personal-greetings box explains that greetings may arrive by email and SMS, provides the expected annual frequency, and can be turned off at any time.
+        </p>
 
         <h2>Message frequency</h2>
         <p>
-          Message frequency varies based on account activity, invoice and payment activity, maintenance requests, utility notices, gate notices, office notices, and safety or weather-related operational alerts.
+          Message frequency varies based on account activity, invoice and payment activity, maintenance requests, utility notices, gate notices, office notices, and safety or weather-related operational alerts. Personal greetings are limited to one camper-anniversary greeting and one birthday greeting per saved profile each year.
         </p>
 
         <h2>Cost</h2>

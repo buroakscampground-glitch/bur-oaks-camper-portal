@@ -4,7 +4,7 @@ export default function PrivacyPage() {
       <article className="legal-card">
         <p className="legal-kicker">BUR OAKS CAMPGROUND</p>
         <h1>Privacy Notice</h1>
-        <p className="muted">Last updated August 4, 2026</p>
+        <p className="muted">Last updated August 11, 2026</p>
 
         <h2>Information we use</h2>
         <p>We use camper account, contact, billing, vehicle, emergency-contact, maintenance, event, and electric-usage information to operate the campground and provide portal services.</p>
@@ -29,7 +29,7 @@ export default function PrivacyPage() {
         <p>You may update your profile, directory preference, and AutoPay enrollment through the portal. Contact the campground office to request access, correction, or deletion of other account information, subject to legal and operational recordkeeping requirements.</p>
 
         <h2>Text messaging privacy</h2>
-        <p>If you opt in to SMS text alerts, we use your phone number to send non-marketing campground operational messages such as invoice notices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, and weather-related operational alerts.</p>
+        <p>If you opt in to SMS text alerts, we use your phone number to send non-marketing campground operational messages such as invoice notices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, and weather-related operational alerts. If you separately opt in to personal greetings, we may also use your saved birthday, original camper date, email address, and opted-in phone number to send private birthday and annual camper-anniversary greetings.</p>
         <p>We do not sell, rent, buy, trade, or share SMS opt-in information, phone numbers, or text messaging consent with third parties or affiliates for marketing, promotional, lead-generation, or advertising purposes. SMS consent is used only for Bur Oaks Campground communications. Service providers may process messages only as needed to deliver campground communications.</p>
         <p>You can opt out of text messages at any time by replying <strong>STOP</strong>. You can request help by replying <strong>HELP</strong>.</p>
 
@@ -37,6 +37,7 @@ export default function PrivacyPage() {
         <p>Campers opt in only after signing into the Bur Oaks Camper Portal. SMS consent is not collected through a lease, paper form, verbal conversation, directory setting, payment authorization, or bundled account agreement. The opt-in checkbox appears on the camper Profile page and the Invoices page near the saved phone number and text-alert settings. A public explanation of the SMS consent process is available at <strong>www.buroakscampground.com/sms-consent</strong>.</p>
         <p>The checkbox states that by checking it, the camper agrees to receive SMS messages from Bur Oaks Campground about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other non-marketing campground account or operations notices. The checkbox also states that message frequency varies, message and data rates may apply, campers can reply <strong>HELP</strong> for help, and campers can reply <strong>STOP</strong> to opt out.</p>
         <p>SMS consent is optional and is not required to stay at Bur Oaks or use the camper portal.</p>
+        <p>The public birthday board and private personal greetings are separate choices. A camper can receive private greetings without sharing a birthday on the camper birthday board, and either choice can be turned off independently.</p>
 
         <h2>Security and retention</h2>
         <p>We use access controls and service providers to protect portal data. Information is retained only as long as reasonably needed for campground operations, accounting, safety, and legal obligations.</p>

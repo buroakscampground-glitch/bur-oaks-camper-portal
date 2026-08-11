@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/season-renewals",
       "schedule": "15 14 * * *"
+    },
+    {
+      "path": "/api/cron/camper-celebrations",
+      "schedule": "30 14 * * *"
     }
   ]
 }
