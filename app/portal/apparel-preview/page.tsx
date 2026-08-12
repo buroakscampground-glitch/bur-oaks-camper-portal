@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ArrowLeft,
   Check,
@@ -339,21 +339,14 @@ function garmentColorFilter(colorName: string) {
 
 function ProductMockup({ product, design, colorName, large = false }: { product: PreviewProduct; design: LogoDirection; colorName?: string; large?: boolean }) {
   const logoCount = product.mockupLayout === 'dual' ? 2 : product.mockupLayout === 'polo' ? 4 : 1
-  const isSweatpants = product.id === 'campground-sweatpants'
   const shownColor = colorName || product.colors[0].name
 
   return (
     <span className={`apparel-live-mockup layout-${product.mockupLayout} product-${product.id} design-${design.id}${large ? ' large' : ''}`} data-color={shownColor}>
       <img className="apparel-live-garment" style={{ filter: garmentColorFilter(shownColor) }} src={product.blankImage} alt={`${product.name} in ${shownColor} with ${design.name}`} />
-      {isSweatpants ? (
-        <span className="apparel-sweatpants-leg-print" aria-hidden="true">
-          <strong>Bur Oaks Campground</strong>
-        </span>
-      ) : (
-        Array.from({ length: logoCount }, (_, index) => (
-          <img className={`apparel-live-logo logo-${index + 1}`} src={design.printImage} alt="" aria-hidden="true" key={index} />
-        ))
-      )}
+      {Array.from({ length: logoCount }, (_, index) => (
+        <img className={`apparel-live-logo logo-${index + 1}`} src={design.printImage} alt="" aria-hidden="true" key={index} />
+      ))}
     </span>
   )
 }
@@ -361,12 +354,13 @@ function ProductMockup({ product, design, colorName, large = false }: { product:
 export default function ApparelPreviewPage() {
   const [camper, setCamper] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedId, setSelectedId] = useState(previewProducts[0].id)
-  const [selectedDesignId, setSelectedDesignId] = useState(logoDirections[0].id)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedDesignId, setSelectedDesignId] = useState<string | null>(null)
   const [selectedColor, setSelectedColor] = useState(previewProducts[0].colors[0].name)
   const [selectedSize, setSelectedSize] = useState(previewProducts[0].sizes[1])
   const [quantity, setQuantity] = useState(1)
   const [previewMessage, setPreviewMessage] = useState('')
+  const builderRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     async function verifyPreviewAccess() {
@@ -408,19 +402,24 @@ export default function ApparelPreviewPage() {
   }, [])
 
   const product = useMemo(
-    () => previewProducts.find((item) => item.id === selectedId) || previewProducts[0],
+    () => previewProducts.find((item) => item.id === selectedId) || null,
     [selectedId]
   )
-  const color = product.colors.find((item) => item.name === selectedColor) || product.colors[0]
-  const selectedDesign = logoDirections.find((item) => item.id === selectedDesignId) || logoDirections[0]
-  const estimatedTotal = product.price * quantity
+  const color = product?.colors.find((item) => item.name === selectedColor) || product?.colors[0]
+  const selectedDesign = logoDirections.find((item) => item.id === selectedDesignId) || null
+  const estimatedTotal = (product?.price || 0) * quantity
 
   function chooseProduct(nextProduct: PreviewProduct) {
+    if (!selectedDesign) {
+      setPreviewMessage('Choose a logo first, then tap a clothing item.')
+      return
+    }
     setSelectedId(nextProduct.id)
     setSelectedColor(nextProduct.colors[0].name)
     setSelectedSize(nextProduct.sizes[Math.min(1, nextProduct.sizes.length - 1)])
     setQuantity(1)
     setPreviewMessage('')
+    window.setTimeout(() => builderRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
   if (loading || !camper) {
@@ -471,7 +470,7 @@ export default function ApparelPreviewPage() {
             <small><Palette size={14} /> THE LOGO LAB</small>
             <h2>Compare all seven Bur Oaks designs.</h2>
           </div>
-          <p>Nothing has been removed. Tap any design and every apparel preview below updates so you can compare it across the full collection.</p>
+          <p>Step 1: choose a logo. The clothing stays blank until you choose an item to open in the large preview.</p>
         </section>
 
         <section className="apparel-preview-logo-grid" aria-label="Bur Oaks logo directions">
@@ -479,13 +478,13 @@ export default function ApparelPreviewPage() {
             const active = design.id === selectedDesignId
 
             return (
-              <button className={`${active ? 'active ' : ''}design-${design.id}`} type="button" onClick={() => setSelectedDesignId(design.id)} key={design.id}>
+              <button className={`${active ? 'active ' : ''}design-${design.id}`} type="button" onClick={() => { setSelectedDesignId(design.id); setSelectedId(null); setPreviewMessage('') }} key={design.id}>
                 <span className="apparel-preview-logo-image"><img src={design.image} alt={design.name} /></span>
                 <span className="apparel-preview-logo-copy">
                   <small>{design.label}</small>
                   <strong>{design.name}</strong>
                   <p>{design.description}</p>
-                  <em>{active ? <><Check size={14} /> Comparing now</> : <>Compare this design <ChevronRight size={14} /></>}</em>
+                  <em>{active ? <><Check size={14} /> Logo selected</> : <>Select this logo <ChevronRight size={14} /></>}</em>
                 </span>
               </button>
             )
@@ -494,10 +493,10 @@ export default function ApparelPreviewPage() {
 
         <section className="apparel-preview-intro apparel-preview-collection-intro">
           <div>
-            <small>LIVE APPAREL MOCKUPS</small>
-            <h2>A little Bur Oaks wherever you go.</h2>
+            <small>CHOOSE YOUR ITEM</small>
+            <h2>Pick blank clothing to preview.</h2>
           </div>
-          <p>All twelve requested products are here. Choose a design above to update every garment, then select an item to see it larger and try its sample options.</p>
+          <p>Step 2: tap any blank item. We’ll open a large picture and place your selected logo on that item only.</p>
         </section>
 
         <section className="apparel-preview-products" aria-label="Preview apparel products">
@@ -507,20 +506,20 @@ export default function ApparelPreviewPage() {
               <button className={active ? 'active' : ''} type="button" onClick={() => chooseProduct(item)} key={item.id}>
                 <span className="apparel-preview-card-badge">{item.badge}</span>
                 <span className="apparel-preview-product-stage">
-                  <ProductMockup product={item} design={selectedDesign} />
+                  <img className="apparel-blank-card-garment" src={item.blankImage} alt={`Blank ${item.name}`} />
                 </span>
                 <span className="apparel-preview-product-copy">
                   <small>{item.category}</small>
                   <strong>{item.name}</strong>
                   <em>From ${item.price.toFixed(2)}</em>
                 </span>
-                <span className="apparel-preview-select-label">{active ? <><Check size={15} /> Selected</> : <>View options <ChevronRight size={15} /></>}</span>
+                <span className="apparel-preview-select-label">{active ? <><Check size={15} /> Showing below</> : selectedDesign ? <>Preview with logo <ChevronRight size={15} /></> : <>Choose a logo first</>}</span>
               </button>
             )
           })}
         </section>
 
-        <section className="apparel-preview-builder">
+        {product && selectedDesign && color && <section className="apparel-preview-builder" ref={builderRef}>
           <div className="apparel-preview-builder-visual">
             <ProductMockup product={product} design={selectedDesign} colorName={color.name} large />
             <small>Live preview · {color.name} · {selectedDesign.name}</small>
@@ -581,7 +580,12 @@ export default function ApparelPreviewPage() {
             <small className="apparel-preview-shipping-note">Shipping and applicable tax would be calculated by Printful at checkout.</small>
             {previewMessage && <p className="apparel-preview-message"><Check size={16} /> {previewMessage}</p>}
           </div>
-        </section>
+        </section>}
+
+        {!product && <section className="apparel-preview-empty-builder">
+          <Palette size={25} />
+          <div><strong>{selectedDesign ? 'Now choose a blank clothing item.' : 'Choose a logo, then choose clothing.'}</strong><span>Your large customized preview will appear here.</span></div>
+        </section>}
 
         <footer className="apparel-preview-footer">
           <img src="/bur-oaks-logo.png" alt="" />
