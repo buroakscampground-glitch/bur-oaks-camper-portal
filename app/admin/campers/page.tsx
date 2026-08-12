@@ -20,6 +20,7 @@ export default function AdminCampersPage() {
   const [camperHealth, setCamperHealth] = useState<Record<string, any>>({})
   const [bulkSending, setBulkSending] = useState(false)
   const [search, setSearch] = useState('')
+  const [portalFilter, setPortalFilter] = useState<'accepted' | 'pending' | 'none'>('accepted')
   const router = useRouter()
   async function loadCampers() {
     const { data } = await supabase
@@ -310,6 +311,31 @@ export default function AdminCampersPage() {
     }
   }
 
+  const portalGroups = {
+    accepted: campers.filter((camper) => getPortalStatus(camper) === 'accepted'),
+    pending: campers.filter((camper) => getPortalStatus(camper) === 'pending'),
+    none: campers.filter((camper) => getPortalStatus(camper) === 'none'),
+  }
+
+  const visibleCampers = portalGroups[portalFilter].filter((camper) => {
+    const searchText = search.trim().toLowerCase()
+    if (!searchText) return true
+
+    return [
+      camper.lot_number,
+      camper.first_name,
+      camper.last_name,
+      camper.email,
+      camper.secondary_email,
+    ].some((value) => String(value || '').toLowerCase().includes(searchText))
+  })
+
+  const portalFilterLabels = {
+    accepted: 'Accepted',
+    pending: 'Invite Pending',
+    none: 'Not Set Up',
+  }
+
   return (
     <main style={{ padding: '40px', fontFamily: 'Arial' }}>
       
@@ -334,12 +360,49 @@ export default function AdminCampersPage() {
           <strong>Bulk portal setup links</strong>
         <span>
           Send fresh password setup emails in batches of 50. Accepted accounts and campers emailed recently are skipped automatically.
-          {' '}Accepted: {Object.values(portalStatuses).filter((status) => status === 'accepted').length} · Pending: {Object.values(portalStatuses).filter((status) => status === 'pending').length}
+          {' '}Campers accepted: {portalGroups.accepted.length} · Pending: {portalGroups.pending.length} · Not set up: {portalGroups.none.length}
         </span>
         </div>
         <button type="button" onClick={sendBulkPortalInvites} disabled={bulkSending}>
           {bulkSending ? 'Sending Batch…' : 'Send Next Batch of Fresh Setup Links'}
         </button>
+      </section>
+
+      <section className="admin-portal-rollout" aria-labelledby="portal-rollout-title">
+        <div className="admin-portal-rollout-heading">
+          <div>
+            <span>Portal rollout tracker</span>
+            <h2 id="portal-rollout-title">Who is set up?</h2>
+            <p>Choose a status to see the campers in that group. Counts update automatically as setup links are accepted.</p>
+          </div>
+          <strong>{campers.length} active campers</strong>
+        </div>
+
+        <div className="admin-portal-rollout-tabs" role="tablist" aria-label="Portal setup status">
+          {(['accepted', 'pending', 'none'] as const).map((status) => (
+            <button
+              key={status}
+              type="button"
+              role="tab"
+              aria-selected={portalFilter === status}
+              className={`${status} ${portalFilter === status ? 'active' : ''}`}
+              onClick={() => {
+                setPortalFilter(status)
+                setSearch('')
+              }}
+            >
+              <span>{portalFilterLabels[status]}</span>
+              <strong>{portalGroups[status].length}</strong>
+              <small>
+                {status === 'accepted'
+                  ? 'Portal completed'
+                  : status === 'pending'
+                    ? 'Link sent, waiting'
+                    : 'Ready for a setup link'}
+              </small>
+            </button>
+          ))}
+        </div>
       </section>
 
       <h2 id="camper-editor">
@@ -427,7 +490,13 @@ export default function AdminCampersPage() {
         </div>
       )}
 
-      <h2>Current Campers</h2>
+      <div className="admin-portal-list-heading">
+        <div>
+          <span>Showing portal status</span>
+          <h2>{portalFilterLabels[portalFilter]}</h2>
+        </div>
+        <strong>{visibleCampers.length} camper{visibleCampers.length === 1 ? '' : 's'}</strong>
+      </div>
 <input
   placeholder="Search by lot, name, or email..."
   value={search}
@@ -438,29 +507,7 @@ export default function AdminCampersPage() {
     width: '300px',
   }}
 />
-      {campers
-  .filter((camper) => {
-    const searchText = search.toLowerCase()
-
-    return (
-      camper.lot_number
-        ?.toString()
-        .toLowerCase()
-        .includes(searchText) ||
-      camper.first_name
-        ?.toLowerCase()
-        .includes(searchText) ||
-      camper.last_name
-        ?.toLowerCase()
-        .includes(searchText) ||
-      camper.email
-        ?.toLowerCase()
-        .includes(searchText) ||
-      camper.secondary_email
-        ?.toLowerCase()
-        .includes(searchText)
-    )
-  })
+      {visibleCampers
   .map((camper) => (
     (() => {
       const health = camperHealth[camper.id] || {}
