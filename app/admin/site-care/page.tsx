@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, ClipboardCheck, Eye, Leaf, Search, Send, Sparkles } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { isOperationalCamper } from '../../../lib/camper-records'
 
 const templates = [
   { key: 'weed-eat', title: 'Weed eat around site', message: 'Please weed eat around your camper, shed, deck, and other site edges so the lot stays neat.' },
@@ -54,7 +55,7 @@ export default function AdminSiteCarePage() {
       return
     }
 
-    setCampers((camperResult.data || []).filter((camper) => !['admin', 'maintenance'].includes(String(camper.role || '').toLowerCase())))
+    setCampers((camperResult.data || []).filter(isOperationalCamper))
     setNotices(noticeResult.data || [])
   }
 

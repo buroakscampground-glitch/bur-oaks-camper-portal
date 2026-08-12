@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { todayInCentral } from '../../../../lib/invoice-texting'
 import { formatSmsPhone, sendTwilioSms } from '../../../../lib/twilio-sms'
+import { isSystemPortalAccount } from '../../../../lib/camper-records'
 
 export const dynamic = 'force-dynamic'
 
@@ -47,11 +48,12 @@ export async function GET(request: Request) {
   // After a camper renews and the anniversary passes, prepare their next yearly cycle.
   const { data: completedCycles } = await admin
     .from('season_renewals')
-    .select('id,contract_end_date,status')
+    .select('id,lot_number,contract_end_date,status')
     .eq('status', 'Renewing')
     .lt('contract_end_date', today)
 
   for (const cycle of completedCycles || []) {
+    if (isSystemPortalAccount(cycle)) continue
     if (!cycle.contract_end_date) continue
     await admin.from('season_renewals').update({
       contract_start_date: cycle.contract_end_date,
@@ -77,7 +79,8 @@ export async function GET(request: Request) {
 
   // Give the office a two-week review window. A renewal can never auto-send
   // unless the office explicitly approves it on the Renewal Forecast page.
-  const reviewQueue = (records || []).filter((record) => {
+  const operationalRecords = (records || []).filter((record) => !isSystemPortalAccount(record))
+  const reviewQueue = operationalRecords.filter((record) => {
     if (!record.contract_end_date || record.review_notified_at || record.auto_send_approved) return false
     return shiftDays(shiftMonths(record.contract_end_date, -4), -14) <= today
   })
@@ -110,7 +113,7 @@ export async function GET(request: Request) {
     await admin.from('season_renewals').update({ review_notified_at: now }).in('id', reviewQueue.map((record) => record.id))
   }
 
-  const due = (records || []).filter((record) => record.auto_send_approved && record.contract_end_date && shiftMonths(record.contract_end_date, -4) <= today)
+  const due = operationalRecords.filter((record) => record.auto_send_approved && record.contract_end_date && shiftMonths(record.contract_end_date, -4) <= today)
   const renewalTemplate = (templates || []).find((template) => /renewal/i.test(`${template.document_name || ''} ${template.document_type || ''}`))
   const results: any[] = []
 

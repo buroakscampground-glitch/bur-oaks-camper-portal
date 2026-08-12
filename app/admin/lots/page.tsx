@@ -13,6 +13,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { isSystemPortalAccount } from '../../../lib/camper-records'
 
 const siteKey = (value: unknown) => String(value || '').trim().toLowerCase()
 
@@ -38,7 +39,7 @@ export default function LotsPage() {
     ])
 
     setLots(lotResult.data || [])
-    setCampers(camperResult.data || [])
+    setCampers((camperResult.data || []).filter((camper) => !isSystemPortalAccount(camper)))
   }
 
   const sites = useMemo(() => {

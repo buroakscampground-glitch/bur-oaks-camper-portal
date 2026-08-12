@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { createInvoiceBundle } from '../../../lib/account-credits'
 import { notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
+import { isOperationalCamper } from '../../../lib/camper-records'
 
 export default function BulkInvoicesPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -23,7 +24,7 @@ export default function BulkInvoicesPage() {
     if (error) {
       setMessage(error.message)
     } else {
-      setCampers(data || [])
+      setCampers((data || []).filter(isOperationalCamper))
     }
   }
 

@@ -36,6 +36,7 @@ import {
   Zap,
 } from 'lucide-react'
 import AdminWeather from '../../components/AdminWeather'
+import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 
@@ -189,7 +190,7 @@ export default function AdminPage() {
       supplyRequestResult,
       siteCareResult,
     ] = await Promise.all([
-      supabase.from('campers').select('id,email,secondary_email,phone,mailing_address_line1,mailing_city,mailing_state,mailing_zip').eq('active', true),
+      supabase.from('campers').select('id,email,secondary_email,phone,mailing_address_line1,mailing_city,mailing_state,mailing_zip,lot_number,role').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
       supabase.from('invoices').select('*'),
       supabase.from('events').select('id,event_date'),
@@ -213,7 +214,7 @@ export default function AdminPage() {
     const maintenance = maintenanceResult.data || []
     const notifications = notificationResult.data || []
     const documents = documentResult.data || []
-    const campers = campersResult.data || []
+    const campers = (campersResult.data || []).filter(isOperationalCamper)
     const rsvps = rsvpsResult.data || []
     const dinnerSignups = dinnerResult.data || []
     const pumpOuts = pumpOutResult.data || []
@@ -338,7 +339,7 @@ export default function AdminPage() {
     setCockpitItems(liveCockpitItems)
 
     setStats({
-      campers: campersResult.data?.length || 0,
+      campers: campers.length,
       archivedCampers: archivedResult.data?.length || 0,
       balance: invoices
         .filter((invoice) => invoice.status !== 'paid')

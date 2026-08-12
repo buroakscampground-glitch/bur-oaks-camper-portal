@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Search, Sparkles, SprayCan, Waves, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
+import { isOperationalCamper } from '../../../lib/camper-records'
 
 const miscServiceOption = { type: 'misc_service', label: 'Misc custom charge', amount: 0 }
 
@@ -49,7 +50,7 @@ export default function AdminSiteServicesPage() {
       .order('lot_number', { ascending: true })
 
     if (error) setMessage(error.message)
-    setCampers((data || []).filter((camper) => !['admin', 'maintenance'].includes(String(camper.role || 'camper').toLowerCase())))
+    setCampers((data || []).filter(isOperationalCamper))
   }
 
   async function loadCharges() {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { isOperationalCamper } from '../../../lib/camper-records'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import {
   portalInviteEmailConfigured,
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
     const [{ data: campers, error: camperError }, { data: logs }] = await Promise.all([
       context.admin
         .from('campers')
-        .select('id,lot_number,first_name,last_name,email,secondary_email,active')
+        .select('id,lot_number,first_name,last_name,email,secondary_email,active,role')
         .eq('active', true)
         .order('lot_number', { ascending: true }),
       context.admin
@@ -113,7 +114,7 @@ export async function POST(request: Request) {
     const recipients: Recipient[] = []
     const seen = new Set<string>()
 
-    for (const camper of campers || []) {
+    for (const camper of (campers || []).filter(isOperationalCamper)) {
       const camperName = `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
       for (const email of [cleanEmail(camper.email), cleanEmail(camper.secondary_email)]) {
         if (!isRealEmail(email)) continue

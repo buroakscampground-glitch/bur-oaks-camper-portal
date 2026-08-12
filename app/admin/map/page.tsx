@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Map as MapIcon, Search, TentTree, UsersRound, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { isSystemPortalAccount } from '../../../lib/camper-records'
 
 const siteKey = (value: unknown) => String(value || '').trim().toLowerCase()
 
@@ -24,7 +25,7 @@ export default function AdminMapPage() {
     ])
 
     setLots(lotResult.data || [])
-    setCampers(camperResult.data || [])
+    setCampers((camperResult.data || []).filter((camper) => !isSystemPortalAccount(camper)))
     setMaintenance(maintenanceResult.data || [])
   }
 

@@ -19,6 +19,7 @@ import {
   UsersRound,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { isOperationalCamper } from '../../../lib/camper-records'
 
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024
 
@@ -59,7 +60,7 @@ export default function AdminDocumentsPage() {
         : Promise.resolve(null),
     ])
 
-    setCampers(camperResult.data || [])
+    setCampers((camperResult.data || []).filter(isOperationalCamper))
     setTemplates(templateResult.data || [])
 
     if (documentResponse) {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { isOperationalCamper } from '../../../lib/camper-records'
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 
 function camperName(camper: any) {
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
 
   let camperQuery = context.admin
     .from('campers')
-    .select('id,lot_number,first_name,last_name,phone,sms_opt_in,active')
+    .select('id,lot_number,first_name,last_name,phone,sms_opt_in,active,role')
     .eq('active', true)
     .eq('sms_opt_in', true)
     .not('phone', 'is', null)
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
   const { data: campers, error: camperError } = await camperQuery
   if (camperError) return NextResponse.json({ error: camperError.message }, { status: 500 })
 
-  let targetCampers = campers || []
+  let targetCampers = (campers || []).filter(isOperationalCamper)
 
   if (targetMode === 'open_balance') {
     const { data: invoices, error: invoiceError } = await context.admin

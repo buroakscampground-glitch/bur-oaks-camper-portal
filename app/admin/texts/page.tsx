@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, CheckCircle2, LoaderCircle, MessageSquareText, Phone, Search, Send, UsersRound } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { isOperationalCamper } from '../../../lib/camper-records'
 
 type TargetMode = 'all_opted_in' | 'open_balance' | 'one'
 
@@ -54,7 +55,7 @@ export default function AdminTextsPage() {
         : Promise.resolve(null),
     ])
 
-    setCampers(camperResult.data || [])
+    setCampers((camperResult.data || []).filter(isOperationalCamper))
     setAlerts(alertResult.data || [])
 
     if (configResponse?.ok) {

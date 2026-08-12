@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { nextSaturdayDinner } from '../../../lib/saturday-dinners'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { isOperationalCamper } from '../../../lib/camper-records'
 import { ownerTextAlertConfigured } from '../../../lib/owner-alert-sms'
 
 export const runtime = 'nodejs'
@@ -65,7 +66,7 @@ export async function GET(request: Request) {
   const inviteLogs = inviteLogResult.data || []
   const pumpOuts = pumpOutResult.data || []
 
-  const activeCampers = campers.filter((camper) => String(camper.role || 'camper').toLowerCase() === 'camper')
+  const activeCampers = campers.filter(isOperationalCamper)
   const campersMissingEmail = activeCampers.filter((camper) => !camper.email && !camper.secondary_email)
   const unpaidInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
   const openBalance = unpaidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)

@@ -5,6 +5,7 @@ import { sendCamperMessageEmail } from '../../../lib/camper-message-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { getSiteUrl } from '../../../lib/site-url'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { isOperationalCamper } from '../../../lib/camper-records'
 
 export const runtime = 'nodejs'
 
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
 
     const messages = messagesResult.data || []
     const conversations = (campersResult.data || [])
-      .filter((camper: any) => !['admin', 'maintenance'].includes(String(camper.role || 'camper').toLowerCase()))
+      .filter(isOperationalCamper)
       .map((camper: any) => {
       const thread = messages.filter((message: any) => String(message.camper_id) === String(camper.id))
       const lastMessage = thread[0] || null
@@ -224,7 +225,7 @@ export async function POST(request: Request) {
     }
 
     const campers = (targetCampers || [])
-      .filter((camper: any) => !['admin', 'maintenance'].includes(String(camper.role || 'camper').toLowerCase()))
+      .filter(isOperationalCamper)
       .slice(0, 300)
 
     if (campers.length === 0) {

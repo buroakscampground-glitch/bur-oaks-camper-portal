@@ -25,6 +25,7 @@ import {
   X,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { isOperationalCamper } from '../../../lib/camper-records'
 
 type Camper = {
   id: string
@@ -221,7 +222,7 @@ export default function AdminRenewalsPage() {
       return
     }
 
-    const activeCampers = (camperResult.data || []).filter((camper) => !['admin', 'maintenance'].includes(String(camper.role || '').toLowerCase()))
+    const activeCampers = (camperResult.data || []).filter(isOperationalCamper)
     const records = (renewalResult.data || []) as Renewal[]
     setCampers(activeCampers)
     setRenewals(records)

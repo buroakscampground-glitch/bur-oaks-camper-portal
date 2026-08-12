@@ -7,6 +7,7 @@ import {
   sendCamperCelebration,
   type CelebrationProfile,
 } from '../../../../lib/camper-celebrations'
+import { isOperationalCamper } from '../../../../lib/camper-records'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,7 @@ export async function GET(request: Request) {
   }
 
   for (const camper of campers || []) {
-    if (['admin', 'maintenance'].includes(String(camper.role || '').toLowerCase())) continue
+    if (!isOperationalCamper(camper)) continue
     if (blockedCamperIds.has(String(camper.id))) {
       summary.blocked += 1
       continue

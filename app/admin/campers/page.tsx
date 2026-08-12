@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import { isSystemPortalAccount } from '../../../lib/camper-records'
 
 export default function AdminCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -29,7 +30,7 @@ export default function AdminCampersPage() {
       .eq('active', true)
       .order('lot_number', { ascending: true })
 
-    const activeCampers = data || []
+    const activeCampers = (data || []).filter((camper) => !isSystemPortalAccount(camper))
     setCampers(activeCampers)
     loadCamperHealth(activeCampers)
   }

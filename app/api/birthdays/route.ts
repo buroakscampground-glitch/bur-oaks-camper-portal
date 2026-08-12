@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isOperationalCamper } from '../../../lib/camper-records'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 
@@ -55,7 +56,7 @@ async function getBirthdayBoard(
 
   const { data: campers, error: camperError } = await context.admin
     .from('campers')
-    .select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,birthday,second_profile_birthday,birthday_celebration_opt_in')
+    .select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,birthday,second_profile_birthday,birthday_celebration_opt_in,role')
     .eq('active', true)
     .eq('birthday_celebration_opt_in', true)
 
@@ -66,7 +67,7 @@ async function getBirthdayBoard(
     throw camperError
   }
 
-  const birthdays = (campers || []).flatMap((camper: any) => {
+  const birthdays = (campers || []).filter(isOperationalCamper).flatMap((camper: any) => {
     const profiles: Array<{
       profile: BirthdayProfile
       firstName: unknown
@@ -178,7 +179,7 @@ export async function POST(request: Request) {
     const birthdayColumn = profile === 'secondary' ? 'second_profile_birthday' : 'birthday'
     const { data: recipient, error: recipientError } = await context.admin
       .from('campers')
-      .select('id,active,birthday_celebration_opt_in,birthday,second_profile_birthday')
+      .select('id,active,birthday_celebration_opt_in,birthday,second_profile_birthday,lot_number,role')
       .eq('id', recipientCamperId)
       .eq('active', true)
       .eq('birthday_celebration_opt_in', true)
@@ -187,7 +188,7 @@ export async function POST(request: Request) {
     if (recipientError) throw recipientError
 
     const birthday = parseBirthday(recipient?.[birthdayColumn])
-    if (!recipient || !birthday || birthday.month !== today.month) {
+    if (!recipient || !isOperationalCamper(recipient) || !birthday || birthday.month !== today.month) {
       return NextResponse.json({ error: 'That camper is not on this month’s birthday board.' }, { status: 400 })
     }
 

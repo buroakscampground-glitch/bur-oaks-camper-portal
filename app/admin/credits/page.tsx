@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, CircleDollarSign, Search, Undo2, WalletCards, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { isOperationalCamper } from '../../../lib/camper-records'
 import { formatCreditMoney } from '../../../lib/account-credits'
 
 function camperName(camper: any) {
@@ -58,7 +59,7 @@ export default function AdminCreditsPage() {
       setMessage(applicationResult.error.message)
     }
 
-    setCampers((camperResult.data || []).filter((camper) => !['admin', 'maintenance'].includes(String(camper.role || 'camper').toLowerCase())))
+    setCampers((camperResult.data || []).filter(isOperationalCamper))
     setCredits(creditResult.data || [])
     setApplications(applicationResult.data || [])
   }

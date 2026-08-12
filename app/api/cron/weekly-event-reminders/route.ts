@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { centralDate } from '../../../../lib/camper-celebrations'
 import { eventFlyers2026 } from '../../../../lib/event-flyers'
 import { addCentralDays, daysUntilEvent, sendEventReminder } from '../../../../lib/event-reminders'
+import { isOperationalCamper } from '../../../../lib/camper-records'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
       .order('event_date', { ascending: true }),
     admin
       .from('campers')
-      .select('id,first_name,last_name,email,secondary_email,phone,sms_opt_in,event_reminders_opt_in,active,role')
+      .select('id,first_name,last_name,email,secondary_email,phone,sms_opt_in,event_reminders_opt_in,active,role,lot_number')
       .eq('active', true)
       .eq('event_reminders_opt_in', true),
   ])
@@ -68,9 +69,7 @@ export async function GET(request: Request) {
   }
   mergedEvents.sort((a, b) => a.event_date.localeCompare(b.event_date) || a.title.localeCompare(b.title))
 
-  const eligibleCampers = (campers || []).filter(
-    (camper) => !['admin', 'maintenance'].includes(String(camper.role || '').toLowerCase())
-  )
+  const eligibleCampers = (campers || []).filter(isOperationalCamper)
   const eventIds = databaseEvents.map((event) => event.id)
   const { data: rsvps, error: rsvpError } = eventIds.length
     ? await admin.from('event_rsvps').select('event_id,camper_id,response').in('event_id', eventIds)

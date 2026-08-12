@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { isOperationalCamper } from '../../../lib/camper-records'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
 
@@ -39,12 +40,12 @@ export async function POST(request: Request) {
 
   const { data: targetCamper, error: camperError } = await context.admin
     .from('campers')
-    .select('id,first_name,last_name,lot_number,phone,sms_opt_in,active')
+    .select('id,first_name,last_name,lot_number,phone,sms_opt_in,active,role')
     .eq('id', camperId)
     .eq('active', true)
     .maybeSingle()
 
-  if (camperError || !targetCamper) {
+  if (camperError || !targetCamper || !isOperationalCamper(targetCamper)) {
     return NextResponse.json({ error: 'That active camper could not be found.' }, { status: 404 })
   }
 

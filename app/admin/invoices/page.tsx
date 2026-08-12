@@ -23,6 +23,7 @@ import { createInvoiceBundle, deleteInvoiceWithCreditRestore, formatCreditMoney 
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import AdminQuickText from '../../../components/AdminQuickText'
+import { isOperationalCamper } from '../../../lib/camper-records'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -82,7 +83,7 @@ export default function AdminInvoicesPage() {
         loadPaymentFeeSettings(supabase),
       ])
 
-      setCampers(camperResult.data || [])
+      setCampers((camperResult.data || []).filter(isOperationalCamper))
       setFeeSettings(paymentFeeSettings)
       setLoading(false)
     }
