@@ -11906,10 +11906,10 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.layout-center .apparel-live-logo {
-  top: 28%;
-  left: 34%;
-  width: 32%;
-  height: 27%;
+  top: 27%;
+  left: 38%;
+  width: 24%;
+  height: 23%;
 }
 
 .apparel-live-mockup.layout-dual .apparel-live-logo {
@@ -11918,9 +11918,9 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 
 .apparel-live-mockup.layout-dual .logo-1 {
   top: 31%;
-  left: 17%;
-  width: 12%;
-  height: 15%;
+  left: 34%;
+  width: 8%;
+  height: 11%;
 }
 
 .apparel-live-mockup.layout-dual .logo-2 {
@@ -11931,20 +11931,20 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.layout-polo .apparel-live-logo {
-  width: 8%;
-  height: 9%;
+  width: 6.5%;
+  height: 7.5%;
 }
 
-.apparel-live-mockup.layout-polo .logo-1 { top: 24%; left: 34%; }
-.apparel-live-mockup.layout-polo .logo-2 { top: 24%; left: 84%; }
-.apparel-live-mockup.layout-polo .logo-3 { top: 72%; left: 34%; }
-.apparel-live-mockup.layout-polo .logo-4 { top: 72%; left: 84%; }
+.apparel-live-mockup.layout-polo .logo-1 { top: 24%; left: 35%; }
+.apparel-live-mockup.layout-polo .logo-2 { top: 24%; left: 85%; }
+.apparel-live-mockup.layout-polo .logo-3 { top: 72%; left: 35%; }
+.apparel-live-mockup.layout-polo .logo-4 { top: 72%; left: 85%; }
 
 .apparel-live-mockup.layout-hat .apparel-live-logo {
-  top: 39%;
-  left: 40%;
-  width: 20%;
-  height: 12%;
+  top: 40%;
+  left: 42%;
+  width: 16%;
+  height: 10%;
 }
 
 .apparel-live-mockup.layout-leg .apparel-live-logo {
@@ -11984,24 +11984,29 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 
 .apparel-live-mockup.layout-left-chest .apparel-live-logo {
   top: 31%;
-  left: 56%;
-  width: 9%;
-  height: 8%;
+  left: 57%;
+  width: 7%;
+  height: 7%;
 }
 
 .apparel-live-mockup.layout-split-chest .apparel-live-logo {
   top: 32%;
-  left: 56%;
-  width: 9%;
-  height: 8%;
+  left: 58%;
+  width: 7%;
+  height: 7%;
 }
 
 .apparel-live-mockup.product-anniversary-tee.layout-center .apparel-live-logo {
-  top: 30%;
-  left: 34%;
-  width: 32%;
-  height: 27%;
+  top: 27%;
+  left: 38%;
+  width: 24%;
+  height: 23%;
 }
+
+.apparel-live-mockup.product-rec-hall-hoodie.layout-center .apparel-live-logo { top: 30%; }
+.apparel-live-mockup.product-rec-hall-crewneck.layout-center .apparel-live-logo { top: 26%; }
+.apparel-live-mockup.product-rec-hall-long-sleeve.layout-center .apparel-live-logo { top: 24%; }
+.apparel-live-mockup.product-rec-hall-tank.layout-center .apparel-live-logo { top: 24%; }
 
 .apparel-live-mockup.design-original .apparel-live-logo,
 .apparel-live-mockup.design-heritage .apparel-live-logo,
@@ -12118,17 +12123,17 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.large.layout-center .apparel-live-logo {
-  top: 28%;
-  left: 34%;
-  width: 32%;
-  height: 27%;
+  top: 27%;
+  left: 38%;
+  width: 24%;
+  height: 23%;
 }
 
 .apparel-live-mockup.large.layout-hat .apparel-live-logo {
-  top: 39%;
-  left: 40%;
-  width: 20%;
-  height: 12%;
+  top: 40%;
+  left: 42%;
+  width: 16%;
+  height: 10%;
 }
 
 .apparel-live-mockup.large.layout-leg .apparel-live-logo {
