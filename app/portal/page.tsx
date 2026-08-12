@@ -878,6 +878,13 @@ export default function CamperPortalPage() {
           </nav>
 
           <div className="portal-hero-content">
+            <div className="portal-seasonal-banner" aria-label={`${seasonalTheme.label}. ${seasonalTheme.detail}.`}>
+              <span aria-hidden="true">{seasonalTheme.symbol}</span>
+              <div>
+                <strong>{seasonalTheme.label}</strong>
+                <small>{seasonalTheme.detail}</small>
+              </div>
+            </div>
             <div className="portal-eyebrow">
               <TentTree size={16} /> Your campground home base
             </div>
