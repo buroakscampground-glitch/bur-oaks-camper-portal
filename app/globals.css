@@ -11921,36 +11921,36 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.layout-hat .apparel-live-logo {
-  top: 36%;
-  left: 38%;
-  width: 24%;
-  height: 17%;
+  top: 33%;
+  left: 34%;
+  width: 32%;
+  height: 23%;
 }
 
 .apparel-leg-wordmark {
   position: absolute;
   z-index: 2;
-  top: 28%;
-  left: 31%;
-  height: 57%;
+  top: 20%;
+  left: 30%;
   color: #ead9a9;
-  font: italic 700 clamp(12px, 1.5vw, 22px)/1 Georgia, 'Times New Roman', serif;
-  letter-spacing: .015em;
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
+  font: 600 clamp(18px, 1.85vw, 27px)/1 'Segoe Script', 'Bradley Hand', 'Brush Script MT', cursive;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  transform: rotate(90deg);
+  transform-origin: left top;
   filter: drop-shadow(0 .5px .6px rgba(9, 24, 15, .65));
   mix-blend-mode: screen;
 }
 
 .apparel-live-mockup.layout-left-chest .apparel-live-logo {
-  top: 28%;
+  top: 31%;
   left: 56%;
   width: 10%;
   height: 11%;
 }
 
 .apparel-live-mockup.layout-split-chest .apparel-live-logo {
-  top: 29%;
+  top: 32%;
   left: 56%;
   width: 10%;
   height: 11%;
@@ -12083,13 +12083,13 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.large.layout-hat .apparel-live-logo {
-  top: 36%;
-  left: 38%;
-  width: 24%;
-  height: 17%;
+  top: 33%;
+  left: 34%;
+  width: 32%;
+  height: 23%;
 }
 
-.apparel-live-mockup.large .apparel-leg-wordmark { top: 28%; left: 31%; height: 57%; }
+.apparel-live-mockup.large .apparel-leg-wordmark { top: 20%; left: 30%; }
 
 .apparel-preview-builder-visual > small {
   position: absolute;
