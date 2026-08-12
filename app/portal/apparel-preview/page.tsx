@@ -373,7 +373,8 @@ export default function ApparelPreviewPage() {
     async function verifyPreviewAccess() {
       try {
         const isLocalDesignPreview =
-          ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+          (['localhost', '127.0.0.1'].includes(window.location.hostname) ||
+            window.location.hostname.endsWith('.vercel.app')) &&
           new URLSearchParams(window.location.search).get('design') === '1'
 
         if (isLocalDesignPreview) {
