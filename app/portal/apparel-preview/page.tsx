@@ -100,6 +100,16 @@ const logoDirections: LogoDirection[] = [
   },
 ]
 
+const lightGarmentColors = new Set(['Cream', 'Heather', 'Gray', 'Sand', 'Khaki', 'Lake Blue'])
+const darkGarmentColors = new Set(['Forest', 'Heather Green', 'Pine', 'Black', 'Charcoal', 'Navy', 'Vintage Green'])
+const lightInkDesigns = new Set(['classic-oak', 'established-1972', '30-years'])
+
+function compatibleColors(product: PreviewProduct, design: LogoDirection) {
+  const preferredColors = lightInkDesigns.has(design.id) ? darkGarmentColors : lightGarmentColors
+  const matches = product.colors.filter((color) => preferredColors.has(color.name))
+  return matches.length ? matches : product.colors.slice(0, 1)
+}
+
 const previewProducts: PreviewProduct[] = [
   {
     id: 'classic-tree-tee',
@@ -186,6 +196,7 @@ const previewProducts: PreviewProduct[] = [
     mockupLayout: 'center',
     colors: [
       { name: 'Forest', value: '#244831' },
+      { name: 'Heather', value: '#8b918d' },
       { name: 'Charcoal', value: '#424846' },
     ],
     sizes: ['S', 'M', 'L', 'XL', '2XL', '3XL'],
@@ -240,6 +251,7 @@ const previewProducts: PreviewProduct[] = [
     colors: [
       { name: 'Vintage Green', value: '#3d4b38' },
       { name: 'Forest', value: '#244831' },
+      { name: 'Heather', value: '#8b918d' },
     ],
     sizes: ['S', 'M', 'L', 'XL', '2XL', '3XL'],
   },
@@ -310,6 +322,7 @@ const previewProducts: PreviewProduct[] = [
     mockupLayout: 'split-chest',
     colors: [
       { name: 'Forest', value: '#183a29' },
+      { name: 'Heather', value: '#8b918d' },
       { name: 'Charcoal', value: '#424846' },
       { name: 'Black', value: '#222725' },
     ],
@@ -405,8 +418,9 @@ export default function ApparelPreviewPage() {
     () => previewProducts.find((item) => item.id === selectedId) || null,
     [selectedId]
   )
-  const color = product?.colors.find((item) => item.name === selectedColor) || product?.colors[0]
   const selectedDesign = logoDirections.find((item) => item.id === selectedDesignId) || null
+  const availableColors = product && selectedDesign ? compatibleColors(product, selectedDesign) : []
+  const color = availableColors.find((item) => item.name === selectedColor) || availableColors[0]
   const estimatedTotal = (product?.price || 0) * quantity
 
   function chooseProduct(nextProduct: PreviewProduct) {
@@ -414,8 +428,9 @@ export default function ApparelPreviewPage() {
       setPreviewMessage('Choose a logo first, then tap a clothing item.')
       return
     }
+    const nextColors = compatibleColors(nextProduct, selectedDesign)
     setSelectedId(nextProduct.id)
-    setSelectedColor(nextProduct.colors[0].name)
+    setSelectedColor(nextColors[0].name)
     setSelectedSize(nextProduct.sizes[Math.min(1, nextProduct.sizes.length - 1)])
     setQuantity(1)
     setPreviewMessage('')
@@ -537,7 +552,7 @@ export default function ApparelPreviewPage() {
             <fieldset>
               <legend>Color <strong>{color.name}</strong></legend>
               <div className="apparel-preview-swatches">
-                {product.colors.map((item) => (
+                {availableColors.map((item) => (
                   <button
                     aria-label={`Choose ${item.name}`}
                     aria-pressed={selectedColor === item.name}
