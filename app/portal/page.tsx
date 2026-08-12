@@ -39,6 +39,7 @@ import PortalWeather, { PortalWeatherMini } from '../../components/PortalWeather
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
+import { getSeasonalTheme } from '../../lib/seasonal-theme'
 
 const serviceLinks = [
   {
@@ -666,6 +667,7 @@ export default function CamperPortalPage() {
     ? `${urgentCount} thing${urgentCount === 1 ? '' : 's'} need attention`
     : 'Your portal is all caught up'
   const portalSeason = getPortalSeason()
+  const seasonalTheme = getSeasonalTheme()
   const urgentAnnouncement = announcements.find((announcement) => announcement.is_urgent)
   const campgroundPulse = [
     {
@@ -859,7 +861,7 @@ export default function CamperPortalPage() {
   return (
     <main className="camper-portal-page">
       <div className="portal-shell">
-        <section className={`portal-hero portal-season-${portalSeason}`}>
+        <section className={`portal-hero portal-season-${portalSeason} portal-holiday-${seasonalTheme.key}`}>
           <nav className="portal-topbar" aria-label="Camper portal navigation">
             <a className="portal-brand" href="/portal">
               <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />

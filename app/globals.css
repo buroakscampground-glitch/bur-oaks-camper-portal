@@ -4452,6 +4452,248 @@ button:hover {
   }
 }
 
+/* AUTOMATIC SEASONAL PORTAL THEMES */
+.seasonal-theme {
+  --season-deep: #18483d;
+  --season-main: #2d6a59;
+  --season-accent: #e1bd65;
+  --season-soft: #e6f2ed;
+  --season-paper: #f7f5e9;
+  --season-symbol: "☀";
+}
+
+.seasonal-theme-spring {
+  --season-deep: #244c35;
+  --season-main: #4d7a55;
+  --season-accent: #d99ca8;
+  --season-soft: #edf5e8;
+  --season-paper: #fff7f5;
+  --season-symbol: "✿";
+}
+
+.seasonal-theme-summer {
+  --season-deep: #16443c;
+  --season-main: #2d6c61;
+  --season-accent: #e4bd61;
+  --season-soft: #e4f2ee;
+  --season-paper: #fff9e8;
+  --season-symbol: "☀";
+}
+
+.seasonal-theme-fall,
+.seasonal-theme-thanksgiving,
+.seasonal-theme-halloween {
+  --season-deep: #492d22;
+  --season-main: #845238;
+  --season-accent: #e3a64e;
+  --season-soft: #f4e5d5;
+  --season-paper: #fff8eb;
+  --season-symbol: "◆";
+}
+
+.seasonal-theme-winter,
+.seasonal-theme-new-year {
+  --season-deep: #263f50;
+  --season-main: #54778c;
+  --season-accent: #d4e8ef;
+  --season-soft: #e8f1f5;
+  --season-paper: #f8fbfc;
+  --season-symbol: "❄";
+}
+
+.seasonal-theme-christmas {
+  --season-deep: #263d2b;
+  --season-main: #476d4b;
+  --season-accent: #c94c46;
+  --season-soft: #edf3e9;
+  --season-paper: #fff8ed;
+  --season-symbol: "★";
+}
+
+.seasonal-theme-valentines {
+  --season-deep: #65323d;
+  --season-main: #9a5262;
+  --season-accent: #efb1bd;
+  --season-soft: #fae9ed;
+  --season-paper: #fff8f8;
+  --season-symbol: "♥";
+}
+
+.seasonal-theme-st-patricks {
+  --season-deep: #17472d;
+  --season-main: #2d7448;
+  --season-accent: #e1bd5d;
+  --season-soft: #e6f3e7;
+  --season-paper: #fff9e8;
+  --season-symbol: "♣";
+}
+
+.seasonal-theme-easter {
+  --season-deep: #425640;
+  --season-main: #718b68;
+  --season-accent: #d9a8c5;
+  --season-soft: #f0ecf6;
+  --season-paper: #fff8e9;
+  --season-symbol: "✿";
+}
+
+.seasonal-theme-patriotic {
+  --season-deep: #233f59;
+  --season-main: #436982;
+  --season-accent: #cf5952;
+  --season-soft: #e8f0f5;
+  --season-paper: #fffaf0;
+  --season-symbol: "★";
+}
+
+.camper-workspace-page.seasonal-theme,
+.admin-workspace-page.seasonal-theme {
+  background:
+    radial-gradient(circle at 92% 3%, color-mix(in srgb, var(--season-accent) 22%, transparent), transparent 25%),
+    linear-gradient(180deg, var(--season-soft), var(--season-paper) 42%, #f3f1eb 100%);
+}
+
+.seasonal-theme .camper-portal-page {
+  background:
+    radial-gradient(circle at 8% 7%, color-mix(in srgb, var(--season-accent) 20%, transparent), transparent 26%),
+    linear-gradient(180deg, var(--season-soft), var(--season-paper) 38%, #f3f1eb 100%);
+}
+
+.seasonal-theme .camper-sidebar {
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--season-accent) 28%, transparent), transparent 27%),
+    linear-gradient(180deg, #fffdf8, var(--season-soft) 56%, color-mix(in srgb, var(--season-soft) 82%, #dbe8dc));
+}
+
+.seasonal-theme .admin-sidebar {
+  background:
+    radial-gradient(circle at 22% 0%, color-mix(in srgb, var(--season-accent) 24%, transparent), transparent 26%),
+    linear-gradient(180deg, var(--season-deep), color-mix(in srgb, var(--season-deep) 76%, #101c16));
+}
+
+.seasonal-theme .camper-workspace-header,
+.seasonal-theme .admin-workspace-header {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--season-accent) 28%, transparent), transparent 30%),
+    linear-gradient(135deg, var(--season-deep), var(--season-main));
+}
+
+.seasonal-theme .camper-workspace-header::after,
+.seasonal-theme .admin-workspace-header::after {
+  content: var(--season-symbol);
+  position: absolute;
+  z-index: -1;
+  right: 4%;
+  bottom: -42px;
+  color: color-mix(in srgb, var(--season-accent) 28%, transparent);
+  font: 180px/1 Georgia, serif;
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+
+.seasonal-theme .camper-sidebar-feature {
+  background:
+    radial-gradient(circle at 90% 0%, color-mix(in srgb, var(--season-accent) 30%, transparent), transparent 34%),
+    linear-gradient(135deg, var(--season-deep), var(--season-main));
+}
+
+.seasonal-theme .camper-sidebar-feature svg,
+.seasonal-theme .admin-sidebar-create svg,
+.seasonal-theme .camper-workspace-title>div>span,
+.seasonal-theme .admin-workspace-title>div>span {
+  color: var(--season-accent);
+}
+
+.seasonal-theme .camper-sidebar-nav a.active {
+  border-color: color-mix(in srgb, var(--season-main) 24%, #ddd7c8);
+  background: color-mix(in srgb, var(--season-soft) 44%, #fff);
+}
+
+.seasonal-theme .camper-sidebar-nav a svg,
+.seasonal-theme .camper-sidebar-brand small {
+  color: var(--season-main);
+}
+
+.seasonal-theme .admin-sidebar-group a.active {
+  color: var(--season-deep);
+  border-color: color-mix(in srgb, var(--season-accent) 50%, transparent);
+  background: color-mix(in srgb, var(--season-paper) 90%, #fff);
+}
+
+.seasonal-theme-card {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  margin: 0 0 15px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--season-main) 18%, #ded8ca);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--season-soft) 68%, #fff);
+  color: var(--season-deep);
+}
+
+.seasonal-theme-card>span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--season-accent) 34%, #fff);
+  color: var(--season-deep);
+  font: 20px Georgia, serif;
+}
+
+.seasonal-theme-card>div {
+  display: grid;
+  min-width: 0;
+}
+
+.seasonal-theme-card strong {
+  overflow: hidden;
+  font: 500 14px/1.1 Georgia, serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seasonal-theme-card small {
+  overflow: hidden;
+  margin-top: 4px;
+  color: color-mix(in srgb, var(--season-deep) 68%, #fff);
+  font-size: 9px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-sidebar .seasonal-theme-card {
+  border-color: color-mix(in srgb, var(--season-accent) 28%, transparent);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+}
+
+.admin-sidebar .seasonal-theme-card>span {
+  background: color-mix(in srgb, var(--season-accent) 24%, transparent);
+  color: var(--season-accent);
+}
+
+.admin-sidebar .seasonal-theme-card small {
+  color: rgba(255,255,255,.62);
+}
+
+@media(max-width:1280px) {
+  .seasonal-theme-card { margin: 0; }
+  .camper-sidebar>.seasonal-theme-card,
+  .admin-sidebar>.seasonal-theme-card { display: none; }
+}
+
+@media(prefers-reduced-motion: reduce) {
+  .seasonal-theme .camper-sidebar-nav a,
+  .seasonal-theme .admin-sidebar-group a { transition: none; }
+}
+
 /* ADMIN BILLING WORKSPACE */
 .admin-workspace-content>main.admin-billing-page { padding:0!important; border:0; background:transparent!important; box-shadow:none; }
 .admin-billing-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:hidden; margin-bottom:22px; border:1px solid #dcd9ce; border-radius:19px; background:rgba(255,255,255,.97); box-shadow:0 12px 32px rgba(39,52,43,.07); }
@@ -10655,6 +10897,57 @@ tbody tr:hover {
 .portal-hero.portal-season-summer,
 .portal-hero.portal-season-fall,
 .portal-hero.portal-season-winter{isolation:isolate;background-size:cover;background-position:center 54%}.portal-hero.portal-season-spring{background-image:linear-gradient(90deg,rgba(16,39,26,.96) 0%,rgba(28,67,38,.78) 48%,rgba(53,42,21,.24) 100%),radial-gradient(circle at 82% 72%,rgba(236,154,61,.32),transparent 28%),radial-gradient(circle at 20% 12%,rgba(159,205,143,.2),transparent 28%),url('/campground.jpg')}.portal-hero.portal-season-summer{background-image:linear-gradient(90deg,rgba(16,39,26,.96) 0%,rgba(28,64,39,.76) 48%,rgba(72,48,20,.22) 100%),radial-gradient(circle at 82% 72%,rgba(238,151,54,.36),transparent 28%),radial-gradient(circle at 16% 8%,rgba(77,151,155,.2),transparent 28%),url('/campground.jpg')}.portal-hero.portal-season-fall{background-image:linear-gradient(90deg,rgba(24,38,24,.96) 0%,rgba(55,56,30,.76) 48%,rgba(98,53,22,.3) 100%),radial-gradient(circle at 82% 72%,rgba(238,141,48,.38),transparent 29%),radial-gradient(circle at 18% 8%,rgba(216,130,43,.22),transparent 28%),url('/campground.jpg')}.portal-hero.portal-season-winter{background-image:linear-gradient(90deg,rgba(18,38,29,.96) 0%,rgba(32,61,47,.78) 48%,rgba(76,51,24,.22) 100%),radial-gradient(circle at 82% 72%,rgba(230,137,54,.28),transparent 28%),radial-gradient(circle at 18% 8%,rgba(196,218,226,.18),transparent 28%),url('/campground.jpg')}.portal-hero::before{content:"";position:absolute;z-index:0;right:clamp(24px,8vw,130px);bottom:-88px;width:min(520px,46vw);height:310px;border-radius:50%;background:radial-gradient(circle at 50% 72%,rgba(255,185,88,.72),rgba(229,101,43,.32) 30%,rgba(154,69,29,.16) 48%,transparent 70%);filter:blur(18px);opacity:.55;mix-blend-mode:screen;pointer-events:none}.portal-hero::after{content:"";position:absolute;z-index:0;right:9%;bottom:70px;width:320px;height:210px;background:radial-gradient(circle at 8% 78%,rgba(255,218,133,.72) 0 2px,transparent 3px),radial-gradient(circle at 42% 34%,rgba(255,185,94,.58) 0 1.5px,transparent 3px),radial-gradient(circle at 72% 52%,rgba(255,208,126,.54) 0 2px,transparent 3px),radial-gradient(circle at 88% 18%,rgba(255,165,88,.42) 0 1.5px,transparent 3px);opacity:.55;filter:blur(.2px);pointer-events:none}.portal-topbar,.portal-hero-content{position:relative;z-index:2}@media(max-width:760px){.portal-hero::before{right:-90px;bottom:-100px;width:360px;height:260px;opacity:.38}.portal-hero::after{right:0;bottom:42px;opacity:.32}}
+
+/* HOLIDAY PORTAL HEROES */
+.portal-hero.portal-holiday-halloween,
+.portal-hero.portal-holiday-thanksgiving {
+  background-image:
+    linear-gradient(90deg,rgba(42,24,20,.97),rgba(112,63,32,.76) 50%,rgba(98,53,22,.26)),
+    radial-gradient(circle at 82% 72%,rgba(242,142,47,.4),transparent 30%),
+    url('/campground.jpg');
+}
+
+.portal-hero.portal-holiday-christmas {
+  background-image:
+    linear-gradient(90deg,rgba(24,48,28,.97),rgba(53,92,56,.78) 50%,rgba(125,39,38,.28)),
+    radial-gradient(circle at 82% 72%,rgba(217,76,68,.3),transparent 29%),
+    url('/campground.jpg');
+}
+
+.portal-hero.portal-holiday-new-year {
+  background-image:
+    linear-gradient(90deg,rgba(29,48,62,.97),rgba(55,86,105,.78) 50%,rgba(30,47,58,.24)),
+    radial-gradient(circle at 82% 72%,rgba(218,235,242,.34),transparent 29%),
+    url('/campground.jpg');
+}
+
+.portal-hero.portal-holiday-valentines {
+  background-image:
+    linear-gradient(90deg,rgba(78,35,46,.97),rgba(136,71,86,.76) 50%,rgba(90,38,49,.22)),
+    radial-gradient(circle at 82% 72%,rgba(241,173,188,.32),transparent 29%),
+    url('/campground.jpg');
+}
+
+.portal-hero.portal-holiday-st-patricks {
+  background-image:
+    linear-gradient(90deg,rgba(18,60,36,.97),rgba(40,111,67,.75) 50%,rgba(23,70,41,.22)),
+    radial-gradient(circle at 82% 72%,rgba(226,191,83,.3),transparent 29%),
+    url('/campground.jpg');
+}
+
+.portal-hero.portal-holiday-easter {
+  background-image:
+    linear-gradient(90deg,rgba(54,72,51,.96),rgba(105,132,96,.72) 50%,rgba(120,91,113,.22)),
+    radial-gradient(circle at 82% 72%,rgba(221,169,200,.3),transparent 29%),
+    url('/campground.jpg');
+}
+
+.portal-hero.portal-holiday-patriotic {
+  background-image:
+    linear-gradient(90deg,rgba(28,54,78,.97),rgba(60,100,127,.74) 50%,rgba(149,50,47,.24)),
+    radial-gradient(circle at 82% 72%,rgba(207,89,82,.28),transparent 29%),
+    url('/campground.jpg');
+}
 
 /* ADMIN MONTHLY REPORTS */
 .admin-report-page{min-height:100vh;padding:24px;background:radial-gradient(circle at 12% 0%,rgba(230,202,127,.18),transparent 30%),linear-gradient(135deg,#f5f1e8,#eef4eb);color:#273a2e}.admin-report-shell{display:grid;gap:18px;max-width:1320px;margin:0 auto}.admin-report-back{display:inline-flex;align-items:center;gap:8px;width:max-content;color:#315f3d;font-size:12px;font-weight:900;text-decoration:none}.admin-report-hero{display:flex;align-items:end;justify-content:space-between;gap:20px;padding:31px;border-radius:28px;background:radial-gradient(circle at 88% 12%,rgba(230,202,127,.22),transparent 30%),linear-gradient(135deg,#173722,#315f3d);color:#fff;box-shadow:0 22px 56px rgba(34,54,38,.16)}.admin-report-eyebrow{display:inline-flex;align-items:center;gap:8px;margin:0;color:#e6ca7f;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.admin-report-hero h1{max-width:790px;margin:10px 0 0;color:#fff;font:500 clamp(38px,5vw,62px)/1.02 Georgia,serif}.admin-report-hero p:not(.admin-report-eyebrow){max-width:820px;margin:14px 0 0;color:rgba(255,255,255,.84);line-height:1.6}.admin-report-controls{display:grid;grid-template-columns:minmax(190px,1fr);gap:10px;min-width:260px}.admin-report-controls label{display:grid;gap:6px}.admin-report-controls label span{color:#e6ca7f;font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.admin-report-controls input{min-height:43px;border-color:rgba(255,255,255,.35)!important;background:rgba(255,255,255,.95)!important}.admin-report-controls button{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:42px;border:1px solid rgba(255,255,255,.25)!important;background:#fff!important;color:#315f3d!important;font-size:12px;font-weight:900}.admin-report-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.admin-report-kpis article{display:grid;gap:6px;padding:19px;border:1px solid #dfddd3;border-radius:20px;background:#fff;box-shadow:0 12px 30px rgba(34,54,38,.07)}.admin-report-kpis span{display:grid;width:42px;height:42px;place-items:center;border-radius:14px;background:#e6efe6;color:#315f3d}.admin-report-kpis small,.admin-report-heading>div>span{color:#9a7834;font-size:9px;font-weight:900;letter-spacing:.12em;text-transform:uppercase}.admin-report-kpis strong{color:#263d2e;font:500 31px Georgia,serif}.admin-report-kpis em{color:#68746c;font-size:12px;font-style:normal;font-weight:800}.admin-report-panel{overflow:hidden;border:1px solid #dfddd3;border-radius:24px;background:#fff;box-shadow:0 14px 34px rgba(34,54,38,.07)}.admin-report-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:20px 22px;border-bottom:1px solid #ebe7dd}.admin-report-heading h2{margin:4px 0 0;color:#263d2e;font:500 30px Georgia,serif}.admin-report-search{display:flex;align-items:center;gap:8px;min-width:min(360px,100%);padding:0 12px;border:1px solid #dfe4dc;border-radius:14px;background:#f8faf7;color:#718078}.admin-report-search input{width:100%;min-height:42px;border:0!important;background:transparent!important;box-shadow:none!important}.admin-report-breakdowns{display:grid;grid-template-columns:1fr 1fr;gap:0}.admin-report-breakdowns>div{padding:22px}.admin-report-breakdowns>div+div{border-left:1px solid #ebe7dd}.admin-report-breakdowns h3{margin:0 0 12px;color:#263d2e}.admin-report-breakdowns p{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;margin:0;padding:11px 0;border-top:1px solid #f0ede5}.admin-report-breakdowns p:first-of-type{border-top:0}.admin-report-breakdowns span{color:#263d2e;font-weight:900}.admin-report-breakdowns strong{color:#315f3d}.admin-report-breakdowns em{grid-column:1/-1;color:#7c877f;font-size:11px;font-style:normal;font-weight:800}.admin-report-invoice-list{display:grid}.admin-report-invoice-list article{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:18px;align-items:center;padding:18px 22px;border-top:1px solid #ebe7dd}.admin-report-invoice-list article:first-child{border-top:0}.admin-report-invoice-list small{color:#9a7834;font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase}.admin-report-invoice-list h3{margin:5px 0 0;color:#263d2e;font-size:20px}.admin-report-invoice-list p{margin:5px 0 0;color:#657168;font-size:12px;line-height:1.45}.admin-report-items{max-width:780px}.admin-report-invoice-list article>div:last-child{display:grid;justify-items:end;gap:5px}.admin-report-invoice-list article>div:last-child strong{color:#263d2e;font:500 27px Georgia,serif}.admin-report-invoice-list article>div:last-child span{padding:6px 9px;border-radius:999px;background:#e6efe6;color:#315f3d;font-size:10px;font-weight:900}.admin-report-invoice-list a{color:#315f3d;font-size:11px;font-weight:900}.admin-report-table-wrap{overflow:auto}.admin-report-table{width:100%;border-collapse:collapse;min-width:1080px}.admin-report-table th{padding:13px 12px;background:#f8f6ef;color:#7d6a37;font-size:9px;font-weight:900;letter-spacing:.1em;text-align:left;text-transform:uppercase}.admin-report-table td{padding:12px;border-top:1px solid #ebe7dd;color:#4f5d55;font-size:12px;vertical-align:top}.admin-report-table td strong{display:block;color:#263d2e}.admin-report-table td span{display:block;margin-top:3px;color:#657168}.admin-report-table td.credit{color:#2f7a43;font-weight:900}.admin-report-empty,.admin-report-message{margin:0;padding:34px;color:#68746c;text-align:center}.admin-report-message{padding:12px 15px;border:1px solid #f1d0c8;border-radius:14px;background:#fff5f2;color:#9d3e37;font-weight:850;text-align:left}

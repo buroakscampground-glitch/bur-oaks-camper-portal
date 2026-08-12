@@ -20,7 +20,9 @@ import {
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { getSeasonalTheme } from '../lib/seasonal-theme'
 import LiveChatWidget from './PublicLiveChat'
+import SeasonalThemeCard from './SeasonalThemeCard'
 
 const camperPages: Record<string, string> = {
   '/portal': 'Portal Home',
@@ -61,6 +63,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const title = camperPages[pathname]
+  const theme = getSeasonalTheme()
 
   if (!title) return <>{children}</>
 
@@ -69,7 +72,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
   const backLabel = pathname === '/maintenance/history' ? 'Back to maintenance' : 'Back to portal'
 
   return (
-    <div className={`camper-workspace-page${isPortalHome ? ' camper-workspace-home-page' : ''}`}>
+    <div className={`camper-workspace-page seasonal-theme seasonal-theme-${theme.key}${isPortalHome ? ' camper-workspace-home-page' : ''}`}>
       <div className="camper-workspace-shell">
         <aside className="camper-sidebar" aria-label="Camper portal navigation">
           <div className="camper-sidebar-mobile-head">
@@ -99,6 +102,8 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
               <small>Weather, alerts, pump-out, events, and quick actions</small>
             </span>
           </a>
+
+          <SeasonalThemeCard theme={theme} />
 
           <nav className={`camper-sidebar-nav${mobileMenuOpen ? ' mobile-open' : ''}`}>
             {camperNav.map((link) => {

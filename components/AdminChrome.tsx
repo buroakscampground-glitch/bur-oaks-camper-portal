@@ -37,6 +37,8 @@ import {
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
+import { getSeasonalTheme } from '../lib/seasonal-theme'
+import SeasonalThemeCard from './SeasonalThemeCard'
 
 const pageNames: Record<string, string> = {
   campers: 'Camper Management',
@@ -148,13 +150,14 @@ function isActiveLink(pathname: string, href: string) {
 export default function AdminChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const theme = getSeasonalTheme()
 
   const section = pathname.split('/')[2] || ''
   const pageTitle = pathname === '/admin' ? 'Operations Dashboard' : pageNames[section] || 'Operations'
   const isDetailPage = pathname.split('/').filter(Boolean).length > 2
 
   return (
-    <div className="admin-workspace-page">
+    <div className={`admin-workspace-page seasonal-theme seasonal-theme-${theme.key}`}>
       <div className="admin-workspace-shell">
         <aside className="admin-sidebar" aria-label="Admin navigation">
           <div className="admin-sidebar-mobile-head">
@@ -184,6 +187,8 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
               <small>Supplies, tickets, balances, pump-outs</small>
             </span>
           </a>
+
+          <SeasonalThemeCard theme={theme} />
 
           <nav className={`admin-sidebar-nav${mobileMenuOpen ? ' mobile-open' : ''}`}>
             {navGroups.map((group) => (
