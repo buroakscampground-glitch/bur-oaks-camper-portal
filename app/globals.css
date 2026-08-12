@@ -5818,6 +5818,49 @@ button:hover {
   padding-left: 35px !important;
 }
 
+.admin-camper-rent-entry {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-camper-money-field {
+  position: relative;
+}
+
+.admin-camper-money-field i {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  z-index: 1;
+  color: #647168;
+  font-style: normal;
+  font-weight: 900;
+  transform: translateY(-50%);
+}
+
+.admin-camper-money-field input {
+  padding-left: 29px !important;
+}
+
+.admin-camper-rent-entry > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 43px;
+  padding: 0 15px;
+  border: 0 !important;
+  background: #315f3d !important;
+  color: #fff !important;
+  white-space: nowrap;
+}
+
+.admin-camper-rent-entry > button:disabled {
+  opacity: .58;
+}
+
 .admin-camper-insurance-box {
   display: grid;
   gap: 13px;
@@ -6215,6 +6258,8 @@ button:hover {
   .admin-camper-profile-summary article:last-child { border-bottom: 0; }
   .admin-camper-form-grid.two,
   .admin-camper-form-grid.three { grid-template-columns: 1fr; }
+  .admin-camper-rent-entry { grid-template-columns: 1fr; }
+  .admin-camper-rent-entry > button { width: 100%; }
   .admin-camper-save-bar { align-items: stretch; flex-direction: column; }
   .admin-camper-save-bar button { width: 100%; }
 }

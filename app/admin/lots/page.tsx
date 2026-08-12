@@ -225,7 +225,7 @@ export default function LotsPage() {
           <div className="admin-lot-heading"><span><Plus size={20} /></span><div><small>NEW SITE</small><h2>Add a lot or site</h2></div></div>
           <label><span>Site number</span><input value={lotNumber} onChange={(event) => setLotNumber(event.target.value)} placeholder="Example: 101" /></label>
           <label><span>Meter number</span><input value={meterNumber} onChange={(event) => setMeterNumber(event.target.value)} placeholder="Optional" /></label>
-          <label><span>Quarterly rent</span><div className="admin-lot-money"><i>$</i><input type="number" value={lotRentAmount} onChange={(event) => setLotRentAmount(event.target.value)} placeholder="0.00" /></div></label>
+          <label><span>Annual rent</span><div className="admin-lot-money"><i>$</i><input type="number" min="0" step="0.01" value={lotRentAmount} onChange={(event) => setLotRentAmount(event.target.value)} placeholder="0.00" /></div></label>
           <label><span>Initial camper</span><select value={camperId} onChange={(event) => setCamperId(event.target.value)}><option value="">Leave vacant</option>{campers.map((camper) => <option value={camper.id} key={camper.id}>{camper.first_name} {camper.last_name} · Current site {camper.lot_number || 'none'}</option>)}</select></label>
           <button type="button" onClick={addLot}><Plus size={17} /> Save Site</button>
         </aside>
@@ -247,7 +247,7 @@ export default function LotsPage() {
                   </header>
                   <div className="admin-lot-details">
                     <span><Gauge size={15} /><small>Meter</small><strong>{site.meter_number || 'Not entered'}</strong></span>
-                    <span><CircleDollarSign size={15} /><small>Rent</small><strong>{site.lot_rent_amount ? `$${Number(site.lot_rent_amount).toFixed(2)}` : 'Not entered'}</strong></span>
+                    <span><CircleDollarSign size={15} /><small>Annual rent</small><strong>{site.lot_rent_amount ? `$${Number(site.lot_rent_amount).toFixed(2)}` : 'Not entered'}</strong></span>
                   </div>
                   <div className="admin-lot-occupants">
                     <small>CAMPERS ON THIS SITE</small>

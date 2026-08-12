@@ -122,6 +122,8 @@ export default function CamperDetailPage() {
   const [uploadingScannedDocument, setUploadingScannedDocument] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [annualLotRent, setAnnualLotRent] = useState('')
+  const [savingAnnualRent, setSavingAnnualRent] = useState(false)
   const [message, setMessage] = useState('')
   const [notFound, setNotFound] = useState(false)
 
@@ -154,6 +156,21 @@ export default function CamperDetailPage() {
     const documents = documentResult.data || []
     setCamperDocuments(documents)
     setInsuranceDocuments(documents.filter((document) => document.document_type === 'Golf Cart Insurance'))
+
+    const currentLotNumber = String(camperResult.data.lot_number || '').trim()
+    if (currentLotNumber) {
+      const { data: lotRows } = await supabase
+        .from('lots')
+        .select('lot_rent_amount')
+        .eq('lot_number', currentLotNumber)
+        .limit(1)
+
+      const savedRent = lotRows?.[0]?.lot_rent_amount
+      setAnnualLotRent(savedRent === null || savedRent === undefined ? '' : String(savedRent))
+    } else {
+      setAnnualLotRent('')
+    }
+
     setLoading(false)
   }
 
@@ -239,6 +256,55 @@ export default function CamperDetailPage() {
     setCamper({ ...emptyCamper, ...data })
     setMessage('Camper profile saved successfully.')
     setSaving(false)
+  }
+
+  async function saveAnnualLotRent() {
+    const currentLotNumber = String(camper.lot_number || '').trim()
+    if (!currentLotNumber) {
+      setMessage('Add a lot or site number before saving annual lot rent.')
+      return
+    }
+
+    const normalizedRent = annualLotRent.trim()
+    const rentAmount = normalizedRent === '' ? null : Number(normalizedRent)
+    if (rentAmount !== null && (!Number.isFinite(rentAmount) || rentAmount < 0)) {
+      setMessage('Enter a valid annual lot rent amount.')
+      return
+    }
+
+    setSavingAnnualRent(true)
+    setMessage('Saving annual lot rent…')
+
+    const { data: lotRows, error: lookupError } = await supabase
+      .from('lots')
+      .select('id')
+      .eq('lot_number', currentLotNumber)
+      .limit(1)
+
+    if (lookupError) {
+      setMessage(lookupError.message || 'Unable to find this lot record.')
+      setSavingAnnualRent(false)
+      return
+    }
+
+    const existingLot = lotRows?.[0]
+    const result = existingLot
+      ? await supabase.from('lots').update({ lot_rent_amount: rentAmount }).eq('id', existingLot.id)
+      : await supabase.from('lots').insert({
+          lot_number: currentLotNumber,
+          camper_id: camperId,
+          lot_rent_amount: rentAmount,
+        })
+
+    if (result.error) {
+      setMessage(result.error.message || 'Unable to save annual lot rent.')
+      setSavingAnnualRent(false)
+      return
+    }
+
+    setAnnualLotRent(rentAmount === null ? '' : String(rentAmount))
+    setMessage('Annual lot rent saved successfully.')
+    setSavingAnnualRent(false)
   }
 
   function isAllowedInsuranceFile(file: File) {
@@ -445,8 +511,8 @@ export default function CamperDetailPage() {
           <div><small>Balance due</small><strong>${balanceDue.toFixed(2)}</strong></div>
         </article>
         <article>
-          <span className="plum"><ShieldCheck size={20} /></span>
-          <div><small>Portal role</small><strong>{camper.role || 'camper'}</strong></div>
+          <span className="plum"><CalendarDays size={20} /></span>
+          <div><small>Annual lot rent</small><strong>{annualLotRent ? `$${Number(annualLotRent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not entered'}</strong></div>
         </article>
       </section>
 
@@ -479,6 +545,33 @@ export default function CamperDetailPage() {
                 <option value="archived">Archived</option>
               </select>
             </label>
+          </div>
+        </ProfileSection>
+
+        <ProfileSection icon={<CircleDollarSign />} kicker="BILLING & RENT" title="Annual lot rent">
+          <p className="admin-camper-panel-note">
+            Enter the full lot rent for the year for Site {camper.lot_number || 'Unassigned'}. This is saved separately from invoices and the rest of the camper profile.
+          </p>
+          <div className="admin-camper-rent-entry">
+            <label className="admin-camper-field">
+              <span>Annual lot rent</span>
+              <div className="admin-camper-money-field">
+                <i>$</i>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={annualLotRent}
+                  onChange={(event) => setAnnualLotRent(event.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+            </label>
+            <button type="button" onClick={saveAnnualLotRent} disabled={savingAnnualRent || !camper.lot_number}>
+              {savingAnnualRent ? <LoaderCircle className="admin-spin" size={17} /> : <Save size={17} />}
+              {savingAnnualRent ? 'Saving…' : 'Save Annual Rent'}
+            </button>
           </div>
         </ProfileSection>
 
