@@ -120,8 +120,8 @@ const previewProducts: PreviewProduct[] = [
     badge: 'Campground favorite',
     image: '/apparel-preview/classic-tree-tee.jpg',
     imageAlt: 'Brown Bur Oaks Campground T-shirt shown from the front and back',
-    blankImage: '/apparel-preview/blank-classic-tee.png',
-    mockupLayout: 'dual',
+    blankImage: '/apparel-preview/blank-tee-single-v2.png',
+    mockupLayout: 'center',
     colors: [
       { name: 'Forest', value: '#244831' },
       { name: 'Cream', value: '#e9e2d0' },
@@ -138,8 +138,8 @@ const previewProducts: PreviewProduct[] = [
     badge: 'Front + back print',
     image: '/apparel-preview/established-tree-tee.jpg',
     imageAlt: 'Green Bur Oaks Established 1972 T-shirt shown from the front and back',
-    blankImage: '/apparel-preview/blank-established-tee.png',
-    mockupLayout: 'dual',
+    blankImage: '/apparel-preview/blank-tee-single-v2.png',
+    mockupLayout: 'center',
     colors: [
       { name: 'Heather Green', value: '#628364' },
       { name: 'Forest', value: '#244831' },
@@ -227,8 +227,8 @@ const previewProducts: PreviewProduct[] = [
     badge: 'Embroidered look',
     image: '/apparel-preview/campground-polos.jpg',
     imageAlt: 'Navy, gray, tan, and charcoal Bur Oaks embroidered polo mockups',
-    blankImage: '/apparel-preview/blank-polos.png',
-    mockupLayout: 'polo',
+    blankImage: '/apparel-preview/blank-polo-single-v2.png',
+    mockupLayout: 'left-chest',
     colors: [
       { name: 'Navy', value: '#263a4e' },
       { name: 'Gray', value: '#a9adae' },
@@ -246,7 +246,7 @@ const previewProducts: PreviewProduct[] = [
     badge: 'Anniversary edition',
     image: '/apparel-preview/anniversary-tee.jpg',
     imageAlt: 'Green Bur Oaks Campground 30 Years anniversary T-shirt mockup',
-    blankImage: '/apparel-preview/blank-anniversary-tee.png',
+    blankImage: '/apparel-preview/blank-tee-single-v2.png',
     mockupLayout: 'center',
     colors: [
       { name: 'Vintage Green', value: '#3d4b38' },
@@ -282,7 +282,7 @@ const previewProducts: PreviewProduct[] = [
     badge: 'New lounge layer',
     image: '/apparel-preview/blank-sweatpants.png',
     imageAlt: 'Forest green Bur Oaks sweatpants',
-    blankImage: '/apparel-preview/blank-sweatpants.png',
+    blankImage: '/apparel-preview/blank-sweatpants-single-v2.png',
     mockupLayout: 'leg',
     colors: [
       { name: 'Forest', value: '#183a29' },
@@ -351,15 +351,16 @@ function garmentColorFilter(colorName: string) {
 }
 
 function ProductMockup({ product, design, colorName, large = false }: { product: PreviewProduct; design: LogoDirection; colorName?: string; large?: boolean }) {
-  const logoCount = product.mockupLayout === 'dual' ? 2 : product.mockupLayout === 'polo' ? 4 : 1
   const shownColor = colorName || product.colors[0].name
 
   return (
     <span className={`apparel-live-mockup layout-${product.mockupLayout} product-${product.id} design-${design.id}${large ? ' large' : ''}`} data-color={shownColor}>
       <img className="apparel-live-garment" style={{ filter: garmentColorFilter(shownColor) }} src={product.blankImage} alt={`${product.name} in ${shownColor} with ${design.name}`} />
-      {Array.from({ length: logoCount }, (_, index) => (
-        <img className={`apparel-live-logo logo-${index + 1}`} src={design.printImage} alt="" aria-hidden="true" key={index} />
-      ))}
+      {product.mockupLayout === 'leg' ? (
+        <span className="apparel-leg-wordmark" aria-hidden="true">Bur Oaks Campground</span>
+      ) : (
+        <img className="apparel-live-logo logo-1" src={design.printImage} alt="" aria-hidden="true" />
+      )}
     </span>
   )
 }
