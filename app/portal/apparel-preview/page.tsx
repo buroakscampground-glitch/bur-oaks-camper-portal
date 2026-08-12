@@ -347,8 +347,7 @@ function ProductMockup({ product, design, colorName, large = false }: { product:
       <img className="apparel-live-garment" style={{ filter: garmentColorFilter(shownColor) }} src={product.blankImage} alt={`${product.name} in ${shownColor} with ${design.name}`} />
       {isSweatpants ? (
         <span className="apparel-sweatpants-leg-print" aria-hidden="true">
-          <strong>Bur Oaks</strong>
-          <small>CAMPGROUND</small>
+          <strong>Bur Oaks Campground</strong>
         </span>
       ) : (
         Array.from({ length: logoCount }, (_, index) => (

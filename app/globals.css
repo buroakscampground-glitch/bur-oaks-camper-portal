@@ -11917,10 +11917,10 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.layout-dual .logo-1 {
-  top: 31%;
-  left: 34%;
-  width: 8%;
-  height: 11%;
+  top: 34%;
+  left: 37%;
+  width: 7%;
+  height: 10%;
 }
 
 .apparel-live-mockup.layout-dual .logo-2 {
@@ -11931,14 +11931,14 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.layout-polo .apparel-live-logo {
-  width: 6.5%;
-  height: 7.5%;
+  width: 5.5%;
+  height: 7%;
 }
 
-.apparel-live-mockup.layout-polo .logo-1 { top: 24%; left: 35%; }
-.apparel-live-mockup.layout-polo .logo-2 { top: 24%; left: 85%; }
-.apparel-live-mockup.layout-polo .logo-3 { top: 72%; left: 35%; }
-.apparel-live-mockup.layout-polo .logo-4 { top: 72%; left: 85%; }
+.apparel-live-mockup.layout-polo .logo-1 { top: 24%; left: 37%; }
+.apparel-live-mockup.layout-polo .logo-2 { top: 24%; left: 87%; }
+.apparel-live-mockup.layout-polo .logo-3 { top: 72%; left: 37%; }
+.apparel-live-mockup.layout-polo .logo-4 { top: 72%; left: 87%; }
 
 .apparel-live-mockup.layout-hat .apparel-live-logo {
   top: 40%;
@@ -11957,11 +11957,11 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 .apparel-sweatpants-leg-print {
   position: absolute;
   z-index: 2;
-  top: 22%;
-  left: 30.5%;
-  display: grid;
-  width: 17%;
-  height: 70%;
+  top: 23%;
+  left: 54%;
+  display: flex;
+  width: 11%;
+  height: 64%;
   place-items: center;
   color: #ead9a9;
   filter: drop-shadow(0 .5px .5px rgba(9, 24, 15, .75));
@@ -11970,29 +11970,22 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 
 .apparel-sweatpants-leg-print strong {
   writing-mode: vertical-rl;
-  font: italic 700 clamp(13px, 1.7vw, 25px)/.88 Georgia, 'Times New Roman', serif;
-  letter-spacing: -.02em;
-  transform: rotate(180deg);
-}
-
-.apparel-sweatpants-leg-print small {
-  writing-mode: vertical-rl;
-  font: 900 clamp(5px, .52vw, 8px)/1 system-ui, sans-serif;
-  letter-spacing: .18em;
+  font: italic 700 clamp(11px, 1.35vw, 21px)/1.05 Georgia, 'Times New Roman', serif;
+  letter-spacing: .01em;
   transform: rotate(180deg);
 }
 
 .apparel-live-mockup.layout-left-chest .apparel-live-logo {
-  top: 31%;
-  left: 57%;
-  width: 7%;
+  top: 30%;
+  left: 59%;
+  width: 6%;
   height: 7%;
 }
 
 .apparel-live-mockup.layout-split-chest .apparel-live-logo {
-  top: 32%;
-  left: 58%;
-  width: 7%;
+  top: 31%;
+  left: 60%;
+  width: 6%;
   height: 7%;
 }
 
@@ -12144,10 +12137,10 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.large .apparel-sweatpants-leg-print {
-  top: 22%;
-  left: 30.5%;
-  width: 17%;
-  height: 70%;
+  top: 23%;
+  left: 54%;
+  width: 11%;
+  height: 64%;
 }
 
 .apparel-preview-builder-visual > small {
