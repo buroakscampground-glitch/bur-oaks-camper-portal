@@ -11890,7 +11890,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   object-position: center;
   transition: filter .22s ease;
 }
@@ -11906,10 +11906,10 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.layout-center .apparel-live-logo {
-  top: 27%;
-  left: 27%;
-  width: 46%;
-  height: 38%;
+  top: 28%;
+  left: 34%;
+  width: 32%;
+  height: 27%;
 }
 
 .apparel-live-mockup.layout-dual .apparel-live-logo {
@@ -11917,34 +11917,34 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.layout-dual .logo-1 {
-  top: 30%;
-  left: 17.5%;
-  width: 10%;
-  height: 12%;
+  top: 31%;
+  left: 17%;
+  width: 12%;
+  height: 15%;
 }
 
 .apparel-live-mockup.layout-dual .logo-2 {
-  top: 27%;
-  left: 61%;
-  width: 28%;
-  height: 38%;
+  top: 29%;
+  left: 62%;
+  width: 26%;
+  height: 34%;
 }
 
 .apparel-live-mockup.layout-polo .apparel-live-logo {
-  width: 9%;
-  height: 12%;
+  width: 8%;
+  height: 9%;
 }
 
-.apparel-live-mockup.layout-polo .logo-1 { top: 23%; left: 34%; }
-.apparel-live-mockup.layout-polo .logo-2 { top: 23%; left: 83%; }
-.apparel-live-mockup.layout-polo .logo-3 { top: 70%; left: 34%; }
-.apparel-live-mockup.layout-polo .logo-4 { top: 70%; left: 83%; }
+.apparel-live-mockup.layout-polo .logo-1 { top: 24%; left: 34%; }
+.apparel-live-mockup.layout-polo .logo-2 { top: 24%; left: 84%; }
+.apparel-live-mockup.layout-polo .logo-3 { top: 72%; left: 34%; }
+.apparel-live-mockup.layout-polo .logo-4 { top: 72%; left: 84%; }
 
 .apparel-live-mockup.layout-hat .apparel-live-logo {
-  top: 37%;
-  left: 39%;
-  width: 18%;
-  height: 14%;
+  top: 39%;
+  left: 40%;
+  width: 20%;
+  height: 12%;
 }
 
 .apparel-live-mockup.layout-leg .apparel-live-logo {
@@ -11983,24 +11983,24 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.layout-left-chest .apparel-live-logo {
-  top: 32%;
-  left: 55%;
-  width: 11%;
-  height: 10%;
+  top: 31%;
+  left: 56%;
+  width: 9%;
+  height: 8%;
 }
 
 .apparel-live-mockup.layout-split-chest .apparel-live-logo {
-  top: 33%;
+  top: 32%;
   left: 56%;
-  width: 11%;
-  height: 10%;
+  width: 9%;
+  height: 8%;
 }
 
 .apparel-live-mockup.product-anniversary-tee.layout-center .apparel-live-logo {
   top: 30%;
-  left: 31%;
-  width: 38%;
-  height: 32%;
+  left: 34%;
+  width: 32%;
+  height: 27%;
 }
 
 .apparel-live-mockup.design-original .apparel-live-logo,
@@ -12118,17 +12118,17 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .apparel-live-mockup.large.layout-center .apparel-live-logo {
-  top: 27%;
-  left: 27%;
-  width: 46%;
-  height: 38%;
+  top: 28%;
+  left: 34%;
+  width: 32%;
+  height: 27%;
 }
 
 .apparel-live-mockup.large.layout-hat .apparel-live-logo {
-  top: 34%;
-  left: 34%;
-  width: 25%;
-  height: 24%;
+  top: 39%;
+  left: 40%;
+  width: 20%;
+  height: 12%;
 }
 
 .apparel-live-mockup.large.layout-leg .apparel-live-logo {
