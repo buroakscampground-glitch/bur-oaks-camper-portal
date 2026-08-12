@@ -25,6 +25,7 @@ import {
   PartyPopper,
   ReceiptText,
   ShieldCheck,
+  ShoppingBag,
   Soup,
   Sparkles,
   TentTree,
@@ -855,6 +856,19 @@ export default function CamperPortalPage() {
   const mobileMoreNeedsAttention = documentsNeedingSignature.length > 0 || alerts.length > 0
   const pumpNeedsAttention = activePumpOutRequests.length > 0
   const displayedPumpOutFee = getSewerPumpOutFeeForLot(camper?.lot_number, 10)
+  const isApparelPreviewCamper = String(camper?.lot_number || '').trim().toUpperCase() === '1001'
+  const camperServiceLinks = isApparelPreviewCamper
+    ? [
+        ...serviceLinks,
+        {
+          href: '/portal/apparel-preview',
+          title: 'Bur Oaks Outfitters',
+          description: 'Preview campground apparel, colors, sizes, and direct shipping.',
+          icon: ShoppingBag,
+          accent: 'gold',
+        },
+      ]
+    : serviceLinks
 
   return (
     <main className="camper-portal-page">
@@ -1049,6 +1063,15 @@ export default function CamperPortalPage() {
               <strong>{upcomingDinners[0] ? `${upcomingDinners[0].month} ${upcomingDinners[0].day}` : 'View menu'}</strong>
             </span>
           </a>
+          {isApparelPreviewCamper && (
+            <a className="portal-apparel-preview-link" href="/portal/apparel-preview">
+              <ShoppingBag size={20} />
+              <span>
+                <small>Lot 1001 preview</small>
+                <strong>Bur Oaks Outfitters</strong>
+              </span>
+            </a>
+          )}
         </section>
 
         <section className="portal-birthday-club" aria-label={`${birthdayBoard.monthName} camper birthdays`}>
@@ -1484,7 +1507,7 @@ export default function CamperPortalPage() {
             </div>
 
             <div className="portal-service-grid">
-              {serviceLinks.map((service) => {
+              {camperServiceLinks.map((service) => {
                 const Icon = service.icon
 
                 return (
@@ -1718,7 +1741,7 @@ export default function CamperPortalPage() {
               </div>
 
               <div className="portal-mobile-menu-list">
-                {serviceLinks.map((service) => {
+                {camperServiceLinks.map((service) => {
                   const Icon = service.icon
 
                   return (
