@@ -40,14 +40,35 @@ export async function GET(request: Request) {
   if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
 
   const reportKey = 'daily-maintenance-work-orders'
-  const { data: reservation, error: reserveError } = await admin
+  let { data: reservation, error: reserveError } = await admin
     .from('scheduled_reports')
     .insert({ report_key: reportKey, report_date: current.date, status: 'running' })
     .select('id')
     .single()
 
   if (reserveError?.code === '23505') {
-    return NextResponse.json({ success: true, skipped: true, reason: 'Today\'s work-order packet was already handled.' })
+    const { data: existing } = await admin
+      .from('scheduled_reports')
+      .select('id,status')
+      .eq('report_key', reportKey)
+      .eq('report_date', current.date)
+      .maybeSingle()
+
+    if (existing?.status === 'sent') {
+      return NextResponse.json({ success: true, skipped: true, reason: 'Today\'s work-order packet was already handled.' })
+    }
+
+    if (existing?.id) {
+      await admin.from('scheduled_reports').update({
+        status: 'running',
+        error_message: null,
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', existing.id)
+      reservation = existing
+      reserveError = null
+    }
   }
   if (reserveError || !reservation) {
     return NextResponse.json({ error: reserveError?.message || 'Unable to reserve this report.' }, { status: 500 })

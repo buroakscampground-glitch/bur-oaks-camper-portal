@@ -140,7 +140,7 @@ export default function MaintenanceTicketPage() {
         admin_approved: approved,
         approved_at: approved ? new Date().toISOString() : null,
         approved_by: approved ? user?.email || 'Admin' : null,
-        ...(approved ? {} : { status: 'Open', assigned_to: 'Open' }),
+        ...(approved ? { work_order_printed_at: null } : { status: 'Open', assigned_to: 'Open' }),
       })
       .eq('id', ticket.id)
       .select('*')
@@ -156,11 +156,18 @@ export default function MaintenanceTicketPage() {
     setStatus(data.status || 'Open')
     setAssignedTo(data.assigned_to || 'Open')
     setCompletionNotes(data.completion_notes || '')
-    setMessage(approved ? 'Work order approved. Returning to all work orders…' : 'Approval removed.')
+    setMessage(approved ? 'Work order approved and sending to the Epson printer…' : 'Approval removed.')
     setSaving(false)
 
     if (approved) {
-      window.setTimeout(() => router.push('/admin/maintenance?updated=approved'), 550)
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/maintenance-work-order-report', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+      })
+      const result = await response.json().catch(() => null)
+      setMessage(result?.message || 'Work order approved and left in the automatic print queue.')
+      window.setTimeout(() => router.push('/admin/maintenance?updated=approved'), 1200)
     }
   }
 

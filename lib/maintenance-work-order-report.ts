@@ -173,8 +173,8 @@ export async function buildMaintenanceWorkOrdersPdf(orders: MaintenanceWorkOrder
   return pdf.save()
 }
 
-export async function loadNewMaintenanceWorkOrders(client: any) {
-  const { data, error } = await client
+export async function loadNewMaintenanceWorkOrders(client: any, ticketIds?: string[]) {
+  let query = client
     .from('maintenance_tickets')
     .select('id,title,description,category,priority,status,assigned_to,lot_number,reported_by,created_at,approved_at,work_order_printed_at,photo_urls')
     .eq('admin_approved', true)
@@ -182,6 +182,10 @@ export async function loadNewMaintenanceWorkOrders(client: any) {
     .is('work_order_printed_at', null)
     .order('priority', { ascending: true })
     .order('created_at', { ascending: true })
+
+  if (ticketIds?.length) query = query.in('id', ticketIds)
+
+  const { data, error } = await query
 
   if (error) throw new Error(error.message)
   return (data || []) as MaintenanceWorkOrder[]
@@ -248,8 +252,8 @@ async function sendWorkOrderEmail(to: string, pdfBytes: Uint8Array, reportDate: 
   return { sent: false, provider: null, error: 'SendGrid or Resend is not configured.' }
 }
 
-export async function sendMaintenanceWorkOrderReport(client: any, reportDate: string) {
-  const orders = await loadNewMaintenanceWorkOrders(client)
+export async function sendMaintenanceWorkOrderReport(client: any, reportDate: string, ticketIds?: string[]) {
+  const orders = await loadNewMaintenanceWorkOrders(client, ticketIds)
   if (!orders.length) return { orders, pdfBytes: null, office: null, printer: null, skipped: true }
 
   const pdfBytes = await buildMaintenanceWorkOrdersPdf(orders, reportDate)
