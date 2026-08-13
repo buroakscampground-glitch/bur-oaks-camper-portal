@@ -1,7 +1,7 @@
 'use client'
 
 import { ArrowLeft } from 'lucide-react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 function fallbackFor(pathname: string) {
   const publicPages = [
@@ -54,41 +54,19 @@ function fallbackFor(pathname: string) {
   return '/portal'
 }
 
-function isSafeInternalReferrer(referrer: string) {
-  if (!referrer) return false
-
-  try {
-    const previous = new URL(referrer)
-    return previous.origin === window.location.origin
-  } catch {
-    return false
-  }
-}
-
 export default function GlobalBackButton() {
   const pathname = usePathname()
-  const router = useRouter()
 
   if (pathname === '/') return null
 
-  function goBack() {
-    if (isSafeInternalReferrer(document.referrer) && window.history.length > 1) {
-      router.back()
-      return
-    }
-
-    router.push(fallbackFor(pathname))
-  }
-
   return (
-    <button
-      type="button"
+    <a
       className="global-back-button"
-      onClick={goBack}
+      href={fallbackFor(pathname)}
       aria-label="Go back to the previous page"
     >
       <ArrowLeft size={18} aria-hidden="true" />
       <span>Back</span>
-    </button>
+    </a>
   )
 }

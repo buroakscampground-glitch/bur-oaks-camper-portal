@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { ArrowLeft, Download, ExternalLink, FileText, ShieldCheck } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 
@@ -17,7 +17,6 @@ function canPreviewInBrowser(fileUrl?: string) {
 
 export default function DocumentViewerPage() {
   const params = useParams<{ id: string }>()
-  const router = useRouter()
   const documentId = params?.id
   const [viewer, setViewer] = useState<ViewerState | null>(null)
   const [loading, setLoading] = useState(true)
@@ -27,22 +26,6 @@ export default function DocumentViewerPage() {
     () => canPreviewInBrowser(viewer?.fileUrl),
     [viewer?.fileUrl]
   )
-
-  function returnToDocuments() {
-    if (document.referrer) {
-      try {
-        const previous = new URL(document.referrer)
-        if (previous.origin === window.location.origin && window.history.length > 1) {
-          router.back()
-          return
-        }
-      } catch {
-        // Fall back below.
-      }
-    }
-
-    router.push('/documents')
-  }
 
   useEffect(() => {
     loadDocument()
@@ -91,9 +74,9 @@ export default function DocumentViewerPage() {
     <main className="document-viewer-page">
       <section className="document-viewer-shell">
         <div className="document-viewer-header">
-          <button type="button" onClick={returnToDocuments}>
+          <a href="/documents">
             <ArrowLeft size={17} /> Back
-          </button>
+          </a>
           <div>
             <span><ShieldCheck size={15} /> Secure document viewer</span>
             <h1>Review your document</h1>

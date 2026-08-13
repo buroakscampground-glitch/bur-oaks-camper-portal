@@ -6630,6 +6630,7 @@ button:hover {
   color: #fff;
   font-size: 14px;
   font-weight: 800;
+  text-decoration: none;
   box-shadow: 0 8px 24px rgba(22, 40, 27, 0.24);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
