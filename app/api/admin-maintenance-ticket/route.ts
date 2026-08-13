@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
-import { sendMaintenanceWorkOrderReport } from '../../../lib/maintenance-work-order-report'
 
 export const runtime = 'nodejs'
 
@@ -14,14 +13,6 @@ function cleanText(value: unknown, maxLength: number) {
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, maxLength)
-}
-
-function todayInCentral() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(new Date())
-  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value || ''
-  return `${value('year')}-${value('month')}-${value('day')}`
 }
 
 export async function POST(request: Request) {
@@ -91,13 +82,6 @@ export async function POST(request: Request) {
     ? await sendTwilioSms({ to: maintenanceAlertPhone, body: message })
     : { sent: false, error: 'The maintenance alert phone number is not valid.' }
 
-  const printResult = await sendMaintenanceWorkOrderReport(context.admin, todayInCentral(), [String(ticket.id)])
-    .catch((printError: any) => ({
-      skipped: false,
-      office: null,
-      printer: { sent: false, error: printError?.message || 'Automatic printing failed.' },
-    }))
-
   return NextResponse.json({
     success: true,
     ticketId: ticket.id,
@@ -105,9 +89,5 @@ export async function POST(request: Request) {
     smsMessage: smsResult.sent
       ? 'Maintenance text alert sent.'
       : smsResult.error,
-    printStatus: printResult.printer?.sent ? 'sent' : 'failed',
-    printMessage: printResult.printer?.sent
-      ? 'Work order sent automatically to the Epson printer.'
-      : printResult.printer?.error || 'The work order is saved and will retry in the morning packet.',
   })
 }

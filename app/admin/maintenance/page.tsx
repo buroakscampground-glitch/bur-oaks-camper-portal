@@ -116,13 +116,11 @@ export default function MaintenancePage() {
       setLotNumber('')
       setReportedBy('')
 
-      const printMessage = result.printStatus === 'sent'
-        ? 'Work order sent automatically to the Epson printer.'
-        : `Work order saved, but automatic printing failed: ${result.printMessage || 'It will remain in the print queue.'}`
-      const textMessage = result.smsStatus === 'sent'
-        ? 'Maintenance text alert sent.'
-        : `Text alert did not send: ${result.smsMessage || 'unknown Twilio error'}`
-      setMessage(`${printMessage} ${textMessage}`)
+      setMessage(
+        result.smsStatus === 'sent'
+          ? 'Maintenance ticket created and queued for the 7:00 a.m. print. Text alert sent to (314) 713-6100.'
+          : `Maintenance ticket created and queued for the 7:00 a.m. print, but the text alert did not send: ${result.smsMessage || 'unknown Twilio error'}`
+      )
       loadTickets()
     } catch (error: any) {
       setMessage(error?.message || 'Unable to create this maintenance ticket.')
@@ -184,15 +182,6 @@ export default function MaintenancePage() {
     setMessage(error ? error.message : approved ? 'Work order approved.' : 'Approval removed.')
     if (!error) {
       await markAdminAlertsSeen(supabase, 'maintenance_request', id)
-      if (approved) {
-        const { data: { session } } = await supabase.auth.getSession()
-        const response = await fetch('/api/maintenance-work-order-report', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${session?.access_token || ''}` },
-        })
-        const result = await response.json().catch(() => null)
-        setMessage(result?.message || 'Work order approved and left in the automatic print queue.')
-      }
       loadTickets()
     }
   }

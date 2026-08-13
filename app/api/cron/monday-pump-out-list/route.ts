@@ -41,9 +41,8 @@ export async function GET(request: Request) {
   }
 
   const current = centralNow()
-  // Vercel Hobby permits one cron invocation per day. 13:00 UTC lands at
-  // 8:00 AM Central during daylight time and 7:00 AM during standard time.
-  if (current.weekday !== 'Mon' || (current.hour !== 7 && current.hour !== 8)) {
+  // 12:00 UTC is 7:00 AM Central during the campground's daylight season.
+  if (current.weekday !== 'Mon' || (current.hour !== 6 && current.hour !== 7)) {
     return NextResponse.json({ success: true, skipped: true, reason: 'Not the scheduled Monday-morning Central window.', current })
   }
 
@@ -51,7 +50,7 @@ export async function GET(request: Request) {
   if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
 
   const reportKey = 'monday-pump-out-list'
-  const { data: reservation, error: reserveError } = await admin
+  let { data: reservation, error: reserveError } = await admin
     .from('scheduled_reports')
     .insert({ report_key: reportKey, report_date: current.date, status: 'running' })
     .select('id')
@@ -65,12 +64,21 @@ export async function GET(request: Request) {
       .eq('report_date', current.date)
       .maybeSingle()
 
-    return NextResponse.json({
-      success: true,
-      skipped: true,
-      reason: existing?.status === 'running' ? 'This Monday report is already running.' : 'This Monday report was already handled.',
-      status: existing?.status || 'unknown',
-    })
+    if (existing?.status === 'sent') {
+      return NextResponse.json({ success: true, skipped: true, reason: 'This Monday report was already handled.', status: existing.status })
+    }
+
+    if (existing?.id) {
+      await admin.from('scheduled_reports').update({
+        status: 'running',
+        error_message: null,
+        started_at: new Date().toISOString(),
+        completed_at: null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', existing.id)
+      reservation = existing
+      reserveError = null
+    }
   }
 
   if (reserveError || !reservation) {

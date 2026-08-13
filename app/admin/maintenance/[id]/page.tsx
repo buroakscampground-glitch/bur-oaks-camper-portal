@@ -156,18 +156,11 @@ export default function MaintenanceTicketPage() {
     setStatus(data.status || 'Open')
     setAssignedTo(data.assigned_to || 'Open')
     setCompletionNotes(data.completion_notes || '')
-    setMessage(approved ? 'Work order approved and sending to the Epson printer…' : 'Approval removed.')
+    setMessage(approved ? 'Work order approved and queued for the 7:00 a.m. print.' : 'Approval removed.')
     setSaving(false)
 
     if (approved) {
-      const { data: { session } } = await supabase.auth.getSession()
-      const response = await fetch('/api/maintenance-work-order-report', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${session?.access_token || ''}` },
-      })
-      const result = await response.json().catch(() => null)
-      setMessage(result?.message || 'Work order approved and left in the automatic print queue.')
-      window.setTimeout(() => router.push('/admin/maintenance?updated=approved'), 1200)
+      window.setTimeout(() => router.push('/admin/maintenance?updated=approved'), 650)
     }
   }
 
