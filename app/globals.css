@@ -4452,6 +4452,103 @@ button:hover {
   }
 }
 
+/* CAMPER OFFICE CHAT */
+.office-chat-launcher {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1190;
+  display: grid;
+  grid-template-columns: 43px auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 62px;
+  padding: 8px 17px 8px 9px;
+  border: 1px solid rgba(255,255,255,.7);
+  border-radius: 999px;
+  background: rgba(255,255,255,.97);
+  color: #24452f;
+  text-decoration: none;
+  box-shadow: 0 14px 38px rgba(26,49,33,.22);
+  backdrop-filter: blur(14px);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.office-chat-launcher:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 44px rgba(26,49,33,.27);
+}
+
+.office-chat-launcher:focus-visible {
+  outline: 3px solid rgba(215,180,91,.72);
+  outline-offset: 3px;
+}
+
+.office-chat-launcher-icon {
+  position: relative;
+  display: grid;
+  width: 43px;
+  height: 43px;
+  place-items: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg,#244e32,#397049);
+  color: #fff;
+}
+
+.office-chat-launcher-icon i {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 11px;
+  height: 11px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #48a765;
+}
+
+.office-chat-launcher-copy {
+  display: grid;
+  min-width: 94px;
+}
+
+.office-chat-launcher-copy small {
+  color: #78847b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.office-chat-launcher-copy strong {
+  margin-top: 2px;
+  color: #24452f;
+  font: 500 17px/1 Georgia, serif;
+}
+
+@media(max-width:760px) {
+  .office-chat-launcher {
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    grid-template-columns: 43px;
+    min-height: 55px;
+    padding: 6px;
+  }
+
+  .office-chat-launcher-copy {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .office-chat-launcher.portal-home {
+    display: none;
+  }
+}
+
 /* AUTOMATIC SEASONAL PORTAL THEMES */
 .seasonal-theme {
   --season-deep: #18483d;

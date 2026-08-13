@@ -21,7 +21,7 @@ import {
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
-import LiveChatWidget from './PublicLiveChat'
+import OfficeChatLauncher from './OfficeChatLauncher'
 import SeasonalThemeCard from './SeasonalThemeCard'
 
 const camperPages: Record<string, string> = {
@@ -156,7 +156,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
               <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
             </footer>
           )}
-          <LiveChatWidget />
+          <OfficeChatLauncher />
         </div>
       </div>
     </div>
