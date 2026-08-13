@@ -10995,6 +10995,73 @@ tbody tr:hover {
 .portal-hero.portal-season-fall,
 .portal-hero.portal-season-winter{isolation:isolate;background-size:cover;background-position:center 54%}.portal-hero.portal-season-spring{background-image:linear-gradient(90deg,rgba(16,39,26,.96) 0%,rgba(28,67,38,.78) 48%,rgba(53,42,21,.24) 100%),radial-gradient(circle at 82% 72%,rgba(236,154,61,.32),transparent 28%),radial-gradient(circle at 20% 12%,rgba(159,205,143,.2),transparent 28%),url('/campground.jpg')}.portal-hero.portal-season-summer{background-image:linear-gradient(90deg,rgba(16,39,26,.96) 0%,rgba(28,64,39,.76) 48%,rgba(72,48,20,.22) 100%),radial-gradient(circle at 82% 72%,rgba(238,151,54,.36),transparent 28%),radial-gradient(circle at 16% 8%,rgba(77,151,155,.2),transparent 28%),url('/campground.jpg')}.portal-hero.portal-season-fall{background-image:linear-gradient(90deg,rgba(24,38,24,.96) 0%,rgba(55,56,30,.76) 48%,rgba(98,53,22,.3) 100%),radial-gradient(circle at 82% 72%,rgba(238,141,48,.38),transparent 29%),radial-gradient(circle at 18% 8%,rgba(216,130,43,.22),transparent 28%),url('/campground.jpg')}.portal-hero.portal-season-winter{background-image:linear-gradient(90deg,rgba(18,38,29,.96) 0%,rgba(32,61,47,.78) 48%,rgba(76,51,24,.22) 100%),radial-gradient(circle at 82% 72%,rgba(230,137,54,.28),transparent 28%),radial-gradient(circle at 18% 8%,rgba(196,218,226,.18),transparent 28%),url('/campground.jpg')}.portal-hero::before{content:"";position:absolute;z-index:0;right:clamp(24px,8vw,130px);bottom:-88px;width:min(520px,46vw);height:310px;border-radius:50%;background:radial-gradient(circle at 50% 72%,rgba(255,185,88,.72),rgba(229,101,43,.32) 30%,rgba(154,69,29,.16) 48%,transparent 70%);filter:blur(18px);opacity:.55;mix-blend-mode:screen;pointer-events:none}.portal-hero::after{content:"";position:absolute;z-index:0;right:9%;bottom:70px;width:320px;height:210px;background:radial-gradient(circle at 8% 78%,rgba(255,218,133,.72) 0 2px,transparent 3px),radial-gradient(circle at 42% 34%,rgba(255,185,94,.58) 0 1.5px,transparent 3px),radial-gradient(circle at 72% 52%,rgba(255,208,126,.54) 0 2px,transparent 3px),radial-gradient(circle at 88% 18%,rgba(255,165,88,.42) 0 1.5px,transparent 3px);opacity:.55;filter:blur(.2px);pointer-events:none}.portal-topbar,.portal-hero-content{position:relative;z-index:2}@media(max-width:760px){.portal-hero::before{right:-90px;bottom:-100px;width:360px;height:260px;opacity:.38}.portal-hero::after{right:0;bottom:42px;opacity:.32}}
 
+/* VISIBLE CAMPER HOME OFFICE CHAT */
+.portal-hero-actions .portal-office-chat-action {
+  display: grid;
+  grid-template-columns: 38px minmax(0,1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 13px 8px 9px;
+  border: 1px solid rgba(255,255,255,.74);
+  border-radius: 15px;
+  background: #fff;
+  color: #24452f;
+  text-decoration: none;
+  box-shadow: 0 14px 28px rgba(0,0,0,.16);
+}
+
+.portal-office-chat-action>span:first-child {
+  position: relative;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 12px;
+  background: #315f3d;
+  color: #fff;
+}
+
+.portal-office-chat-action>span:first-child i {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #50ad69;
+}
+
+.portal-office-chat-action>span:nth-child(2) {
+  display: grid;
+  min-width: 0;
+}
+
+.portal-office-chat-action small {
+  color: #738078;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.portal-office-chat-action strong {
+  margin-top: 2px;
+  color: #24452f;
+  font: 500 16px/1 Georgia, serif;
+}
+
+.portal-office-chat-action>svg {
+  color: #315f3d;
+}
+
+@media(max-width:430px) {
+  .portal-hero-actions .portal-office-chat-action {
+    grid-column: 1 / -1;
+  }
+}
+
 /* HOLIDAY PORTAL HEROES */
 .portal-seasonal-banner {
   display: inline-grid;

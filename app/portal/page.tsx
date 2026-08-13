@@ -921,6 +921,14 @@ export default function CamperPortalPage() {
             </section>
 
             <div className="portal-hero-actions">
+              <a className="portal-office-chat-action" href="/messages">
+                <span><MessageCircle size={18} /><i aria-hidden="true" /></span>
+                <span>
+                  <small>Office chat available</small>
+                  <strong>Chat with us</strong>
+                </span>
+                <ArrowRight size={18} />
+              </a>
               <a className="portal-primary-action" href="/invoices">
                 Billing & payments <ArrowRight size={18} />
               </a>
@@ -1660,7 +1668,7 @@ export default function CamperPortalPage() {
           </button>
           <a href="/messages" className={unreadOfficeMessages > 0 ? 'attention' : ''}>
             <MessageCircle size={18} />
-            <span>Office</span>
+            <span>Chat</span>
           </a>
           <a href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>
             <Soup size={18} />
