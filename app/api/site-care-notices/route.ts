@@ -3,6 +3,7 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
+import { camperTextWithLink } from '../../../lib/portal-sms-links'
 
 export const runtime = 'nodejs'
 
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
   const textMessage = 'Your site has a new item that needs attention. Please sign in to your camper portal to review it.'
   const smsResult = await sendTwilioSms({
     to: phone,
-    body: `Bur Oaks Campground: ${textMessage}\nhttps://www.buroakscampground.com/login\nReply STOP to opt out.`,
+    body: camperTextWithLink({ message: textMessage, path: '/portal#site-care' }),
   })
 
   await context.admin.from('text_reminders').insert({

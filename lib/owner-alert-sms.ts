@@ -1,4 +1,5 @@
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
+import { portalSmsUrl } from './portal-sms-links'
 
 type OwnerTextAlertInput = {
   type: string
@@ -47,6 +48,16 @@ function cleanSmsText(value: unknown, maxLength: number) {
     .slice(0, maxLength)
 }
 
+function adminPathForAlertType(type: string) {
+  if (type === 'maintenance_request') return '/admin/maintenance'
+  if (type === 'payment_received') return '/admin/invoices'
+  if (type === 'direct_message') return '/admin/messages'
+  if (type === 'sewer_pump_out') return '/admin/pump-outs'
+  if (type === 'saturday_dinner') return '/admin/dinners'
+  if (type === 'website_waitlist') return '/admin/waitlist'
+  return '/admin/notifications'
+}
+
 export function ownerTextAlertConfigured() {
   return ownerTextEnabled() && isTwilioConfigured() && ownerTextRecipients().length > 0
 }
@@ -77,7 +88,7 @@ export async function sendOwnerTextAlert({
 
   const siteLine = lotNumber ? `Site ${lotNumber}: ` : ''
   const body = cleanSmsText(
-    `Bur Oaks Alert: ${siteLine}${title}. ${message}. Open the admin portal to review.`,
+    `Bur Oaks Alert: ${siteLine}${title}. ${message}. Click here to review: ${portalSmsUrl(adminPathForAlertType(type))}`,
     1200
   )
 

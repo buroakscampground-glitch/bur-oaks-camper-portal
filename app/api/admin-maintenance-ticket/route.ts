@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   const message = [
     `Bur Oaks Campground maintenance: New admin work order - ${title}.`,
     `${location}. Priority: ${priority}.`,
-    'Sign in: https://www.buroakscampground.com/maintenance/dashboard',
+    'Click here to view: https://www.buroakscampground.com/maintenance/dashboard',
     'Reply STOP to opt out.',
   ].join(' ')
 

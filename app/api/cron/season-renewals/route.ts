@@ -170,7 +170,7 @@ export async function GET(request: Request) {
     let smsStatus = 'skipped'
     const phone = camper.sms_opt_in ? formatSmsPhone(camper.phone) : ''
     if (phone) {
-      const text = `Bur Oaks Campground: Your seasonal renewal form is ready. Please review it in your camper portal and let the office know your decision by ${shiftMonths(record.contract_end_date, -3)}.\nhttps://www.buroakscampground.com/documents\nReply STOP to opt out.`
+      const text = `Bur Oaks Campground: Your seasonal renewal form is ready. Please review it and let the office know your decision by ${shiftMonths(record.contract_end_date, -3)}.\nClick here to review and sign: https://www.buroakscampground.com/documents\nReply STOP to opt out.`
       const sms = await sendTwilioSms({ to: phone, body: text })
       smsStatus = sms.sent ? 'sent' : 'failed'
       await admin.from('text_reminders').insert({

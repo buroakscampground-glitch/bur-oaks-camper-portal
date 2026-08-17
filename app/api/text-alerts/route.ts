@@ -2,14 +2,17 @@ import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
+import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
 
 function camperName(camper: any) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
 }
 
-function buildTextMessage(message: string) {
-  const trimmed = message.trim()
-  return `Bur Oaks Campground: ${trimmed}\nReply STOP to opt out.`
+function buildTextMessage(message: string, reminderType: string) {
+  return camperTextWithLink({
+    message,
+    path: portalPathForTextType(reminderType),
+  })
 }
 
 async function requireAdmin(request: Request) {
@@ -93,7 +96,7 @@ export async function POST(request: Request) {
     )
   }
 
-  const finalMessage = buildTextMessage(message)
+  const finalMessage = buildTextMessage(message, reminderType)
   const results: any[] = []
 
   for (const camper of targetCampers) {
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
       camper_id: camper.id,
       invoice_id: null,
       reminder_type: reminderType,
-      message,
+      message: finalMessage,
       sent_at: new Date().toISOString(),
       status: result.sent ? 'sent' : 'failed',
       recipient_phone: phone || camper.phone || null,

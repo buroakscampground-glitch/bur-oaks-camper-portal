@@ -6,6 +6,8 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { getSiteUrl } from '../../../lib/site-url'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import { camperTextWithLink } from '../../../lib/portal-sms-links'
+import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 
 export const runtime = 'nodejs'
 
@@ -18,6 +20,46 @@ function camperEmails(camper: any) {
     .map((email) => String(email || '').trim())
     .filter(Boolean)
     .filter((email, index, all) => all.findIndex((item) => item.toLowerCase() === email.toLowerCase()) === index)
+}
+
+async function sendCamperMessageText(admin: any, camper: any, sentBy: string) {
+  if (!camper.sms_opt_in) {
+    return { status: 'skipped' as const, reason: 'Camper has not opted into text alerts.' }
+  }
+
+  if (!isTwilioConfigured()) {
+    return { status: 'skipped' as const, reason: 'Twilio is not connected.' }
+  }
+
+  const phone = formatSmsPhone(camper.phone)
+  if (!phone) {
+    return { status: 'skipped' as const, reason: 'Camper does not have a valid mobile number.' }
+  }
+
+  const message = camperTextWithLink({
+    message: 'You have a new private message from the Bur Oaks office.',
+    path: '/messages',
+    linkLabel: 'Click here to read and reply',
+  })
+  const result = await sendTwilioSms({ to: phone, body: message })
+
+  await admin.from('text_reminders').insert({
+    camper_id: camper.id,
+    invoice_id: null,
+    reminder_type: 'Office Message',
+    message,
+    sent_at: new Date().toISOString(),
+    status: result.sent ? 'sent' : 'failed',
+    recipient_phone: phone,
+    provider: 'twilio',
+    provider_message_id: result.sent ? result.providerMessageId : null,
+    error_message: result.sent ? null : result.error,
+    sent_by: sentBy,
+  })
+
+  return result.sent
+    ? { status: 'sent' as const, providerMessageId: result.providerMessageId }
+    : { status: 'failed' as const, reason: result.error }
 }
 
 export async function GET(request: Request) {
@@ -206,7 +248,7 @@ export async function POST(request: Request) {
   if (isAdmin && (sendToAll || requestedCamperIds.length > 0)) {
     let query = context.admin
       .from('campers')
-      .select('id,first_name,last_name,lot_number,email,secondary_email,active,role')
+      .select('id,first_name,last_name,lot_number,email,secondary_email,phone,sms_opt_in,active,role')
       .eq('active', true)
       .order('lot_number', { ascending: true })
 
@@ -257,6 +299,9 @@ export async function POST(request: Request) {
     let emailSentCount = 0
     let emailSkippedCount = 0
     let emailFailedCount = 0
+    let smsSentCount = 0
+    let smsSkippedCount = 0
+    let smsFailedCount = 0
     const failedEmails: Array<{ lotNumber: string; email: string; error: string }> = []
 
     for (const camper of campers) {
@@ -284,6 +329,15 @@ export async function POST(request: Request) {
           error: emailError?.message || 'Camper email alert failed.',
         })
       }
+
+      const smsResult = await sendCamperMessageText(
+        context.admin,
+        camper,
+        context.user.email || 'Bur Oaks Admin'
+      )
+      if (smsResult.status === 'sent') smsSentCount += 1
+      if (smsResult.status === 'skipped') smsSkippedCount += 1
+      if (smsResult.status === 'failed') smsFailedCount += 1
     }
 
     return NextResponse.json({
@@ -293,6 +347,9 @@ export async function POST(request: Request) {
       emailSentCount,
       emailSkippedCount,
       emailFailedCount,
+      smsSentCount,
+      smsSkippedCount,
+      smsFailedCount,
       failedEmails,
     })
   }
@@ -303,7 +360,7 @@ export async function POST(request: Request) {
 
   const { data: targetCamper, error: camperError } = await context.admin
     .from('campers')
-    .select('id,first_name,last_name,lot_number,email,secondary_email,active')
+    .select('id,first_name,last_name,lot_number,email,secondary_email,phone,sms_opt_in,active')
     .eq('id', targetCamperId)
     .maybeSingle()
 
@@ -336,6 +393,8 @@ export async function POST(request: Request) {
   const origin = getSiteUrl()
   let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
   let emailMessage = ''
+  let smsStatus: 'sent' | 'skipped' | 'failed' = 'skipped'
+  let smsMessage = ''
 
   if (isAdmin) {
     try {
@@ -355,6 +414,14 @@ export async function POST(request: Request) {
       emailStatus = 'failed'
       emailMessage = emailError?.message || 'Camper email alert failed.'
     }
+
+    const smsResult = await sendCamperMessageText(
+      context.admin,
+      targetCamper,
+      context.user.email || 'Bur Oaks Admin'
+    )
+    smsStatus = smsResult.status
+    smsMessage = 'reason' in smsResult ? smsResult.reason || '' : ''
   } else {
     const title = `New camper message: Lot ${targetCamper.lot_number || 'Unknown'}`
     const message = `${camperName(context.camper)} sent the office a message.`
@@ -393,5 +460,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ success: true, message: messageRow, emailStatus, emailMessage })
+  return NextResponse.json({ success: true, message: messageRow, emailStatus, emailMessage, smsStatus, smsMessage })
 }

@@ -1,4 +1,5 @@
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
+import { portalSmsUrl } from './portal-sms-links'
 
 type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due'
 
@@ -58,24 +59,25 @@ function buildInvoiceSms(invoice: any, kind: InvoiceTextKind) {
   const invoiceNumber = invoice.invoice_number || 'new invoice'
   const total = money(invoice.total_due)
   const due = prettyDate(invoice.due_date)
+  const invoiceUrl = portalSmsUrl(`/invoices/${invoice.id}`)
 
   if (kind === 'new') {
-    return `Bur Oaks Campground: You have a new invoice #${invoiceNumber} for ${total} due ${due}. View and pay in your camper portal. Reply STOP to opt out.`
+    return `Bur Oaks Campground: You have a new invoice #${invoiceNumber} for ${total} due ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
   if (kind === 'due_3_days') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due in 3 days on ${due}. View and pay in your camper portal. Reply STOP to opt out.`
+    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due in 3 days on ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
   if (kind === 'due_1_day') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due tomorrow, ${due}. View and pay in your camper portal. Reply STOP to opt out.`
+    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due tomorrow, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
   if (kind === 'due_today') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due today, ${due}. View and pay in your camper portal. Reply STOP to opt out.`
+    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due today, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
-  return `Bur Oaks Campground: Past due reminder — invoice #${invoiceNumber} for ${total} was due ${due}. Please pay in your camper portal or contact the office. Reply STOP to opt out.`
+  return `Bur Oaks Campground: Past due reminder — invoice #${invoiceNumber} for ${total} was due ${due}. Please pay or contact the office.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
 }
 
 export async function sendInvoiceText({

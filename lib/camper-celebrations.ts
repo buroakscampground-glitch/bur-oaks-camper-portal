@@ -1,5 +1,6 @@
 import { escapeHtml } from './portal-invite-email'
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
+import { portalSmsUrl } from './portal-sms-links'
 
 export type CelebrationProfile = 'primary' | 'secondary' | 'household'
 export type CelebrationType = 'birthday' | 'anniversary'
@@ -141,7 +142,7 @@ function messageCopy(event: CelebrationEvent) {
       subject: `Happy Birthday from your Bur Oaks camping family!`,
       heading: `Happy Birthday, ${name}!`,
       text: `Happy Birthday, ${name}! We hope your day is filled with sunshine, laughter, and a little extra time doing what you love. We’re so glad you’re part of the Bur Oaks camping family!`,
-      sms: `Bur Oaks Campground: Happy Birthday, ${name}! We hope your day is filled with sunshine, laughter, and a little extra time doing what you love. We’re so glad you’re part of the Bur Oaks camping family! Reply STOP to opt out.`,
+      sms: `Bur Oaks Campground: Happy Birthday, ${name}! We hope your day is filled with sunshine, laughter, and a little extra time doing what you love. We’re so glad you’re part of the Bur Oaks camping family!\nOpen your portal: ${portalSmsUrl('/portal')}\nReply STOP to opt out.`,
     }
   }
 
@@ -150,7 +151,7 @@ function messageCopy(event: CelebrationEvent) {
     subject: `Happy ${years}-year Bur Oaks anniversary!`,
     heading: `${years} wonderful year${years === 1 ? '' : 's'} at Bur Oaks.`,
     text: `Happy ${years}-year campground anniversary, ${name}! Thank you for being part of our Bur Oaks camping family. The memories, friendships, and time around the oaks are what make this place special, and we’re truly grateful you’re here.`,
-    sms: `Bur Oaks Campground: Happy ${years}-year campground anniversary, ${name}! Thank you for being part of our camping family. The memories and friendships around the oaks make this place special, and we’re grateful you’re here. Reply STOP to opt out.`,
+    sms: `Bur Oaks Campground: Happy ${years}-year campground anniversary, ${name}! Thank you for being part of our camping family. The memories and friendships around the oaks make this place special, and we’re grateful you’re here.\nOpen your portal: ${portalSmsUrl('/portal')}\nReply STOP to opt out.`,
   }
 }
 

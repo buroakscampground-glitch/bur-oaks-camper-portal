@@ -1,5 +1,6 @@
 import { escapeHtml } from './portal-invite-email'
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
+import { portalSmsUrl } from './portal-sms-links'
 
 type CentralDate = {
   year: number
@@ -110,10 +111,10 @@ function reminderCopy(event: any, days: number) {
   const timing = timingLabel(days)
   const location = String(event.location || 'Bur Oaks Campground').trim()
   const description = String(event.description || '').trim()
-  const calendarUrl = `${(process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com').replace(/\/$/, '')}/calendar`
+  const calendarUrl = portalSmsUrl('/calendar')
   const subject = days === 0 ? `Today at Bur Oaks: ${title}` : `Coming up at Bur Oaks: ${title}`
   const text = `${title} is ${timing} on ${date} at ${location}.${description ? ` ${description}` : ''}`
-  const sms = `Bur Oaks Campground event reminder: ${title} is ${timing} — ${date}. Details and RSVP: ${calendarUrl} Reply STOP to opt out.`
+  const sms = `Bur Oaks Campground event reminder: ${title} is ${timing} — ${date}.\nClick here for details and RSVP: ${calendarUrl}\nReply STOP to opt out.`
 
   return { title, date, timing, location, description, calendarUrl, subject, text, sms }
 }
