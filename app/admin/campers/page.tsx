@@ -258,9 +258,11 @@ export default function AdminCampersPage() {
     }
   }
 
-  async function sendBulkPortalInvites() {
-    const confirmed = window.confirm(
-      'Send the next batch of fresh portal setup emails to campers who have not accepted and were not emailed recently?'
+  async function sendBulkPortalInvites(mode: 'new_batch' | 'resend_pending' = 'new_batch') {
+    const resendingPending = mode === 'resend_pending'
+    const confirmed = window.confirm(resendingPending
+      ? `Resend a fresh 24-hour setup email to all ${portalGroups.pending.length} campers still marked Invite Pending? Accepted accounts will be skipped.`
+      : 'Send the next batch of fresh portal setup emails to campers who have not accepted and were not emailed recently?'
     )
 
     if (!confirmed) return
@@ -275,7 +277,9 @@ export default function AdminCampersPage() {
 
     setBulkSending(true)
     setSetupLink('')
-    setMessage('Sending the next batch of fresh portal setup emails…')
+    setMessage(resendingPending
+      ? 'Resending fresh 24-hour setup emails to Invite Pending campers…'
+      : 'Sending the next batch of fresh portal setup emails…')
 
     try {
       const response = await fetch('/api/bulk-portal-invites', {
@@ -284,7 +288,7 @@ export default function AdminCampersPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ batchSize: 50 }),
+        body: JSON.stringify({ batchSize: 50, mode }),
       })
 
       const result = await response.json()
@@ -301,7 +305,7 @@ export default function AdminCampersPage() {
       if (sentCount === 0 && failedCount === 0) {
         setMessage('No unsent portal setup links are waiting right now. Accepted accounts and recently emailed campers were skipped automatically.')
       } else {
-        setMessage(`Sent ${sentCount} fresh setup link${sentCount === 1 ? '' : 's'}. ${failedCount ? `${failedCount} failed. ` : ''}${remaining} still waiting for a future batch.`)
+        setMessage(`${resendingPending ? 'Resent' : 'Sent'} ${sentCount} fresh 24-hour setup link${sentCount === 1 ? '' : 's'}. ${failedCount ? `${failedCount} failed. ` : ''}${remaining} still waiting for a future batch.`)
       }
 
       loadPortalStatuses()
@@ -364,8 +368,11 @@ export default function AdminCampersPage() {
           {' '}Campers accepted: {portalGroups.accepted.length} · Pending: {portalGroups.pending.length} · Not set up: {portalGroups.none.length}
         </span>
         </div>
-        <button type="button" onClick={sendBulkPortalInvites} disabled={bulkSending}>
+        <button type="button" onClick={() => sendBulkPortalInvites('new_batch')} disabled={bulkSending}>
           {bulkSending ? 'Sending Batch…' : 'Send Next Batch of Fresh Setup Links'}
+        </button>
+        <button type="button" onClick={() => sendBulkPortalInvites('resend_pending')} disabled={bulkSending || portalGroups.pending.length === 0}>
+          {bulkSending ? 'Sending…' : `Resend ${portalGroups.pending.length} Invite Pending`}
         </button>
       </section>
 

@@ -74,6 +74,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => ({}))
     const batchSize = Math.min(Math.max(Number(body.batchSize) || 50, 1), 50)
+    const resendPending = body.mode === 'resend_pending'
     const origin = getSiteUrl()
 
     const [{ data: campers, error: camperError }, { data: logs }] = await Promise.all([
@@ -85,7 +86,8 @@ export async function POST(request: Request) {
       context.admin
         .from('portal_invite_log')
         .select('email,created_at,delivery_status')
-        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()),
+        .order('created_at', { ascending: false })
+        .limit(5000),
     ])
 
     if (camperError) {
@@ -107,6 +109,14 @@ export async function POST(request: Request) {
 
     const recentlySentEmails = new Set(
       (logs || [])
+        .filter((log: any) =>
+          log.delivery_status === 'sent' &&
+          new Date(log.created_at).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000
+        )
+        .map((log: any) => cleanEmail(log.email))
+    )
+    const previouslySentEmails = new Set(
+      (logs || [])
         .filter((log: any) => log.delivery_status === 'sent')
         .map((log: any) => cleanEmail(log.email))
     )
@@ -121,7 +131,8 @@ export async function POST(request: Request) {
         if (seen.has(email)) continue
         seen.add(email)
         if (acceptedEmails.has(email)) continue
-        if (recentlySentEmails.has(email)) continue
+        if (resendPending && !previouslySentEmails.has(email)) continue
+        if (!resendPending && recentlySentEmails.has(email)) continue
         recipients.push({
           camperId: camper.id,
           email,
@@ -177,6 +188,7 @@ export async function POST(request: Request) {
       remaining: Math.max(recipients.length - selected.length, 0),
       skippedAccepted: acceptedEmails.size,
       skippedRecentlySent: recentlySentEmails.size,
+      mode: resendPending ? 'resend_pending' : 'new_batch',
     })
   } catch (error) {
     console.error('Unable to bulk send portal setup links:', error)
