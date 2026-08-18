@@ -22,7 +22,7 @@ function camperEmails(camper: any) {
     .filter((email, index, all) => all.findIndex((item) => item.toLowerCase() === email.toLowerCase()) === index)
 }
 
-async function sendCamperMessageText(admin: any, camper: any, sentBy: string) {
+async function sendCamperMessageText(admin: any, camper: any, sentBy: string, messageBody: string) {
   if (!camper.sms_opt_in) {
     return { status: 'skipped' as const, reason: 'Camper has not opted into text alerts.' }
   }
@@ -37,9 +37,9 @@ async function sendCamperMessageText(admin: any, camper: any, sentBy: string) {
   }
 
   const message = camperTextWithLink({
-    message: 'You have a new private message from the Bur Oaks office.',
+    message: messageBody,
     path: '/messages',
-    linkLabel: 'Click here to read and reply',
+    linkLabel: 'Open the portal to reply',
   })
   const result = await sendTwilioSms({ to: phone, body: message })
 
@@ -231,7 +231,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const text = String(body.message || '').trim().slice(0, 2000)
+  const text = String(body.message || '').trim().slice(0, 1200)
   const role = String(context.camper.role || '').toLowerCase()
   const isAdmin = role === 'admin'
 
@@ -333,7 +333,8 @@ export async function POST(request: Request) {
       const smsResult = await sendCamperMessageText(
         context.admin,
         camper,
-        context.user.email || 'Bur Oaks Admin'
+        context.user.email || 'Bur Oaks Admin',
+        text
       )
       if (smsResult.status === 'sent') smsSentCount += 1
       if (smsResult.status === 'skipped') smsSkippedCount += 1
@@ -418,7 +419,8 @@ export async function POST(request: Request) {
     const smsResult = await sendCamperMessageText(
       context.admin,
       targetCamper,
-      context.user.email || 'Bur Oaks Admin'
+      context.user.email || 'Bur Oaks Admin',
+      text
     )
     smsStatus = smsResult.status
     smsMessage = 'reason' in smsResult ? smsResult.reason || '' : ''

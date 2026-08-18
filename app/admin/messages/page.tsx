@@ -137,7 +137,8 @@ export default function AdminMessagesPage() {
         setSelectedCamperIds([])
         setNotice(
           `Mass message sent to ${result.sentCount || selectedCamperIds.length} camper${Number(result.sentCount || selectedCamperIds.length) === 1 ? '' : 's'}. ` +
-          `Email alerts: ${result.emailSentCount || 0} sent, ${result.emailSkippedCount || 0} skipped, ${result.emailFailedCount || 0} failed.`
+          `Email alerts: ${result.emailSentCount || 0} sent, ${result.emailSkippedCount || 0} skipped, ${result.emailFailedCount || 0} failed. ` +
+          `Text alerts with the full message: ${result.smsSentCount || 0} sent, ${result.smsSkippedCount || 0} skipped, ${result.smsFailedCount || 0} failed.`
         )
       } else {
         setMessages((current) => [...current, result.message])
@@ -328,6 +329,7 @@ export default function AdminMessagesPage() {
               <span>
                 Selected: {selectedBulkCampers.slice(0, 4).map((conversation) => `Lot ${conversation.camper.lot_number || '—'}`).join(', ')}
                 {selectedBulkCount > 4 ? `, and ${selectedBulkCount - 4} more` : ''}
+                <br />Campers with text alerts turned on will see this entire message in their text. The portal link is only needed if they want to reply.
               </span>
             </div>
           )}
@@ -355,6 +357,7 @@ export default function AdminMessagesPage() {
               onChange={(event) => setDraft(event.target.value)}
               placeholder={selectedBulkCount > 0 ? 'Type the message for the selected campers…' : selectedCamperId ? 'Type your reply to this camper…' : 'Choose a camper first…'}
               disabled={!selectedCamperId && selectedBulkCount === 0}
+              maxLength={1200}
               rows={4}
             />
             <button type="button" onClick={sendMessage} disabled={sending || !draft.trim() || (!selectedCamperId && selectedBulkCount === 0)}>
