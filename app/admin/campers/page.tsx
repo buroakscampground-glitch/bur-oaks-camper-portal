@@ -20,6 +20,7 @@ export default function AdminCampersPage() {
   const [portalStatuses, setPortalStatuses] = useState<Record<string, 'pending' | 'accepted'>>({})
   const [camperHealth, setCamperHealth] = useState<Record<string, any>>({})
   const [bulkSending, setBulkSending] = useState(false)
+  const [bulkConfirmMode, setBulkConfirmMode] = useState<'new_batch' | 'resend_pending' | null>(null)
   const [search, setSearch] = useState('')
   const [portalFilter, setPortalFilter] = useState<'accepted' | 'pending' | 'none'>('accepted')
   const router = useRouter()
@@ -258,14 +259,15 @@ export default function AdminCampersPage() {
     }
   }
 
-  async function sendBulkPortalInvites(mode: 'new_batch' | 'resend_pending' = 'new_batch') {
+  async function sendBulkPortalInvites(
+    mode: 'new_batch' | 'resend_pending' = 'new_batch',
+    confirmed = false
+  ) {
     const resendingPending = mode === 'resend_pending'
-    const confirmed = window.confirm(resendingPending
-      ? `Resend a fresh 24-hour setup email to all ${portalGroups.pending.length} campers still marked Invite Pending? Accepted accounts will be skipped.`
-      : 'Send the next batch of fresh portal setup emails to campers who have not accepted and were not emailed recently?'
-    )
-
-    if (!confirmed) return
+    if (!confirmed) {
+      setBulkConfirmMode(mode)
+      return
+    }
 
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
@@ -276,6 +278,7 @@ export default function AdminCampersPage() {
     }
 
     setBulkSending(true)
+    setBulkConfirmMode(null)
     setSetupLink('')
     setMessage(resendingPending
       ? 'Resending fresh 24-hour setup emails to Invite Pending campers…'
@@ -374,6 +377,24 @@ export default function AdminCampersPage() {
         <button type="button" onClick={() => sendBulkPortalInvites('resend_pending')} disabled={bulkSending || portalGroups.pending.length === 0}>
           {bulkSending ? 'Sending…' : `Resend ${portalGroups.pending.length} Invite Pending`}
         </button>
+        {bulkConfirmMode && !bulkSending && (
+          <div style={{ width: '100%', padding: '14px', borderRadius: '12px', background: '#fff3d6', border: '1px solid #d8b96f' }}>
+            <strong>Confirm email send</strong>
+            <p style={{ margin: '8px 0 12px' }}>
+              {bulkConfirmMode === 'resend_pending'
+                ? `Send a fresh 24-hour setup email to all ${portalGroups.pending.length} campers marked Invite Pending? Accepted accounts and campers who were never invited will be skipped.`
+                : 'Send the next batch of fresh setup emails? Accepted accounts and campers emailed recently will be skipped.'}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              <button type="button" onClick={() => sendBulkPortalInvites(bulkConfirmMode, true)}>
+                {bulkConfirmMode === 'resend_pending'
+                  ? `Confirm and Send ${portalGroups.pending.length}`
+                  : 'Confirm and Send Batch'}
+              </button>
+              <button type="button" onClick={() => setBulkConfirmMode(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="admin-portal-rollout" aria-labelledby="portal-rollout-title">
