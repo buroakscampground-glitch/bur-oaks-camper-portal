@@ -111,6 +111,7 @@ export async function sendPortalInviteEmail({
     setupUrl,
     '',
     'IMPORTANT: This one-time setup link expires after 24 hours. Please set up your portal now. If you do not complete setup, you will lose access to Bur Oaks information available through the camper portal until the office sends you a new link.',
+    'For your privacy, do not reply to or forward this setup email because a quoted reply can include your private setup link.',
     'Questions or setup help: Contact Anthony at 618-882-8063.',
     'This link is private to you. If you did not request this, please contact the campground office.',
     '',
@@ -131,6 +132,7 @@ export async function sendPortalInviteEmail({
           <a href="${setupUrl}" style="display:inline-block;margin:4px 0 18px;background:#2f5b3b;color:#fff;text-decoration:none;padding:14px 18px;border-radius:12px;font-weight:700">Set Up My Camper Portal Now</a>
           <p style="font-size:13px;line-height:1.5;color:#69766d">If the button does not work, copy and paste this link into your browser:<br><span style="word-break:break-all">${setupUrl}</span></p>
           <p style="font-size:13px;line-height:1.5;color:#69766d"><strong>Important:</strong> If you do not complete setup within 24 hours, you will lose access to the Bur Oaks information available through the camper portal until the office sends you a new link. If you received more than one setup email, use only the newest link.</p>
+          <p style="font-size:13px;line-height:1.5;color:#8a2d20"><strong>Keep this link private:</strong> Do not reply to or forward this setup email because a quoted reply can include your private setup link.</p>
           <p style="font-size:14px;line-height:1.5;color:#26382d"><strong>Questions or setup help?</strong><br>Contact Anthony at <a href="tel:+16188828063" style="color:#2f5b3b;font-weight:700">618-882-8063</a>.</p>
           <p style="font-size:13px;line-height:1.5;color:#69766d">This link is private to you. If you did not request this, please contact the campground office.</p>
         </div>

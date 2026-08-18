@@ -10,6 +10,7 @@ export default function SetPasswordPage() {
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(false)
+  const [setupToken, setSetupToken] = useState<{ tokenHash: string; type: 'invite' | 'recovery' } | null>(null)
 
   useEffect(() => {
     async function prepareSecureSession() {
@@ -17,30 +18,20 @@ export default function SetPasswordPage() {
       const code = params.get('code')
       const tokenHash = params.get('token_hash')
       const requestedType = params.get('type')
-      let { data } = await supabase.auth.getSession()
-
       if (
         tokenHash &&
         (requestedType === 'invite' || requestedType === 'recovery')
       ) {
-        if (data.session) {
-          await supabase.auth.signOut()
-        }
-
-        const verification = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: requestedType,
-        })
-
-        if (verification.error) {
-          setMessage('This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh setup link.')
-          return
-        }
-
-        data = { session: verification.data.session }
+        setSetupToken({ tokenHash, type: requestedType })
+        window.history.replaceState({}, '', '/set-password')
+        setReady(true)
+        return
       }
 
-      if (!data.session && code) {
+      let { data } = await supabase.auth.getSession()
+
+      if (code) {
+        if (data.session) await supabase.auth.signOut({ scope: 'local' })
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (error) {
           setMessage('This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh setup link.')
@@ -48,6 +39,7 @@ export default function SetPasswordPage() {
         }
         const sessionResult = await supabase.auth.getSession()
         data = sessionResult.data
+        window.history.replaceState({}, '', '/set-password')
       }
 
       if (!data.session) {
@@ -73,22 +65,43 @@ export default function SetPasswordPage() {
     }
 
     setSaving(true)
-    const { error } = await supabase.auth.updateUser({
-      password,
-      data: { portal_setup_complete: true },
-    })
+    let errorMessage = ''
 
-    if (error) {
+    if (setupToken) {
+      const response = await fetch('/api/complete-portal-setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tokenHash: setupToken.tokenHash,
+          type: setupToken.type,
+          password,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) errorMessage = result.error || 'The password could not be saved.'
+    } else {
+      const { error } = await supabase.auth.updateUser({
+        password,
+        data: { portal_setup_complete: true },
+      })
+      if (error) errorMessage = error.message
+      if (!error) await supabase.auth.signOut({ scope: 'local' })
+    }
+
+    if (errorMessage) {
       setMessage(
-        error.message.includes('session')
+        errorMessage.includes('session')
           ? 'This link is invalid or expired. Ask the Bur Oaks office for a fresh setup link.'
-          : error.message
+          : errorMessage
       )
       setSaving(false)
       return
     }
 
-    setMessage('Password saved successfully. Redirecting to sign in…')
+    setPassword('')
+    setConfirmation('')
+    setSetupToken(null)
+    setMessage('Password saved successfully. For your privacy, this setup session is closed. Redirecting to sign in…')
     window.setTimeout(() => window.location.replace('/login'), 1400)
   }
 
