@@ -198,6 +198,10 @@ export default function CamperPortalPage() {
   const [siteCareNotices, setSiteCareNotices] = useState<any[]>([])
   const [siteCareUpdating, setSiteCareUpdating] = useState('')
   const [siteCareMessage, setSiteCareMessage] = useState('')
+  const [smsPromptDecision, setSmsPromptDecision] = useState('')
+  const [smsPromptChecked, setSmsPromptChecked] = useState(false)
+  const [smsPromptSaving, setSmsPromptSaving] = useState(false)
+  const [smsPromptMessage, setSmsPromptMessage] = useState('')
 
   useEffect(() => {
     async function loadDashboard() {
@@ -213,6 +217,15 @@ export default function CamperPortalPage() {
           window.location.href = '/login'
           return
         }
+
+        const savedSmsPromptDecision = String(
+          user.user_metadata?.bur_oaks_sms_prompt_decision || ''
+        ).toLowerCase()
+        setSmsPromptDecision(
+          savedSmsPromptDecision === 'accepted' || savedSmsPromptDecision === 'declined'
+            ? savedSmsPromptDecision
+            : ''
+        )
 
         const camperData = await getCurrentCamper()
 
@@ -517,6 +530,50 @@ export default function CamperPortalPage() {
     }
   }
 
+  async function saveSmsPromptDecision(decision: 'accepted' | 'declined') {
+    if (!camper?.id || smsPromptSaving) return
+
+    if (decision === 'accepted' && !String(camper.phone || '').trim()) {
+      setSmsPromptMessage('Add a mobile phone number to your profile before turning on text alerts.')
+      return
+    }
+
+    setSmsPromptSaving(true)
+    setSmsPromptMessage('')
+
+    try {
+      if (decision === 'accepted') {
+        const { data, error } = await supabase
+          .from('campers')
+          .update({
+            sms_opt_in: true,
+            sms_opt_in_at: camper.sms_opt_in_at || new Date().toISOString(),
+          })
+          .eq('id', camper.id)
+          .select('*')
+          .single()
+
+        if (error) throw error
+        setCamper(data)
+      }
+
+      const decidedAt = new Date().toISOString()
+      const { error: metadataError } = await supabase.auth.updateUser({
+        data: {
+          bur_oaks_sms_prompt_decision: decision,
+          bur_oaks_sms_prompt_decided_at: decidedAt,
+        },
+      })
+
+      if (metadataError) throw metadataError
+      setSmsPromptDecision(decision)
+    } catch (error: any) {
+      setSmsPromptMessage(error?.message || 'Unable to save your choice. Please try again.')
+    } finally {
+      setSmsPromptSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <main className="camper-portal-page">
@@ -603,10 +660,12 @@ export default function CamperPortalPage() {
       href: '/invoices',
     },
     {
-      label: 'Turn on text alerts',
-      detail: 'Get office notices, bill reminders, and urgent updates faster.',
-      complete: camper?.sms_opt_in === true,
-      href: '/invoices',
+      label: 'Choose your text alert preference',
+      detail: smsPromptDecision === 'declined'
+        ? 'You chose not to receive text alerts. You can turn them on later in Profile.'
+        : 'Get office notices, bill reminders, and urgent updates faster.',
+      complete: Boolean(smsPromptDecision),
+      href: smsPromptDecision ? '/profile' : '/portal#text-alert-choice',
     },
   ]
   const completedTasks = firstLoginTasks.filter((task) => task.complete).length
@@ -942,6 +1001,75 @@ export default function CamperPortalPage() {
           </div>
 
         </section>
+
+        {!smsPromptDecision && (
+          <section className="portal-sms-choice" id="text-alert-choice" aria-labelledby="portal-sms-choice-title">
+            <div className="portal-sms-choice-icon" aria-hidden="true">
+              <Bell size={25} />
+            </div>
+            <div className="portal-sms-choice-content">
+              <span>IMPORTANT PORTAL SETUP</span>
+              <h2 id="portal-sms-choice-title">Don’t miss important Bur Oaks updates.</h2>
+              <p>
+                Text alerts put <strong>new bill and invoice notifications</strong>, payment reminders,
+                office messages, campground announcements, gate and utility notices, maintenance and
+                pump-out updates, and urgent weather information on your phone right away. It keeps you
+                informed without the back-and-forth of Facebook Messenger.
+              </p>
+              <p className="portal-sms-choice-each">
+                <UsersRound size={17} /> Every person with their own portal login should make their own choice.
+              </p>
+
+              <label className="portal-sms-choice-consent">
+                <input
+                  type="checkbox"
+                  checked={smsPromptChecked}
+                  onChange={(event) => setSmsPromptChecked(event.target.checked)}
+                />
+                <span>
+                  <strong>I agree to receive Bur Oaks Campground text alerts</strong>
+                  <small>
+                    By checking this box, I agree to receive recurring, non-marketing SMS messages from
+                    Bur Oaks Campground at the mobile phone number saved for my site about invoices,
+                    payment reminders, account notices, maintenance and sewer pump-out updates, gate and
+                    utility notices, office notices, safety and weather alerts, and other campground
+                    operations notices. Message frequency varies. Message and data rates may apply. Reply
+                    HELP for help or STOP to opt out. Consent is optional and is not a condition of
+                    campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
+                  </small>
+                </span>
+              </label>
+
+              {!camper?.phone && (
+                <p className="portal-sms-choice-phone">
+                  A mobile number is needed first. <a href="/profile">Add your phone number in Profile</a>.
+                </p>
+              )}
+
+              <div className="portal-sms-choice-actions">
+                <button
+                  type="button"
+                  disabled={!smsPromptChecked || !camper?.phone || smsPromptSaving}
+                  onClick={() => saveSmsPromptDecision('accepted')}
+                >
+                  <Bell size={17} /> {smsPromptSaving ? 'Saving…' : 'Turn on text alerts'}
+                </button>
+                <button
+                  className="secondary"
+                  type="button"
+                  disabled={smsPromptSaving}
+                  onClick={() => saveSmsPromptDecision('declined')}
+                >
+                  No thanks
+                </button>
+              </div>
+              <small className="portal-sms-choice-note">
+                After you choose either option, this notice will leave your homepage. You can change text alerts later in Camper Profile.
+              </small>
+              {smsPromptMessage && <p className="portal-sms-choice-message">{smsPromptMessage}</p>}
+            </div>
+          </section>
+        )}
 
         <section className="portal-arrival-card" aria-label="Today at your site">
           <div className="portal-arrival-main">
