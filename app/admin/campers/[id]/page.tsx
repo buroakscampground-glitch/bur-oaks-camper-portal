@@ -189,15 +189,11 @@ export default function CamperDetailPage() {
       return
     }
 
-    if (
+    const mailingAddressIncomplete =
       !camper.mailing_address_line1?.trim() ||
       !camper.mailing_city?.trim() ||
       !camper.mailing_state?.trim() ||
       !camper.mailing_zip?.trim()
-    ) {
-      setMessage('Mailing address is required so Bur Oaks can send paper items if needed.')
-      return
-    }
 
     setSaving(true)
     setMessage('Saving camper profile…')
@@ -254,7 +250,11 @@ export default function CamperDetailPage() {
     }
 
     setCamper({ ...emptyCamper, ...data })
-    setMessage('Camper profile saved successfully.')
+    setMessage(
+      mailingAddressIncomplete
+        ? 'Camper profile saved successfully. Mailing address is still needed.'
+        : 'Camper profile saved successfully.',
+    )
     setSaving(false)
   }
 
@@ -789,7 +789,11 @@ export default function CamperDetailPage() {
       </div>
 
       <div className="admin-camper-save-bar">
-        <div><strong>Ready to update this camper?</strong><span>Changes apply immediately across the portal.</span></div>
+        <div>
+          <strong>Ready to update this camper?</strong>
+          <span>Changes apply immediately across the portal.</span>
+          {message && <span className="admin-camper-save-feedback" role="status">{message}</span>}
+        </div>
         <button type="button" onClick={saveCamper} disabled={saving}>
           {saving ? <LoaderCircle className="admin-spin" size={18} /> : <Save size={18} />}
           {saving ? 'Saving…' : 'Save Camper Profile'}

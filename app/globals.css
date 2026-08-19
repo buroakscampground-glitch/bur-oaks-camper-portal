@@ -6553,6 +6553,14 @@ button:hover {
   font-size: 9px;
 }
 
+.admin-camper-save-bar .admin-camper-save-feedback {
+  margin-top: 3px;
+  color: #385f42;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
 .admin-camper-save-bar button {
   display: inline-flex;
   align-items: center;
