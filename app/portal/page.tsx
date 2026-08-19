@@ -548,6 +548,8 @@ export default function CamperPortalPage() {
           .update({
             sms_opt_in: true,
             sms_opt_in_at: camper.sms_opt_in_at || new Date().toISOString(),
+            event_reminders_opt_in: true,
+            event_reminders_opt_in_at: camper.event_reminders_opt_in_at || new Date().toISOString(),
           })
           .eq('id', camper.id)
           .select('*')
@@ -1032,8 +1034,9 @@ export default function CamperPortalPage() {
                     By checking this box, I agree to receive recurring, non-marketing SMS messages from
                     Bur Oaks Campground at the mobile phone number saved for my site about invoices,
                     payment reminders, account notices, maintenance and sewer pump-out updates, gate and
-                    utility notices, office notices, safety and weather alerts, and other campground
-                    operations notices. Message frequency varies. Message and data rates may apply. Reply
+                    utility notices, office notices, upcoming event reminders (including Wednesday
+                    reminders for events within the next two weeks), safety and weather alerts, and other
+                    campground operations notices. Message frequency varies. Message and data rates may apply. Reply
                     HELP for help or STOP to opt out. Consent is optional and is not a condition of
                     campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
                   </small>

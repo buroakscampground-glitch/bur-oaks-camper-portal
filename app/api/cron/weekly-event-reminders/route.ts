@@ -40,9 +40,9 @@ export async function GET(request: Request) {
       .order('event_date', { ascending: true }),
     admin
       .from('campers')
-      .select('id,first_name,last_name,email,secondary_email,phone,sms_opt_in,event_reminders_opt_in,active,role,lot_number')
+      .select('id,first_name,last_name,email,secondary_email,phone,sms_opt_in,active,role,lot_number')
       .eq('active', true)
-      .eq('event_reminders_opt_in', true),
+      .eq('sms_opt_in', true),
   ])
 
   if (eventError || camperError) {

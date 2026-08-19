@@ -65,6 +65,7 @@ export async function POST(request: Request) {
   if (camper && action === 'opt_out') {
     await admin.from('campers').update({
       sms_opt_in: false,
+      event_reminders_opt_in: false,
       sms_opt_out_at: new Date().toISOString(),
       sms_last_keyword: keyword,
     }).eq('id', camper.id)
@@ -72,6 +73,8 @@ export async function POST(request: Request) {
     await admin.from('campers').update({
       sms_opt_in: true,
       sms_opt_in_at: new Date().toISOString(),
+      event_reminders_opt_in: true,
+      event_reminders_opt_in_at: new Date().toISOString(),
       sms_opt_out_at: null,
       sms_last_keyword: keyword,
     }).eq('id', camper.id)

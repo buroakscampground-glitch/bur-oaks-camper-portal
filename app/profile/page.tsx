@@ -101,8 +101,8 @@ export default function ProfilePage() {
       celebration_messages_opt_in_at: camper.celebration_messages_opt_in
         ? camper.celebration_messages_opt_in_at || new Date().toISOString()
         : null,
-      event_reminders_opt_in: Boolean(camper.event_reminders_opt_in),
-      event_reminders_opt_in_at: camper.event_reminders_opt_in
+      event_reminders_opt_in: Boolean(camper.sms_opt_in),
+      event_reminders_opt_in_at: camper.sms_opt_in
         ? camper.event_reminders_opt_in_at || new Date().toISOString()
         : null,
       mailing_address_line1: camper.mailing_address_line1,
@@ -400,24 +400,6 @@ export default function ProfilePage() {
                   sms_opt_in_at: event.target.checked
                     ? camper.sms_opt_in_at || new Date().toISOString()
                     : null,
-                })
-              }
-            />
-            <span>
-              <strong>I agree to receive Bur Oaks Campground text alerts</strong>
-              <small>
-                By checking this box, I agree to receive recurring, non-marketing SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, safety notices, weather-related operational alerts, and other campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. Consent is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
-              </small>
-            </span>
-          </label>
-
-          <label className="privacy-toggle event-reminders-toggle">
-            <input
-              type="checkbox"
-              checked={Boolean(camper.event_reminders_opt_in)}
-              onChange={(event) =>
-                setCamper({
-                  ...camper,
                   event_reminders_opt_in: event.target.checked,
                   event_reminders_opt_in_at: event.target.checked
                     ? camper.event_reminders_opt_in_at || new Date().toISOString()
@@ -426,12 +408,16 @@ export default function ProfilePage() {
               }
             />
             <span>
-              <strong>Send me Wednesday event reminders</strong>
+              <strong>I agree to receive Bur Oaks Campground text alerts</strong>
               <small>
-                By checking this box, I agree to receive optional campground event reminders by email and, when Text Alerts are also turned on, by SMS. Reminders may be sent once each Wednesday beginning up to two weeks before an event, plus a final reminder on event day. Message and data rates may apply. Reply STOP to opt out of texts. This is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
+                By checking this box, I agree to receive recurring, non-marketing SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, upcoming event reminders (including Wednesday reminders for events within the next two weeks), safety notices, weather-related operational alerts, and other campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. Consent is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
               </small>
             </span>
           </label>
+
+          <div className="directory-safety-note">
+            <ShieldCheck size={16} /> Wednesday reminders for upcoming events are included automatically when Text Alerts are on. Reply STOP or turn off Text Alerts at any time.
+          </div>
 
           <div className="directory-safety-note">
             <ShieldCheck size={16} /> Text alerts are separate from the camper directory. Your phone number is not shared publicly.

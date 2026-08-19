@@ -598,7 +598,7 @@ export default function CamperDetailPage() {
               <ShieldCheck size={16} /> Personal birthday and anniversary greetings: {camper.celebration_messages_opt_in ? 'Camper opted in' : 'Not opted in'}.
             </div>
             <div className="directory-safety-note">
-              <ShieldCheck size={16} /> Wednesday event reminders: {camper.event_reminders_opt_in ? 'Camper opted in' : 'Not opted in'}.
+              <ShieldCheck size={16} /> Wednesday event reminders: {camper.sms_opt_in ? 'Included with Text Alerts' : 'Text Alerts are off'}.
             </div>
           </div>
         </ProfileSection>
