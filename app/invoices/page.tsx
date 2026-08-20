@@ -420,8 +420,8 @@ export default function InvoicesPage() {
             <div className="family-billing-heading">
               <span><UsersRound size={22} /></span>
               <div>
-                <small>AUTHORIZED FAMILY BILL PAYER</small>
-                <h2 id="family-billing-title">Parents’ bills you can help pay</h2>
+                <small>AUTHORIZED ACCOUNTS</small>
+                <h2 id="family-billing-title">Additional accounts you can view and pay</h2>
                 <p>Your login has billing-only access. Their profile, messages, documents, and other private portal information remain separate.</p>
               </div>
             </div>

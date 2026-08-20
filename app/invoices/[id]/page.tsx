@@ -215,7 +215,7 @@ export default function CamperInvoiceDetailPage() {
             <h1>Invoice #{invoice.invoice_number}</h1>
             <p>Lot {camper?.lot_number || '—'} · {camper?.first_name} {camper?.last_name}</p>
             {authorizedFamilyBilling && (
-              <em className="camper-invoice-family-access">Authorized family billing access · invoice and payment only</em>
+              <em className="camper-invoice-family-access">Authorized account · invoice and payment access only</em>
             )}
           </div>
           <button type="button" onClick={() => window.print()}>
