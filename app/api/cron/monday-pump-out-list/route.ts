@@ -41,8 +41,9 @@ export async function GET(request: Request) {
   }
 
   const current = centralNow()
-  // 12:00 UTC is 7:00 AM Central during the campground's daylight season.
-  if (current.weekday !== 'Mon' || (current.hour !== 6 && current.hour !== 7)) {
+  // Vercel schedules use UTC. The paired 12:00/13:00 UTC jobs guarantee a
+  // 7:00 AM Central run year-round; the 8:00 AM window is a printer retry only.
+  if (current.weekday !== 'Mon' || (current.hour !== 7 && current.hour !== 8)) {
     return NextResponse.json({ success: true, skipped: true, reason: 'Not the scheduled Monday-morning Central window.', current })
   }
 

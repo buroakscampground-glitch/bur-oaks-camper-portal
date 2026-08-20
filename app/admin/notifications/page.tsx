@@ -125,7 +125,11 @@ export default function AdminNotificationsPage() {
               </div>
               <div className="admin-notification-actions">
                 <a href={config.href}>Open</a>
-                {!notification.read_at && <button type="button" onClick={() => markSeen(notification.id)}>Handled</button>}
+                {!notification.read_at && (
+                  <button type="button" onClick={() => markSeen(notification.id)}>
+                    {notification.type === 'sewer_pump_out' ? 'Clear alert' : 'Handled'}
+                  </button>
+                )}
               </div>
             </article>
           )

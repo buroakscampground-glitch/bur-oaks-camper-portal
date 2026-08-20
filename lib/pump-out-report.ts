@@ -91,7 +91,7 @@ function drawPageHeader(page: PDFPage, bold: PDFFont, regular: PDFFont, reportDa
   page.drawText('BUR OAKS CAMPGROUND', { x: 36, y: height - 34, font: bold, size: 10, color: rgb(0.9, 0.79, 0.46) })
   page.drawText('Monday Pump-Out Route', { x: 36, y: height - 64, font: bold, size: 24, color: rgb(1, 1, 1) })
   page.drawText(fullReportDate(reportDate), { x: width - 255, y: height - 40, font: regular, size: 11, color: rgb(0.9, 0.94, 0.9) })
-  page.drawText(`${count} active / unbilled request${count === 1 ? '' : 's'}`, { x: width - 255, y: height - 61, font: bold, size: 11, color: rgb(1, 1, 1) })
+  page.drawText(`${count} site${count === 1 ? '' : 's'} needing pump-out`, { x: width - 255, y: height - 61, font: bold, size: 11, color: rgb(1, 1, 1) })
 
   page.drawRectangle({ x: 36, y: height - 130, width: width - 72, height: 25, color: forestSoft })
   const headers = [
@@ -134,7 +134,7 @@ export async function buildPumpOutListPdf(requests: PumpOutRequest[], reportDate
     page.drawRectangle({ x: 43, y: y - 27, width: 13, height: 13, borderColor: forest, borderWidth: 1.2 })
     page.drawText(safeText(request.lot_number) || 'N/A', { x: 72, y: y - 22, font: bold, size: 11, color: ink })
     page.drawText(safeText(request.camper_name) || 'Camper', { x: 125, y: y - 22, font: bold, size: 10, color: ink, maxWidth: 145 })
-    page.drawText(request.status === 'completed' ? 'Pumped / unbilled' : 'Needs pumped', { x: 278, y: y - 22, font: regular, size: 9, color: request.status === 'completed' ? forest : rgb(0.65, 0.2, 0.15) })
+    page.drawText('Needs pumped', { x: 278, y: y - 22, font: regular, size: 9, color: rgb(0.65, 0.2, 0.15) })
     page.drawText(`$${Number(request.charge_amount || 10).toFixed(2)}`, { x: 370, y: y - 22, font: bold, size: 10, color: gold })
     page.drawText(prettyDate(request.requested_at), { x: 425, y: y - 22, font: regular, size: 9, color: gray })
     noteLines.forEach((lineText, index) => page.drawText(lineText, { x: 526, y: y - 18 - index * 11, font: regular, size: 8.5, color: gray }))
@@ -165,7 +165,7 @@ async function sendReportEmail(to: string, pdfBytes: Uint8Array, reportDate: str
   const from = emailFrom()
   const filename = `bur-oaks-pump-out-list-${reportDate}.pdf`
   const subject = `Bur Oaks Monday pump-out list - ${reportDate}`
-  const text = `Bur Oaks Monday pump-out list for ${reportDate}. ${itemCount} active or unbilled request${itemCount === 1 ? '' : 's'}. The printable PDF is attached.`
+  const text = `Bur Oaks Monday pump-out list for ${reportDate}. ${itemCount} site${itemCount === 1 ? '' : 's'} currently need${itemCount === 1 ? 's' : ''} pump-out service. The printable PDF is attached.`
   const attachment = Buffer.from(pdfBytes).toString('base64')
 
   if (!from) return { sent: false, provider: null, error: 'The campground email sender is not configured.' }
@@ -215,7 +215,7 @@ export async function sendPumpOutReport(client: any, reportDate: string) {
   const { data, error } = await client
     .from('sewer_pump_out_requests')
     .select('id,lot_number,camper_name,status,charge_amount,notes,requested_at,billed_at')
-    .neq('status', 'cancelled')
+    .eq('status', 'requested')
     .is('billed_at', null)
     .order('requested_at', { ascending: true })
 

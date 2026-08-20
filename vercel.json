@@ -9,8 +9,16 @@
       "schedule": "0 12 * * 1"
     },
     {
+      "path": "/api/cron/monday-pump-out-list-retry",
+      "schedule": "0 13 * * 1"
+    },
+    {
       "path": "/api/cron/daily-maintenance-work-orders",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/daily-maintenance-work-orders-retry",
+      "schedule": "0 13 * * *"
     },
     {
       "path": "/api/cron/season-renewals",
