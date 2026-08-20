@@ -83,7 +83,7 @@ const menuSuggestionMap: Array<{ match: RegExp; items: string[] }> = [
 export function dinnerBringSuggestions(menu = '') {
   const matched = menuSuggestionMap.find((item) => item.match.test(menu))
   const combined = [...(matched?.items || []), ...commonDinnerSuggestions]
-  return Array.from(new Set(combined))
+  return Array.from(new Set(combined)).filter((item) => item.toLowerCase() !== 'drinks')
 }
 
 export function nextSaturdayDinner(today = new Date()) {
