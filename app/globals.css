@@ -3689,6 +3689,225 @@ button:hover {
   }
 }
 
+/* Authorized family billing access */
+.family-billing-access {
+  margin: 24px 0;
+  padding: 24px;
+  border: 1px solid #d6dfd3;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #f8fbf6, #fffdf7);
+  box-shadow: 0 14px 36px rgba(39, 57, 43, 0.08);
+}
+
+.family-billing-heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.family-billing-heading > span {
+  display: grid;
+  flex: 0 0 46px;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 14px;
+  background: #315f3d;
+  color: #fff;
+}
+
+.family-billing-heading small,
+.family-billing-card header small {
+  color: #9a7834;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+}
+
+.family-billing-heading h2 {
+  margin: 4px 0 5px;
+  color: #263d2e;
+  font: 500 29px/1.1 Georgia, serif;
+}
+
+.family-billing-heading p {
+  margin: 0;
+  color: #647168;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.family-billing-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.family-billing-card {
+  overflow: hidden;
+  border: 1px solid #dfe4dc;
+  border-radius: 17px;
+  background: #fff;
+}
+
+.family-billing-card header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 17px 18px;
+  border-bottom: 1px solid #e8ebe5;
+}
+
+.family-billing-card header h3 {
+  margin: 4px 0 0;
+  color: #293f31;
+  font: 500 21px Georgia, serif;
+}
+
+.family-billing-card header > span {
+  display: grid;
+  gap: 2px;
+  text-align: right;
+}
+
+.family-billing-card header > span strong {
+  color: #875f25;
+  font: 500 20px Georgia, serif;
+}
+
+.family-billing-invoices {
+  display: grid;
+}
+
+.family-billing-invoices > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 16px;
+  padding: 15px 18px;
+  border-bottom: 1px solid #edf0eb;
+}
+
+.family-billing-invoices span,
+.family-billing-invoices > div > div {
+  display: grid;
+  gap: 4px;
+}
+
+.family-billing-invoices small {
+  color: #7b877f;
+  font-size: 10px;
+}
+
+.family-billing-invoices strong {
+  color: #2d4234;
+  font-size: 13px;
+}
+
+.family-billing-invoices > div > div {
+  grid-auto-flow: column;
+  align-items: center;
+}
+
+.family-billing-invoices a,
+.family-billing-invoices button {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 1px solid #cfd9cd;
+  border-radius: 9px;
+  background: #fff;
+  color: #315f3d;
+  font-size: 11px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.family-billing-invoices button {
+  border-color: #315f3d;
+  background: #315f3d;
+  color: #fff;
+  cursor: pointer;
+}
+
+.family-billing-invoices em {
+  color: #397047;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.family-billing-card footer,
+.family-billing-clear {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 13px 18px;
+  background: #f7f8f5;
+  color: #68756c;
+  font-size: 11px;
+}
+
+.family-billing-card footer.texts-on,
+.family-billing-clear {
+  color: #397047;
+}
+
+.camper-invoice-family-access {
+  display: inline-flex;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f5df9f;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 700px) {
+  .family-billing-access {
+    margin: 18px 0;
+    padding: 17px 13px;
+    border-radius: 18px;
+  }
+
+  .family-billing-heading h2 {
+    font-size: 24px;
+  }
+
+  .family-billing-card header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .family-billing-card header > span {
+    text-align: left;
+  }
+
+  .family-billing-invoices > div {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
+  .family-billing-invoices > div > div {
+    grid-column: 1 / -1;
+    grid-auto-flow: column;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .family-billing-invoices a,
+  .family-billing-invoices button {
+    width: 100%;
+  }
+}
+
 /* CAMPER ACCOUNT CENTER */
 .camper-account-page { min-height: 100vh; padding: 24px; color: #26352b; background: radial-gradient(circle at 90% 5%, rgba(204,174,105,.14), transparent 24%), linear-gradient(180deg,#edf2ec 0%,#f7f5ef 34%,#f3f1eb 100%); }
 .account-shell { width: min(1280px,100%); margin: 0 auto; }

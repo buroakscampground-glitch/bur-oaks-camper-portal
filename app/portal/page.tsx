@@ -1032,8 +1032,8 @@ export default function CamperPortalPage() {
                   <strong>I agree to receive Bur Oaks Campground text alerts</strong>
                   <small>
                     By checking this box, I agree to receive recurring, non-marketing SMS messages from
-                    Bur Oaks Campground at the mobile phone number saved for my site about invoices,
-                    payment reminders, account notices, maintenance and sewer pump-out updates, gate and
+                    Bur Oaks Campground at the mobile phone number saved for my site about invoices and
+                    payment reminders for my site and any family sites I am authorized to pay, account notices, maintenance and sewer pump-out updates, gate and
                     utility notices, office notices, upcoming event reminders (including Wednesday
                     reminders for events within the next two weeks), safety and weather alerts, and other
                     campground operations notices. Message frequency varies. Message and data rates may apply. Reply

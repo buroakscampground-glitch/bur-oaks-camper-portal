@@ -5,6 +5,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { calculateCardProcessingFeeCents, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import { getSiteUrl } from '../../../lib/site-url'
+import { loadAuthorizedBillingCampers } from '../../../lib/authorized-billing'
 
 export const runtime = 'nodejs'
 
@@ -36,17 +37,26 @@ export async function POST(request: Request) {
       )
     }
 
+    const delegatedCampers = await loadAuthorizedBillingCampers(context.admin, context.user.email)
+    const allowedCamperIds = new Set([
+      String(context.camper.id),
+      ...delegatedCampers.map((camper: any) => String(camper.id)),
+    ])
+
     const { data: invoices, error: invoiceError } = await context.admin
       .from('invoices')
       .select('id,invoice_number,invoice_type,total_due,status,camper_id')
-      .eq('camper_id', context.camper.id)
       .in('id', requestedIds)
 
     if (invoiceError) {
       throw invoiceError
     }
 
-    if (!invoices || invoices.length !== requestedIds.length) {
+    if (
+      !invoices ||
+      invoices.length !== requestedIds.length ||
+      invoices.some((invoice) => !allowedCamperIds.has(String(invoice.camper_id)))
+    ) {
       return NextResponse.json(
         { error: 'One or more invoices could not be verified.' },
         { status: 400 }
@@ -66,6 +76,17 @@ export async function POST(request: Request) {
         { status: 409 }
       )
     }
+
+    const invoiceCamperIds = new Set(invoices.map((invoice) => String(invoice.camper_id)))
+    if (invoiceCamperIds.size !== 1) {
+      return NextResponse.json(
+        { error: 'Pay invoices for one site at a time.' },
+        { status: 400 }
+      )
+    }
+
+    const billedCamperId = String(invoices[0].camper_id)
+    const delegatedPayment = billedCamperId !== String(context.camper.id)
 
     const invoiceSubtotalCents = invoices.reduce((sum, invoice) => {
       return sum + Math.round(Number(invoice.total_due || 0) * 100)
@@ -117,7 +138,7 @@ export async function POST(request: Request) {
     const checkoutWindow = Math.floor(Date.now() / (60 * 60 * 1000))
     const checkoutFingerprint = createHash('sha256')
       .update([
-        String(context.camper.id),
+        billedCamperId,
         [...verifiedInvoiceIds].sort().join(','),
         String(invoiceSubtotalCents),
         String(processingFeeCents),
@@ -134,7 +155,9 @@ export async function POST(request: Request) {
       customer_email: context.user.email || undefined,
       metadata: {
         invoice_ids: JSON.stringify(verifiedInvoiceIds),
-        camper_id: String(context.camper.id),
+        camper_id: billedCamperId,
+        paid_by_email: context.user.email || '',
+        billing_access: delegatedPayment ? 'authorized_family_payer' : 'camper',
         purpose: 'invoice_payment',
         invoice_subtotal_cents: String(invoiceSubtotalCents),
         processing_fee_cents: String(processingFeeCents),
@@ -142,7 +165,9 @@ export async function POST(request: Request) {
       payment_intent_data: {
         metadata: {
           invoice_ids: JSON.stringify(verifiedInvoiceIds),
-          camper_id: String(context.camper.id),
+          camper_id: billedCamperId,
+          paid_by_email: context.user.email || '',
+          billing_access: delegatedPayment ? 'authorized_family_payer' : 'camper',
           purpose: 'invoice_payment',
           invoice_subtotal_cents: String(invoiceSubtotalCents),
           processing_fee_cents: String(processingFeeCents),

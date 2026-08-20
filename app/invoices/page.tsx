@@ -18,6 +18,7 @@ import {
   ReceiptText,
   ShieldCheck,
   Sparkles,
+  UsersRound,
   WalletCards,
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
@@ -109,6 +110,7 @@ export default function InvoicesPage() {
   const [smsSaving, setSmsSaving] = useState(false)
   const [smsMessage, setSmsMessage] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
+  const [familyBillingAccounts, setFamilyBillingAccounts] = useState<any[]>([])
 
   useEffect(() => {
     async function loadAccount() {
@@ -131,7 +133,10 @@ export default function InvoicesPage() {
       setCamper(camperData)
       setSmsOptIn(Boolean(camperData.sms_opt_in))
 
-      const [invoiceResult, creditResult, paymentFeeSettings] = await Promise.all([
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+
+      const [invoiceResult, creditResult, paymentFeeSettings, familyBillingResponse] = await Promise.all([
         supabase
           .from('invoices')
           .select('*, invoice_items(*)')
@@ -144,6 +149,11 @@ export default function InvoicesPage() {
           .eq('status', 'active')
           .gt('remaining_amount', 0),
         loadPaymentFeeSettings(supabase),
+        token
+          ? fetch('/api/authorized-billing', {
+              headers: { Authorization: `Bearer ${token}` },
+            }).catch(() => null)
+          : Promise.resolve(null),
       ])
 
       setInvoices(invoiceResult.data || [])
@@ -151,6 +161,10 @@ export default function InvoicesPage() {
       setCreditBalance(
         (creditResult.data || []).reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0)
       )
+      if (familyBillingResponse?.ok) {
+        const familyBilling = await familyBillingResponse.json()
+        setFamilyBillingAccounts(familyBilling.accounts || [])
+      }
       await refreshAutoPayStatus()
 
       if (new URLSearchParams(window.location.search).get('autopay') === 'success') {
@@ -401,6 +415,83 @@ export default function InvoicesPage() {
           <a href="/messages">Question about a bill? Message the office <ArrowRight size={15} /></a>
         </section>
 
+        {familyBillingAccounts.length > 0 && (
+          <section className="family-billing-access" aria-labelledby="family-billing-title">
+            <div className="family-billing-heading">
+              <span><UsersRound size={22} /></span>
+              <div>
+                <small>AUTHORIZED FAMILY BILL PAYER</small>
+                <h2 id="family-billing-title">Parents’ bills you can help pay</h2>
+                <p>Your login has billing-only access. Their profile, messages, documents, and other private portal information remain separate.</p>
+              </div>
+            </div>
+
+            <div className="family-billing-grid">
+              {familyBillingAccounts.map((account) => {
+                const accountInvoices = Array.isArray(account.invoices) ? account.invoices : []
+                const accountOpenInvoices = accountInvoices.filter((invoice: any) => invoice.status !== 'paid')
+                const accountOpenBalance = accountOpenInvoices.reduce(
+                  (sum: number, invoice: any) => sum + Number(invoice.total_due || 0),
+                  0
+                )
+
+                return (
+                  <article className="family-billing-card" key={account.id}>
+                    <header>
+                      <div>
+                        <small>YOU ARE AUTHORIZED TO PAY</small>
+                        <h3>Site {account.lot_number} — {account.first_name} {account.last_name}</h3>
+                      </div>
+                      <span><small>Open balance</small><strong>{formatMoney(accountOpenBalance)}</strong></span>
+                    </header>
+
+                    {accountInvoices.length === 0 ? (
+                      <p className="family-billing-clear"><CheckCircle2 size={18} /> No invoices for this account yet.</p>
+                    ) : (
+                      <div className="family-billing-invoices">
+                        {accountInvoices.map((invoice: any) => {
+                          const isPaid = invoice.status === 'paid'
+                          const isProcessing = invoice.status === 'processing'
+                          return (
+                            <div key={invoice.id}>
+                              <span>
+                                <small>Invoice #{invoice.invoice_number} · {formatDate(invoice.due_date)}</small>
+                                <strong>{invoice.invoice_type || 'Campground charge'}</strong>
+                              </span>
+                              <strong>{formatMoney(invoice.total_due)}</strong>
+                              <div>
+                                <a href={`/invoices/${invoice.id}?family=1`}>View invoice</a>
+                                {!isPaid && !isProcessing && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePayInvoice(invoice)}
+                                    disabled={processingInvoiceId === invoice.id || checkoutLoading}
+                                  >
+                                    {processingInvoiceId === invoice.id ? 'Opening…' : 'Pay now'}
+                                  </button>
+                                )}
+                                {isPaid && <em>Paid</em>}
+                                {isProcessing && <em>Processing</em>}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    <footer className={camper?.sms_opt_in ? 'texts-on' : ''}>
+                      <MessageSquareText size={16} />
+                      {camper?.sms_opt_in
+                        ? `Invoice and due-date texts for Site ${account.lot_number} will also go to your saved phone.`
+                        : 'Turn on Text Alerts below to receive invoice and due-date texts for this account.'}
+                    </footer>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         <div className="account-layout">
           <section className="account-panel account-ledger">
             <div className="account-panel-heading">
@@ -563,7 +654,7 @@ export default function InvoicesPage() {
               <span>
                 <strong>I agree to receive Bur Oaks Campground text alerts</strong>
                 <small>
-                  By checking this box, I agree to receive recurring, non-marketing SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices, payment reminders, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, upcoming event reminders (including Wednesday reminders for events within the next two weeks), safety notices, weather-related operational alerts, and other campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. Consent is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
+                  By checking this box, I agree to receive recurring, non-marketing SMS messages from Bur Oaks Campground at the phone number saved in my profile about invoices and payment reminders for my site and any family sites I am authorized to pay, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, upcoming event reminders (including Wednesday reminders for events within the next two weeks), safety notices, weather-related operational alerts, and other campground account or operations notices. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. Consent is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
                 </small>
               </span>
             </label>

@@ -47,6 +47,7 @@ export default function CamperInvoiceDetailPage() {
   const [paying, setPaying] = useState(false)
   const [message, setMessage] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
+  const [authorizedFamilyBilling, setAuthorizedFamilyBilling] = useState(false)
 
   useEffect(() => {
     async function loadInvoice() {
@@ -57,9 +58,8 @@ export default function CamperInvoiceDetailPage() {
         return
       }
 
-      setCamper(camperData)
-
-      const { data, error } = await supabase
+      let visibleCamper = camperData
+      let { data, error } = await supabase
         .from('invoices')
         .select('*, invoice_items(*)')
         .eq('id', invoiceId)
@@ -67,6 +67,26 @@ export default function CamperInvoiceDetailPage() {
         .maybeSingle()
 
       if (error) setMessage(error.message)
+
+      if (!data) {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData.session?.access_token
+        if (token) {
+          const response = await fetch(`/api/authorized-billing?invoiceId=${encodeURIComponent(invoiceId)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => null)
+
+          if (response?.ok) {
+            const familyResult = await response.json()
+            data = familyResult.invoice || null
+            visibleCamper = familyResult.account || camperData
+            setAuthorizedFamilyBilling(Boolean(data))
+            setMessage('')
+          }
+        }
+      }
+
+      setCamper(visibleCamper)
       const paymentFeeSettings = await loadPaymentFeeSettings(supabase)
       setFeeSettings(paymentFeeSettings)
       setInvoice(data || null)
@@ -81,6 +101,22 @@ export default function CamperInvoiceDetailPage() {
     if (!camper?.id) return
 
     async function refreshInvoiceStatus() {
+      if (authorizedFamilyBilling) {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData.session?.access_token
+        if (!token) return
+        const response = await fetch(`/api/authorized-billing?invoiceId=${encodeURIComponent(invoiceId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null)
+        if (!response?.ok) return
+        const familyResult = await response.json()
+        if (familyResult.invoice) {
+          setInvoice(familyResult.invoice)
+          setItems(Array.isArray(familyResult.invoice.invoice_items) ? familyResult.invoice.invoice_items : [])
+        }
+        return
+      }
+
       const { data } = await supabase
         .from('invoices')
         .select('*, invoice_items(*)')
@@ -103,7 +139,7 @@ export default function CamperInvoiceDetailPage() {
       window.removeEventListener('focus', refreshInvoiceStatus)
       window.removeEventListener('pageshow', refreshInvoiceStatus)
     }
-  }, [camper?.id, invoiceId])
+  }, [camper?.id, invoiceId, authorizedFamilyBilling])
 
   async function payInvoice() {
     if (!invoice) return
@@ -178,6 +214,9 @@ export default function CamperInvoiceDetailPage() {
             <span><ReceiptText size={16} /> BUR OAKS INVOICE</span>
             <h1>Invoice #{invoice.invoice_number}</h1>
             <p>Lot {camper?.lot_number || '—'} · {camper?.first_name} {camper?.last_name}</p>
+            {authorizedFamilyBilling && (
+              <em className="camper-invoice-family-access">Authorized family billing access · invoice and payment only</em>
+            )}
           </div>
           <button type="button" onClick={() => window.print()}>
             <Printer size={16} /> Print

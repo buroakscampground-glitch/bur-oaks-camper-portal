@@ -1,5 +1,6 @@
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
+import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized-billing'
 
 type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due'
 
@@ -55,29 +56,30 @@ function invoiceCamper(invoice: any) {
   return invoice?.campers || null
 }
 
-function buildInvoiceSms(invoice: any, kind: InvoiceTextKind) {
+function buildInvoiceSms(invoice: any, kind: InvoiceTextKind, camper: any) {
   const invoiceNumber = invoice.invoice_number || 'new invoice'
   const total = money(invoice.total_due)
   const due = prettyDate(invoice.due_date)
   const invoiceUrl = portalSmsUrl(`/invoices/${invoice.id}`)
+  const site = camper?.lot_number ? ` for site ${camper.lot_number}` : ''
 
   if (kind === 'new') {
-    return `Bur Oaks Campground: You have a new invoice #${invoiceNumber} for ${total} due ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return `Bur Oaks Campground: A new invoice #${invoiceNumber}${site} is ${total}, due ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
   if (kind === 'due_3_days') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due in 3 days on ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber}${site} for ${total} is due in 3 days on ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
   if (kind === 'due_1_day') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due tomorrow, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber}${site} for ${total} is due tomorrow, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
   if (kind === 'due_today') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber} for ${total} is due today, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber}${site} for ${total} is due today, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
-  return `Bur Oaks Campground: Past due reminder — invoice #${invoiceNumber} for ${total} was due ${due}. Please pay or contact the office.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+  return `Bur Oaks Campground: Past due reminder — invoice #${invoiceNumber}${site} for ${total} was due ${due}. Please pay or contact the office.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
 }
 
 export async function sendInvoiceText({
@@ -124,87 +126,138 @@ export async function sendInvoiceText({
     return { status: 'skipped', reason: 'Camper is not active.' }
   }
 
-  if (!camper.sms_opt_in) {
-    return { status: 'skipped', reason: 'Camper has not opted into text alerts.' }
+  const recipients: Array<{ camperId: string; phone: string; automationKey: string }> = []
+  const ownerPhone = camper.sms_opt_in ? formatSmsPhone(camper.phone) : null
+  if (ownerPhone) {
+    recipients.push({ camperId: camper.id, phone: ownerPhone, automationKey })
   }
 
-  const phone = formatSmsPhone(camper.phone)
-  if (!phone) {
-    return { status: 'skipped', reason: 'Camper does not have a valid phone number.' }
+  const delegateEmails = billingDelegateEmailsForLot(camper.lot_number)
+  if (delegateEmails.length) {
+    const { data: possibleDelegates, error: delegateError } = await client
+      .from('campers')
+      .select('id,email,secondary_email,phone,sms_opt_in,active')
+      .eq('active', true)
+
+    if (delegateError) {
+      return { status: 'failed', error: delegateError.message }
+    }
+
+    const allowedEmails = new Set(delegateEmails.map(normalizeBillingEmail))
+    for (const delegate of possibleDelegates || []) {
+      const matchedEmail = [delegate.email, delegate.secondary_email]
+        .map(normalizeBillingEmail)
+        .find((email) => allowedEmails.has(email))
+      const delegatePhone = delegate.sms_opt_in ? formatSmsPhone(delegate.phone) : null
+      if (!matchedEmail || !delegatePhone) continue
+
+      const safeEmailKey = matchedEmail.replace(/[^a-z0-9]+/g, '-').slice(0, 40)
+      recipients.push({
+        camperId: delegate.id,
+        phone: delegatePhone,
+        automationKey: `${automationKey}-family-${safeEmailKey}`,
+      })
+    }
   }
 
-  const { data: existing } = await client
-    .from('text_reminders')
-    .select('id,status')
-    .eq('invoice_id', invoice.id)
-    .eq('automation_key', automationKey)
-    .eq('reminder_date', reminderDate)
-    .maybeSingle()
-
-  if (existing) {
-    return { status: 'skipped', reason: 'This invoice text was already handled today.' }
+  const uniqueRecipients = Array.from(
+    new Map(recipients.map((recipient) => [recipient.phone, recipient])).values()
+  )
+  if (!uniqueRecipients.length) {
+    return { status: 'skipped', reason: 'No opted-in phone numbers are available for this invoice.' }
   }
 
-  const message = buildInvoiceSms(invoice, kind)
-  const reservationRow = {
-    camper_id: camper.id,
-    invoice_id: invoice.id,
-    reminder_type:
-      kind === 'new'
-        ? 'New Invoice'
-        : kind === 'due_3_days'
-          ? 'Invoice Due in 3 Days'
-          : kind === 'due_1_day'
-            ? 'Invoice Due Tomorrow'
-            : kind === 'due_today'
-              ? 'Invoice Due Today'
-              : 'Past Due Invoice',
-    message,
-    sent_at: new Date().toISOString(),
-    status: 'sending',
-    recipient_phone: phone,
-    provider: 'twilio',
-    provider_message_id: null,
-    error_message: null,
-    sent_by: sentBy,
-    reminder_date: reminderDate,
-    automation_key: automationKey,
-  }
+  const message = buildInvoiceSms(invoice, kind, camper)
+  const reminderType =
+    kind === 'new'
+      ? 'New Invoice'
+      : kind === 'due_3_days'
+        ? 'Invoice Due in 3 Days'
+        : kind === 'due_1_day'
+          ? 'Invoice Due Tomorrow'
+          : kind === 'due_today'
+            ? 'Invoice Due Today'
+            : 'Past Due Invoice'
 
-  // Reserve the unique automation key before contacting Twilio so concurrent
-  // requests cannot both send the same message.
-  const { data: reservation, error: logError } = await client
-    .from('text_reminders')
-    .insert(reservationRow)
-    .select('id')
-    .single()
+  let sentCount = 0
+  let failedCount = 0
+  let skippedCount = 0
+  const providerMessageIds: string[] = []
+  const errors: string[] = []
 
-  if (logError?.code === '23505') {
-    return { status: 'skipped', reason: 'This invoice text was already handled today.' }
-  }
-
-  if (logError) {
-    return { status: 'failed', error: logError.message }
-  }
-
-  const result = await sendTwilioSms({ to: phone, body: message })
-  const { error: updateError } = await client
-    .from('text_reminders')
-    .update({
-      status: result.sent ? 'sent' : 'failed',
-      provider_message_id: result.sent ? result.providerMessageId : null,
-      error_message: result.sent ? null : result.error,
+  for (const recipient of uniqueRecipients) {
+    const reservationRow = {
+      camper_id: recipient.camperId,
+      invoice_id: invoice.id,
+      reminder_type: reminderType,
+      message,
       sent_at: new Date().toISOString(),
-    })
-    .eq('id', reservation.id)
+      status: 'sending',
+      recipient_phone: recipient.phone,
+      provider: 'twilio',
+      provider_message_id: null,
+      error_message: null,
+      sent_by: sentBy,
+      reminder_date: reminderDate,
+      automation_key: recipient.automationKey,
+    }
 
-  if (updateError) {
-    console.error('Unable to finalize invoice text reminder log:', updateError.code)
+    // Reserve the unique automation key before contacting Twilio so concurrent
+    // requests cannot both send the same message.
+    const { data: reservation, error: logError } = await client
+      .from('text_reminders')
+      .insert(reservationRow)
+      .select('id')
+      .single()
+
+    if (logError?.code === '23505') {
+      skippedCount += 1
+      continue
+    }
+
+    if (logError) {
+      failedCount += 1
+      errors.push(logError.message)
+      continue
+    }
+
+    const result = await sendTwilioSms({ to: recipient.phone, body: message })
+    const { error: updateError } = await client
+      .from('text_reminders')
+      .update({
+        status: result.sent ? 'sent' : 'failed',
+        provider_message_id: result.sent ? result.providerMessageId : null,
+        error_message: result.sent ? null : result.error,
+        sent_at: new Date().toISOString(),
+      })
+      .eq('id', reservation.id)
+
+    if (updateError) {
+      console.error('Unable to finalize invoice text reminder log:', updateError.code)
+    }
+
+    if (!result.sent) {
+      failedCount += 1
+      errors.push(result.error || 'Text message failed.')
+      continue
+    }
+
+    sentCount += 1
+    if (result.providerMessageId) providerMessageIds.push(result.providerMessageId)
   }
 
-  if (!result.sent) {
-    return { status: 'failed', error: result.error }
+  if (sentCount) {
+    return { status: 'sent', sentCount, failedCount, providerMessageIds }
   }
 
-  return { status: 'sent', providerMessageId: result.providerMessageId }
+  if (failedCount) {
+    return { status: 'failed', error: errors.join(' ') }
+  }
+
+  return {
+    status: 'skipped',
+    reason: skippedCount
+      ? 'This invoice text was already handled today.'
+      : 'No invoice texts were sent.',
+  }
 }
