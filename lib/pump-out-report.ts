@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
+import { isSystemPortalAccount } from './camper-records'
 
 type PumpOutRequest = {
   id: string
@@ -221,7 +222,11 @@ export async function sendPumpOutReport(client: any, reportDate: string) {
 
   if (error) throw new Error(error.message)
 
-  const requests = (data || []) as PumpOutRequest[]
+  // Test portal lots are useful for validating the camper view, but must never
+  // appear on the office or Epson pump-out list.
+  const requests = ((data || []) as PumpOutRequest[]).filter(
+    (request) => !isSystemPortalAccount(request)
+  )
   const pdfBytes = await buildPumpOutListPdf(requests, reportDate)
   const officeEmail = process.env.PUMP_OUT_REPORT_EMAIL || 'buroakscampground@gmail.com'
   const printerEmail = process.env.PUMP_OUT_PRINTER_EMAIL || 'una63106xie2gt@print.epsonconnect.com'

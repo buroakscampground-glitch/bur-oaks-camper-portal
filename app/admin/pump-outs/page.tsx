@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CheckCircle2, Droplets, Printer, Search, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
+import { isSystemPortalAccount } from '../../../lib/camper-records'
 
 const statusLabels: Record<string, string> = {
   requested: 'Needs Pumped',
@@ -30,7 +31,8 @@ export default function AdminPumpOutsPage() {
       .order('requested_at', { ascending: false })
 
     if (error) setMessage(error.message)
-    setRequests(data || [])
+    // Keep portal test accounts out of the live pump-out queue and history.
+    setRequests((data || []).filter((request) => !isSystemPortalAccount(request)))
   }
 
   async function updateStatus(id: string, status: 'completed' | 'cancelled' | 'requested') {
