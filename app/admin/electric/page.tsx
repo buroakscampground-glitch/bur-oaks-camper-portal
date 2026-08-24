@@ -7,6 +7,11 @@ import { attemptAutoPay } from '../../../lib/autopay'
 import { createInvoiceBundle, formatCreditMoney } from '../../../lib/account-credits'
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
+import {
+  campgroundAverageUsage,
+  compareElectricUsage,
+  groupedUsageHistory,
+} from '../../../lib/electric-reading-safeguards'
 
 export default function AdminElectricPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -150,6 +155,20 @@ const liveSecondAmount =
   includeSecondMeter && liveSecondUsage > 0
     ? liveSecondUsage * liveSecondRate
     : 0
+const selectedUsageHistory = useMemo(
+  () => groupedUsageHistory(readings, camperId),
+  [readings, camperId]
+)
+const allCampersAverageUsage = useMemo(
+  () => campgroundAverageUsage(readings),
+  [readings]
+)
+const liveCombinedUsage = Math.max(0, liveUsage) + Math.max(0, liveSecondUsage)
+const liveUsageComparison = compareElectricUsage(
+  liveCombinedUsage,
+  selectedUsageHistory,
+  allCampersAverageUsage
+)
 
 const selectedWaterTrashFee = includeWaterTrash ? Number(waterTrashFee || 0) : 0
 const manualPumpChargeInput =
@@ -205,6 +224,8 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
     const amountDue = Number((kwhUsed * rateNumber).toFixed(2))
     const secondKwhUsed = includeSecondMeter ? secondCurrent - secondPrevious : 0
     const secondAmountDue = includeSecondMeter ? Number((secondKwhUsed * secondRateNumber).toFixed(2)) : 0
+    const combinedKwhUsed = kwhUsed + secondKwhUsed
+    const selectedCamper = campers.find((c) => c.id === camperId)
 
     if (manualPumpChargeOption === 'custom' && (!Number.isFinite(manualPumpAmountInput) || manualPumpAmountInput < 0.01)) {
       setMessage('Please enter a manual pumping charge of at least $0.01, or choose None.')
@@ -286,6 +307,31 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
       return
     }
 
+    const usageComparison = compareElectricUsage(
+      combinedKwhUsed,
+      selectedUsageHistory,
+      allCampersAverageUsage
+    )
+
+    if (usageComparison.status !== 'normal') {
+      const warningType = usageComparison.status === 'high' ? 'HIGH' : 'LOW'
+      const comparisonDetails = usageComparison.recentAverage > 0
+        ? `\nRecent average: ${Math.round(usageComparison.recentAverage).toLocaleString()} kWh\n${usageComparison.comparisonLabel}`
+        : '\nThere is not enough history for a campsite average.'
+      const previousDetails = usageComparison.previousUsage > 0
+        ? `\nPrevious billing period: ${Math.round(usageComparison.previousUsage).toLocaleString()} kWh`
+        : ''
+      const confirmed = window.confirm(
+        `Please double-check this ${warningType} electric reading for Lot ${selectedCamper?.lot_number || '—'}.\n\nPrevious meter: ${previous.toLocaleString()}\nCurrent meter: ${current.toLocaleString()}\nUsage being billed: ${combinedKwhUsed.toLocaleString()} kWh${comparisonDetails}${previousDetails}\nEstimated electric charge: $${(amountDue + secondAmountDue).toFixed(2)}\n\nAre you sure these readings are correct?`
+      )
+
+      if (!confirmed) {
+        setMessage('Invoice not created. Please recheck the meter reading.')
+        setSaving(false)
+        return
+      }
+    }
+
     const { data: existingReading, error: existingError } = await supabase
       .from('electric_readings')
       .select('id')
@@ -341,7 +387,6 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
     const siteServiceTotal = Number(activeSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0).toFixed(2))
     const totalDue = Number((amountDue + secondAmountDue + waterTrashAmount + manualPumpAmount + pumpOutTotal + siteServiceTotal).toFixed(2))
 
-    const selectedCamper = campers.find((c) => c.id === camperId)
     const invoiceNumber = `ELECTRIC-${selectedCamper?.lot_number || 'UNKNOWN'}-${Date.now()}`
 
     const invoiceItems = [
@@ -599,6 +644,8 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
   onChange={async (e) => {
 	    const selectedId = e.target.value
 	    setCamperId(selectedId)
+	    setPreviousReading('')
+	    setCurrentReading('')
 	
 	    if (!selectedId) return
 
@@ -662,6 +709,35 @@ setTimeout(() => {
 >
     <h2>{liveUsage} kWh</h2>
     <p className="muted">Estimated Usage</p>
+
+    {(liveUsageComparison.recentAverage > 0 || liveUsageComparison.status !== 'normal') && (
+      <div
+        style={{
+          margin: '10px 0 14px',
+          padding: '12px',
+          borderRadius: '12px',
+          background: liveUsageComparison.status === 'normal' ? '#fff' : '#fff4dc',
+          border: liveUsageComparison.status === 'normal' ? '1px solid #d8ded5' : '2px solid #b97721',
+        }}
+      >
+        <strong>
+          {liveUsageComparison.recentAverage > 0
+            ? `Recent campsite average: ${Math.round(liveUsageComparison.recentAverage).toLocaleString()} kWh`
+            : 'No campsite average is available yet'}
+        </strong>
+        <p style={{ margin: '4px 0 0' }}>{liveUsageComparison.comparisonLabel}</p>
+        {liveUsageComparison.previousUsage > 0 && (
+          <small className="muted">
+            Previous billing period: {Math.round(liveUsageComparison.previousUsage).toLocaleString()} kWh
+          </small>
+        )}
+        {liveUsageComparison.status !== 'normal' && (
+          <p style={{ margin: '8px 0 0', fontWeight: 800, color: '#8a4d00' }}>
+            This usage seems unusually {liveUsageComparison.status}. You will be asked to confirm it before the invoice is created.
+          </p>
+        )}
+      </div>
+    )}
 
     <h2>
       ${liveAmount.toFixed(2)}
