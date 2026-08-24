@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, FileText, Pencil, Plus, Printer, ReceiptText, Save, Trash2, X } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { deleteInvoiceWithCreditRestore, formatCreditMoney, updateInvoiceBundle } from '../../../../lib/account-credits'
-import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
+import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../../lib/invoice-display'
 import AdminQuickText from '../../../../components/AdminQuickText'
 
@@ -272,6 +272,8 @@ export default function InvoiceDetailPage() {
   const isProcessing = invoice?.status === 'processing'
   const cardProcessingFee = calculateCardProcessingFee(Number(invoice?.total_due || 0), feeSettings)
   const cardPayTotal = Number(invoice?.total_due || 0) + cardProcessingFee
+  const achProcessingFee = calculateAchProcessingFee(Number(invoice?.total_due || 0))
+  const achPayTotal = Number(invoice?.total_due || 0) + achProcessingFee
 
   const visibleItemLines = useMemo(() => {
     if (!invoice) return []
@@ -458,8 +460,10 @@ export default function InvoiceDetailPage() {
               <>
                 <p><span>{feeSettings.label} if paid online by card</span><strong>{formatMoney(cardProcessingFee)}</strong></p>
                 <p className="grand-total"><span>Total charged by Stripe card checkout</span><strong>{formatMoney(cardPayTotal)}</strong></p>
+                <p><span>ACH processing fee if paid from a checking account</span><strong>{formatMoney(achProcessingFee)}</strong></p>
+                <p className="grand-total"><span>Total charged by Stripe checking/ACH</span><strong>{formatMoney(achPayTotal)}</strong></p>
                 <small className="camper-invoice-processing-note">
-                  The card fee is only added at online Stripe checkout. Cash, check, and office-posted payments stay at the invoice balance due.
+                  Online card and checking/ACH fees are shown separately. Cash, paper checks, and office-posted payments stay at the invoice balance due.
                 </small>
               </>
             )}

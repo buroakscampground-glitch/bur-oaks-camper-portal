@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2, ClipboardCopy, Printer, ReceiptText, Trash2, W
 import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
 import { deleteInvoiceWithCreditRestore } from "../../../../lib/account-credits"
-import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from "../../../../lib/payment-fees"
+import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from "../../../../lib/payment-fees"
 import AdminQuickText from "../../../../components/AdminQuickText"
 
 function formatMoney(value: unknown) {
@@ -230,7 +230,9 @@ Bur Oaks Campground
                   <small>
                     Card pay total: {formatMoney(Number(invoice.total_due || 0) + calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings))}
                     <br />
-                    Includes {formatMoney(calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings))} card checkout fee only if paid through Stripe
+                    Checking/ACH total: {formatMoney(Number(invoice.total_due || 0) + calculateAchProcessingFee(Number(invoice.total_due || 0)))}
+                    <br />
+                    Fees: {formatMoney(calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings))} card · {formatMoney(calculateAchProcessingFee(Number(invoice.total_due || 0)))} ACH
                   </small>
                 </div>
                 <div className="admin-open-invoice-actions">

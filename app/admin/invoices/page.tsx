@@ -21,7 +21,7 @@ import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { createInvoiceBundle, deleteInvoiceWithCreditRestore, formatCreditMoney } from '../../../lib/account-credits'
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
-import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
+import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import AdminQuickText from '../../../components/AdminQuickText'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { invoiceNumberPrefix, nextInvoiceNumber } from '../../../lib/invoice-number'
@@ -237,6 +237,8 @@ export default function AdminInvoicesPage() {
   const previewInvoiceAmount = Number(amount || 0)
   const previewProcessingFee = calculateCardProcessingFee(previewInvoiceAmount, feeSettings)
   const previewCardTotal = previewInvoiceAmount + previewProcessingFee
+  const previewAchFee = calculateAchProcessingFee(previewInvoiceAmount)
+  const previewAchTotal = previewInvoiceAmount + previewAchFee
   const normalizedSearch = searchText.trim().toLowerCase()
   const visibleInvoices = invoices.filter((invoice) => {
     const matchesStatus =
@@ -326,7 +328,8 @@ export default function AdminInvoicesPage() {
               <span>Invoice total</span><strong>{formatMoney(amount)}</strong>
               {previewInvoiceAmount > 0 && (
                 <small>
-                  Card checkout only: {formatMoney(previewInvoiceAmount)} invoice + {formatMoney(previewProcessingFee)} card fee = {formatMoney(previewCardTotal)}. Cash/check/manual payments stay at the invoice total.
+                  Card: {formatMoney(previewInvoiceAmount)} invoice + {formatMoney(previewProcessingFee)} fee = {formatMoney(previewCardTotal)}.<br />
+                  Checking/ACH: {formatMoney(previewInvoiceAmount)} invoice + {formatMoney(previewAchFee)} fee = {formatMoney(previewAchTotal)}. Cash, paper checks, and office-posted payments stay at the invoice total.
                 </small>
               )}
             </div>
@@ -378,6 +381,8 @@ export default function AdminInvoicesPage() {
                 const isProcessing = invoice.status === 'processing'
                 const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
                 const cardTotal = Number(invoice.total_due || 0) + processingFee
+                const achFee = calculateAchProcessingFee(Number(invoice.total_due || 0))
+                const achTotal = Number(invoice.total_due || 0) + achFee
                 return (
                   <article className="admin-invoice-record" key={invoice.id}>
                     <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}`}>
@@ -398,7 +403,9 @@ export default function AdminInvoicesPage() {
                         <small>
                           Card pay total: {formatMoney(cardTotal)}
                           <br />
-                          Includes {formatMoney(processingFee)} card checkout fee only if paid through Stripe
+                          Checking/ACH total: {formatMoney(achTotal)}
+                          <br />
+                          Fees: {formatMoney(processingFee)} card · {formatMoney(achFee)} ACH
                         </small>
                       )}
                     </span>
