@@ -24,7 +24,13 @@ import {
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { checkoutItems, type InvoicePaymentMethod } from '../../lib/stripe'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../lib/invoice-display'
-import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../lib/payment-fees'
+import {
+  achProcessingFeeLabel,
+  calculateAchProcessingFee,
+  calculateCardProcessingFee,
+  cardProcessingFeeSettings,
+  loadPaymentFeeSettings,
+} from '../../lib/payment-fees'
 import {
   createAutoPayEnrollment,
   disableAutoPay,
@@ -290,8 +296,10 @@ export default function InvoicesPage() {
   const selectedTotal = payableInvoices
     .filter((invoice) => selectedInvoices.includes(invoice.id))
     .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-  const selectedProcessingFee = selectedInvoices.length && invoicePaymentMethod === 'card'
-    ? calculateCardProcessingFee(selectedTotal, feeSettings)
+  const selectedProcessingFee = selectedInvoices.length
+    ? invoicePaymentMethod === 'card'
+      ? calculateCardProcessingFee(selectedTotal, feeSettings)
+      : calculateAchProcessingFee(selectedTotal)
     : 0
   const selectedChargeTotal = selectedTotal + selectedProcessingFee
   const visibleInvoices = invoices.filter((invoice) => {
@@ -527,7 +535,7 @@ export default function InvoicesPage() {
                 </div>
                 <small>
                   {invoicePaymentMethod === 'ach'
-                    ? 'Stripe will securely collect your routing and checking-account information. No card-processing fee is added. ACH payments can take several business days to confirm.'
+                    ? `Stripe will securely collect your routing and checking-account information. The ${achProcessingFeeLabel.toLowerCase()} is shown before payment. ACH payments can take several business days to confirm.`
                     : `Card payments include the ${feeSettings.label.toLowerCase()}. You will review the total before paying.`}
                 </small>
               </div>
@@ -541,7 +549,7 @@ export default function InvoicesPage() {
                   {selectedInvoices.length > 0 && (
                     <small className="account-processing-fee-note">
                       {invoicePaymentMethod === 'ach'
-                        ? `ACH bank payment: ${formatMoney(selectedTotal)} with no card-processing fee`
+                        ? `ACH bank payment: invoice balance ${formatMoney(selectedTotal)} + ACH fee ${formatMoney(selectedProcessingFee)} = ACH total ${formatMoney(selectedChargeTotal)}`
                         : `Card checkout: invoice balance ${formatMoney(selectedTotal)} + card fee ${formatMoney(selectedProcessingFee)} = card total ${formatMoney(selectedChargeTotal)}`}
                     </small>
                   )}
@@ -561,7 +569,7 @@ export default function InvoicesPage() {
                 <strong>Secure card or ACH payment</strong>
                 <span>
                   Choose checking account / ACH to enter bank information securely in Stripe with no card-processing fee.
-                  The processing fee is only added to card payments. Bur Oaks never sees or stores full bank-account numbers.
+                  The ACH fee is 0.8% with a $5 maximum and is shown before checkout. Bur Oaks never sees or stores full bank-account numbers.
                 </span>
               </div>
             )}
@@ -581,7 +589,7 @@ export default function InvoicesPage() {
                   const statusBadge = invoiceStatusBadge(invoice)
                   const processingFee = invoicePaymentMethod === 'card'
                     ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
-                    : 0
+                    : calculateAchProcessingFee(Number(invoice.total_due || 0))
                   const payToday = Number(invoice.total_due || 0) + processingFee
                   const invoiceItems = Array.isArray(invoice.invoice_items)
                     ? invoice.invoice_items
@@ -637,7 +645,7 @@ export default function InvoicesPage() {
                         {!isPaid && !isProcessing && (
                           <small>
                             {invoicePaymentMethod === 'ach'
-                              ? `ACH bank payment: ${formatMoney(invoice.total_due)} with no card-processing fee`
+                              ? `ACH bank payment: ${formatMoney(invoice.total_due)} invoice + ${formatMoney(processingFee)} ACH fee = ${formatMoney(payToday)}`
                               : `Card checkout: ${formatMoney(invoice.total_due)} invoice + ${formatMoney(processingFee)} card fee = ${formatMoney(payToday)}`}
                           </small>
                         )}

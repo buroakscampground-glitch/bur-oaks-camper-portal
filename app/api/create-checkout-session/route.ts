@@ -3,7 +3,12 @@ import Stripe from 'stripe'
 import { createHash } from 'crypto'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
-import { calculateCardProcessingFeeCents, loadPaymentFeeSettings } from '../../../lib/payment-fees'
+import {
+  achProcessingFeeLabel,
+  calculateAchProcessingFeeCents,
+  calculateCardProcessingFeeCents,
+  loadPaymentFeeSettings,
+} from '../../../lib/payment-fees'
 import { getSiteUrl } from '../../../lib/site-url'
 import { loadAuthorizedBillingCampers } from '../../../lib/authorized-billing'
 
@@ -95,7 +100,7 @@ export async function POST(request: Request) {
     const feeSettings = await loadPaymentFeeSettings(context.admin)
     const processingFeeCents = paymentMethod === 'card'
       ? calculateCardProcessingFeeCents(invoiceSubtotalCents, feeSettings)
-      : 0
+      : calculateAchProcessingFeeCents(invoiceSubtotalCents)
 
     const lineItems = invoices.map((invoice) => {
       const amount = Math.round(Number(invoice.total_due || 0) * 100)
@@ -121,7 +126,9 @@ export async function POST(request: Request) {
         price_data: {
           currency: 'usd',
           product_data: {
-            name: `${feeSettings.label} — online card checkout only`,
+            name: paymentMethod === 'ach'
+              ? achProcessingFeeLabel
+              : `${feeSettings.label} — online card checkout only`,
           },
           unit_amount: processingFeeCents,
         },

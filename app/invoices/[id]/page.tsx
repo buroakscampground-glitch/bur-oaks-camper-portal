@@ -17,7 +17,13 @@ import { useParams } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../../lib/supabase'
 import { checkoutItems, type InvoicePaymentMethod } from '../../../lib/stripe'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../lib/invoice-display'
-import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
+import {
+  achProcessingFeeLabel,
+  calculateAchProcessingFee,
+  calculateCardProcessingFee,
+  cardProcessingFeeSettings,
+  loadPaymentFeeSettings,
+} from '../../../lib/payment-fees'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -200,7 +206,7 @@ export default function CamperInvoiceDetailPage() {
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
   const processingFee = paymentMethod === 'card'
     ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
-    : 0
+    : calculateAchProcessingFee(Number(invoice.total_due || 0))
   const payToday = Number(invoice.total_due || 0) + processingFee
   const visibleItemLines = items.length
     ? items.map((item) => ({
@@ -280,7 +286,7 @@ export default function CamperInvoiceDetailPage() {
               </div>
               <small>
                 {paymentMethod === 'ach'
-                  ? 'Enter your routing and checking-account information securely through Stripe. No card-processing fee is added. ACH payments can take several business days to confirm.'
+                  ? `Enter your routing and checking-account information securely through Stripe. The ${achProcessingFeeLabel.toLowerCase()} is shown below. ACH payments can take several business days to confirm.`
                   : `Card payments include the ${feeSettings.label.toLowerCase()}.`}
               </small>
             </div>
@@ -292,11 +298,11 @@ export default function CamperInvoiceDetailPage() {
             <p className="grand-total"><span>Total due</span><strong>{formatMoney(invoice.total_due)}</strong></p>
             {!isPaid && !isProcessing && (
               <>
-                {paymentMethod === 'card' && <p><span>{feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>}
+                <p><span>{paymentMethod === 'ach' ? achProcessingFeeLabel : feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>
                 <p className="grand-total"><span>{paymentMethod === 'ach' ? 'ACH bank payment' : 'Total charged by card today'}</span><strong>{formatMoney(payToday)}</strong></p>
                 <small className="camper-invoice-processing-note">
                   {paymentMethod === 'ach'
-                    ? 'Stripe securely handles your routing and account numbers. Bur Oaks does not see or store your full bank-account information.'
+                    ? 'The ACH fee is 0.8% with a $5 maximum. Stripe securely handles your routing and account numbers; Bur Oaks does not see or store your full bank-account information.'
                     : 'This fee is only added when you choose online card checkout through Stripe. ACH bank payments do not include this card fee. Bur Oaks does not store your full card number.'}
                 </small>
               </>

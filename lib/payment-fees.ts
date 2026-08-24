@@ -2,6 +2,8 @@ const defaultPercent = 3
 const defaultFlatCents = 30
 const percentKey = 'card_processing_fee_percent'
 const flatCentsKey = 'card_processing_fee_flat_cents'
+const achPercent = 0.8
+const achFeeCapCents = 500
 
 export type CardProcessingFeeSettings = {
   percent: number
@@ -84,3 +86,15 @@ export function calculateCardProcessingFeeCents(invoiceTotalCents: number, setti
 export function calculateCardProcessingFee(amount: number, settings?: Partial<CardProcessingFeeSettings> | null) {
   return calculateCardProcessingFeeCents(Math.round(Number(amount || 0) * 100), settings) / 100
 }
+
+export function calculateAchProcessingFeeCents(invoiceTotalCents: number) {
+  const subtotal = Math.max(0, Math.round(Number(invoiceTotalCents || 0)))
+  if (subtotal <= 0) return 0
+  return Math.min(achFeeCapCents, Math.ceil(subtotal * (achPercent / 100)))
+}
+
+export function calculateAchProcessingFee(amount: number) {
+  return calculateAchProcessingFeeCents(Math.round(Number(amount || 0) * 100)) / 100
+}
+
+export const achProcessingFeeLabel = 'ACH processing fee (0.8%, maximum $5)'
