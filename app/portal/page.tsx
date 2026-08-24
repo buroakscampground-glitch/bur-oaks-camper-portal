@@ -761,6 +761,10 @@ export default function CamperPortalPage() {
     },
   ]
   const camperInitials = `${camper?.first_name?.[0] || ''}${camper?.last_name?.[0] || ''}`.toUpperCase() || 'BO'
+  const welcomeNames = [camper?.first_name, camper?.second_profile_first_name]
+    .map((name) => String(name || '').trim())
+    .filter(Boolean)
+    .join(' and ') || 'Camper'
   const identityBadges = [
     { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
     { label: 'Insurance', value: insuranceOnFile ? 'On file' : 'Optional', complete: true },
@@ -956,7 +960,7 @@ export default function CamperPortalPage() {
                 <strong>Lot {camper?.lot_number || '—'}</strong>
               </div>
             </div>
-            <h1>Welcome back, {camper?.first_name || 'Camper'}.</h1>
+            <h1>Welcome back, {welcomeNames}.</h1>
             <p>
               Everything for your stay at Bur Oaks—from account details to
               campground happenings—is right here.
