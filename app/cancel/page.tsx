@@ -13,7 +13,7 @@ export default function CancelPage() {
         <div className="payment-result-icon"><span><X size={34} /></span></div>
         <div className="payment-result-eyebrow"><CreditCard size={15} /> CHECKOUT CLOSED</div>
         <h1>No payment was made.</h1>
-        <p>Your checkout was cancelled and your card was not charged. Your invoice remains open.</p>
+        <p>Your checkout was cancelled and no card or bank payment was submitted. Your invoice remains open.</p>
 
         <div className="payment-result-note">
           <ShieldCheck size={21} />
@@ -28,8 +28,8 @@ export default function CancelPage() {
           </article>
           <article>
             <ShieldCheck size={18} />
-            <strong>No card charge</strong>
-            <small>Closing checkout does not run a payment or change your saved billing information.</small>
+            <strong>No payment submitted</strong>
+            <small>Closing checkout does not run a card or ACH payment or change your saved billing information.</small>
           </article>
           <article>
             <RefreshCcw size={18} />

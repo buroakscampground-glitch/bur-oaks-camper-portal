@@ -6,14 +6,16 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
+  CreditCard,
   Hourglass,
   LockKeyhole,
   Printer,
   ReceiptText,
+  WalletCards,
 } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../../lib/supabase'
-import { checkoutItems } from '../../../lib/stripe'
+import { checkoutItems, type InvoicePaymentMethod } from '../../../lib/stripe'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../lib/invoice-display'
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 
@@ -48,6 +50,7 @@ export default function CamperInvoiceDetailPage() {
   const [message, setMessage] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
   const [authorizedFamilyBilling, setAuthorizedFamilyBilling] = useState(false)
+  const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>('card')
 
   useEffect(() => {
     async function loadInvoice() {
@@ -160,6 +163,7 @@ export default function CamperInvoiceDetailPage() {
         `${window.location.origin}/success`,
         `${window.location.origin}/invoices`,
         [invoice.id],
+        paymentMethod,
       )
     } catch (error: any) {
       setMessage(error.message || 'Unable to start secure checkout.')
@@ -194,7 +198,9 @@ export default function CamperInvoiceDetailPage() {
   const isPaid = invoice.status === 'paid'
   const isProcessing = invoice.status === 'processing'
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
-  const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
+  const processingFee = paymentMethod === 'card'
+    ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
+    : 0
   const payToday = Number(invoice.total_due || 0) + processingFee
   const visibleItemLines = items.length
     ? items.map((item) => ({
@@ -261,16 +267,37 @@ export default function CamperInvoiceDetailPage() {
             ))}
           </div>
 
+          {!isPaid && !isProcessing && (
+            <div className="camper-invoice-payment-choice">
+              <strong>Choose how to pay</strong>
+              <div>
+                <button type="button" className={paymentMethod === 'card' ? 'active' : ''} onClick={() => setPaymentMethod('card')}>
+                  <CreditCard size={17} /> Card
+                </button>
+                <button type="button" className={paymentMethod === 'ach' ? 'active' : ''} onClick={() => setPaymentMethod('ach')}>
+                  <WalletCards size={17} /> Checking account / ACH
+                </button>
+              </div>
+              <small>
+                {paymentMethod === 'ach'
+                  ? 'Enter your routing and checking-account information securely through Stripe. No card-processing fee is added. ACH payments can take several business days to confirm.'
+                  : `Card payments include the ${feeSettings.label.toLowerCase()}.`}
+              </small>
+            </div>
+          )}
+
           <div className="camper-invoice-total-box">
             <p><span>Subtotal</span><strong>{formatMoney(subtotal || invoice.subtotal || invoice.total_due)}</strong></p>
             <p><span>Late fee</span><strong>{formatMoney(invoice.late_fee)}</strong></p>
             <p className="grand-total"><span>Total due</span><strong>{formatMoney(invoice.total_due)}</strong></p>
             {!isPaid && !isProcessing && (
               <>
-                <p><span>{feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>
-                <p className="grand-total"><span>Total charged by card today</span><strong>{formatMoney(payToday)}</strong></p>
+                {paymentMethod === 'card' && <p><span>{feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>}
+                <p className="grand-total"><span>{paymentMethod === 'ach' ? 'ACH bank payment' : 'Total charged by card today'}</span><strong>{formatMoney(payToday)}</strong></p>
                 <small className="camper-invoice-processing-note">
-                  This fee is only added when you choose online card checkout through Stripe. Cash, check, and office-posted payments do not include this card checkout fee. Bur Oaks does not store your full card number.
+                  {paymentMethod === 'ach'
+                    ? 'Stripe securely handles your routing and account numbers. Bur Oaks does not see or store your full bank-account information.'
+                    : 'This fee is only added when you choose online card checkout through Stripe. ACH bank payments do not include this card fee. Bur Oaks does not store your full card number.'}
                 </small>
               </>
             )}
@@ -283,7 +310,7 @@ export default function CamperInvoiceDetailPage() {
               <span className="camper-invoice-processing"><Hourglass size={18} /> Bank payment processing — please do not pay again</span>
             ) : (
               <button type="button" onClick={payInvoice} disabled={paying}>
-                <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : `Pay ${formatMoney(payToday)}`} <ChevronRight size={16} />
+                <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : `${paymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} ${formatMoney(payToday)}`} <ChevronRight size={16} />
               </button>
             )}
             {message && <p>{message}</p>}

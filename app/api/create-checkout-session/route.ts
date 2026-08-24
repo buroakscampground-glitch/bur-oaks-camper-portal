@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json()
+    const paymentMethod = body.paymentMethod === 'ach' ? 'ach' : 'card'
     const requestedIds = Array.isArray(body.invoiceIds)
       ? Array.from(new Set(body.invoiceIds.filter((id: unknown) => typeof id === 'string')))
       : []
@@ -92,7 +93,9 @@ export async function POST(request: Request) {
       return sum + Math.round(Number(invoice.total_due || 0) * 100)
     }, 0)
     const feeSettings = await loadPaymentFeeSettings(context.admin)
-    const processingFeeCents = calculateCardProcessingFeeCents(invoiceSubtotalCents, feeSettings)
+    const processingFeeCents = paymentMethod === 'card'
+      ? calculateCardProcessingFeeCents(invoiceSubtotalCents, feeSettings)
+      : 0
 
     const lineItems = invoices.map((invoice) => {
       const amount = Math.round(Number(invoice.total_due || 0) * 100)
@@ -142,6 +145,7 @@ export async function POST(request: Request) {
         [...verifiedInvoiceIds].sort().join(','),
         String(invoiceSubtotalCents),
         String(processingFeeCents),
+        paymentMethod,
         String(checkoutWindow),
       ].join('|'))
       .digest('hex')
@@ -153,12 +157,15 @@ export async function POST(request: Request) {
       cancel_url: `${origin}/invoices`,
       client_reference_id: context.user.id,
       customer_email: context.user.email || undefined,
+      payment_method_types: paymentMethod === 'ach' ? ['us_bank_account'] : ['card'],
+      ...(paymentMethod === 'ach' ? { customer_creation: 'always' as const } : {}),
       metadata: {
         invoice_ids: JSON.stringify(verifiedInvoiceIds),
         camper_id: billedCamperId,
         paid_by_email: context.user.email || '',
         billing_access: delegatedPayment ? 'authorized_family_payer' : 'camper',
         purpose: 'invoice_payment',
+        payment_method: paymentMethod,
         invoice_subtotal_cents: String(invoiceSubtotalCents),
         processing_fee_cents: String(processingFeeCents),
       },
@@ -169,6 +176,7 @@ export async function POST(request: Request) {
           paid_by_email: context.user.email || '',
           billing_access: delegatedPayment ? 'authorized_family_payer' : 'camper',
           purpose: 'invoice_payment',
+          payment_method: paymentMethod,
           invoice_subtotal_cents: String(invoiceSubtotalCents),
           processing_fee_cents: String(processingFeeCents),
         },

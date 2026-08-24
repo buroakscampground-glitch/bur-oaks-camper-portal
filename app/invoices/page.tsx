@@ -22,7 +22,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
-import { checkoutItems } from '../../lib/stripe'
+import { checkoutItems, type InvoicePaymentMethod } from '../../lib/stripe'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../lib/invoice-display'
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../lib/payment-fees'
 import {
@@ -111,6 +111,7 @@ export default function InvoicesPage() {
   const [smsMessage, setSmsMessage] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
   const [familyBillingAccounts, setFamilyBillingAccounts] = useState<any[]>([])
+  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState<InvoicePaymentMethod>('card')
 
   useEffect(() => {
     async function loadAccount() {
@@ -289,7 +290,9 @@ export default function InvoicesPage() {
   const selectedTotal = payableInvoices
     .filter((invoice) => selectedInvoices.includes(invoice.id))
     .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-  const selectedProcessingFee = selectedInvoices.length ? calculateCardProcessingFee(selectedTotal, feeSettings) : 0
+  const selectedProcessingFee = selectedInvoices.length && invoicePaymentMethod === 'card'
+    ? calculateCardProcessingFee(selectedTotal, feeSettings)
+    : 0
   const selectedChargeTotal = selectedTotal + selectedProcessingFee
   const visibleInvoices = invoices.filter((invoice) => {
     if (filter === 'open') return invoice.status !== 'paid'
@@ -322,7 +325,8 @@ export default function InvoicesPage() {
         buildCheckoutItems(invoicesToPay),
         `${window.location.origin}/success`,
         `${window.location.origin}/invoices`,
-        invoicesToPay.map((invoice) => invoice.id)
+        invoicesToPay.map((invoice) => invoice.id),
+        invoicePaymentMethod
       )
     } catch (error: any) {
       window.alert(error.message || 'Unable to start Stripe checkout.')
@@ -405,7 +409,7 @@ export default function InvoicesPage() {
           <div>
             <span><ShieldCheck size={18} /></span>
             <strong>Secure Stripe checkout</strong>
-            <small>Card payments open in Stripe. Bur Oaks does not store your full card number.</small>
+            <small>Card and ACH bank payments open securely in Stripe. Bur Oaks does not store full card or bank-account numbers.</small>
           </div>
           <div>
             <span><FileText size={18} /></span>
@@ -511,13 +515,34 @@ export default function InvoicesPage() {
             </div>
 
             {payableInvoices.length > 0 && (
+              <div className="account-payment-method-choice">
+                <strong>How would you like to pay?</strong>
+                <div>
+                  <button type="button" className={invoicePaymentMethod === 'card' ? 'active' : ''} onClick={() => setInvoicePaymentMethod('card')}>
+                    <CreditCard size={17} /> Card
+                  </button>
+                  <button type="button" className={invoicePaymentMethod === 'ach' ? 'active' : ''} onClick={() => setInvoicePaymentMethod('ach')}>
+                    <WalletCards size={17} /> Checking account / ACH
+                  </button>
+                </div>
+                <small>
+                  {invoicePaymentMethod === 'ach'
+                    ? 'Stripe will securely collect your routing and checking-account information. No card-processing fee is added. ACH payments can take several business days to confirm.'
+                    : `Card payments include the ${feeSettings.label.toLowerCase()}. You will review the total before paying.`}
+                </small>
+              </div>
+            )}
+
+            {payableInvoices.length > 0 && (
               <div className="account-selection-bar">
                 <div>
                   <strong>{selectedInvoices.length || 'No'} selected</strong>
                   <span>{formatMoney(selectedTotal)}</span>
                   {selectedInvoices.length > 0 && (
                     <small className="account-processing-fee-note">
-                      Card checkout only: invoice balance {formatMoney(selectedTotal)} + card fee {formatMoney(selectedProcessingFee)} = card total {formatMoney(selectedChargeTotal)}
+                      {invoicePaymentMethod === 'ach'
+                        ? `ACH bank payment: ${formatMoney(selectedTotal)} with no card-processing fee`
+                        : `Card checkout: invoice balance ${formatMoney(selectedTotal)} + card fee ${formatMoney(selectedProcessingFee)} = card total ${formatMoney(selectedChargeTotal)}`}
                     </small>
                   )}
                 </div>
@@ -525,7 +550,7 @@ export default function InvoicesPage() {
                   <button type="button" className="account-text-button" onClick={() => setSelectedInvoices(payableInvoices.map((invoice) => invoice.id))}>Select all payable</button>
                   {selectedInvoices.length > 0 && <button type="button" className="account-text-button" onClick={() => setSelectedInvoices([])}>Clear</button>}
                   <button type="button" className="account-pay-button" onClick={handlePaySelected} disabled={selectedInvoices.length === 0 || checkoutLoading}>
-                    <LockKeyhole size={15} /> {checkoutLoading ? 'Opening checkout…' : `Pay ${formatMoney(selectedChargeTotal)}`}
+                    <LockKeyhole size={15} /> {checkoutLoading ? 'Opening checkout…' : `${invoicePaymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} ${formatMoney(selectedChargeTotal)}`}
                   </button>
                 </div>
               </div>
@@ -533,11 +558,10 @@ export default function InvoicesPage() {
 
             {payableInvoices.length > 0 && (
               <div className="account-processing-fee-disclosure">
-                <strong>{feeSettings.label}</strong>
+                <strong>Secure card or ACH payment</strong>
                 <span>
-                  This fee is only added if you choose to pay online by card through Stripe.
-                  Cash, check, and office-posted payments do not include this card checkout fee.
-                  You will see the invoice balance, card fee, and total before checkout opens.
+                  Choose checking account / ACH to enter bank information securely in Stripe with no card-processing fee.
+                  The processing fee is only added to card payments. Bur Oaks never sees or stores full bank-account numbers.
                 </span>
               </div>
             )}
@@ -555,7 +579,9 @@ export default function InvoicesPage() {
                   const isProcessing = invoice.status === 'processing'
                   const isSelected = selectedInvoices.includes(invoice.id)
                   const statusBadge = invoiceStatusBadge(invoice)
-                  const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
+                  const processingFee = invoicePaymentMethod === 'card'
+                    ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
+                    : 0
                   const payToday = Number(invoice.total_due || 0) + processingFee
                   const invoiceItems = Array.isArray(invoice.invoice_items)
                     ? invoice.invoice_items
@@ -610,7 +636,9 @@ export default function InvoicesPage() {
                         </span>
                         {!isPaid && !isProcessing && (
                           <small>
-                            Card checkout: {formatMoney(invoice.total_due)} invoice + {formatMoney(processingFee)} card fee = {formatMoney(payToday)}
+                            {invoicePaymentMethod === 'ach'
+                              ? `ACH bank payment: ${formatMoney(invoice.total_due)} with no card-processing fee`
+                              : `Card checkout: ${formatMoney(invoice.total_due)} invoice + ${formatMoney(processingFee)} card fee = ${formatMoney(payToday)}`}
                           </small>
                         )}
                       </div>

@@ -13127,3 +13127,68 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
     width: 100%;
   }
 }
+
+.account-payment-method-choice,
+.camper-invoice-payment-choice {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 16px;
+  padding: 16px;
+  border: 1px solid #dce3d9;
+  border-radius: 16px;
+  background: #f5f8f3;
+  color: #2b4032;
+}
+
+.camper-invoice-payment-choice {
+  margin: 20px 23px 0;
+}
+
+.account-payment-method-choice > div,
+.camper-invoice-payment-choice > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.account-payment-method-choice button,
+.camper-invoice-payment-choice button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 45px;
+  padding: 8px 12px;
+  border: 1px solid #cad5c8;
+  border-radius: 12px;
+  background: #fff;
+  color: #31513a;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.account-payment-method-choice button.active,
+.camper-invoice-payment-choice button.active {
+  border-color: #315f3d;
+  background: #315f3d;
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(49, 95, 61, .18);
+}
+
+.account-payment-method-choice small,
+.camper-invoice-payment-choice small {
+  color: #68766d;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 760px) {
+  .account-payment-method-choice > div,
+  .camper-invoice-payment-choice > div {
+    grid-template-columns: 1fr;
+  }
+
+  .camper-invoice-payment-choice {
+    margin: 16px 14px 0;
+  }
+}

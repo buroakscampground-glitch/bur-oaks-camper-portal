@@ -11,13 +11,13 @@ export default function SuccessPage() {
         </a>
 
         <div className="payment-result-icon"><span><Check size={38} /></span></div>
-        <div className="payment-result-eyebrow"><CircleDollarSign size={15} /> PAYMENT CONFIRMED</div>
-        <h1>You’re all set.</h1>
-        <p>Your payment was completed successfully. Your account balance will update in a moment.</p>
+        <div className="payment-result-eyebrow"><CircleDollarSign size={15} /> PAYMENT SUBMITTED</div>
+        <h1>Your payment is on its way.</h1>
+        <p>Stripe received your payment. Card payments usually confirm immediately; ACH bank payments can take several business days.</p>
 
         <div className="payment-result-note">
           <ReceiptText size={21} />
-          <div><strong>Payment received</strong><span>You can review the updated invoice and your full payment history from Billing & Payments.</span></div>
+          <div><strong>Payment submitted securely</strong><span>You can review the invoice and its current payment status from Billing & Payments.</span></div>
         </div>
 
         <div className="payment-result-next">

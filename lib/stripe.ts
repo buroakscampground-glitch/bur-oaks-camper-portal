@@ -5,11 +5,14 @@ export type CheckoutItem = {
   currency?: string;
 };
 
+export type InvoicePaymentMethod = 'card' | 'ach';
+
 export async function createCheckoutSession(
   items: CheckoutItem[],
   successUrl: string,
   cancelUrl: string,
-  invoiceIds: string[] = []
+  invoiceIds: string[] = [],
+  paymentMethod: InvoicePaymentMethod = 'card'
 ) {
   const { supabase } = await import('./supabase')
   const { data: sessionData } = await supabase.auth.getSession()
@@ -27,6 +30,7 @@ export async function createCheckoutSession(
     },
     body: JSON.stringify({
       invoiceIds,
+      paymentMethod,
     }),
   });
 
@@ -47,9 +51,10 @@ export async function checkoutItems(
   items: CheckoutItem[],
   successUrl: string,
   cancelUrl: string,
-  invoiceIds: string[] = []
+  invoiceIds: string[] = [],
+  paymentMethod: InvoicePaymentMethod = 'card'
 ) {
-  const session = await createCheckoutSession(items, successUrl, cancelUrl, invoiceIds);
+  const session = await createCheckoutSession(items, successUrl, cancelUrl, invoiceIds, paymentMethod);
 
   if (!session.url) {
     throw new Error('Stripe session URL is missing.');
