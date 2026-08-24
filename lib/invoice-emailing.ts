@@ -1,6 +1,6 @@
 import { escapeHtml } from './portal-invite-email'
 
-type InvoiceEmailKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due'
+type InvoiceEmailKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee'
 
 type SendInvoiceEmailOptions = {
   client: any
@@ -281,6 +281,16 @@ function emailCopy(invoice: any, kind: InvoiceEmailKind) {
     }
   }
 
+  if (kind === 'late_fee') {
+    return {
+      subject: `Late fee added to Bur Oaks invoice ${invoiceNumber}`,
+      heading: 'A late fee was added to your invoice.',
+      intro: `Invoice ${invoiceNumber} is more than five days past due. A late fee of ${money(invoice.late_fee)}—the greater of $20 or 20% of the unpaid balance—has been added.`,
+      statusLine: `Updated amount due: ${total}`,
+      reminderType: 'Late Fee Added',
+    }
+  }
+
   return {
     subject: `Past due Bur Oaks invoice`,
     heading: 'This invoice is past due.',
@@ -338,6 +348,7 @@ export async function sendInvoiceEmail({
       invoice_number,
       invoice_type,
       total_due,
+      late_fee,
       due_date,
       status,
       campers (id, lot_number, first_name, last_name, email, secondary_email, active),
@@ -395,6 +406,7 @@ export async function sendInvoiceEmail({
     copy.heading,
     copy.intro,
     copy.statusLine,
+    Number(invoice.late_fee || 0) > 0 ? `Late fee: ${money(invoice.late_fee)}` : '',
     `Due date: ${prettyDate(invoice.due_date)}`,
     invoice.invoice_number ? `Invoice: ${invoice.invoice_number}` : '',
     camper.lot_number ? `Lot: ${camper.lot_number}` : '',
@@ -428,6 +440,7 @@ export async function sendInvoiceEmail({
             <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Lot</span><strong>${escapeHtml(String(camper.lot_number || '—'))}</strong></div>
             <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Invoice</span><strong>${escapeHtml(String(invoice.invoice_number || '—'))}</strong></div>
             <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Due date</span><strong>${escapeHtml(prettyDate(invoice.due_date))}</strong></div>
+            ${Number(invoice.late_fee || 0) > 0 ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Late fee</span><strong>${escapeHtml(money(invoice.late_fee))}</strong></div>` : ''}
             <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">${escapeHtml(copy.statusLine.split(':')[0])}</span><strong>${escapeHtml(money(invoice.total_due))}</strong></div>
           </div>
           ${

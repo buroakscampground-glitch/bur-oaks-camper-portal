@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   const today = todayInCentral()
   const { data: invoices, error } = await admin
     .from('invoices')
-    .select('id,due_date,status,total_due')
+    .select('id,due_date,status,total_due,late_fee')
     .neq('status', 'paid')
     .neq('status', 'processing')
     .gt('total_due', 0)
@@ -45,10 +45,36 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  const invoiceIds = (invoices || []).map((invoice) => invoice.id)
+  const { data: lateFeeNotices, error: lateFeeNoticeError } = invoiceIds.length
+    ? await admin
+        .from('text_reminders')
+        .select('invoice_id,automation_key,status')
+        .in('invoice_id', invoiceIds)
+        .in('automation_key', ['invoice-late-fee', 'invoice-late-fee-email'])
+        .eq('status', 'sent')
+    : { data: [], error: null }
+
+  if (lateFeeNoticeError) {
+    return NextResponse.json({ error: lateFeeNoticeError.message }, { status: 500 })
+  }
+
+  const lateFeeEmailSent = new Set(
+    (lateFeeNotices || [])
+      .filter((notice) => notice.automation_key === 'invoice-late-fee-email')
+      .map((notice) => notice.invoice_id)
+  )
+  const lateFeeTextSent = new Set(
+    (lateFeeNotices || [])
+      .filter((notice) => notice.automation_key === 'invoice-late-fee')
+      .map((notice) => notice.invoice_id)
+  )
+
   const summary = {
     checked: invoices?.length || 0,
     textSent: 0,
     emailSent: 0,
+    lateFeesApplied: 0,
     skipped: 0,
     failed: 0,
     results: [] as any[],
@@ -56,6 +82,89 @@ export async function GET(request: Request) {
 
   for (const invoice of invoices || []) {
     const daysUntilDue = daysUntilDate(String(invoice.due_date), today)
+
+    if (daysUntilDue <= -6 && !lateFeeEmailSent.has(invoice.id)) {
+      let lateFee = Number(invoice.late_fee || 0)
+      let updatedTotal = Number(invoice.total_due || 0)
+
+      if (lateFee <= 0) {
+        const unpaidBalance = Math.round(updatedTotal * 100) / 100
+        lateFee = Math.max(20, Math.round(unpaidBalance * 20) / 100)
+        updatedTotal = Math.round((unpaidBalance + lateFee) * 100) / 100
+
+        const { data: updatedInvoice, error: updateError } = await admin
+          .from('invoices')
+          .update({ late_fee: lateFee, total_due: updatedTotal })
+          .eq('id', invoice.id)
+          .eq('total_due', invoice.total_due)
+          .neq('status', 'paid')
+          .neq('status', 'processing')
+          .or('late_fee.is.null,late_fee.eq.0')
+          .select('id,late_fee,total_due')
+          .maybeSingle()
+
+        if (updateError) {
+          summary.failed += 1
+          summary.results.push({
+            invoiceId: invoice.id,
+            dueDate: invoice.due_date,
+            kind: 'late_fee',
+            error: updateError.message,
+          })
+          continue
+        }
+
+        if (!updatedInvoice) {
+          summary.skipped += 1
+          continue
+        }
+
+        lateFee = Number(updatedInvoice.late_fee || lateFee)
+        updatedTotal = Number(updatedInvoice.total_due || updatedTotal)
+        summary.lateFeesApplied += 1
+      }
+
+      const [textResult, emailResult] = await Promise.all([
+        lateFeeTextSent.has(invoice.id)
+          ? Promise.resolve({ status: 'skipped', reason: 'The late-fee text was already sent.' })
+          : sendInvoiceText({
+              client: admin,
+              invoiceId: invoice.id,
+              kind: 'late_fee',
+              automationKey: 'invoice-late-fee',
+              reminderDate: today,
+              sentBy: 'invoice-reminder-cron',
+            }),
+        sendInvoiceEmail({
+          client: admin,
+          invoiceId: invoice.id,
+          kind: 'late_fee',
+          automationKey: 'invoice-late-fee-email',
+          reminderDate: today,
+          sentBy: 'invoice-reminder-cron',
+        }),
+      ])
+
+      if (textResult.status === 'sent') summary.textSent += 1
+      else if (textResult.status === 'failed') summary.failed += 1
+      else summary.skipped += 1
+
+      if (emailResult.status === 'sent') summary.emailSent += 1
+      else if (emailResult.status === 'failed') summary.failed += 1
+      else summary.skipped += 1
+
+      summary.results.push({
+        invoiceId: invoice.id,
+        dueDate: invoice.due_date,
+        kind: 'late_fee',
+        lateFee,
+        updatedTotal,
+        text: textResult,
+        email: emailResult,
+      })
+      continue
+    }
+
     let kind: 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | null = null
     let automationKey = ''
     let emailAutomationKey = ''

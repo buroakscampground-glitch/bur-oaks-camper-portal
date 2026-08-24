@@ -2,7 +2,7 @@ import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
 import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized-billing'
 
-type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due'
+type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee'
 
 type SendInvoiceTextOptions = {
   client: any
@@ -79,6 +79,10 @@ function buildInvoiceSms(invoice: any, kind: InvoiceTextKind, camper: any) {
     return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber}${site} for ${total} is due today, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
+  if (kind === 'late_fee') {
+    return `Bur Oaks Campground: A late fee of ${money(invoice.late_fee)} was added to past-due invoice #${invoiceNumber}${site}. Updated balance: ${total}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+  }
+
   return `Bur Oaks Campground: Past due reminder — invoice #${invoiceNumber}${site} for ${total} was due ${due}. Please pay or contact the office.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
 }
 
@@ -102,6 +106,7 @@ export async function sendInvoiceText({
       invoice_number,
       invoice_type,
       total_due,
+      late_fee,
       due_date,
       status,
       campers (id, lot_number, first_name, last_name, phone, sms_opt_in, active)
@@ -177,6 +182,8 @@ export async function sendInvoiceText({
           ? 'Invoice Due Tomorrow'
           : kind === 'due_today'
             ? 'Invoice Due Today'
+            : kind === 'late_fee'
+              ? 'Late Fee Added'
             : 'Past Due Invoice'
 
   let sentCount = 0
