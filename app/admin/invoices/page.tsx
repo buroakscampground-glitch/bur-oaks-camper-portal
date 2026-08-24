@@ -24,6 +24,7 @@ import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-in
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import AdminQuickText from '../../../components/AdminQuickText'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import { invoiceNumberPrefix, nextInvoiceNumber } from '../../../lib/invoice-number'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -66,13 +67,14 @@ export default function AdminInvoicesPage() {
       `)
       .order('created_at', { ascending: false })
 
-    setInvoices(
-      (data || []).sort((a: any, b: any) => {
-        if (a.status === 'paid' && b.status !== 'paid') return 1
-        if (a.status !== 'paid' && b.status === 'paid') return -1
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      })
-    )
+    const sortedInvoices = (data || []).sort((a: any, b: any) => {
+      if (a.status === 'paid' && b.status !== 'paid') return 1
+      if (a.status !== 'paid' && b.status === 'paid') return -1
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+
+    setInvoices(sortedInvoices)
+    setInvoiceNumber(nextInvoiceNumber(sortedInvoices))
   }
 
   useEffect(() => {
@@ -109,7 +111,6 @@ export default function AdminInvoicesPage() {
     setMessage('')
 
     if (!camperId) return setMessage('Please select a camper.')
-    if (!invoiceNumber.trim()) return setMessage('Please enter an invoice number.')
     if (!amount || Number(amount) <= 0) return setMessage('Please enter a valid amount.')
     if (!dueDate) return setMessage('Please select a due date.')
 
@@ -118,16 +119,27 @@ export default function AdminInvoicesPage() {
     const total = Number(amount)
 
     try {
+      const prefix = invoiceNumberPrefix()
+      const { data: todayInvoices, error: invoiceNumberError } = await supabase
+        .from('invoices')
+        .select('invoice_number')
+        .ilike('invoice_number', `${prefix}%`)
+
+      if (invoiceNumberError) throw invoiceNumberError
+
+      const assignedInvoiceNumber = nextInvoiceNumber(todayInvoices || [])
+      setInvoiceNumber(assignedInvoiceNumber)
+
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
       const bundle = await createInvoiceBundle({
         client: supabase,
-        operationKey: `manual-invoice:${invoiceNumber.trim().toLowerCase()}`,
+        operationKey: `manual-invoice:${assignedInvoiceNumber.toLowerCase()}`,
         invoice: {
           camper_id: camperId,
-          invoice_number: invoiceNumber.trim(),
+          invoice_number: assignedInvoiceNumber,
           invoice_type: description.trim() || 'Campground Charge',
           subtotal: total,
           late_fee: 0,
@@ -176,7 +188,6 @@ export default function AdminInvoicesPage() {
 
       setMessage(resultMessage)
       setCamperId('')
-      setInvoiceNumber('')
       setAmount('')
       setDueDate('')
       await loadInvoices()
@@ -293,7 +304,7 @@ export default function AdminInvoicesPage() {
             )}
 
             <div className="admin-invoice-form-row">
-              <label><span>Invoice number</span><input value={invoiceNumber} onChange={(event) => setInvoiceNumber(event.target.value)} placeholder="INV-1002" /></label>
+              <label><span>Invoice number</span><input value={invoiceNumber} readOnly aria-readonly="true" placeholder="Loading…" title="Assigned automatically when the invoice is created" /><small>Assigned automatically</small></label>
               <label><span>Due date</span><input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} /></label>
             </div>
 
