@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { checkoutItems, type InvoicePaymentMethod } from '../../lib/stripe'
+import { saveSmsConsentPreference } from '../../lib/sms-consent'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../lib/invoice-display'
 import {
   achProcessingFeeLabel,
@@ -263,24 +264,13 @@ export default function InvoicesPage() {
     setSmsSaving(true)
     setSmsMessage('')
 
-    const { data, error } = await supabase
-      .from('campers')
-      .update({
-        sms_opt_in: Boolean(nextValue),
-        sms_opt_in_at: nextValue ? camper.sms_opt_in_at || new Date().toISOString() : null,
-        event_reminders_opt_in: Boolean(nextValue),
-        event_reminders_opt_in_at: nextValue ? camper.event_reminders_opt_in_at || new Date().toISOString() : null,
-      })
-      .eq('id', camper.id)
-      .select('*')
-      .single()
-
-    if (error) {
-      setSmsMessage(error.message)
-    } else {
+    try {
+      const data = await saveSmsConsentPreference(Boolean(nextValue))
       setCamper(data)
       setSmsOptIn(Boolean(data.sms_opt_in))
       setSmsMessage(data.sms_opt_in ? 'Text alerts are turned on.' : 'Text alerts are turned off.')
+    } catch (error: any) {
+      setSmsMessage(error.message)
     }
 
     setSmsSaving(false)

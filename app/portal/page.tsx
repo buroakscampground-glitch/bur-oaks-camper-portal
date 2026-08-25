@@ -35,6 +35,7 @@ import {
   Zap,
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
+import { saveSmsConsentPreference } from '../../lib/sms-consent'
 import PortalWeather, { PortalWeatherMini } from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
@@ -543,19 +544,7 @@ export default function CamperPortalPage() {
 
     try {
       if (decision === 'accepted') {
-        const { data, error } = await supabase
-          .from('campers')
-          .update({
-            sms_opt_in: true,
-            sms_opt_in_at: camper.sms_opt_in_at || new Date().toISOString(),
-            event_reminders_opt_in: true,
-            event_reminders_opt_in_at: camper.event_reminders_opt_in_at || new Date().toISOString(),
-          })
-          .eq('id', camper.id)
-          .select('*')
-          .single()
-
-        if (error) throw error
+        const data = await saveSmsConsentPreference(true)
         setCamper(data)
       }
 

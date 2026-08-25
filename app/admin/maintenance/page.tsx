@@ -16,11 +16,10 @@ import {
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import { markAdminAlertsSeen } from '../../../lib/admin-alert-actions'
-
-const completedTicketStatuses = new Set(['completed', 'complete', 'closed', 'resolved', 'done'])
+import { isCompletedTicketStatus } from '../../../lib/maintenance-status'
 
 function isCompletedTicket(ticket: any) {
-  return completedTicketStatuses.has(String(ticket?.status || '').trim().toLowerCase())
+  return isCompletedTicketStatus(ticket?.status)
 }
 
 export default function MaintenancePage() {

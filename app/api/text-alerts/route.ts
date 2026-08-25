@@ -3,7 +3,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
-import { camperSmsPhones } from '../../../lib/camper-sms'
+import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
 
 function camperName(camper: any) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
   const results: any[] = []
 
   for (const camper of targetCampers) {
-    const phones = camperSmsPhones(camper)
+    const phones = await consentedCamperSmsPhones(context.admin, camper)
     if (!phones.length) {
       results.push({
         camperId: camper.id,

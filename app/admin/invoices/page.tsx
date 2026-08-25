@@ -24,7 +24,7 @@ import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-in
 import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import AdminQuickText from '../../../components/AdminQuickText'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { invoiceNumberPrefix, nextInvoiceNumber } from '../../../lib/invoice-number'
+import { nextInvoiceNumber } from '../../../lib/invoice-number'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -119,15 +119,11 @@ export default function AdminInvoicesPage() {
     const total = Number(amount)
 
     try {
-      const prefix = invoiceNumberPrefix()
-      const { data: todayInvoices, error: invoiceNumberError } = await supabase
-        .from('invoices')
-        .select('invoice_number')
-        .ilike('invoice_number', `${prefix}%`)
+      const { data: assignedInvoiceNumber, error: invoiceNumberError } = await supabase
+        .rpc('next_manual_invoice_number')
 
       if (invoiceNumberError) throw invoiceNumberError
-
-      const assignedInvoiceNumber = nextInvoiceNumber(todayInvoices || [])
+      if (!assignedInvoiceNumber) throw new Error('Unable to reserve an invoice number.')
       setInvoiceNumber(assignedInvoiceNumber)
 
       const {

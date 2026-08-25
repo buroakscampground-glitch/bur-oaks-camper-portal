@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { todayInCentral } from '../../../../lib/invoice-texting'
 import { formatSmsPhone, sendTwilioSms } from '../../../../lib/twilio-sms'
-import { camperSmsPhones } from '../../../../lib/camper-sms'
+import { consentedCamperSmsPhones } from '../../../../lib/camper-sms'
 import { isSystemPortalAccount } from '../../../../lib/camper-records'
 
 export const dynamic = 'force-dynamic'
@@ -169,7 +169,7 @@ export async function GET(request: Request) {
     }
 
     let smsStatus = 'skipped'
-    const phones = camper.sms_opt_in ? camperSmsPhones(camper) : []
+    const phones = await consentedCamperSmsPhones(admin, camper)
     if (phones.length) {
       const text = `Bur Oaks Campground: Your seasonal renewal form is ready. Please review it and let the office know your decision by ${shiftMonths(record.contract_end_date, -3)}.\nClick here to review and sign: https://www.buroakscampground.com/documents\nReply STOP to opt out.`
       const smsResults = []

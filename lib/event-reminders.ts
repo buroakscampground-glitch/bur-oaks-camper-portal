@@ -1,7 +1,7 @@
 import { escapeHtml } from './portal-invite-email'
 import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
-import { camperSmsPhones } from './camper-sms'
+import { consentedCamperSmsPhones } from './camper-sms'
 
 type CentralDate = {
   year: number
@@ -179,7 +179,7 @@ async function sendEmail({ to, subject, text, html }: { to: string[]; subject: s
 }
 
 async function reserveDelivery(client: any, eventId: string, camperId: string, reminderDate: string, channel: 'email' | 'sms', recipient: string, subject: string | null, message: string) {
-  const key = { event_id: eventId, camper_id: camperId, reminder_date: reminderDate, channel }
+  const key = { event_id: eventId, camper_id: camperId, reminder_date: reminderDate, channel, recipient_key: recipient }
   const { data: existing, error: lookupError } = await client
     .from('event_reminder_deliveries')
     .select('id,status,updated_at')
@@ -247,24 +247,29 @@ export async function sendEventReminder({ client, camper, event, today, days }: 
     }
   }
 
-  const phones = camper.sms_opt_in && isTwilioConfigured() ? camperSmsPhones(camper) : []
+  const phones = camper.sms_opt_in && isTwilioConfigured()
+    ? await consentedCamperSmsPhones(client, camper)
+    : []
   if (phones.length) {
-    const reservation = await reserveDelivery(client, String(event.id), camper.id, today.iso, 'sms', phones.join(', '), null, copy.sms)
-    if (reservation.reserved && reservation.id) {
-      const results = []
-      for (const phone of phones) {
-        results.push(await sendTwilioSms({ to: phone, body: copy.sms }))
+    let sent = 0
+    let failed = 0
+    for (const phone of phones) {
+      const reservation = await reserveDelivery(client, String(event.id), camper.id, today.iso, 'sms', phone, null, copy.sms)
+      if (!reservation.reserved || !reservation.id) continue
+      const result = await sendTwilioSms({ to: phone, body: copy.sms })
+      await finalizeDelivery(client, reservation.id, {
+        sent: result.sent,
+        provider: 'twilio',
+        providerMessageId: result.sent ? result.providerMessageId : null,
+        error: result.sent ? undefined : result.error,
+      })
+      if (result.sent) sent += 1
+      else {
+        failed += 1
+        summary.errors.push(result.error || `Text reminder to ${phone} failed.`)
       }
-      const failed = results.filter((result) => !result.sent)
-      const providerMessageIds = results.flatMap((result) => result.sent ? [result.providerMessageId] : [])
-      const failureMessage = results.flatMap((result) => result.sent ? [] : [result.error || 'Text failed.']).join('; ')
-      const deliveryResult = failed.length === 0
-        ? { sent: true, provider: 'twilio', providerMessageId: providerMessageIds.join(', ') }
-        : { sent: false, provider: 'twilio', error: failureMessage }
-      await finalizeDelivery(client, reservation.id, deliveryResult)
-      summary.sms = failed.length === 0 ? 'sent' : 'failed'
-      if (failed.length) summary.errors.push(deliveryResult.error || 'One or more text reminders failed.')
     }
+    summary.sms = failed ? 'failed' : sent ? 'sent' : 'skipped'
   }
 
   return summary

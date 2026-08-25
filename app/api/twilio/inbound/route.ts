@@ -62,24 +62,45 @@ export async function POST(request: Request) {
   })
   const { data: campers } = await admin
     .from('campers')
-    .select('id,phone,alternate_phone,second_profile_phone')
+    .select('id,phone,alternate_phone,second_profile_phone,sms_opt_in_at,event_reminders_opt_in_at')
     .eq('active', true)
   const camper = (campers || []).find((item) => camperSmsPhones(item).includes(from || ''))
 
-  if (camper && action === 'opt_out') {
+  if (camper && from && (action === 'opt_out' || action === 'opt_in')) {
+    const now = new Date().toISOString()
+    const optedIn = action === 'opt_in'
+    const { error: consentError } = await admin.from('sms_phone_consents').upsert({
+      camper_id: camper.id,
+      phone_number: from,
+      opted_in: optedIn,
+      opted_in_at: optedIn ? now : null,
+      opted_out_at: optedIn ? null : now,
+      source: 'twilio-keyword',
+      updated_at: now,
+    }, { onConflict: 'camper_id,phone_number' })
+
+    if (consentError && !['42P01', 'PGRST205'].includes(consentError.code || '')) {
+      console.error('Unable to update phone consent:', consentError.code)
+      return NextResponse.json({ error: 'Unable to update text consent.' }, { status: 500 })
+    }
+
+    let householdEnabled = optedIn
+    if (!consentError && !optedIn) {
+      const savedPhones = camperSmsPhones(camper)
+      const { data: consentRows } = await admin
+        .from('sms_phone_consents')
+        .select('phone_number,opted_in')
+        .eq('camper_id', camper.id)
+        .in('phone_number', savedPhones)
+      householdEnabled = (consentRows || []).some((row) => row.opted_in === true)
+    }
+
     await admin.from('campers').update({
-      sms_opt_in: false,
-      event_reminders_opt_in: false,
-      sms_opt_out_at: new Date().toISOString(),
-      sms_last_keyword: keyword,
-    }).eq('id', camper.id)
-  } else if (camper && action === 'opt_in') {
-    await admin.from('campers').update({
-      sms_opt_in: true,
-      sms_opt_in_at: new Date().toISOString(),
-      event_reminders_opt_in: true,
-      event_reminders_opt_in_at: new Date().toISOString(),
-      sms_opt_out_at: null,
+      sms_opt_in: householdEnabled,
+      event_reminders_opt_in: householdEnabled,
+      sms_opt_in_at: optedIn ? now : camper.sms_opt_in_at,
+      event_reminders_opt_in_at: optedIn ? now : camper.event_reminders_opt_in_at,
+      sms_opt_out_at: householdEnabled ? null : now,
       sms_last_keyword: keyword,
     }).eq('id', camper.id)
   }

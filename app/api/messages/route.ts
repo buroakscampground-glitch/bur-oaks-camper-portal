@@ -8,7 +8,7 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { camperTextWithLink } from '../../../lib/portal-sms-links'
 import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
-import { camperSmsPhones } from '../../../lib/camper-sms'
+import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
 
 export const runtime = 'nodejs'
 
@@ -32,7 +32,7 @@ async function sendCamperMessageText(admin: any, camper: any, sentBy: string, me
     return { status: 'skipped' as const, reason: 'Twilio is not connected.', sentCount: 0, failedCount: 0, skippedCount: 1 }
   }
 
-  const phones = camperSmsPhones(camper)
+  const phones = await consentedCamperSmsPhones(admin, camper)
   if (!phones.length) {
     return { status: 'skipped' as const, reason: 'Camper does not have a valid mobile number.', sentCount: 0, failedCount: 0, skippedCount: 1 }
   }

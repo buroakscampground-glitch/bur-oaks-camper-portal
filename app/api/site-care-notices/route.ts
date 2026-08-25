@@ -4,7 +4,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { sendTwilioSms } from '../../../lib/twilio-sms'
 import { camperTextWithLink } from '../../../lib/portal-sms-links'
-import { camperSmsPhones } from '../../../lib/camper-sms'
+import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
 
 export const runtime = 'nodejs'
 
@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     })
   }
 
-  const phones = camperSmsPhones(targetCamper)
+  const phones = await consentedCamperSmsPhones(context.admin, targetCamper)
   if (!phones.length) {
     return NextResponse.json({
       success: true,

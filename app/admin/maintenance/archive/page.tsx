@@ -6,8 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Archive, CheckCircle2, Search, Wrench } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
-
-const completedTicketStatuses = ['Completed', 'Complete', 'Closed', 'Resolved', 'Done']
+import { completedTicketStatusFilter, isCompletedTicketStatus } from '../../../../lib/maintenance-status'
 
 export default function MaintenanceArchivePage() {
   const [tickets, setTickets] = useState<any[]>([])
@@ -27,10 +26,10 @@ export default function MaintenanceArchivePage() {
     const { data, error: loadError } = await supabase
       .from('maintenance_tickets')
       .select('*')
-      .in('status', completedTicketStatuses)
+      .or(completedTicketStatusFilter)
       .order('completed_at', { ascending: false, nullsFirst: false })
 
-    setTickets(data || [])
+    setTickets((data || []).filter((ticket) => isCompletedTicketStatus(ticket.status)))
     setError(loadError?.message || '')
     setLoading(false)
   }

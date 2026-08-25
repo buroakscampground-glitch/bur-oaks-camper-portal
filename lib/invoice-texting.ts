@@ -1,7 +1,7 @@
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
 import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized-billing'
-import { camperSmsPhones, phoneAutomationKey } from './camper-sms'
+import { consentedCamperSmsPhones, phoneAutomationKey } from './camper-sms'
 
 type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee'
 
@@ -133,7 +133,7 @@ export async function sendInvoiceText({
   }
 
   const recipients: Array<{ camperId: string; phone: string; automationKey: string }> = []
-  const ownerPhones = camper.sms_opt_in ? camperSmsPhones(camper) : []
+  const ownerPhones = await consentedCamperSmsPhones(client, camper)
   const primaryOwnerPhone = formatSmsPhone(camper.phone)
   for (const phone of ownerPhones) {
     recipients.push({
@@ -159,7 +159,7 @@ export async function sendInvoiceText({
       const matchedEmail = [delegate.email, delegate.secondary_email]
         .map(normalizeBillingEmail)
         .find((email) => allowedEmails.has(email))
-      const delegatePhones = delegate.sms_opt_in ? camperSmsPhones(delegate) : []
+      const delegatePhones = await consentedCamperSmsPhones(client, delegate)
       if (!matchedEmail || !delegatePhones.length) continue
 
       const safeEmailKey = matchedEmail.replace(/[^a-z0-9]+/g, '-').slice(0, 40)

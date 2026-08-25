@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { CakeSlice, CheckCircle2, ClipboardCheck, Eye, FileUp, PartyPopper, ShieldCheck, UsersRound } from 'lucide-react'
 import AddressFinder from '../../components/AddressFinder'
+import { saveSmsConsentPreference } from '../../lib/sms-consent'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -101,10 +102,6 @@ export default function ProfilePage() {
       celebration_messages_opt_in_at: camper.celebration_messages_opt_in
         ? camper.celebration_messages_opt_in_at || new Date().toISOString()
         : null,
-      event_reminders_opt_in: Boolean(camper.sms_opt_in),
-      event_reminders_opt_in_at: camper.sms_opt_in
-        ? camper.event_reminders_opt_in_at || new Date().toISOString()
-        : null,
       mailing_address_line1: camper.mailing_address_line1,
       mailing_address_line2: camper.mailing_address_line2,
       mailing_city: camper.mailing_city,
@@ -120,10 +117,6 @@ export default function ProfilePage() {
       vehicle_2_license_plate: camper.vehicle_2_license_plate,
       golf_cart_make: camper.golf_cart_make,
       golf_cart_color: camper.golf_cart_color,
-      sms_opt_in: Boolean(camper.sms_opt_in),
-      sms_opt_in_at: camper.sms_opt_in
-        ? camper.sms_opt_in_at || new Date().toISOString()
-        : null,
     }
 
     const { error } = await supabase
@@ -137,17 +130,13 @@ export default function ProfilePage() {
       })
       .eq('id', camper.id)
 
-    if (error && /(directory_(opt_in|show_phone)|sms_opt_in|birthday|celebration_messages|event_reminders)/i.test(error.message)) {
+    if (error && /(directory_(opt_in|show_phone)|birthday|celebration_messages)/i.test(error.message)) {
       const {
-        sms_opt_in,
-        sms_opt_in_at,
         birthday,
         second_profile_birthday,
         birthday_celebration_opt_in,
         celebration_messages_opt_in,
         celebration_messages_opt_in_at,
-        event_reminders_opt_in,
-        event_reminders_opt_in_at,
         ...fallbackUpdates
       } = profileUpdates
 
@@ -159,12 +148,18 @@ export default function ProfilePage() {
       setMessage(
         fallbackError
           ? fallbackError.message
-          : 'Profile saved. Birthday, personal greeting, event reminder, and directory preferences will be available after setup is complete.'
+          : 'Profile saved. Birthday, personal greeting, and directory preferences will be available after setup is complete.'
       )
     } else if (error) {
       setMessage(error.message)
     } else {
-      setMessage('✅ Profile Updated Successfully')
+      try {
+        const updatedCamper = await saveSmsConsentPreference(Boolean(camper.sms_opt_in))
+        setCamper(updatedCamper)
+        setMessage('✅ Profile Updated Successfully')
+      } catch (consentError: any) {
+        setMessage(`Profile saved, but text alerts were not updated: ${consentError.message}`)
+      }
     }
 
     setSaving(false)
