@@ -107,6 +107,7 @@ const navGroups = [
     links: [
       { href: '/admin/site-care', label: 'Site Care', icon: ClipboardCheck },
       { href: '/admin/maintenance', label: 'Maintenance', icon: Wrench },
+      { href: '/admin/maintenance/archive', label: 'Completed Tickets', icon: Archive },
       { href: '/admin/maintenance/inventory', label: 'Inventory', icon: Warehouse },
       { href: '/admin/maintenance/supplies', label: 'Supply Requests', icon: ShoppingBasket },
       { href: '/admin/pump-outs', label: 'Pump-Outs', icon: Hammer },
@@ -140,6 +141,7 @@ function isActiveLink(pathname: string, href: string) {
   if (href === '/admin/maintenance') {
     return pathname === href || (
       pathname.startsWith(`${href}/`) &&
+      !pathname.startsWith('/admin/maintenance/archive') &&
       !pathname.startsWith('/admin/maintenance/supplies') &&
       !pathname.startsWith('/admin/maintenance/inventory')
     )

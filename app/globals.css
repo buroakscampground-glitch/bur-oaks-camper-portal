@@ -2,6 +2,15 @@
   box-sizing: border-box;
 }
 
+.admin-maintenance-hero a.admin-maintenance-archive-button {
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  background: #f7dd92;
+  color: #274130;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.14);
+}
+
 body {
   margin: 0;
   font-family: Arial, Helvetica, sans-serif;

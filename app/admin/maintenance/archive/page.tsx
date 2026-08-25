@@ -7,6 +7,8 @@ import { Archive, CheckCircle2, Search, Wrench } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 
+const completedTicketStatuses = ['Completed', 'Complete', 'Closed', 'Resolved', 'Done']
+
 export default function MaintenanceArchivePage() {
   const [tickets, setTickets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,7 +27,7 @@ export default function MaintenanceArchivePage() {
     const { data, error: loadError } = await supabase
       .from('maintenance_tickets')
       .select('*')
-      .eq('status', 'Completed')
+      .in('status', completedTicketStatuses)
       .order('completed_at', { ascending: false, nullsFirst: false })
 
     setTickets(data || [])

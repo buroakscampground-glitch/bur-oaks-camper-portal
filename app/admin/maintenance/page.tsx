@@ -17,6 +17,12 @@ import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import { markAdminAlertsSeen } from '../../../lib/admin-alert-actions'
 
+const completedTicketStatuses = new Set(['completed', 'complete', 'closed', 'resolved', 'done'])
+
+function isCompletedTicket(ticket: any) {
+  return completedTicketStatuses.has(String(ticket?.status || '').trim().toLowerCase())
+}
+
 export default function MaintenancePage() {
   const [tickets, setTickets] = useState<any[]>([])
   const [title, setTitle] = useState('')
@@ -50,20 +56,14 @@ export default function MaintenancePage() {
   async function loadTickets() {
     await markAdminAlertsSeen(supabase, 'maintenance_request')
 
-    const [{ data }, { count }] = await Promise.all([
-      supabase
-        .from('maintenance_tickets')
-        .select('*')
-        .neq('status', 'Completed')
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('maintenance_tickets')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', 'Completed'),
-    ])
+    const { data } = await supabase
+      .from('maintenance_tickets')
+      .select('*')
+      .order('created_at', { ascending: false })
 
-    setTickets(data || [])
-    setArchivedCount(count || 0)
+    const allTickets = data || []
+    setTickets(allTickets.filter((ticket) => !isCompletedTicket(ticket)))
+    setArchivedCount(allTickets.filter(isCompletedTicket).length)
   }
 
   async function createTicket() {
@@ -233,7 +233,7 @@ export default function MaintenancePage() {
         <h1>Work orders that are clear, approved, and easy to track.</h1>
         <p>Review camper-submitted requests, approve work for the maintenance crew, and keep every repair moving.</p>
         <div className="admin-maintenance-hero-actions" style={{ display: 'flex', flexWrap: 'wrap', gap: 11 }}>
-          <a href="/admin/maintenance/archive">Completed ticket archive <ArrowRight size={16} /></a>
+          <a className="admin-maintenance-archive-button" href="/admin/maintenance/archive"><Archive size={16} /> Completed Tickets ({archivedCount}) <ArrowRight size={16} /></a>
           <a href="/admin/maintenance/supplies">Supply requests <ArrowRight size={16} /></a>
           <a href="/admin/maintenance/inventory">Manage inventory & receipts <ArrowRight size={16} /></a>
           <button
