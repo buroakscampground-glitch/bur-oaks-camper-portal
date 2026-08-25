@@ -1,6 +1,7 @@
 import { escapeHtml } from './portal-invite-email'
-import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
+import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
+import { camperSmsPhones } from './camper-sms'
 
 type CentralDate = {
   year: number
@@ -246,17 +247,23 @@ export async function sendEventReminder({ client, camper, event, today, days }: 
     }
   }
 
-  const phone = camper.sms_opt_in && isTwilioConfigured() ? formatSmsPhone(camper.phone) : ''
-  if (phone) {
-    const reservation = await reserveDelivery(client, String(event.id), camper.id, today.iso, 'sms', phone, null, copy.sms)
+  const phones = camper.sms_opt_in && isTwilioConfigured() ? camperSmsPhones(camper) : []
+  if (phones.length) {
+    const reservation = await reserveDelivery(client, String(event.id), camper.id, today.iso, 'sms', phones.join(', '), null, copy.sms)
     if (reservation.reserved && reservation.id) {
-      const result = await sendTwilioSms({ to: phone, body: copy.sms })
-      const deliveryResult = result.sent
-        ? { sent: true, provider: 'twilio', providerMessageId: result.providerMessageId }
-        : { sent: false, provider: 'twilio', error: result.error }
+      const results = []
+      for (const phone of phones) {
+        results.push(await sendTwilioSms({ to: phone, body: copy.sms }))
+      }
+      const failed = results.filter((result) => !result.sent)
+      const providerMessageIds = results.flatMap((result) => result.sent ? [result.providerMessageId] : [])
+      const failureMessage = results.flatMap((result) => result.sent ? [] : [result.error || 'Text failed.']).join('; ')
+      const deliveryResult = failed.length === 0
+        ? { sent: true, provider: 'twilio', providerMessageId: providerMessageIds.join(', ') }
+        : { sent: false, provider: 'twilio', error: failureMessage }
       await finalizeDelivery(client, reservation.id, deliveryResult)
-      summary.sms = result.sent ? 'sent' : 'failed'
-      if (!result.sent) summary.errors.push(result.error)
+      summary.sms = failed.length === 0 ? 'sent' : 'failed'
+      if (failed.length) summary.errors.push(deliveryResult.error || 'One or more text reminders failed.')
     }
   }
 

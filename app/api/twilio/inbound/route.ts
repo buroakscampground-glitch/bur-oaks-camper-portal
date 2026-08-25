@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { formatSmsPhone } from '../../../../lib/twilio-sms'
 import { getSiteUrl } from '../../../../lib/site-url'
+import { camperSmsPhones } from '../../../../lib/camper-sms'
 
 export const runtime = 'nodejs'
 
@@ -59,8 +60,11 @@ export async function POST(request: Request) {
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const { data: campers } = await admin.from('campers').select('id,phone').eq('active', true)
-  const camper = (campers || []).find((item) => formatSmsPhone(item.phone) === from)
+  const { data: campers } = await admin
+    .from('campers')
+    .select('id,phone,alternate_phone,second_profile_phone')
+    .eq('active', true)
+  const camper = (campers || []).find((item) => camperSmsPhones(item).includes(from || ''))
 
   if (camper && action === 'opt_out') {
     await admin.from('campers').update({

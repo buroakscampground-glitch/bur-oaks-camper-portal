@@ -533,8 +533,8 @@ export default function CamperPortalPage() {
   async function saveSmsPromptDecision(decision: 'accepted' | 'declined') {
     if (!camper?.id || smsPromptSaving) return
 
-    if (decision === 'accepted' && !String(camper.phone || '').trim()) {
-      setSmsPromptMessage('Add a mobile phone number to your profile before turning on text alerts.')
+    if (decision === 'accepted' && ![camper.phone, camper.alternate_phone, camper.second_profile_phone].some((phone) => String(phone || '').trim())) {
+      setSmsPromptMessage('Add at least one mobile phone number to your profile before turning on text alerts.')
       return
     }
 
@@ -1036,18 +1036,18 @@ export default function CamperPortalPage() {
                   <strong>I agree to receive Bur Oaks Campground text alerts</strong>
                   <small>
                     By checking this box, I agree to receive recurring, non-marketing SMS messages from
-                    Bur Oaks Campground at the mobile phone number saved for my site about invoices and
+                    Bur Oaks Campground at all mobile phone numbers saved on my household profile about invoices and
                     payment reminders for my site and any family sites I am authorized to pay, account notices, maintenance and sewer pump-out updates, gate and
                     utility notices, office notices, upcoming event reminders (including Wednesday
                     reminders for events within the next two weeks), safety and weather alerts, and other
                     campground operations notices. Message frequency varies. Message and data rates may apply. Reply
                     HELP for help or STOP to opt out. Consent is optional and is not a condition of
-                    campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
+                    campground service. I confirm I have permission to enroll each saved household number. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
                   </small>
                 </span>
               </label>
 
-              {!camper?.phone && (
+              {![camper?.phone, camper?.alternate_phone, camper?.second_profile_phone].some((phone) => String(phone || '').trim()) && (
                 <p className="portal-sms-choice-phone">
                   A mobile number is needed first. <a href="/profile">Add your phone number in Profile</a>.
                 </p>
@@ -1056,7 +1056,7 @@ export default function CamperPortalPage() {
               <div className="portal-sms-choice-actions">
                 <button
                   type="button"
-                  disabled={!smsPromptChecked || !camper?.phone || smsPromptSaving}
+                  disabled={!smsPromptChecked || ![camper?.phone, camper?.alternate_phone, camper?.second_profile_phone].some((phone) => String(phone || '').trim()) || smsPromptSaving}
                   onClick={() => saveSmsPromptDecision('accepted')}
                 >
                   <Bell size={17} /> {smsPromptSaving ? 'Saving…' : 'Turn on text alerts'}

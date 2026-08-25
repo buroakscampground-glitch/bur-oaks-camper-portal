@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
+import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
+import { camperSmsPhones } from '../../../lib/camper-sms'
 
 function camperName(camper: any) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
@@ -58,10 +59,9 @@ export async function POST(request: Request) {
 
   let camperQuery = context.admin
     .from('campers')
-    .select('id,lot_number,first_name,last_name,phone,sms_opt_in,active,role')
+    .select('id,lot_number,first_name,last_name,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
     .eq('active', true)
     .eq('sms_opt_in', true)
-    .not('phone', 'is', null)
     .order('lot_number', { ascending: true })
 
   if (targetMode === 'one') {
@@ -100,36 +100,46 @@ export async function POST(request: Request) {
   const results: any[] = []
 
   for (const camper of targetCampers) {
-    const phone = formatSmsPhone(camper.phone)
-    const result: { sent: boolean; providerMessageId?: string; error?: string } = phone
-      ? await sendTwilioSms({ to: phone, body: finalMessage })
-      : { sent: false, error: 'No valid mobile number is saved for this camper.' }
-
-    const logRow = {
-      camper_id: camper.id,
-      invoice_id: null,
-      reminder_type: reminderType,
-      message: finalMessage,
-      sent_at: new Date().toISOString(),
-      status: result.sent ? 'sent' : 'failed',
-      recipient_phone: phone || camper.phone || null,
-      provider: 'twilio',
-      provider_message_id: result.sent ? result.providerMessageId : null,
-      error_message: result.sent ? null : result.error,
-      sent_by: context.user.email,
+    const phones = camperSmsPhones(camper)
+    if (!phones.length) {
+      results.push({
+        camperId: camper.id,
+        lotNumber: camper.lot_number,
+        camperName: camperName(camper),
+        phone: null,
+        status: 'failed',
+        error: 'No valid mobile number is saved for this camper.',
+      })
+      continue
     }
 
-    await context.admin.from('text_reminders').insert(logRow)
+    for (const phone of phones) {
+      const result = await sendTwilioSms({ to: phone, body: finalMessage })
 
-    results.push({
-      camperId: camper.id,
-      lotNumber: camper.lot_number,
-      camperName: camperName(camper),
-      phone,
-      status: result.sent ? 'sent' : 'failed',
-      providerMessageId: result.sent ? result.providerMessageId : null,
-      error: result.sent ? null : result.error,
-    })
+      await context.admin.from('text_reminders').insert({
+        camper_id: camper.id,
+        invoice_id: null,
+        reminder_type: reminderType,
+        message: finalMessage,
+        sent_at: new Date().toISOString(),
+        status: result.sent ? 'sent' : 'failed',
+        recipient_phone: phone,
+        provider: 'twilio',
+        provider_message_id: result.sent ? result.providerMessageId : null,
+        error_message: result.sent ? null : result.error,
+        sent_by: context.user.email,
+      })
+
+      results.push({
+        camperId: camper.id,
+        lotNumber: camper.lot_number,
+        camperName: camperName(camper),
+        phone,
+        status: result.sent ? 'sent' : 'failed',
+        providerMessageId: result.sent ? result.providerMessageId : null,
+        error: result.sent ? null : result.error,
+      })
+    }
   }
 
   const sentCount = results.filter((result) => result.status === 'sent').length

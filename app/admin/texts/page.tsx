@@ -80,10 +80,10 @@ export default function AdminTextsPage() {
 
     const warning =
       targetMode === 'all_opted_in'
-        ? 'Send this text to every opted-in camper with a phone number?'
+        ? 'Send this text to every valid phone number saved on each opted-in camper profile?'
         : targetMode === 'open_balance'
-          ? 'Send this text to opted-in campers who currently have an open balance?'
-          : 'Send this text to the selected camper?'
+          ? 'Send this text to every saved phone number for opted-in campers who currently have an open balance?'
+          : 'Send this text to every saved phone number on the selected camper profile?'
 
     if (!window.confirm(warning)) return
 

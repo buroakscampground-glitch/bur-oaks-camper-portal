@@ -79,10 +79,10 @@ export default function AdminQuickText({
     const finalTarget = camperId ? 'one' : targetMode
     const warning =
       finalTarget === 'open_balance'
-        ? 'Send this text to all opted-in campers with open balances?'
+        ? 'Send this text to every saved phone number for opted-in campers with open balances?'
         : finalTarget === 'all_opted_in'
-          ? 'Send this text to all opted-in campers?'
-          : 'Send this text to this camper?'
+          ? 'Send this text to every valid phone number saved on each opted-in camper profile?'
+          : 'Send this text to every saved phone number on this camper profile?'
 
     if (!window.confirm(warning)) return
 

@@ -1,6 +1,7 @@
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
 import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized-billing'
+import { camperSmsPhones, phoneAutomationKey } from './camper-sms'
 
 type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee'
 
@@ -109,7 +110,7 @@ export async function sendInvoiceText({
       late_fee,
       due_date,
       status,
-      campers (id, lot_number, first_name, last_name, phone, sms_opt_in, active)
+      campers (id, lot_number, first_name, last_name, phone, alternate_phone, second_profile_phone, sms_opt_in, active)
     `)
     .eq('id', invoiceId)
     .single()
@@ -132,16 +133,21 @@ export async function sendInvoiceText({
   }
 
   const recipients: Array<{ camperId: string; phone: string; automationKey: string }> = []
-  const ownerPhone = camper.sms_opt_in ? formatSmsPhone(camper.phone) : null
-  if (ownerPhone) {
-    recipients.push({ camperId: camper.id, phone: ownerPhone, automationKey })
+  const ownerPhones = camper.sms_opt_in ? camperSmsPhones(camper) : []
+  const primaryOwnerPhone = formatSmsPhone(camper.phone)
+  for (const phone of ownerPhones) {
+    recipients.push({
+      camperId: camper.id,
+      phone,
+      automationKey: phone === primaryOwnerPhone ? automationKey : phoneAutomationKey(automationKey, phone),
+    })
   }
 
   const delegateEmails = billingDelegateEmailsForLot(camper.lot_number)
   if (delegateEmails.length) {
     const { data: possibleDelegates, error: delegateError } = await client
       .from('campers')
-      .select('id,email,secondary_email,phone,sms_opt_in,active')
+      .select('id,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active')
       .eq('active', true)
 
     if (delegateError) {
@@ -153,15 +159,19 @@ export async function sendInvoiceText({
       const matchedEmail = [delegate.email, delegate.secondary_email]
         .map(normalizeBillingEmail)
         .find((email) => allowedEmails.has(email))
-      const delegatePhone = delegate.sms_opt_in ? formatSmsPhone(delegate.phone) : null
-      if (!matchedEmail || !delegatePhone) continue
+      const delegatePhones = delegate.sms_opt_in ? camperSmsPhones(delegate) : []
+      if (!matchedEmail || !delegatePhones.length) continue
 
       const safeEmailKey = matchedEmail.replace(/[^a-z0-9]+/g, '-').slice(0, 40)
-      recipients.push({
-        camperId: delegate.id,
-        phone: delegatePhone,
-        automationKey: `${automationKey}-family-${safeEmailKey}`,
-      })
+      const primaryDelegatePhone = formatSmsPhone(delegate.phone)
+      for (const phone of delegatePhones) {
+        const delegateKey = `${automationKey}-family-${safeEmailKey}`
+        recipients.push({
+          camperId: delegate.id,
+          phone,
+          automationKey: phone === primaryDelegatePhone ? delegateKey : phoneAutomationKey(delegateKey, phone),
+        })
+      }
     }
   }
 

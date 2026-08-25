@@ -2,8 +2,9 @@ import { NextResponse } from 'next/server'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
-import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
+import { sendTwilioSms } from '../../../lib/twilio-sms'
 import { camperTextWithLink } from '../../../lib/portal-sms-links'
+import { camperSmsPhones } from '../../../lib/camper-sms'
 
 export const runtime = 'nodejs'
 
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
 
   const { data: targetCamper, error: camperError } = await context.admin
     .from('campers')
-    .select('id,first_name,last_name,lot_number,phone,sms_opt_in,active,role')
+    .select('id,first_name,last_name,lot_number,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
     .eq('id', camperId)
     .eq('active', true)
     .maybeSingle()
@@ -79,8 +80,8 @@ export async function POST(request: Request) {
     })
   }
 
-  const phone = formatSmsPhone(targetCamper.phone)
-  if (!phone) {
+  const phones = camperSmsPhones(targetCamper)
+  if (!phones.length) {
     return NextResponse.json({
       success: true,
       notice,
@@ -90,32 +91,37 @@ export async function POST(request: Request) {
   }
 
   const textMessage = 'Your site has a new item that needs attention. Please sign in to your camper portal to review it.'
-  const smsResult = await sendTwilioSms({
-    to: phone,
-    body: camperTextWithLink({ message: textMessage, path: '/portal#site-care' }),
-  })
+  const smsBody = camperTextWithLink({ message: textMessage, path: '/portal#site-care' })
+  const smsResults = []
+  for (const phone of phones) {
+    const smsResult = await sendTwilioSms({ to: phone, body: smsBody })
+    smsResults.push(smsResult)
 
-  await context.admin.from('text_reminders').insert({
-    camper_id: targetCamper.id,
-    invoice_id: null,
-    reminder_type: 'Site Care Notice',
-    message: textMessage,
-    sent_at: new Date().toISOString(),
-    status: smsResult.sent ? 'sent' : 'failed',
-    recipient_phone: phone,
-    provider: 'twilio',
-    provider_message_id: smsResult.sent ? smsResult.providerMessageId : null,
-    error_message: smsResult.sent ? null : smsResult.error,
-    sent_by: context.user.email || 'Bur Oaks Admin',
-  })
+    await context.admin.from('text_reminders').insert({
+      camper_id: targetCamper.id,
+      invoice_id: null,
+      reminder_type: 'Site Care Notice',
+      message: smsBody,
+      sent_at: new Date().toISOString(),
+      status: smsResult.sent ? 'sent' : 'failed',
+      recipient_phone: phone,
+      provider: 'twilio',
+      provider_message_id: smsResult.sent ? smsResult.providerMessageId : null,
+      error_message: smsResult.sent ? null : smsResult.error,
+      sent_by: context.user.email || 'Bur Oaks Admin',
+    })
+  }
+
+  const sentCount = smsResults.filter((result) => result.sent).length
+  const failedResults = smsResults.filter((result) => !result.sent)
 
   return NextResponse.json({
     success: true,
     notice,
-    smsStatus: smsResult.sent ? 'sent' : 'failed',
-    smsMessage: smsResult.sent
-      ? 'Portal notice and text alert sent.'
-      : `Portal notice sent, but the text alert failed: ${smsResult.error}`,
+    smsStatus: failedResults.length === 0 ? 'sent' : sentCount > 0 ? 'partial' : 'failed',
+    smsMessage: failedResults.length === 0
+      ? `Portal notice and text alert sent to ${sentCount} saved phone number${sentCount === 1 ? '' : 's'}.`
+      : `Portal notice sent. ${sentCount} text${sentCount === 1 ? '' : 's'} sent and ${failedResults.length} failed.`,
   })
 }
 

@@ -7,7 +7,8 @@ import { getSiteUrl } from '../../../lib/site-url'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { camperTextWithLink } from '../../../lib/portal-sms-links'
-import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
+import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
+import { camperSmsPhones } from '../../../lib/camper-sms'
 
 export const runtime = 'nodejs'
 
@@ -24,16 +25,16 @@ function camperEmails(camper: any) {
 
 async function sendCamperMessageText(admin: any, camper: any, sentBy: string, messageBody: string) {
   if (!camper.sms_opt_in) {
-    return { status: 'skipped' as const, reason: 'Camper has not opted into text alerts.' }
+    return { status: 'skipped' as const, reason: 'Camper has not opted into text alerts.', sentCount: 0, failedCount: 0, skippedCount: 1 }
   }
 
   if (!isTwilioConfigured()) {
-    return { status: 'skipped' as const, reason: 'Twilio is not connected.' }
+    return { status: 'skipped' as const, reason: 'Twilio is not connected.', sentCount: 0, failedCount: 0, skippedCount: 1 }
   }
 
-  const phone = formatSmsPhone(camper.phone)
-  if (!phone) {
-    return { status: 'skipped' as const, reason: 'Camper does not have a valid mobile number.' }
+  const phones = camperSmsPhones(camper)
+  if (!phones.length) {
+    return { status: 'skipped' as const, reason: 'Camper does not have a valid mobile number.', sentCount: 0, failedCount: 0, skippedCount: 1 }
   }
 
   const message = camperTextWithLink({
@@ -41,25 +42,37 @@ async function sendCamperMessageText(admin: any, camper: any, sentBy: string, me
     path: '/messages',
     linkLabel: 'Open the portal to reply',
   })
-  const result = await sendTwilioSms({ to: phone, body: message })
+  let sentCount = 0
+  let failedCount = 0
+  const errors: string[] = []
 
-  await admin.from('text_reminders').insert({
-    camper_id: camper.id,
-    invoice_id: null,
-    reminder_type: 'Office Message',
-    message,
-    sent_at: new Date().toISOString(),
-    status: result.sent ? 'sent' : 'failed',
-    recipient_phone: phone,
-    provider: 'twilio',
-    provider_message_id: result.sent ? result.providerMessageId : null,
-    error_message: result.sent ? null : result.error,
-    sent_by: sentBy,
-  })
+  for (const phone of phones) {
+    const result = await sendTwilioSms({ to: phone, body: message })
 
-  return result.sent
-    ? { status: 'sent' as const, providerMessageId: result.providerMessageId }
-    : { status: 'failed' as const, reason: result.error }
+    await admin.from('text_reminders').insert({
+      camper_id: camper.id,
+      invoice_id: null,
+      reminder_type: 'Office Message',
+      message,
+      sent_at: new Date().toISOString(),
+      status: result.sent ? 'sent' : 'failed',
+      recipient_phone: phone,
+      provider: 'twilio',
+      provider_message_id: result.sent ? result.providerMessageId : null,
+      error_message: result.sent ? null : result.error,
+      sent_by: sentBy,
+    })
+
+    if (result.sent) sentCount += 1
+    else {
+      failedCount += 1
+      if (result.error) errors.push(result.error)
+    }
+  }
+
+  return sentCount > 0
+    ? { status: 'sent' as const, sentCount, failedCount, skippedCount: 0, reason: errors.join('; ') || undefined }
+    : { status: 'failed' as const, sentCount: 0, failedCount, skippedCount: 0, reason: errors.join('; ') || 'Text delivery failed.' }
 }
 
 export async function GET(request: Request) {
@@ -248,7 +261,7 @@ export async function POST(request: Request) {
   if (isAdmin && (sendToAll || requestedCamperIds.length > 0)) {
     let query = context.admin
       .from('campers')
-      .select('id,first_name,last_name,lot_number,email,secondary_email,phone,sms_opt_in,active,role')
+      .select('id,first_name,last_name,lot_number,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
       .eq('active', true)
       .order('lot_number', { ascending: true })
 
@@ -336,9 +349,9 @@ export async function POST(request: Request) {
         context.user.email || 'Bur Oaks Admin',
         text
       )
-      if (smsResult.status === 'sent') smsSentCount += 1
-      if (smsResult.status === 'skipped') smsSkippedCount += 1
-      if (smsResult.status === 'failed') smsFailedCount += 1
+      smsSentCount += smsResult.sentCount
+      smsSkippedCount += smsResult.skippedCount
+      smsFailedCount += smsResult.failedCount
     }
 
     return NextResponse.json({
@@ -361,7 +374,7 @@ export async function POST(request: Request) {
 
   const { data: targetCamper, error: camperError } = await context.admin
     .from('campers')
-    .select('id,first_name,last_name,lot_number,email,secondary_email,phone,sms_opt_in,active')
+    .select('id,first_name,last_name,lot_number,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active')
     .eq('id', targetCamperId)
     .maybeSingle()
 
