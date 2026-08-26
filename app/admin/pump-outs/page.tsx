@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Droplets, Printer, Search, XCircle } from 'lucide-react'
+import { CheckCircle2, Droplets, Plus, Printer, Search, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
-import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
-import { isSystemPortalAccount } from '../../../lib/camper-records'
+import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
+import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
+import { isOperationalCamper, isSystemPortalAccount } from '../../../lib/camper-records'
 
 const statusLabels: Record<string, string> = {
   requested: 'Needs Pumped',
@@ -19,10 +20,31 @@ export default function AdminPumpOutsPage() {
   const [message, setMessage] = useState('')
   const [savingId, setSavingId] = useState('')
   const [sendingReport, setSendingReport] = useState(false)
+  const [campers, setCampers] = useState<any[]>([])
+  const [manualCamperId, setManualCamperId] = useState('')
+  const [manualNotes, setManualNotes] = useState('')
+  const [manualSaving, setManualSaving] = useState(false)
+  const [defaultPumpOutFee, setDefaultPumpOutFee] = useState(defaultCampgroundBillingSettings.sewerPumpOutFee)
 
   useEffect(() => {
     loadRequests()
+    loadManualEntryOptions()
   }, [])
+
+  async function loadManualEntryOptions() {
+    const [{ data, error }, settings] = await Promise.all([
+      supabase
+        .from('campers')
+        .select('id,first_name,last_name,lot_number,role,active')
+        .eq('active', true)
+        .order('lot_number', { ascending: true }),
+      loadCampgroundBillingSettings(supabase),
+    ])
+
+    if (error) setMessage(error.message)
+    setCampers((data || []).filter(isOperationalCamper))
+    setDefaultPumpOutFee(settings.sewerPumpOutFee)
+  }
 
   async function loadRequests() {
     const { data, error } = await supabase
@@ -81,6 +103,36 @@ export default function AdminPumpOutsPage() {
     setSendingReport(false)
   }
 
+  async function addManualPumpOut() {
+    if (!manualCamperId) {
+      setMessage('Choose a camper site first.')
+      return
+    }
+
+    setManualSaving(true)
+    setMessage('Adding the pump-out and pending charge…')
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/admin-pump-out', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session?.access_token || ''}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ camperId: manualCamperId, notes: manualNotes }),
+    })
+    const result = await response.json().catch(() => null)
+
+    setManualSaving(false)
+    setMessage(result?.message || result?.error || 'Unable to add the pump-out request.')
+
+    if (response.ok && !result?.duplicate) {
+      setManualCamperId('')
+      setManualNotes('')
+      await loadRequests()
+      setFilter('requested')
+    }
+  }
+
   const visibleRequests = useMemo(() => {
     const term = search.trim().toLowerCase()
     return requests.filter((request) => {
@@ -106,6 +158,8 @@ export default function AdminPumpOutsPage() {
     (sum, request) => sum + Number(request.gallons_used || getSewerPumpOutGallonsForCharge(request.charge_amount)),
     0
   )
+  const selectedManualCamper = campers.find((camper) => camper.id === manualCamperId)
+  const selectedManualCharge = getSewerPumpOutFeeForLot(selectedManualCamper?.lot_number, defaultPumpOutFee)
 
   return (
     <main className="admin-pump-page">
@@ -121,6 +175,35 @@ export default function AdminPumpOutsPage() {
         <article><small>Pumped, not billed</small><strong>{completedUnbilled.length}</strong></article>
         <article><small>Pending charges</small><strong>${pendingChargeTotal.toFixed(2)}</strong></article>
         <article><small>Gallons on active list</small><strong>{pendingGallons.toLocaleString()}</strong></article>
+      </section>
+
+      <section className="admin-pump-manual">
+        <div>
+          <span><Plus size={16} /> OFFICE ENTRY</span>
+          <h2>Add a pump-out manually</h2>
+          <p>Use this when a camper calls or visits the office. It enters the normal pump queue and adds the charge to their next electric invoice.</p>
+        </div>
+        <div className="admin-pump-manual-fields">
+          <label>
+            <span>Camper site</span>
+            <select value={manualCamperId} onChange={(event) => setManualCamperId(event.target.value)}>
+              <option value="">Choose a lot…</option>
+              {campers.map((camper) => (
+                <option value={camper.id} key={camper.id}>
+                  Lot {camper.lot_number || '—'} · {`${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>Office note (optional)</span>
+            <input value={manualNotes} onChange={(event) => setManualNotes(event.target.value)} maxLength={500} placeholder="Called the office, requested before Friday…" />
+          </label>
+          <button type="button" onClick={addManualPumpOut} disabled={manualSaving || !manualCamperId}>
+            <Plus size={16} /> {manualSaving ? 'Adding…' : `Add Pump-Out · $${selectedManualCharge.toFixed(2)}`}
+          </button>
+        </div>
+        <small>The system will not create a second charge if this site already has an open, unbilled pump-out.</small>
       </section>
 
       <section className="admin-pump-toolbar">
