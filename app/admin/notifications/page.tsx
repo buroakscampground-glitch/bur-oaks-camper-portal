@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BellRing, CheckCheck, CircleDollarSign, Droplets, MessageCircle, MessageSquareWarning, PartyPopper, Search, Soup, UsersRound, Wrench } from 'lucide-react'
+import { BellRing, CheckCheck, CircleDollarSign, ClipboardCheck, Droplets, MessageCircle, MessageSquareWarning, PartyPopper, Search, Soup, UsersRound, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import AdminQuickText from '../../../components/AdminQuickText'
 
@@ -13,6 +13,7 @@ const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   sewer_pump_out: { label: 'Sewer Pump-Out', icon: Droplets, href: '/admin/pump-outs' },
   direct_message: { label: 'Camper Message', icon: MessageCircle, href: '/admin/messages' },
   website_waitlist: { label: 'Website Waitlist', icon: UsersRound, href: '/admin/waitlist' },
+  site_care: { label: 'Site Care Review', icon: ClipboardCheck, href: '/admin/site-care' },
 }
 
 export default function AdminNotificationsPage() {
@@ -103,6 +104,7 @@ export default function AdminNotificationsPage() {
           <option value="saturday_dinner">Saturday Dinners</option>
           <option value="sewer_pump_out">Sewer Pump-Outs</option>
           <option value="direct_message">Camper Messages</option>
+          <option value="site_care">Site Care Reviews</option>
         </select>
       </section>
 

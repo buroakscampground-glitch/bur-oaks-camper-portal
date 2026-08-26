@@ -5,6 +5,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { sendTwilioSms } from '../../../lib/twilio-sms'
 import { camperTextWithLink } from '../../../lib/portal-sms-links'
 import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
+import { createAdminNotification } from '../../../lib/admin-notifications'
 
 export const runtime = 'nodejs'
 
@@ -180,5 +181,37 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to update this notice.' }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, notice })
+  if (adminUser && action === 'resolve') {
+    const { error: clearAlertError } = await context.admin
+      .from('admin_notifications')
+      .update({ read_at: now })
+      .eq('type', 'site_care')
+      .eq('source_table', 'site_care_notices')
+      .eq('source_id', String(notice.id))
+      .is('read_at', null)
+
+    if (clearAlertError && !['42P01', 'PGRST205'].includes(clearAlertError.code || '')) {
+      console.error('Unable to clear resolved site care alert:', clearAlertError)
+    }
+  }
+
+  let adminAlert: any = null
+  if (!adminUser && action === 'ready_for_review') {
+    const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'Camper'
+    const lotNumber = cleanText(notice.lot_number || context.camper.lot_number, 40) || null
+    adminAlert = await createAdminNotification(context.admin, {
+      type: 'site_care',
+      title: `Site care ready for review: ${notice.title}`,
+      message: `${camperName} marked “${notice.title}” as taken care of. Inspect Lot ${lotNumber || '—'} and mark the notice resolved after approval.`,
+      lot_number: lotNumber,
+      camper_id: String(notice.camper_id),
+      source_table: 'site_care_notices',
+      source_id: String(notice.id),
+    }).catch((alertError) => {
+      console.error('Site care owner alert failed:', alertError)
+      return { created: false, error: alertError?.message || 'Unable to create the office alert.' }
+    })
+  }
+
+  return NextResponse.json({ success: true, notice, adminAlert })
 }

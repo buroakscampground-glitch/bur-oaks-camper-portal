@@ -13,14 +13,19 @@ function ownerTextEnabled() {
 }
 
 function ownerTextTypes() {
-  const raw = process.env.OWNER_TEXT_ALERT_TYPES || 'maintenance_request,payment_received,direct_message,sewer_pump_out,saturday_dinner'
+  const raw = process.env.OWNER_TEXT_ALERT_TYPES || 'maintenance_request,payment_received,direct_message,sewer_pump_out,saturday_dinner,site_care'
 
-  return new Set(
+  const types = new Set(
     raw
       .split(',')
       .map((type) => type.trim())
       .filter(Boolean)
   )
+
+  // Site-care review texts are an office workflow requirement, even when an
+  // older environment list predates this alert type.
+  types.add('site_care')
+  return types
 }
 
 function ownerTextRecipients() {
@@ -54,6 +59,7 @@ function adminPathForAlertType(type: string) {
   if (type === 'direct_message') return '/admin/messages'
   if (type === 'sewer_pump_out') return '/admin/pump-outs'
   if (type === 'saturday_dinner') return '/admin/dinners'
+  if (type === 'site_care') return '/admin/site-care'
   if (type === 'website_waitlist') return '/admin/waitlist'
   return '/admin/notifications'
 }
