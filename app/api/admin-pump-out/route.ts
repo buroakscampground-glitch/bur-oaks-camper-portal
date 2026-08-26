@@ -25,11 +25,10 @@ export async function POST(request: Request) {
     .from('campers')
     .select('id,first_name,last_name,lot_number,role,active')
     .eq('id', camperId)
-    .eq('active', true)
     .maybeSingle()
 
   if (camperError || !targetCamper || !isOperationalCamper(targetCamper)) {
-    return NextResponse.json({ error: 'That active camper site could not be found.' }, { status: 404 })
+    return NextResponse.json({ error: 'That camper site could not be found.' }, { status: 404 })
   }
 
   const billingSettings = await loadCampgroundBillingSettings(context.admin)
@@ -63,7 +62,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     duplicate: false,
-    message: `Pump-out added for Lot ${targetCamper.lot_number || '—'}. The $${chargeAmount.toFixed(2)} charge will be added to the next electric invoice.`,
+    message: `Pump-out added for Lot ${targetCamper.lot_number || '—'}. The $${chargeAmount.toFixed(2)} charge will be added to the next electric invoice.${targetCamper.active === false ? ' The camper remains archived.' : ''}`,
     request: result?.request_row,
     chargeAmount,
     gallonsUsed,

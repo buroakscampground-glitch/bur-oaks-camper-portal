@@ -36,7 +36,6 @@ export default function AdminPumpOutsPage() {
       supabase
         .from('campers')
         .select('id,first_name,last_name,lot_number,role,active')
-        .eq('active', true)
         .order('lot_number', { ascending: true }),
       loadCampgroundBillingSettings(supabase),
     ])
@@ -190,7 +189,7 @@ export default function AdminPumpOutsPage() {
               <option value="">Choose a lot…</option>
               {campers.map((camper) => (
                 <option value={camper.id} key={camper.id}>
-                  Lot {camper.lot_number || '—'} · {`${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'}
+                  Lot {camper.lot_number || '—'} · {`${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'}{camper.active === false ? ' · ARCHIVED – FINAL BILLING' : ''}
                 </option>
               ))}
             </select>
