@@ -43,8 +43,8 @@ export async function GET(request: Request) {
   const current = centralNow()
   // Vercel schedules use UTC. The paired 12:00/13:00 UTC jobs guarantee a
   // 7:00 AM Central run year-round; the 8:00 AM window is a printer retry only.
-  if (current.weekday !== 'Mon' || (current.hour !== 7 && current.hour !== 8)) {
-    return NextResponse.json({ success: true, skipped: true, reason: 'Not the scheduled Monday-morning Central window.', current })
+  if (current.hour !== 7 && current.hour !== 8) {
+    return NextResponse.json({ success: true, skipped: true, reason: 'Not the scheduled daily morning Central window.', current })
   }
 
   const admin = adminClient()
@@ -66,7 +66,7 @@ export async function GET(request: Request) {
       .maybeSingle()
 
     if (existing?.status === 'sent') {
-      return NextResponse.json({ success: true, skipped: true, reason: 'This Monday report was already handled.', status: existing.status })
+      return NextResponse.json({ success: true, skipped: true, reason: 'Today\'s pump-out report was already handled.', status: existing.status })
     }
 
     if (existing?.id) {
@@ -116,6 +116,6 @@ export async function GET(request: Request) {
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq('id', reservation.id)
-    return NextResponse.json({ error: error?.message || 'Unable to send the Monday pump-out report.' }, { status: 500 })
+    return NextResponse.json({ error: error?.message || 'Unable to send the daily pump-out report.' }, { status: 500 })
   }
 }

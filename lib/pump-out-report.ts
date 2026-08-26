@@ -34,7 +34,13 @@ function safeText(value: unknown) {
     .trim()
 }
 
-function naturalLotCompare(a: PumpOutRequest, b: PumpOutRequest) {
+function requestDateCompare(a: PumpOutRequest, b: PumpOutRequest) {
+  const aTime = a.requested_at ? new Date(a.requested_at).getTime() : Number.MAX_SAFE_INTEGER
+  const bTime = b.requested_at ? new Date(b.requested_at).getTime() : Number.MAX_SAFE_INTEGER
+  const safeATime = Number.isNaN(aTime) ? Number.MAX_SAFE_INTEGER : aTime
+  const safeBTime = Number.isNaN(bTime) ? Number.MAX_SAFE_INTEGER : bTime
+  if (safeATime !== safeBTime) return safeATime - safeBTime
+
   return safeText(a.lot_number).localeCompare(safeText(b.lot_number), undefined, {
     numeric: true,
     sensitivity: 'base',
@@ -45,7 +51,7 @@ function prettyDate(value?: string | null) {
   if (!value) return '-'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return safeText(value)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 }
 
 function fullReportDate(value: string) {
@@ -90,7 +96,7 @@ function drawPageHeader(page: PDFPage, bold: PDFFont, regular: PDFFont, reportDa
   const { width, height } = page.getSize()
   page.drawRectangle({ x: 0, y: height - 92, width, height: 92, color: forest })
   page.drawText('BUR OAKS CAMPGROUND', { x: 36, y: height - 34, font: bold, size: 10, color: rgb(0.9, 0.79, 0.46) })
-  page.drawText('Monday Pump-Out Route', { x: 36, y: height - 64, font: bold, size: 24, color: rgb(1, 1, 1) })
+  page.drawText('Daily Pump-Out Route', { x: 36, y: height - 64, font: bold, size: 24, color: rgb(1, 1, 1) })
   page.drawText(fullReportDate(reportDate), { x: width - 255, y: height - 40, font: regular, size: 11, color: rgb(0.9, 0.94, 0.9) })
   page.drawText(`${count} site${count === 1 ? '' : 's'} needing pump-out`, { x: width - 255, y: height - 61, font: bold, size: 11, color: rgb(1, 1, 1) })
 
@@ -107,18 +113,18 @@ export async function buildPumpOutListPdf(requests: PumpOutRequest[], reportDate
   const pdf = await PDFDocument.create()
   pdf.setTitle(`Bur Oaks Pump-Out Route - ${reportDate}`)
   pdf.setAuthor('Bur Oaks Campground')
-  pdf.setSubject('Monday sewer pump-out work list')
+  pdf.setSubject('Daily sewer pump-out work list')
 
   const regular = await pdf.embedFont(StandardFonts.Helvetica)
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
-  const sorted = [...requests].sort(naturalLotCompare)
+  const sorted = [...requests].sort(requestDateCompare)
   let page = pdf.addPage([792, 612])
   let y = drawPageHeader(page, bold, regular, reportDate, sorted.length)
 
   if (!sorted.length) {
     page.drawRectangle({ x: 36, y: 360, width: 720, height: 90, borderColor: line, borderWidth: 1, color: rgb(0.98, 0.985, 0.975) })
-    page.drawText('No active pump-out requests this Monday.', { x: 180, y: 408, font: bold, size: 19, color: forest })
-    page.drawText('The queue is clear. Keep this sheet as the weekly check record.', { x: 194, y: 384, font: regular, size: 11, color: gray })
+    page.drawText('No active pump-out requests today.', { x: 205, y: 408, font: bold, size: 19, color: forest })
+    page.drawText('The queue is clear. Keep this sheet as the daily check record.', { x: 200, y: 384, font: regular, size: 11, color: gray })
   }
 
   for (const request of sorted) {
@@ -165,8 +171,8 @@ function emailFrom() {
 async function sendReportEmail(to: string, pdfBytes: Uint8Array, reportDate: string, itemCount: number): Promise<DeliveryResult> {
   const from = emailFrom()
   const filename = `bur-oaks-pump-out-list-${reportDate}.pdf`
-  const subject = `Bur Oaks Monday pump-out list - ${reportDate}`
-  const text = `Bur Oaks Monday pump-out list for ${reportDate}. ${itemCount} site${itemCount === 1 ? '' : 's'} currently need${itemCount === 1 ? 's' : ''} pump-out service. The printable PDF is attached.`
+  const subject = `Bur Oaks daily pump-out list - ${reportDate}`
+  const text = `Bur Oaks daily pump-out list for ${reportDate}. ${itemCount} site${itemCount === 1 ? '' : 's'} currently need${itemCount === 1 ? 's' : ''} pump-out service. The printable PDF is attached.`
   const attachment = Buffer.from(pdfBytes).toString('base64')
 
   if (!from) return { sent: false, provider: null, error: 'The campground email sender is not configured.' }
