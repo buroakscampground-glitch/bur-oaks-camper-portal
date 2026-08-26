@@ -1,4 +1,5 @@
 import { escapeHtml } from './portal-invite-email'
+import { createFinalInvoiceToken } from './final-invoice-token'
 
 type InvoiceEmailKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee'
 
@@ -397,7 +398,12 @@ export async function sendInvoiceEmail({
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com'
-  const actionUrl = `${siteUrl}/invoices/${invoice.id}`
+  const finalInvoiceToken = isArchivedFinalInvoice
+    ? createFinalInvoiceToken(String(invoice.id), String(camper.id))
+    : ''
+  const actionUrl = isArchivedFinalInvoice
+    ? `${siteUrl}/final-invoice/${encodeURIComponent(finalInvoiceToken)}`
+    : `${siteUrl}/invoices/${invoice.id}`
   const camperName = `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'there'
   const copy = emailCopy(invoice, kind)
   const items = Array.isArray(invoice.invoice_items) ? invoice.invoice_items : []
@@ -423,9 +429,8 @@ export async function sendInvoiceEmail({
           '',
         ].join('\n')
       : '',
-    isArchivedFinalInvoice
-      ? 'This is a final invoice for an archived account. Please contact the Bur Oaks office to arrange payment.'
-      : `View and pay: ${actionUrl}`,
+    `View and pay: ${actionUrl}`,
+    isArchivedFinalInvoice ? 'This private link opens only this final invoice. Your camper-portal access remains closed.' : '',
     '',
     'If you already paid or have questions, please contact the campground office.',
     'Bur Oaks Campground',
@@ -455,11 +460,9 @@ export async function sendInvoiceEmail({
               ? `<h2 style="margin:20px 0 6px;font-family:Georgia,serif;font-weight:500;color:#26382d">Invoice breakdown</h2><table style="width:100%;border-collapse:collapse;margin-bottom:18px">${rows}</table>`
               : ''
           }
-          ${
-            isArchivedFinalInvoice
-              ? '<p style="margin-top:18px;padding:14px;border-radius:12px;background:#f7f0df;color:#5f512d;font-size:14px;line-height:1.5"><strong>Final archived-account invoice:</strong> Please contact the Bur Oaks office to arrange payment. Portal access remains closed.</p>'
-              : `<a href="${actionUrl}" style="display:inline-block;margin-top:6px;background:#2f5b3b;color:#fff;text-decoration:none;padding:13px 17px;border-radius:12px;font-weight:700">View invoice</a><p style="margin-top:18px;color:#69766d;font-size:13px;line-height:1.5">If the button does not work, copy and paste this link into your browser:<br><span style="word-break:break-all">${escapeHtml(actionUrl)}</span></p>`
-          }
+          <a href="${actionUrl}" style="display:inline-block;margin-top:6px;background:#2f5b3b;color:#fff;text-decoration:none;padding:13px 17px;border-radius:12px;font-weight:700">${isArchivedFinalInvoice ? 'View and pay final invoice' : 'View invoice'}</a>
+          ${isArchivedFinalInvoice ? '<p style="margin-top:14px;padding:12px;border-radius:12px;background:#f7f0df;color:#5f512d;font-size:13px;line-height:1.5"><strong>Final-billing access only:</strong> This link does not restore access to the camper portal. It automatically closes after online payment or when the office records a manual payment.</p>' : ''}
+          <p style="margin-top:18px;color:#69766d;font-size:13px;line-height:1.5">If the button does not work, copy and paste this link into your browser:<br><span style="word-break:break-all">${escapeHtml(actionUrl)}</span></p>
         </div>
       </div>
     </div>
@@ -476,9 +479,7 @@ export async function sendInvoiceEmail({
   const providerMessageId = 'providerMessageId' in result ? result.providerMessageId : null
   const sent = result.sent
 
-  const message = isArchivedFinalInvoice
-    ? `${copy.heading} ${copy.intro} ${copy.statusLine} Final invoice emailed to archived camper; portal access remains closed.`
-    : `${copy.heading} ${copy.intro} ${copy.statusLine} View and pay: ${actionUrl}`
+  const message = `${copy.heading} ${copy.intro} ${copy.statusLine} View and pay: ${actionUrl}${isArchivedFinalInvoice ? ' Final-billing access only; camper portal remains closed.' : ''}`
   const logRow = {
     camper_id: camper.id,
     invoice_id: invoice.id,

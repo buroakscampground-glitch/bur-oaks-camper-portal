@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createHash } from 'crypto'
+import { createClient } from '@supabase/supabase-js'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { verifyFinalInvoiceToken } from '../../../lib/final-invoice-token'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import {
   achProcessingFeeLabel,
@@ -14,6 +16,15 @@ import { loadAuthorizedBillingCampers } from '../../../lib/authorized-billing'
 
 export const runtime = 'nodejs'
 
+type CheckoutInvoice = {
+  id: string
+  invoice_number: string | null
+  invoice_type: string | null
+  total_due: number | string | null
+  status: string | null
+  camper_id: string
+}
+
 export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(request, 'checkout', 10, 60_000)
   if (!rateLimit.allowed) {
@@ -24,17 +35,48 @@ export async function POST(request: Request) {
   }
 
   try {
-    const context = await getAuthenticatedContext(request)
-
-    if (!context) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const body = await request.json()
     const paymentMethod = body.paymentMethod === 'ach' ? 'ach' : 'card'
-    const requestedIds = Array.isArray(body.invoiceIds)
+    const finalInvoiceToken = typeof body.finalInvoiceToken === 'string' ? body.finalInvoiceToken : ''
+    const finalPayload = finalInvoiceToken ? verifyFinalInvoiceToken(finalInvoiceToken) : null
+    let requestedIds = Array.isArray(body.invoiceIds)
       ? Array.from(new Set(body.invoiceIds.filter((id: unknown) => typeof id === 'string')))
       : []
+    let admin: any
+    let payerId = ''
+    let payerEmail = ''
+    let billingAccess = 'camper'
+    let allowedCamperIds = new Set<string>()
+    let accountCamperId = ''
+
+    if (finalInvoiceToken) {
+      if (!finalPayload) {
+        return NextResponse.json({ error: 'This final-invoice payment link is invalid or expired.' }, { status: 410 })
+      }
+
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+      if (!supabaseUrl || !serviceRoleKey) throw new Error('Final billing is not configured.')
+
+      admin = createClient(supabaseUrl, serviceRoleKey)
+      requestedIds = [finalPayload.invoiceId]
+      allowedCamperIds = new Set([finalPayload.camperId])
+      payerId = `final-${finalPayload.camperId}`
+      billingAccess = 'archived_final_invoice'
+    } else {
+      const context = await getAuthenticatedContext(request)
+      if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+      admin = context.admin
+      payerId = context.user.id
+      payerEmail = context.user.email || ''
+      accountCamperId = String(context.camper.id)
+      const delegatedCampers = await loadAuthorizedBillingCampers(admin, context.user.email)
+      allowedCamperIds = new Set([
+        String(context.camper.id),
+        ...delegatedCampers.map((camper: any) => String(camper.id)),
+      ])
+    }
 
     if (requestedIds.length === 0 || requestedIds.length > 20) {
       return NextResponse.json(
@@ -43,23 +85,17 @@ export async function POST(request: Request) {
       )
     }
 
-    const delegatedCampers = await loadAuthorizedBillingCampers(context.admin, context.user.email)
-    const allowedCamperIds = new Set([
-      String(context.camper.id),
-      ...delegatedCampers.map((camper: any) => String(camper.id)),
-    ])
-
-    const { data: invoices, error: invoiceError } = await context.admin
+    const { data: invoiceData, error: invoiceError } = await admin
       .from('invoices')
       .select('id,invoice_number,invoice_type,total_due,status,camper_id')
       .in('id', requestedIds)
+    const invoices = (invoiceData || []) as CheckoutInvoice[]
 
     if (invoiceError) {
       throw invoiceError
     }
 
     if (
-      !invoices ||
       invoices.length !== requestedIds.length ||
       invoices.some((invoice) => !allowedCamperIds.has(String(invoice.camper_id)))
     ) {
@@ -92,12 +128,31 @@ export async function POST(request: Request) {
     }
 
     const billedCamperId = String(invoices[0].camper_id)
-    const delegatedPayment = billedCamperId !== String(context.camper.id)
+
+    if (finalPayload) {
+      const { data: finalCamper, error: finalCamperError } = await admin
+        .from('campers')
+        .select('id,email,secondary_email,active')
+        .eq('id', finalPayload.camperId)
+        .single()
+
+      if (finalCamperError || !finalCamper || finalCamper.active !== false) {
+        return NextResponse.json({ error: 'This final-billing payment link is closed.' }, { status: 410 })
+      }
+
+      payerEmail = [finalCamper.email, finalCamper.secondary_email]
+        .map((value) => String(value || '').trim().toLowerCase())
+        .find((value) => /^\S+@\S+\.\S+$/.test(value)) || ''
+    } else if (!allowedCamperIds.has(billedCamperId)) {
+      return NextResponse.json({ error: 'This invoice is not available to this account.' }, { status: 403 })
+    }
+
+    const delegatedPayment = billingAccess !== 'archived_final_invoice' && billedCamperId !== accountCamperId
 
     const invoiceSubtotalCents = invoices.reduce((sum, invoice) => {
       return sum + Math.round(Number(invoice.total_due || 0) * 100)
     }, 0)
-    const feeSettings = await loadPaymentFeeSettings(context.admin)
+    const feeSettings = await loadPaymentFeeSettings(admin)
     const processingFeeCents = paymentMethod === 'card'
       ? calculateCardProcessingFeeCents(invoiceSubtotalCents, feeSettings)
       : calculateAchProcessingFeeCents(invoiceSubtotalCents)
@@ -144,6 +199,9 @@ export async function POST(request: Request) {
 
     const stripe = new Stripe(key)
     const origin = getSiteUrl()
+    const finalReturnUrl = finalInvoiceToken
+      ? `${origin}/final-invoice/${encodeURIComponent(finalInvoiceToken)}`
+      : ''
     const verifiedInvoiceIds = invoices.map((invoice) => String(invoice.id))
     const checkoutWindow = Math.floor(Date.now() / (60 * 60 * 1000))
     const checkoutFingerprint = createHash('sha256')
@@ -160,17 +218,17 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: lineItems,
-      success_url: `${origin}/success`,
-      cancel_url: `${origin}/invoices`,
-      client_reference_id: context.user.id,
-      customer_email: context.user.email || undefined,
+      success_url: finalReturnUrl ? `${finalReturnUrl}?payment=success` : `${origin}/success`,
+      cancel_url: finalReturnUrl || `${origin}/invoices`,
+      client_reference_id: payerId,
+      customer_email: payerEmail || undefined,
       payment_method_types: paymentMethod === 'ach' ? ['us_bank_account'] : ['card'],
       ...(paymentMethod === 'ach' ? { customer_creation: 'always' as const } : {}),
       metadata: {
         invoice_ids: JSON.stringify(verifiedInvoiceIds),
         camper_id: billedCamperId,
-        paid_by_email: context.user.email || '',
-        billing_access: delegatedPayment ? 'authorized_family_payer' : 'camper',
+        paid_by_email: payerEmail,
+        billing_access: billingAccess === 'archived_final_invoice' ? billingAccess : delegatedPayment ? 'authorized_family_payer' : 'camper',
         purpose: 'invoice_payment',
         payment_method: paymentMethod,
         invoice_subtotal_cents: String(invoiceSubtotalCents),
@@ -180,8 +238,8 @@ export async function POST(request: Request) {
         metadata: {
           invoice_ids: JSON.stringify(verifiedInvoiceIds),
           camper_id: billedCamperId,
-          paid_by_email: context.user.email || '',
-          billing_access: delegatedPayment ? 'authorized_family_payer' : 'camper',
+          paid_by_email: payerEmail,
+          billing_access: billingAccess === 'archived_final_invoice' ? billingAccess : delegatedPayment ? 'authorized_family_payer' : 'camper',
           purpose: 'invoice_payment',
           payment_method: paymentMethod,
           invoice_subtotal_cents: String(invoiceSubtotalCents),
