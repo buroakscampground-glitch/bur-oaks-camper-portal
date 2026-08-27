@@ -132,7 +132,9 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     }
 
     setSaving(true)
-    setMessage('Sending this reading to the office…')
+    setMessage(adminMode
+      ? 'Sending this reading to the office…'
+      : 'Sending the photo and reading the meter number…')
     const form = new FormData()
     form.append('lotNumber', lotNumber)
     if (reading) form.append('reading', reading)
@@ -152,7 +154,11 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
       return
     }
     setComplete(true)
-    setMessage(`Lot ${lotNumber} was sent to the office for review. Nothing has been billed.`)
+    const detectedValue = result?.submission?.detected_reading
+    const detected = Number(detectedValue)
+    setMessage(detectedValue !== null && detectedValue !== undefined && Number.isFinite(detected)
+      ? `Lot ${lotNumber} was sent to the office. The photo reader found ${detected.toLocaleString()} for review. Nothing has been billed.`
+      : `Lot ${lotNumber} was sent to the office for review. Nothing has been billed.`)
   }
 
   function readAnother() {

@@ -46,12 +46,21 @@ export function chooseBestMeterRecognition(
   const usable = candidates.filter((candidate) => candidate.reading !== null)
   if (!usable.length) return null
 
+  // The display is analyzed several ways. Agreement between those passes is
+  // more reliable than OCR confidence alone for mechanical meter dials.
+  const readingCounts = new Map<number, number>()
+  for (const candidate of usable) {
+    const reading = Number(candidate.reading)
+    readingCounts.set(reading, (readingCounts.get(reading) || 0) + 1)
+  }
+
   return [...usable].sort((a, b) => {
     const score = (candidate: MeterRecognitionCandidate) => {
       const reading = Number(candidate.reading)
       const confidence = Number.isFinite(candidate.confidence) ? Number(candidate.confidence) : 0
       const digits = String(Math.trunc(reading)).length
-      let value = confidence + (digits >= 4 && digits <= 8 ? 18 : 0)
+      const agreement = readingCounts.get(reading) || 1
+      let value = confidence + (digits >= 4 && digits <= 8 ? 18 : 0) + ((agreement - 1) * 120)
 
       if (previousReading !== null && Number.isFinite(previousReading)) {
         const delta = reading - previousReading

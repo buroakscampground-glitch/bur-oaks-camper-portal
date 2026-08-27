@@ -25,37 +25,70 @@ function safePhotoType(bytes: ArrayBuffer) {
 }
 
 async function prepareRecognitionImages(bytes: ArrayBuffer) {
-  const normalized = await sharp(Buffer.from(bytes), { failOn: 'none', limitInputPixels: 40_000_000 })
+  const oriented = await sharp(Buffer.from(bytes), { failOn: 'none', limitInputPixels: 40_000_000 })
     .rotate()
-    .resize({ width: 1100, height: 825, fit: 'inside', withoutEnlargement: false })
-    .grayscale()
-    .normalize()
-    .sharpen({ sigma: 1.2 })
-    .png()
+    .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: false })
+    .jpeg({ quality: 92 })
     .toBuffer()
-  return normalized
+
+  const metadata = await sharp(oriented).metadata()
+  const width = metadata.width || 1200
+  const height = metadata.height || 900
+  const regions = [
+    { left: 0.29, top: 0.21, width: 0.46, height: 0.20 },
+    { left: 0.27, top: 0.18, width: 0.50, height: 0.26 },
+    { left: 0.18, top: 0.10, width: 0.65, height: 0.42 },
+  ]
+  const images: Buffer[] = []
+
+  for (const region of regions) {
+    const crop = {
+      left: Math.max(0, Math.floor(width * region.left)),
+      top: Math.max(0, Math.floor(height * region.top)),
+      width: Math.min(width, Math.max(1, Math.floor(width * region.width))),
+      height: Math.min(height, Math.max(1, Math.floor(height * region.height))),
+    }
+    crop.width = Math.min(crop.width, width - crop.left)
+    crop.height = Math.min(crop.height, height - crop.top)
+
+    for (const threshold of [50, 55, 60, 65]) {
+      images.push(await sharp(oriented)
+        .extract(crop)
+        .resize({ width: 1200 })
+        .grayscale()
+        .normalize()
+        .threshold(threshold)
+        .negate()
+        .png()
+        .toBuffer())
+    }
+  }
+  return images
 }
 
 async function recognizeReading(bytes: ArrayBuffer, previousReading: number | null = null) {
-  const image = await prepareRecognitionImages(bytes)
+  const images = await prepareRecognitionImages(bytes)
   const worker = await createWorker('eng')
   try {
     await worker.setParameters({
       tessedit_char_whitelist: '0123456789,.- ',
       tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
     })
-    const result = await worker.recognize(image)
-    const candidates = [{
-      ...extractMeterReading(result.data.text),
-      confidence: Number.isFinite(result.data.confidence) ? Math.round(result.data.confidence) : null,
-      text: result.data.text.slice(0, 2000),
-    }]
+    const candidates = []
+    for (const image of images) {
+      const result = await worker.recognize(image)
+      candidates.push({
+        ...extractMeterReading(result.data.text),
+        confidence: Number.isFinite(result.data.confidence) ? Math.round(result.data.confidence) : null,
+        text: result.data.text.slice(0, 2000),
+      })
+    }
     const best = chooseBestMeterRecognition(candidates, previousReading)
     return {
       reading: best?.reading ?? null,
       rawCandidate: best?.rawCandidate || '',
       confidence: best?.confidence ?? null,
-      text: candidates[0].text,
+      text: candidates.map((candidate) => candidate.text.trim()).filter(Boolean).join('\n---\n').slice(0, 4000),
     }
   } finally {
     await worker.terminate()
@@ -77,6 +110,19 @@ async function findSiteCamper(context: any, lotNumber: string) {
   )
   const camper = operational.find((item: any) => item.id === lot?.camper_id) || operational[0] || null
   return { lot, camper }
+}
+
+async function latestReadingForCamper(context: any, camperId: string | null | undefined) {
+  if (!camperId) return null
+  const { data } = await context.admin
+    .from('electric_readings')
+    .select('current_reading')
+    .eq('camper_id', camperId)
+    .order('reading_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const value = Number(data?.current_reading)
+  return Number.isFinite(value) ? value : null
 }
 
 async function signedSubmission(context: any, submission: any) {
@@ -162,17 +208,7 @@ export async function POST(request: Request) {
       let previousReading: number | null = null
       if (normalizeLotKey(lotNumber)) {
         const { camper } = await findSiteCamper(context, lotNumber)
-        if (camper?.id) {
-          const { data: previous } = await context.admin
-            .from('electric_readings')
-            .select('current_reading')
-            .eq('camper_id', camper.id)
-            .order('reading_date', { ascending: false })
-            .limit(1)
-            .maybeSingle()
-          const value = Number(previous?.current_reading)
-          if (Number.isFinite(value)) previousReading = value
-        }
+        previousReading = await latestReadingForCamper(context, camper?.id)
       }
       recognition = await recognizeReading(bytes, previousReading)
     } catch (error) {
@@ -202,6 +238,17 @@ export async function POST(request: Request) {
 
   const { lot, camper } = await findSiteCamper(context, lotNumber)
   if (!camper) return NextResponse.json({ error: `No active camper billing record was found for Lot ${lotNumber}.` }, { status: 404 })
+
+  // Photo-only field submissions still run OCR here. The office receives the
+  // original photo plus an automatically prefilled reading to verify.
+  if (recognition.reading === null) {
+    try {
+      const previousReading = await latestReadingForCamper(context, camper.id)
+      recognition = await recognizeReading(bytes, previousReading)
+    } catch (error) {
+      console.error('Meter OCR failed during submission:', error)
+    }
+  }
 
   const meterNumber = String(lot?.meter_number || '').trim() || null
   const photoPath = `${normalizeLotKey(lotNumber)}/${Date.now()}-${crypto.randomUUID()}.${photoType.extension}`

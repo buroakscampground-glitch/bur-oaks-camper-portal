@@ -24,3 +24,14 @@ test('meter OCR favors a plausible reading near the previous lot reading', () =>
 
   assert.equal(best?.reading, 12584)
 })
+
+test('meter OCR favors a reading repeated across several image treatments', () => {
+  const best = chooseBestMeterRecognition([
+    { reading: 3713, rawCandidate: '03713', confidence: 11, text: '0 37 1 3' },
+    { reading: 3713, rawCandidate: '03713', confidence: 45, text: '03713' },
+    { reading: 3713, rawCandidate: '03713', confidence: 29, text: '03713' },
+    { reading: 37138, rawCandidate: '037138', confidence: 46, text: '037138' },
+  ], 3500)
+
+  assert.equal(best?.reading, 3713)
+})
