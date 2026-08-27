@@ -68,5 +68,6 @@ test('campground non-renewal letters name both profiles and use the lease end da
   assert.match(letter.text, /camping-ready condition/)
   assert.match(letter.text, /rock or stone, landscaping, bushes, trees/)
   assert.match(letter.text, /property of Bur Oaks Campground/)
+  assert.doesNotMatch(letter.text, /sheds/i)
   assert.match(letter.text, /may be charged to your account/)
 })
