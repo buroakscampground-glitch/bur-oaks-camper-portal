@@ -71,12 +71,19 @@ export async function GET(request: Request) {
     }).eq('id', cycle.id)
   }
 
-  const [{ data: records, error: recordError }, { data: templates, error: templateError }] = await Promise.all([
+  const [
+    { data: records, error: recordError },
+    { data: nonRenewals, error: nonRenewalError },
+    { data: templates, error: templateError },
+  ] = await Promise.all([
     admin.from('season_renewals').select('id,camper_id,lot_number,contract_end_date,renewal_sent_at,status,auto_send_approved,review_notified_at').is('renewal_sent_at', null).eq('status', 'Not Started'),
+    admin.from('season_renewals').select('id,camper_id,lot_number,contract_end_date,renewal_sent_at,status,auto_send_approved,review_notified_at').is('renewal_sent_at', null).eq('status', 'Campground Not Renewing'),
     admin.from('document_templates').select('*').order('created_at', { ascending: false }),
   ])
 
-  if (recordError || templateError) return NextResponse.json({ error: recordError?.message || templateError?.message }, { status: 500 })
+  if (recordError || nonRenewalError || templateError) {
+    return NextResponse.json({ error: recordError?.message || nonRenewalError?.message || templateError?.message }, { status: 500 })
+  }
 
   // Give the office a two-week review window. A renewal can never auto-send
   // unless the office explicitly approves it on the Renewal Forecast page.
@@ -112,6 +119,41 @@ export async function GET(request: Request) {
       })
     }
     await admin.from('season_renewals').update({ review_notified_at: now }).in('id', reviewQueue.map((record) => record.id))
+  }
+
+  // A campground non-renewal is never sent automatically. On the same date
+  // the normal renewal would have gone out, alert the owner and hold the
+  // professional letter until an administrator reviews and sends it.
+  const nonRenewalReviewQueue = (nonRenewals || [])
+    .filter((record) => !isSystemPortalAccount(record))
+    .filter((record) => record.contract_end_date && !record.review_notified_at && shiftMonths(record.contract_end_date, -4) <= today)
+
+  if (nonRenewalReviewQueue.length) {
+    const lots = nonRenewalReviewQueue.map((record) => record.lot_number || 'unknown').join(', ')
+    const now = new Date().toISOString()
+    await admin.from('admin_notifications').insert(nonRenewalReviewQueue.map((record) => ({
+      type: 'nonrenewal_letter_review',
+      title: `Non-renewal letter ready for Lot ${record.lot_number || '—'}`,
+      message: `The campground non-renewal letter is ready for review. It is held and has not been sent to the camper. Review and approve it in Admin > Renewals.`,
+      lot_number: record.lot_number || null,
+      camper_id: record.camper_id,
+      source_table: 'season_renewals',
+      source_id: record.id,
+    })))
+
+    const alertPhone = formatSmsPhone(
+      process.env.RENEWAL_REVIEW_ALERT_PHONE ||
+      process.env.OWNER_ALERT_PHONE ||
+      process.env.ADMIN_ALERT_PHONE ||
+      '618-882-8063'
+    )
+    if (alertPhone) {
+      await sendTwilioSms({
+        to: alertPhone,
+        body: `Bur Oaks: Non-renewal letter${nonRenewalReviewQueue.length === 1 ? '' : 's'} ready for Lot${nonRenewalReviewQueue.length === 1 ? '' : 's'} ${lots}. Nothing has been sent to the camper. Review and approve before sending: https://www.buroakscampground.com/admin/renewals`,
+      })
+    }
+    await admin.from('season_renewals').update({ review_notified_at: now }).in('id', nonRenewalReviewQueue.map((record) => record.id))
   }
 
   const due = operationalRecords.filter((record) => record.auto_send_approved && record.contract_end_date && shiftMonths(record.contract_end_date, -4) <= today)
@@ -208,5 +250,13 @@ export async function GET(request: Request) {
     results.push({ renewalId: record.id, lot: camper.lot_number, status: 'sent', smsStatus })
   }
 
-  return NextResponse.json({ success: true, today, checked: records?.length || 0, reviewNotifications: reviewQueue.length, due: due.length, results })
+  return NextResponse.json({
+    success: true,
+    today,
+    checked: (records?.length || 0) + (nonRenewals?.length || 0),
+    reviewNotifications: reviewQueue.length,
+    nonRenewalReviewNotifications: nonRenewalReviewQueue.length,
+    due: due.length,
+    results,
+  })
 }

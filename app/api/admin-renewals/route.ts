@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { todayInCentral } from '../../../lib/invoice-texting'
+import { sendNonRenewalLetter } from '../../../lib/nonrenewal-letter'
 
 export const runtime = 'nodejs'
 
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
 
   const { data: camper } = await context.admin
     .from('campers')
-    .select('id,lot_number,active')
+    .select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,email,secondary_email,active')
     .eq('id', camperId)
     .eq('active', true)
     .maybeSingle()
@@ -69,6 +70,79 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Choose the annual contract month and day.' }, { status: 400 })
   }
 
+  if (action === 'send-nonrenewal') {
+    if (!existing || existing.status !== 'Campground Not Renewing') {
+      return NextResponse.json({ error: 'This site is not marked as a campground non-renewal.' }, { status: 400 })
+    }
+    if (!existing.contract_end_date) {
+      return NextResponse.json({ error: 'Add the annual contract end date before sending this letter.' }, { status: 400 })
+    }
+    if (!existing.review_notified_at) {
+      return NextResponse.json({ error: 'The letter is still held. It can be approved after the scheduled phone alert.' }, { status: 400 })
+    }
+    if (existing.renewal_sent_at) {
+      return NextResponse.json({ success: true, renewal: existing, alreadySent: true })
+    }
+
+    const now = new Date().toISOString()
+    const { data: reserved, error: reserveError } = await context.admin
+      .from('season_renewals')
+      .update({
+        auto_send_approved: true,
+        auto_send_approved_at: now,
+        last_automation_at: now,
+        automation_error: null,
+      })
+      .eq('id', existing.id)
+      .eq('status', 'Campground Not Renewing')
+      .eq('auto_send_approved', false)
+      .is('renewal_sent_at', null)
+      .select('*')
+      .maybeSingle()
+
+    if (reserveError || !reserved) {
+      return NextResponse.json({ error: reserveError?.message || 'This letter is already being sent. Refresh before trying again.' }, { status: 409 })
+    }
+
+    let delivery
+    try {
+      delivery = await sendNonRenewalLetter(camper, existing.contract_end_date)
+    } catch (error: any) {
+      await context.admin.from('season_renewals').update({
+        auto_send_approved: false,
+        auto_send_approved_at: null,
+        automation_error: String(error?.message || error).slice(0, 2000),
+        last_automation_at: new Date().toISOString(),
+      }).eq('id', existing.id)
+      return NextResponse.json({ error: error?.message || 'The non-renewal letter could not be sent.' }, { status: 502 })
+    }
+
+    const { data: renewal, error: updateError } = await context.admin
+      .from('season_renewals')
+      .update({
+        renewal_sent_at: todayInCentral(),
+        last_automation_at: new Date().toISOString(),
+        automation_error: null,
+      })
+      .eq('id', existing.id)
+      .select('*')
+      .single()
+
+    if (updateError || !renewal) {
+      const message = `The letter was accepted by the email provider, but the renewal record could not be updated: ${updateError?.message || 'unknown database error'}`
+      await context.admin.from('season_renewals').update({ automation_error: message }).eq('id', existing.id)
+      return NextResponse.json({ error: message }, { status: 500 })
+    }
+
+    await context.admin
+      .from('admin_notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('type', 'nonrenewal_letter_review')
+      .eq('source_id', existing.id)
+      .is('read_at', null)
+    return NextResponse.json({ success: true, renewal, delivery })
+  }
+
   const now = new Date().toISOString()
   const today = todayInCentral()
   const decisionStatus = action === 'approve'
@@ -81,17 +155,33 @@ export async function POST(request: Request) {
         ? 'Awaiting Response'
         : status
   const finalDate = annualDate || existing?.contract_end_date || null
+  const changedToCampgroundDecision = decisionStatus === 'Campground Not Renewing' && existing?.status !== 'Campground Not Renewing'
 
   const payload: Record<string, unknown> = {
     camper_id: camper.id,
     lot_number: camper.lot_number || null,
     contract_start_date: finalDate ? `2000-${finalDate.slice(5)}` : existing?.contract_start_date || null,
     contract_end_date: finalDate,
-    renewal_sent_at: action === 'mark-sent' ? today : cleanText(body.renewalSentAt, 10) || existing?.renewal_sent_at || null,
+    renewal_sent_at: action === 'mark-sent'
+      ? today
+      : action === 'decline' || changedToCampgroundDecision
+        ? null
+        : cleanText(body.renewalSentAt, 10) || existing?.renewal_sent_at || null,
     status: decisionStatus,
     notes: cleanText(body.notes, 3000) || null,
-    auto_send_approved: action === 'approve' ? true : ['decline', 'clear'].includes(action) ? false : Boolean(existing?.auto_send_approved),
-    auto_send_approved_at: action === 'approve' ? now : ['decline', 'clear'].includes(action) ? null : existing?.auto_send_approved_at || null,
+    auto_send_approved: action === 'approve'
+      ? true
+      : ['decline', 'clear'].includes(action) || changedToCampgroundDecision || decisionStatus === 'Camper Leaving'
+        ? false
+        : Boolean(existing?.auto_send_approved),
+    auto_send_approved_at: action === 'approve'
+      ? now
+      : ['decline', 'clear'].includes(action) || changedToCampgroundDecision || decisionStatus === 'Camper Leaving'
+        ? null
+        : existing?.auto_send_approved_at || null,
+    review_notified_at: ['approve', 'decline', 'clear'].includes(action) || changedToCampgroundDecision
+      ? null
+      : existing?.review_notified_at || null,
     decision_recorded_at: ['Renewing', 'Camper Leaving', 'Campground Not Renewing'].includes(decisionStatus)
       ? today
       : null,

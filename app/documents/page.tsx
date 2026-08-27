@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, FileSignature, LockKeyhole, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, DoorOpen, FileSignature, LockKeyhole, ShieldCheck } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 
 export default function DocumentsPage() {
@@ -12,6 +12,7 @@ export default function DocumentsPage() {
   const [typedName, setTypedName] = useState('')
   const [consentAccepted, setConsentAccepted] = useState(false)
   const [signing, setSigning] = useState(false)
+  const [decliningId, setDecliningId] = useState('')
   const [message, setMessage] = useState('')
   const [currentUserEmail, setCurrentUserEmail] = useState('')
   const router = useRouter()
@@ -123,17 +124,50 @@ export default function DocumentsPage() {
       : '✅ Document signed and securely recorded.')
   }
 
+  async function declineRenewal(document: any) {
+    const confirmed = window.confirm(
+      'Are you sure you do not want to renew your seasonal site? This will notify the campground that you plan to leave when your current agreement ends.'
+    )
+    if (!confirmed) return
+
+    setDecliningId(String(document.id))
+    setMessage('Recording your decision…')
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (!token) {
+      window.location.href = '/login'
+      return
+    }
+
+    const response = await fetch('/api/renewal-decision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ documentId: document.id, decision: 'not-renew' }),
+    })
+    const result = await response.json().catch(() => null)
+    setDecliningId('')
+
+    if (!response.ok) {
+      setMessage(result?.error || 'Your decision could not be recorded. Please contact the office.')
+      return
+    }
+
+    setDocuments((current) => current.map((item) => item.id === document.id ? { ...item, signature_status: 'declined' } : item))
+    setMessage('Your decision not to renew was recorded. The campground office has been notified.')
+  }
+
   if (loading) {
     return <p style={{ padding: '40px' }}>Loading documents...</p>
   }
 
   const documentsNeedingSignature = documents.filter(
-    (doc) => doc.signature_status !== 'signed' && doc.signature_status !== 'not_required'
+    (doc) => doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && doc.signature_status !== 'declined'
   )
   const signedDocuments = documents.filter((doc) => doc.signature_status === 'signed')
   const referenceDocuments = documents.filter((doc) => doc.signature_status === 'not_required')
+  const declinedDocuments = documents.filter((doc) => doc.signature_status === 'declined')
   const signatureProgress = documents.length
-    ? Math.round(((signedDocuments.length + referenceDocuments.length) / documents.length) * 100)
+    ? Math.round(((signedDocuments.length + referenceDocuments.length + declinedDocuments.length) / documents.length) * 100)
     : 100
   const normalizedEmail = currentUserEmail.trim().toLowerCase()
   const hasCurrentUserSigned = (doc: any) =>
@@ -146,22 +180,26 @@ export default function DocumentsPage() {
       return `Signed${doc.signed_at ? ` on ${new Date(doc.signed_at).toLocaleDateString()}` : ''}`
     }
     if (doc.signature_status === 'not_required') return 'No signature required'
+    if (doc.signature_status === 'declined') return 'You chose not to renew; the office was notified'
     if (doc.signature_status === 'pending_second_signature') return 'Waiting for second signer'
     return doc.requires_two_signatures ? 'Waiting for first signer' : 'Signature pending'
   }
   const canCurrentUserSign = (doc: any) =>
     doc.signature_status !== 'signed' &&
     doc.signature_status !== 'not_required' &&
+    doc.signature_status !== 'declined' &&
     !hasCurrentUserSigned(doc)
+
+  const isRenewalDocument = (doc: any) => /renewal/i.test(`${doc.document_name || ''} ${doc.document_type || ''}`)
 
   function renderDocumentCard(doc: any) {
     return (
       <section
         key={doc.id}
-        className={doc.signature_status === 'signed' ? 'camper-document-card signed' : 'camper-document-card'}
+        className={doc.signature_status === 'signed' ? 'camper-document-card signed' : doc.signature_status === 'declined' ? 'camper-document-card declined' : 'camper-document-card'}
       >
         <div className="camper-document-icon">
-          {doc.signature_status === 'signed' ? <CheckCircle2 size={22} /> : <FileSignature size={22} />}
+          {doc.signature_status === 'signed' ? <CheckCircle2 size={22} /> : doc.signature_status === 'declined' ? <DoorOpen size={22} /> : <FileSignature size={22} />}
         </div>
         <small>{doc.document_type || 'General'}</small>
         <h2>{doc.document_name}</h2>
@@ -195,7 +233,12 @@ export default function DocumentsPage() {
               Sign Document
             </button>
           )}
-          {!canCurrentUserSign(doc) && doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && (
+          {canCurrentUserSign(doc) && isRenewalDocument(doc) && (
+            <button type="button" className="decline-renewal" disabled={decliningId === String(doc.id)} onClick={() => declineRenewal(doc)}>
+              <DoorOpen size={15} /> {decliningId === String(doc.id) ? 'Recording…' : 'I Am Not Renewing'}
+            </button>
+          )}
+          {!canCurrentUserSign(doc) && doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && doc.signature_status !== 'declined' && (
             <span className="camper-document-waiting-note">Waiting for the other signer</span>
           )}
         </div>
@@ -212,7 +255,7 @@ export default function DocumentsPage() {
         <p>Review assigned documents, open the original file, and electronically sign when a signature is required.</p>
         <div className="camper-documents-summary">
           <article><small>Needs signature</small><strong>{documentsNeedingSignature.length}</strong></article>
-          <article><small>Signed / complete</small><strong>{signedDocuments.length + referenceDocuments.length}</strong></article>
+          <article><small>Completed / records</small><strong>{signedDocuments.length + referenceDocuments.length + declinedDocuments.length}</strong></article>
           <article><small>Progress</small><strong>{signatureProgress}%</strong></article>
         </div>
       </section>
@@ -240,15 +283,15 @@ export default function DocumentsPage() {
           </section>
         )}
 
-        {(signedDocuments.length > 0 || referenceDocuments.length > 0) && (
+        {(signedDocuments.length > 0 || referenceDocuments.length > 0 || declinedDocuments.length > 0) && (
           <section className="camper-document-section">
             <div className="camper-document-section-heading">
               <span>YOUR RECORDS</span>
-              <h2>Signed and reference documents</h2>
+              <h2>Signed, declined, and reference documents</h2>
               <p>These files are saved with your camper account for easy access.</p>
             </div>
             <div className="camper-documents-grid">
-              {[...signedDocuments, ...referenceDocuments].map(renderDocumentCard)}
+              {[...signedDocuments, ...declinedDocuments, ...referenceDocuments].map(renderDocumentCard)}
             </div>
           </section>
         )}

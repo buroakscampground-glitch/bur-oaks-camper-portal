@@ -585,7 +585,8 @@ export default function CamperPortalPage() {
   const documentsNeedingSignature = documents.filter(
     (document) =>
       document.signature_status !== 'signed' &&
-      document.signature_status !== 'not_required'
+      document.signature_status !== 'not_required' &&
+      document.signature_status !== 'declined'
   )
   const insuranceOnFile = documents.some(
     (document) => document.document_type === 'Golf Cart Insurance'

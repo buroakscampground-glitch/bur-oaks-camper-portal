@@ -82,7 +82,7 @@ export default function MySitePage() {
 
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
   const openBalance = openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-  const documentsNeedingSignature = documents.filter((document) => document.signature_status !== 'signed' && document.signature_status !== 'not_required')
+  const documentsNeedingSignature = documents.filter((document) => document.signature_status !== 'signed' && document.signature_status !== 'not_required' && document.signature_status !== 'declined')
   const insuranceDocs = documents.filter((document) => document.document_type === 'Golf Cart Insurance')
   const activeMaintenance = maintenance.filter((ticket) => ticket.status !== 'Completed')
   const latestElectric = electric[0]

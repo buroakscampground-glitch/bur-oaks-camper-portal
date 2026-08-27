@@ -4,6 +4,7 @@ import { nextInvoiceNumber } from '../lib/invoice-number.ts'
 import { isCompletedTicketStatus } from '../lib/maintenance-status.ts'
 import { filterOptedInPhones } from '../lib/sms-recipient-filter.ts'
 import { createFinalInvoiceToken, verifyFinalInvoiceToken } from '../lib/final-invoice-token.ts'
+import { buildNonRenewalLetter } from '../lib/nonrenewal-letter-copy.ts'
 
 test('completed maintenance statuses are matched without case or whitespace sensitivity', () => {
   assert.equal(isCompletedTicketStatus('completed'), true)
@@ -51,4 +52,19 @@ test('final invoice tokens are scoped, signed, and expire', () => {
   )
   assert.equal(verifyFinalInvoiceToken(`${token}changed`, { now: issuedAt, secret }), null)
   assert.equal(verifyFinalInvoiceToken(token, { now: issuedAt + 61_000, secret }), null)
+})
+
+test('campground non-renewal letters name both profiles and use the lease end date', () => {
+  const letter = buildNonRenewalLetter({
+    first_name: 'Sally',
+    second_profile_first_name: 'Dave',
+    last_name: 'Camper',
+    lot_number: 'FF3',
+  }, '2027-05-01')
+
+  assert.match(letter.text, /Dear Sally and Dave,/)
+  assert.match(letter.text, /Site FF3/)
+  assert.match(letter.text, /May 1, 2027/)
+  assert.match(letter.text, /camping-ready condition/)
+  assert.match(letter.text, /may be charged to your account/)
 })

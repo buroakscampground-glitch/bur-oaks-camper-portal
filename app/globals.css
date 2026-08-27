@@ -10239,6 +10239,16 @@ tbody tr:hover {
   background: linear-gradient(180deg,#fff,#f2f8f0);
 }
 
+.camper-document-card.declined {
+  border-color: #e3b8b0;
+  background: linear-gradient(180deg,#fff,#fff2ef);
+}
+
+.camper-document-card.declined .camper-document-icon {
+  background: #f5dcd7;
+  color: #943f37;
+}
+
 .camper-documents-grid.urgent .camper-document-card {
   border-color: #e1c989;
   background: linear-gradient(180deg,#fff,#fff8e9);
@@ -10361,6 +10371,12 @@ tbody tr:hover {
   border: 0 !important;
   background: #315f3d !important;
   color: #fff !important;
+}
+
+.camper-document-actions button.decline-renewal {
+  border-color: #c9685e !important;
+  background: #fff !important;
+  color: #9b4038 !important;
 }
 
 .camper-documents-empty {
