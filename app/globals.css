@@ -13385,6 +13385,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 @media print{.final-invoice-page{padding:0;background:#fff}.final-invoice-hero button,.final-invoice-methods,.final-invoice-pay,.final-invoice-security{display:none!important}.final-invoice-card,.final-invoice-hero{box-shadow:none}}
 
 /* Admin meter photo entry button. */
-.admin-meter-tools{grid-template-columns:minmax(0,1fr) repeat(3,auto)}
+.admin-meter-tools{grid-template-columns:minmax(0,1fr) repeat(4,auto)}
 .admin-meter-capture-link{display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 14px;border-radius:11px;background:#a83930;color:#fff;font-size:12px;font-weight:900;text-decoration:none;white-space:nowrap}
+.admin-meter-tools>input{min-height:42px;min-width:230px;padding:0 12px;border:1px solid #cfd8cd!important;border-radius:11px!important;background:#fff!important;color:#293e31!important;font-size:12px!important}
 @media(max-width:760px){.admin-meter-tools{grid-template-columns:1fr}.admin-meter-capture-link{width:100%}}
