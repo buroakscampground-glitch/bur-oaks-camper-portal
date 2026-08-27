@@ -120,6 +120,7 @@ export default function AdminMeterReadingReviewPage() {
 
       <section className="admin-meter-tools">
         <div><strong>Weatherproof meter labels</strong><p>Two columns by four rows, with large lot numbers, meter references, QR codes, and cut lines.</p></div>
+        <a className="admin-meter-capture-link" href="/admin/electric/capture"><Camera size={17} /> Take Meter Photo</a>
         <button type="button" className="secondary" onClick={downloadLabels}><Download size={17} /> Download PDF</button>
         <button type="button" onClick={emailLabels} disabled={emailing}>{emailing ? <LoaderCircle className="meter-spin" size={17} /> : <Mail size={17} />} Email Labels to Me</button>
       </section>

@@ -13,7 +13,7 @@ async function authToken() {
   return data.session?.access_token || ''
 }
 
-export default function MaintenanceMeterReadingsPage() {
+export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean }) {
   const [sites, setSites] = useState<Site[]>([])
   const [lotNumber, setLotNumber] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
@@ -118,16 +118,16 @@ export default function MaintenanceMeterReadingsPage() {
     setPreview('')
     setComplete(false)
     setMessage('')
-    window.history.replaceState({}, '', '/maintenance/dashboard/meter-readings')
+    window.history.replaceState({}, '', adminMode ? '/admin/electric/capture' : '/maintenance/dashboard/meter-readings')
   }
 
   return (
     <main className="meter-field-page">
       <header className="meter-field-hero">
-        <Link href="/maintenance/dashboard">← Maintenance home</Link>
-        <span><Gauge size={17} /> ELECTRIC METERS</span>
+        <Link href={adminMode ? '/admin/electric/meter-readings' : '/maintenance/dashboard'}>← {adminMode ? 'Meter Reading Review' : 'Maintenance home'}</Link>
+        <span><Gauge size={17} /> {adminMode ? 'ADMIN METER ENTRY' : 'ELECTRIC METERS'}</span>
         <h1>Read a meter in three easy steps.</h1>
-        <p>Scan the meter label with the phone camera or choose the lot below. The office reviews every reading before billing.</p>
+        <p>Scan the meter label with the phone camera or choose the lot below. {adminMode ? 'Your photo will enter the same office review queue before billing.' : 'The office reviews every reading before billing.'}</p>
       </header>
 
       <section className="meter-field-steps" aria-label="Meter reading steps">
@@ -189,4 +189,8 @@ export default function MaintenanceMeterReadingsPage() {
       </section>
     </main>
   )
+}
+
+export default function MaintenanceMeterReadingsPage() {
+  return <MeterReadingCapture />
 }
