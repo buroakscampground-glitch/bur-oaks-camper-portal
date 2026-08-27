@@ -60,6 +60,7 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     setMessage('Reading the meter number from the photo…')
     const form = new FormData()
     form.append('photo', file)
+    form.append('lotNumber', lotNumber)
     const token = await authToken()
     const response = await fetch('/api/meter-readings?analyze=1', {
       method: 'POST',
@@ -71,7 +72,9 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
       setReading(String(result.recognition.reading))
       setDetectedReading(String(result.recognition.reading))
       setOcrConfidence(result.recognition.confidence === null ? '' : String(result.recognition.confidence))
-      setMessage('Number detected. Compare it with the photo, correct it if needed, then submit.')
+      setMessage(result.recognition.confidence !== null && result.recognition.confidence < 65
+        ? 'A possible number was found. Carefully compare every digit with the photo before submitting.'
+        : 'Number detected. Compare it with the photo, correct it if needed, then submit.')
     } else {
       setMessage(result.error || 'The number was not clear enough. Enter it from the photo below.')
     }
@@ -164,7 +167,7 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
             <label className={`meter-photo-button ${!lotNumber ? 'disabled' : ''}`}>
               <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" disabled={!lotNumber || analyzing || saving} onChange={(event) => choosePhoto(event.target.files?.[0] || null)} />
               <Camera size={25} />
-              <span><strong>{photo ? 'Retake meter photo' : 'Take meter photo'}</strong><small>Hold steady and fill the picture with the numbers.</small></span>
+              <span><strong>{photo ? 'Retake meter photo' : 'Take meter photo'}</strong><small>Hold the phone square, avoid glare, and fill the picture with the meter display.</small></span>
             </label>
 
             {preview && (

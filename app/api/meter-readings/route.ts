@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createWorker, PSM } from 'tesseract.js'
+import sharp from 'sharp'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { extractMeterReading, meterLabelCode, normalizeLotKey } from '../../../lib/meter-reading'
+import { chooseBestMeterRecognition, extractMeterReading, meterLabelCode, normalizeLotKey } from '../../../lib/meter-reading'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
@@ -23,19 +24,49 @@ function safePhotoType(bytes: ArrayBuffer) {
   return null
 }
 
-async function recognizeReading(bytes: ArrayBuffer) {
+async function prepareRecognitionImages(bytes: ArrayBuffer) {
+  const normalized = await sharp(Buffer.from(bytes), { failOn: 'none', limitInputPixels: 40_000_000 })
+    .rotate()
+    .resize({ width: 1600, height: 1200, fit: 'inside', withoutEnlargement: false })
+    .grayscale()
+    .normalize()
+    .sharpen({ sigma: 1.2 })
+    .png()
+    .toBuffer()
+
+  const threshold = await sharp(normalized).threshold(155).png().toBuffer()
+  const inverted = await sharp(threshold).negate().png().toBuffer()
+  return { normalized, threshold, inverted }
+}
+
+async function recognizeReading(bytes: ArrayBuffer, previousReading: number | null = null) {
+  const images = await prepareRecognitionImages(bytes)
   const worker = await createWorker('eng')
   try {
     await worker.setParameters({
       tessedit_char_whitelist: '0123456789,.- ',
-      tessedit_pageseg_mode: PSM.SPARSE_TEXT,
     })
-    const result = await worker.recognize(Buffer.from(bytes))
-    const parsed = extractMeterReading(result.data.text)
+    const attempts = [
+      { image: images.normalized, mode: PSM.SPARSE_TEXT },
+      { image: images.threshold, mode: PSM.SINGLE_BLOCK },
+      { image: images.inverted, mode: PSM.SINGLE_LINE },
+    ]
+    const candidates = []
+    for (const attempt of attempts) {
+      await worker.setParameters({ tessedit_pageseg_mode: attempt.mode })
+      const result = await worker.recognize(attempt.image)
+      candidates.push({
+        ...extractMeterReading(result.data.text),
+        confidence: Number.isFinite(result.data.confidence) ? Math.round(result.data.confidence) : null,
+        text: result.data.text.slice(0, 700),
+      })
+    }
+    const best = chooseBestMeterRecognition(candidates, previousReading)
     return {
-      ...parsed,
-      confidence: Number.isFinite(result.data.confidence) ? Math.round(result.data.confidence) : null,
-      text: result.data.text.slice(0, 2000),
+      reading: best?.reading ?? null,
+      rawCandidate: best?.rawCandidate || '',
+      confidence: best?.confidence ?? null,
+      text: candidates.map((candidate) => candidate.text).filter(Boolean).join('\n---\n').slice(0, 2000),
     }
   } finally {
     await worker.terminate()
@@ -138,7 +169,23 @@ export async function POST(request: Request) {
   let recognition = { reading: null as number | null, rawCandidate: '', confidence: null as number | null, text: '' }
   if (analyzeOnly) {
     try {
-      recognition = await recognizeReading(bytes)
+      const lotNumber = String(form.get('lotNumber') || '').trim()
+      let previousReading: number | null = null
+      if (normalizeLotKey(lotNumber)) {
+        const { camper } = await findSiteCamper(context, lotNumber)
+        if (camper?.id) {
+          const { data: previous } = await context.admin
+            .from('electric_readings')
+            .select('current_reading')
+            .eq('camper_id', camper.id)
+            .order('reading_date', { ascending: false })
+            .limit(1)
+            .maybeSingle()
+          const value = Number(previous?.current_reading)
+          if (Number.isFinite(value)) previousReading = value
+        }
+      }
+      recognition = await recognizeReading(bytes, previousReading)
     } catch (error) {
       console.error('Meter OCR failed:', error)
     }

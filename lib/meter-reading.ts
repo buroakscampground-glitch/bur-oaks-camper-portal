@@ -3,6 +3,11 @@ export type MeterOcrResult = {
   rawCandidate: string
 }
 
+export type MeterRecognitionCandidate = MeterOcrResult & {
+  confidence: number | null
+  text: string
+}
+
 export function normalizeLotKey(value: unknown) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
 }
@@ -32,6 +37,37 @@ export function extractMeterReading(text: string): MeterOcrResult {
   return Number.isSafeInteger(reading) && reading >= 0
     ? { reading, rawCandidate: best.raw.trim() }
     : { reading: null, rawCandidate: '' }
+}
+
+export function chooseBestMeterRecognition(
+  candidates: MeterRecognitionCandidate[],
+  previousReading: number | null = null
+) {
+  const usable = candidates.filter((candidate) => candidate.reading !== null)
+  if (!usable.length) return null
+
+  return [...usable].sort((a, b) => {
+    const score = (candidate: MeterRecognitionCandidate) => {
+      const reading = Number(candidate.reading)
+      const confidence = Number.isFinite(candidate.confidence) ? Number(candidate.confidence) : 0
+      const digits = String(Math.trunc(reading)).length
+      let value = confidence + (digits >= 4 && digits <= 8 ? 18 : 0)
+
+      if (previousReading !== null && Number.isFinite(previousReading)) {
+        const delta = reading - previousReading
+        const sameLength = digits === String(Math.trunc(previousReading)).length
+        if (sameLength) value += 18
+        if (delta >= 0) value += 32
+        else value -= 45
+        if (delta >= 0 && delta <= 10_000) value += 24
+        else if (delta > 100_000) value -= 35
+      }
+
+      return value
+    }
+
+    return score(b) - score(a)
+  })[0]
 }
 
 export function meterLabelCode(lotNumber: unknown, meterNumber?: unknown) {
