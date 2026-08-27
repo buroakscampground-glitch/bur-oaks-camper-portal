@@ -67,7 +67,9 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
 
 async function recognizeReading(bytes: ArrayBuffer, previousReading: number | null = null) {
   const images = await prepareRecognitionImages(bytes)
-  const worker = await createWorker('eng')
+  // Serverless deployments cannot write Tesseract's language cache beside the
+  // application bundle. /tmp is writable and is reused while the instance is warm.
+  const worker = await createWorker('eng', undefined, { cachePath: '/tmp' })
   try {
     await worker.setParameters({
       tessedit_char_whitelist: '0123456789,.- ',
