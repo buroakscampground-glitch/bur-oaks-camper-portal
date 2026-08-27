@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import QRCode from 'qrcode'
 import { getSiteUrl } from './site-url'
-import { meterLabelCode } from './meter-reading'
+import { displayLotNumber, meterLabelCode } from './meter-reading'
 
 export type MeterLabelSite = {
   lot_number: string
@@ -29,6 +29,7 @@ export async function buildMeterLabelsPdf(sites: MeterLabelSite[]) {
 
     for (let slot = 0; slot < pageSites.length; slot += 1) {
       const site = pageSites[slot]
+      const displayedLot = displayLotNumber(site.lot_number)
       const column = slot % COLUMNS
       const row = Math.floor(slot / COLUMNS)
       const x = MARGIN_X + column * (LABEL_WIDTH + GAP)
@@ -62,10 +63,10 @@ export async function buildMeterLabelsPdf(sites: MeterLabelSite[]) {
         font: bold,
         color: rgb(.12, .28, .18),
       })
-      page.drawText(`LOT ${site.lot_number}`, {
+      page.drawText(`LOT ${displayedLot}`, {
         x: x + 13,
         y: y + LABEL_HEIGHT - 65,
-        size: String(site.lot_number).length > 6 ? 24 : 31,
+        size: displayedLot.length > 6 ? 24 : 31,
         font: bold,
         color: rgb(.55, .13, .11),
       })

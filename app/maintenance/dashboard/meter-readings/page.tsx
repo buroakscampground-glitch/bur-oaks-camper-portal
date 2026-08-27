@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Camera, CheckCircle2, Gauge, Image as ImageIcon, LoaderCircle, MapPin, QrCode, RotateCcw } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
+import { displayLotNumber } from '../../../../lib/meter-reading'
 
 type Site = { lot_number: string; meter_number: string | null }
 
@@ -149,14 +150,14 @@ export default function MaintenanceMeterReadingsPage() {
               <span><MapPin size={16} /> Lot or campsite</span>
               <select value={lotNumber} onChange={(event) => { setLotNumber(event.target.value); setMessage('') }}>
                 <option value="">Choose a lot</option>
-                {sites.map((site) => <option key={site.lot_number} value={site.lot_number}>Lot {site.lot_number}{site.meter_number ? ` · Meter ${site.meter_number}` : ''}</option>)}
+                {sites.map((site) => <option key={site.lot_number} value={site.lot_number}>Lot {displayLotNumber(site.lot_number)}{site.meter_number ? ` · Meter ${site.meter_number}` : ''}</option>)}
               </select>
             </label>
 
             {lotNumber && (
               <div className="meter-field-site">
                 <Gauge size={23} />
-                <span><small>METER SELECTED</small><strong>Lot {lotNumber}</strong><em>{selectedSite?.meter_number ? `Meter ${selectedSite.meter_number}` : 'Verify the printed lot label'}</em></span>
+                <span><small>METER SELECTED</small><strong>Lot {displayLotNumber(lotNumber)}</strong><em>{selectedSite?.meter_number ? `Meter ${selectedSite.meter_number}` : 'Verify the printed lot label'}</em></span>
               </div>
             )}
 

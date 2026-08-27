@@ -7,6 +7,10 @@ export function normalizeLotKey(value: unknown) {
   return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
 }
 
+export function displayLotNumber(value: unknown) {
+  return String(value || '').trim().replace(/^lot\s+/i, '')
+}
+
 export function extractMeterReading(text: string): MeterOcrResult {
   const candidates = String(text || '')
     .replace(/[Oo]/g, '0')
