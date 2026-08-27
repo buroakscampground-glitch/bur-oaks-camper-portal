@@ -193,9 +193,10 @@ export async function POST(request: Request) {
   }
 
   const lotNumber = String(form.get('lotNumber') || '').trim()
-  const submittedReading = Number(form.get('reading'))
+  const submittedText = String(form.get('reading') || '').trim()
+  const submittedReading = submittedText ? Number(submittedText) : null
   if (!normalizeLotKey(lotNumber)) return NextResponse.json({ error: 'Choose the meter site first.' }, { status: 400 })
-  if (!Number.isFinite(submittedReading) || submittedReading < 0) {
+  if (submittedReading !== null && (!Number.isFinite(submittedReading) || submittedReading < 0)) {
     return NextResponse.json({ error: 'Confirm the meter number shown in the photo.' }, { status: 400 })
   }
 

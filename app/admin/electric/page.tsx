@@ -722,7 +722,7 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
               <div>
                 <span><CheckCircle2 size={16} /> OFFICE REVIEW DRAFT</span>
                 <h2>Lot {meterDraft.lot_number} meter photo is attached</h2>
-                <p>Maintenance confirmed <strong>{meterDraft.submitted_reading}</strong>{meterDraft.detected_reading !== null ? ` · Camera detected ${meterDraft.detected_reading}` : ''}. Confirm the current reading below, then add the usual charges and create the invoice.</p>
+                <p>{meterDraft.submitted_reading !== null ? <>Maintenance confirmed <strong>{meterDraft.submitted_reading}</strong>.</> : <>Maintenance submitted the meter photo.</>}{meterDraft.detected_reading !== null ? ` Camera detected ${meterDraft.detected_reading}.` : ''} Confirm the current reading below, then add the usual charges and create the invoice.</p>
               </div>
             </section>
           )}

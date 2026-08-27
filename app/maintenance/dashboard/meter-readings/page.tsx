@@ -86,6 +86,11 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     const file = await prepareMeterPhoto(originalFile)
     setPhoto(file)
     setPreview(URL.createObjectURL(file))
+    if (!adminMode) {
+      setAnalyzing(false)
+      setMessage('Photo ready. Submit it to the office—no number entry is required here.')
+      return
+    }
     const form = new FormData()
     form.append('photo', file)
     form.append('lotNumber', lotNumber)
@@ -121,8 +126,8 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
   }
 
   async function submitReading() {
-    if (!lotNumber || !photo || !reading) {
-      setMessage('Choose the site, take a meter photo, and confirm the number first.')
+    if (!lotNumber || !photo) {
+      setMessage('Choose the site and take a meter photo first.')
       return
     }
 
@@ -130,7 +135,7 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     setMessage('Sending this reading to the office…')
     const form = new FormData()
     form.append('lotNumber', lotNumber)
-    form.append('reading', reading)
+    if (reading) form.append('reading', reading)
     if (detectedReading) form.append('detectedReading', detectedReading)
     if (ocrConfidence) form.append('ocrConfidence', ocrConfidence)
     form.append('photo', photo)
@@ -210,21 +215,25 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
             </label>
 
             {preview && (
-              <div className="meter-photo-review">
+              <div className={`meter-photo-review ${adminMode ? '' : 'photo-only'}`}>
                 <img src={preview} alt={`Meter at Lot ${lotNumber}`} />
-                <label>
-                  <span><ImageIcon size={16} /> Confirm the number shown</span>
-                  <input inputMode="numeric" pattern="[0-9]*" value={reading} onChange={(event) => setReading(event.target.value.replace(/\D/g, ''))} placeholder={analyzing ? 'Reading photo…' : 'Enter meter number'} />
-                  <small>The system fills this automatically when it can. Always compare it with the photo.</small>
-                </label>
+                {adminMode ? (
+                  <label>
+                    <span><ImageIcon size={16} /> Confirm the number shown</span>
+                    <input inputMode="numeric" pattern="[0-9]*" value={reading} onChange={(event) => setReading(event.target.value.replace(/\D/g, ''))} placeholder={analyzing ? 'Reading photo…' : 'Enter meter number'} />
+                    <small>The system fills this automatically when it can. Always compare it with the photo.</small>
+                  </label>
+                ) : (
+                  <div className="meter-photo-ready"><CheckCircle2 size={24} /><span><strong>Picture ready</strong><small>The office will confirm the meter number from this photo.</small></span></div>
+                )}
               </div>
             )}
 
             {message && <p className="meter-field-message" role="status">{analyzing && <LoaderCircle className="meter-spin" size={16} />} {message}</p>}
 
-            <button className="meter-field-submit" type="button" onClick={submitReading} disabled={!lotNumber || !photo || !reading || analyzing || saving}>
+            <button className="meter-field-submit" type="button" onClick={submitReading} disabled={!lotNumber || !photo || analyzing || saving}>
               {saving ? <LoaderCircle className="meter-spin" size={18} /> : <CheckCircle2 size={18} />}
-              {saving ? 'Sending…' : 'Submit Reading to Office'}
+              {saving ? 'Sending…' : adminMode ? 'Submit Reading to Office' : 'Submit Meter Photo to Office'}
             </button>
           </>
         )}

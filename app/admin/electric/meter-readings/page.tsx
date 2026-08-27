@@ -115,7 +115,7 @@ export default function AdminMeterReadingReviewPage() {
   return (
     <main className="admin-meter-page">
       <section className="admin-meter-hero">
-        <div><span><Gauge size={16} /> ELECTRIC OPERATIONS</span><h1>Meter photo review</h1><p>Maintenance captures the photo and number. You verify it here, then finish the bill in the Electric area you already use.</p></div>
+        <div><span><Gauge size={16} /> ELECTRIC OPERATIONS</span><h1>Meter photo review</h1><p>Maintenance captures the photo. You confirm the number here, then finish the bill in the Electric area you already use.</p></div>
         <a href="/admin/electric"><Zap size={17} /> Electric Billing</a>
       </section>
 
@@ -158,7 +158,7 @@ export default function AdminMeterReadingReviewPage() {
             return (
               <article className={`admin-meter-card ${needsAttention ? 'attention' : ''}`} key={submission.id}>
                 <div className="admin-meter-photo">
-                  {submission.photo_url ? <img src={submission.photo_url} alt={`Meter photo for Lot ${submission.lot_number}`} /> : <span><Camera size={30} /> Photo unavailable</span>}
+                  {submission.photo_url ? <a href={submission.photo_url} target="_blank" rel="noreferrer" title="Open the full-size meter photo"><img src={submission.photo_url} alt={`Meter photo for Lot ${submission.lot_number}`} /></a> : <span><Camera size={30} /> Photo unavailable</span>}
                   <b>LOT {submission.lot_number}</b>
                 </div>
                 <div className="admin-meter-review">
@@ -166,7 +166,7 @@ export default function AdminMeterReadingReviewPage() {
                   <dl>
                     <div><dt>Previous</dt><dd>{previous ?? 'No history'}</dd></div>
                     <div><dt>Photo detected</dt><dd>{submission.detected_reading ?? 'Not clear'}</dd></div>
-                    <div><dt>Maintenance confirmed</dt><dd>{submission.submitted_reading}</dd></div>
+                    <div><dt>Field submission</dt><dd>{submission.submitted_reading ?? 'Photo only'}</dd></div>
                     <div><dt>Usage</dt><dd>{usage !== null ? `${usage.toLocaleString()} kWh` : 'Needs history'}</dd></div>
                   </dl>
                   {needsAttention && <p className="admin-meter-warning"><AlertTriangle size={16} /> {usage !== null && usage <= 0 ? 'Current number is not above the previous reading.' : `Usage appears unusually ${comparison?.status}. Compare the photo carefully.`}</p>}
