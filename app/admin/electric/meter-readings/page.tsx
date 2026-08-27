@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Camera, CheckCircle2, Download, Gauge, LoaderCircle, Mail, RefreshCw, RotateCcw, Zap } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Camera, CheckCircle2, Download, Gauge, LoaderCircle, Mail, Printer, RefreshCw, RotateCcw, Zap } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { campgroundAverageUsage, compareElectricUsage, groupedUsageHistory } from '../../../../lib/electric-reading-safeguards'
 
@@ -17,6 +17,10 @@ export default function AdminMeterReadingReviewPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [emailing, setEmailing] = useState(false)
+  const [reportMonth, setReportMonth] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
 
   async function load() {
     setLoading(true)
@@ -118,6 +122,13 @@ export default function AdminMeterReadingReviewPage() {
         <div><strong>Weatherproof meter labels</strong><p>Two columns by four rows, with large lot numbers, meter references, QR codes, and cut lines.</p></div>
         <button type="button" className="secondary" onClick={downloadLabels}><Download size={17} /> Download PDF</button>
         <button type="button" onClick={emailLabels} disabled={emailing}>{emailing ? <LoaderCircle className="meter-spin" size={17} /> : <Mail size={17} />} Email Labels to Me</button>
+      </section>
+
+      <section className="admin-meter-monthly-print">
+        <span><CalendarDays size={22} /></span>
+        <div><small>PAPER FILE COPY</small><strong>Print previous and current meter readings</strong><p>Choose any month. The report includes lot, camper, reading date, previous reading, current reading, and kWh used.</p></div>
+        <label><small>REPORT MONTH</small><input type="month" value={reportMonth} onChange={(event) => setReportMonth(event.target.value)} /></label>
+        <a href={`/admin/electric/monthly-report?month=${encodeURIComponent(reportMonth)}&print=1`} target="_blank" rel="noreferrer"><Printer size={17} /> Print Monthly Meter File</a>
       </section>
 
       {message && <p className="admin-meter-message" role="status">{message}</p>}
