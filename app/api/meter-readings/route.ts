@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
 import { createWorker, PSM } from 'tesseract.js'
 import sharp from 'sharp'
 import { isOperationalCamper } from '../../../lib/camper-records'
@@ -37,7 +37,6 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
   const regions = [
     { left: 0.29, top: 0.21, width: 0.46, height: 0.20 },
     { left: 0.27, top: 0.18, width: 0.50, height: 0.26 },
-    { left: 0.18, top: 0.10, width: 0.65, height: 0.42 },
   ]
   const images: Buffer[] = []
 
@@ -239,17 +238,6 @@ export async function POST(request: Request) {
   const { lot, camper } = await findSiteCamper(context, lotNumber)
   if (!camper) return NextResponse.json({ error: `No active camper billing record was found for Lot ${lotNumber}.` }, { status: 404 })
 
-  // Photo-only field submissions still run OCR here. The office receives the
-  // original photo plus an automatically prefilled reading to verify.
-  if (recognition.reading === null) {
-    try {
-      const previousReading = await latestReadingForCamper(context, camper.id)
-      recognition = await recognizeReading(bytes, previousReading)
-    } catch (error) {
-      console.error('Meter OCR failed during submission:', error)
-    }
-  }
-
   const meterNumber = String(lot?.meter_number || '').trim() || null
   const photoPath = `${normalizeLotKey(lotNumber)}/${Date.now()}-${crypto.randomUUID()}.${photoType.extension}`
   const { error: uploadError } = await context.admin.storage
@@ -279,6 +267,30 @@ export async function POST(request: Request) {
   if (error) {
     await context.admin.storage.from('meter-reading-photos').remove([photoPath])
     return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+
+  // Return the saved photo immediately so the phone never waits on OCR. Vercel
+  // keeps this task alive after the response and fills the office review field.
+  if (recognition.reading === null) {
+    after(async () => {
+      try {
+        const previousReading = await latestReadingForCamper(context, camper.id)
+        const detected = await recognizeReading(bytes, previousReading)
+        if (detected.reading === null) return
+        const { error: updateError } = await context.admin
+          .from('meter_reading_submissions')
+          .update({
+            detected_reading: detected.reading,
+            ocr_confidence: detected.confidence,
+            ocr_text: detected.text,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', data.id)
+        if (updateError) console.error('Meter OCR result could not be saved:', updateError)
+      } catch (ocrError) {
+        console.error('Background meter OCR failed:', ocrError)
+      }
+    })
   }
 
   return NextResponse.json({ success: true, submission: await signedSubmission(context, data) })

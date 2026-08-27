@@ -24,8 +24,8 @@ export default function AdminMeterReadingReviewPage() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
 
-  async function load() {
-    setLoading(true)
+  async function load(silent = false) {
+    if (!silent) setLoading(true)
     const auth = await token()
     const [response, readingResult] = await Promise.all([
       fetch('/api/meter-readings', { headers: { Authorization: `Bearer ${auth}` } }),
@@ -41,7 +41,11 @@ export default function AdminMeterReadingReviewPage() {
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    load()
+    const refresh = window.setInterval(() => load(true), 7000)
+    return () => window.clearInterval(refresh)
+  }, [])
 
   const average = useMemo(() => campgroundAverageUsage(readings), [readings])
 
@@ -166,7 +170,7 @@ export default function AdminMeterReadingReviewPage() {
 
       <section className="admin-meter-heading">
         <div><small>WAITING FOR OFFICE REVIEW</small><h2>{submissions.length} meter reading{submissions.length === 1 ? '' : 's'}</h2></div>
-        <button type="button" onClick={load}><RefreshCw size={16} /> Refresh</button>
+        <button type="button" onClick={() => load()}><RefreshCw size={16} /> Refresh</button>
       </section>
 
       {loading ? (

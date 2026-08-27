@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Camera, CheckCircle2, Gauge, Image as ImageIcon, LoaderCircle, MapPin, QrCode, RotateCcw, Trash2 } from 'lucide-react'
+import { Camera, CheckCircle2, Gauge, LoaderCircle, MapPin, QrCode, RotateCcw, Trash2 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { displayLotNumber } from '../../../../lib/meter-reading'
 
@@ -82,47 +82,12 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     if (!originalFile) return
 
     setAnalyzing(true)
-    setMessage('Preparing and reading the meter photo…')
+    setMessage('Preparing the meter photo…')
     const file = await prepareMeterPhoto(originalFile)
     setPhoto(file)
     setPreview(URL.createObjectURL(file))
-    if (!adminMode) {
-      setAnalyzing(false)
-      setMessage('Photo ready. Submit it to the office—no number entry is required here.')
-      return
-    }
-    const form = new FormData()
-    form.append('photo', file)
-    form.append('lotNumber', lotNumber)
-    const token = await authToken()
-    const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 25_000)
-    try {
-      const response = await fetch('/api/meter-readings?analyze=1', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: form,
-        signal: controller.signal,
-      })
-      const result = await response.json().catch(() => ({}))
-      if (response.ok && result.recognition?.reading !== null && result.recognition?.reading !== undefined) {
-        setReading(String(result.recognition.reading))
-        setDetectedReading(String(result.recognition.reading))
-        setOcrConfidence(result.recognition.confidence === null ? '' : String(result.recognition.confidence))
-        setMessage(result.recognition.confidence !== null && result.recognition.confidence < 65
-          ? 'A possible number was found. Carefully compare every digit with the photo before submitting.'
-          : 'Number detected. Compare it with the photo, correct it if needed, then submit.')
-      } else {
-        setMessage(result.error || 'Automatic reading was not clear. Enter the number shown in the photo below.')
-      }
-    } catch (error) {
-      setMessage(error instanceof DOMException && error.name === 'AbortError'
-        ? 'Automatic reading took too long. Enter the number shown in the photo below—your picture is still ready to submit.'
-        : 'Automatic reading was unavailable. Enter the number shown in the photo below.')
-    } finally {
-      window.clearTimeout(timeout)
-      setAnalyzing(false)
-    }
+    setAnalyzing(false)
+    setMessage('Photo ready. Submit it now—the meter number will be read automatically in the background.')
   }
 
   function clearPhoto() {
@@ -143,9 +108,7 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     }
 
     setSaving(true)
-    setMessage(adminMode
-      ? 'Sending this reading to the office…'
-      : 'Sending the photo and reading the meter number…')
+    setMessage('Saving the meter photo…')
     const form = new FormData()
     form.append('lotNumber', lotNumber)
     if (reading) form.append('reading', reading)
@@ -165,11 +128,7 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
       return
     }
     setComplete(true)
-    const detectedValue = result?.submission?.detected_reading
-    const detected = Number(detectedValue)
-    setMessage(detectedValue !== null && detectedValue !== undefined && Number.isFinite(detected)
-      ? `Lot ${lotNumber} was sent to the office. The photo reader found ${detected.toLocaleString()} for review. Nothing has been billed.`
-      : `Lot ${lotNumber} was sent to the office for review. Nothing has been billed.`)
+    setMessage(`Lot ${lotNumber} was sent to the office. The number is being added automatically for review. Nothing has been billed.`)
   }
 
   function readAnother() {
@@ -234,15 +193,7 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
             {preview && (
               <div className={`meter-photo-review ${adminMode ? '' : 'photo-only'}`}>
                 <img src={preview} alt={`Meter at Lot ${lotNumber}`} />
-                {adminMode ? (
-                  <label>
-                    <span><ImageIcon size={16} /> Confirm the number shown</span>
-                    <input inputMode="numeric" pattern="[0-9]*" value={reading} onChange={(event) => setReading(event.target.value.replace(/\D/g, ''))} placeholder={analyzing ? 'Reading photo…' : 'Enter meter number'} />
-                    <small>The system fills this automatically when it can. Always compare it with the photo.</small>
-                  </label>
-                ) : (
-                  <div className="meter-photo-ready"><CheckCircle2 size={24} /><span><strong>Picture ready</strong><small>The office will confirm the meter number from this photo.</small></span></div>
-                )}
+                <div className="meter-photo-ready"><CheckCircle2 size={24} /><span><strong>Picture ready</strong><small>Submit now. The system will read the number and the office will verify it.</small></span></div>
                 <button className="meter-photo-delete" type="button" onClick={clearPhoto} disabled={analyzing || saving}><Trash2 size={16} /> Delete this photo and preview</button>
               </div>
             )}
