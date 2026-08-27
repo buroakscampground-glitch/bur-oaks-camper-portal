@@ -75,6 +75,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}))
     const batchSize = Math.min(Math.max(Number(body.batchSize) || 50, 1), 50)
     const resendPending = body.mode === 'resend_pending'
+    const secondaryNew = body.mode === 'secondary_new'
     const origin = getSiteUrl()
 
     const [{ data: campers, error: camperError }, { data: logs }] = await Promise.all([
@@ -126,11 +127,16 @@ export async function POST(request: Request) {
 
     for (const camper of (campers || []).filter(isOperationalCamper)) {
       const camperName = `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
-      for (const email of [cleanEmail(camper.email), cleanEmail(camper.secondary_email)]) {
+      const candidateEmails = secondaryNew
+        ? [cleanEmail(camper.secondary_email)]
+        : [cleanEmail(camper.email), cleanEmail(camper.secondary_email)]
+
+      for (const email of candidateEmails) {
         if (!isRealEmail(email)) continue
         if (seen.has(email)) continue
         seen.add(email)
         if (acceptedEmails.has(email)) continue
+        if (secondaryNew && previouslySentEmails.has(email)) continue
         if (resendPending && !previouslySentEmails.has(email)) continue
         if (!resendPending && recentlySentEmails.has(email)) continue
         recipients.push({
@@ -188,7 +194,7 @@ export async function POST(request: Request) {
       remaining: Math.max(recipients.length - selected.length, 0),
       skippedAccepted: acceptedEmails.size,
       skippedRecentlySent: recentlySentEmails.size,
-      mode: resendPending ? 'resend_pending' : 'new_batch',
+      mode: resendPending ? 'resend_pending' : secondaryNew ? 'secondary_new' : 'new_batch',
     })
   } catch (error) {
     console.error('Unable to bulk send portal setup links:', error)

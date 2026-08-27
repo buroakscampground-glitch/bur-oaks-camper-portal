@@ -20,7 +20,7 @@ export default function AdminCampersPage() {
   const [portalStatuses, setPortalStatuses] = useState<Record<string, 'pending' | 'accepted'>>({})
   const [camperHealth, setCamperHealth] = useState<Record<string, any>>({})
   const [bulkSending, setBulkSending] = useState(false)
-  const [bulkConfirmMode, setBulkConfirmMode] = useState<'new_batch' | 'resend_pending' | null>(null)
+  const [bulkConfirmMode, setBulkConfirmMode] = useState<'new_batch' | 'resend_pending' | 'secondary_new' | null>(null)
   const [search, setSearch] = useState('')
   const [portalFilter, setPortalFilter] = useState<'accepted' | 'pending' | 'none'>('accepted')
   const router = useRouter()
@@ -260,10 +260,11 @@ export default function AdminCampersPage() {
   }
 
   async function sendBulkPortalInvites(
-    mode: 'new_batch' | 'resend_pending' = 'new_batch',
+    mode: 'new_batch' | 'resend_pending' | 'secondary_new' = 'new_batch',
     confirmed = false
   ) {
     const resendingPending = mode === 'resend_pending'
+    const sendingNewSecondary = mode === 'secondary_new'
     if (!confirmed) {
       setBulkConfirmMode(mode)
       return
@@ -280,9 +281,13 @@ export default function AdminCampersPage() {
     setBulkSending(true)
     setBulkConfirmMode(null)
     setSetupLink('')
-    setMessage(resendingPending
-      ? 'Resending fresh 24-hour setup emails to Invite Pending campers…'
-      : 'Sending the next batch of fresh portal setup emails…')
+    setMessage(
+      resendingPending
+        ? 'Resending fresh 24-hour setup emails to Invite Pending campers…'
+        : sendingNewSecondary
+          ? 'Sending setup links only to new second-profile email addresses…'
+          : 'Sending the next batch of fresh portal setup emails…'
+    )
 
     try {
       const response = await fetch('/api/bulk-portal-invites', {
@@ -308,7 +313,7 @@ export default function AdminCampersPage() {
       if (sentCount === 0 && failedCount === 0) {
         setMessage('No unsent portal setup links are waiting right now. Accepted accounts and recently emailed campers were skipped automatically.')
       } else {
-        setMessage(`${resendingPending ? 'Resent' : 'Sent'} ${sentCount} fresh 24-hour setup link${sentCount === 1 ? '' : 's'}. ${failedCount ? `${failedCount} failed. ` : ''}${remaining} still waiting for a future batch.`)
+        setMessage(`${resendingPending ? 'Resent' : 'Sent'} ${sentCount} fresh 24-hour setup link${sentCount === 1 ? '' : 's'}${sendingNewSecondary ? ' to new second-profile emails' : ''}. ${failedCount ? `${failedCount} failed. ` : ''}${remaining} still waiting for a future batch.`)
       }
 
       loadPortalStatuses()
@@ -377,18 +382,25 @@ export default function AdminCampersPage() {
         <button type="button" onClick={() => sendBulkPortalInvites('resend_pending')} disabled={bulkSending || portalGroups.pending.length === 0}>
           {bulkSending ? 'Sending…' : `Resend ${portalGroups.pending.length} Invite Pending`}
         </button>
+        <button type="button" onClick={() => sendBulkPortalInvites('secondary_new')} disabled={bulkSending}>
+          {bulkSending ? 'Sending…' : 'Send New Second-Profile Emails'}
+        </button>
         {bulkConfirmMode && !bulkSending && (
           <div style={{ width: '100%', padding: '14px', borderRadius: '12px', background: '#fff3d6', border: '1px solid #d8b96f' }}>
             <strong>Confirm email send</strong>
             <p style={{ margin: '8px 0 12px' }}>
               {bulkConfirmMode === 'resend_pending'
                 ? `Send a fresh 24-hour setup email to all ${portalGroups.pending.length} campers marked Invite Pending? Accepted accounts and campers who were never invited will be skipped.`
+                : bulkConfirmMode === 'secondary_new'
+                  ? 'Send a 24-hour setup link only to newly added second-profile email addresses? Existing accounts and any address already sent a setup email will be skipped.'
                 : 'Send the next batch of fresh setup emails? Accepted accounts and campers emailed recently will be skipped.'}
             </p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
               <button type="button" onClick={() => sendBulkPortalInvites(bulkConfirmMode, true)}>
                 {bulkConfirmMode === 'resend_pending'
                   ? `Confirm and Send ${portalGroups.pending.length}`
+                  : bulkConfirmMode === 'secondary_new'
+                    ? 'Confirm New Second Emails'
                   : 'Confirm and Send Batch'}
               </button>
               <button type="button" onClick={() => setBulkConfirmMode(null)}>Cancel</button>
