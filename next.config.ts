@@ -26,9 +26,6 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
-  outputFileTracingIncludes: {
-    '/api/meter-readings': ['./node_modules/tesseract.js-core/**/*'],
-  },
   images: {
     formats: ['image/avif', 'image/webp'],
   },

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { chooseBestMeterRecognition, displayLotNumber, extractMeterReading, meterLabelCode, normalizeLotKey } from '../lib/meter-reading.ts'
+import { parseMeterVisionPayload } from '../lib/meter-vision.ts'
 
 test('meter OCR extracts the longest likely numeric display', () => {
   assert.equal(extractMeterReading('kWh 0012345\n60 Hz').reading, 12345)
@@ -34,4 +35,21 @@ test('meter OCR favors a reading repeated across several image treatments', () =
   ], 3500)
 
   assert.equal(best?.reading, 3713)
+})
+
+test('managed meter vision preserves leading zeroes while returning a numeric reading', () => {
+  const result = parseMeterVisionPayload({
+    reading_digits: '03713',
+    confidence: 'high',
+    explanation: 'Five mechanical register wheels are visible.',
+  })
+
+  assert.equal(result.reading, 3713)
+  assert.equal(result.rawCandidate, '03713')
+  assert.equal(result.confidence, 96)
+})
+
+test('managed meter vision refuses malformed or unreadable output', () => {
+  assert.equal(parseMeterVisionPayload({ reading_digits: null, confidence: 'unreadable', explanation: 'Glare' }).reading, null)
+  assert.equal(parseMeterVisionPayload({ reading_digits: '12', confidence: 'low', explanation: 'Partial' }).reading, null)
 })

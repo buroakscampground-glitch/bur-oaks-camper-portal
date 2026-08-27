@@ -116,12 +116,27 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     if (ocrConfidence) form.append('ocrConfidence', ocrConfidence)
     form.append('photo', photo)
     const token = await authToken()
-    const response = await fetch('/api/meter-readings', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    })
-    const result = await response.json().catch(() => ({}))
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 30_000)
+    let response: Response
+    let result: any
+    try {
+      response = await fetch('/api/meter-readings', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+        signal: controller.signal,
+      })
+      result = await response.json().catch(() => ({}))
+    } catch (error) {
+      setSaving(false)
+      setMessage(error instanceof DOMException && error.name === 'AbortError'
+        ? 'The photo was taking too long to send. Nothing was billed—please try once more.'
+        : 'The photo could not connect to the office. Nothing was billed—please try again.')
+      return
+    } finally {
+      window.clearTimeout(timeout)
+    }
     setSaving(false)
     if (!response.ok) {
       setMessage(result.error || 'Unable to submit this meter reading.')

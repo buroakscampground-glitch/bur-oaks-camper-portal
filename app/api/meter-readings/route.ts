@@ -1,9 +1,7 @@
-import { after, NextResponse } from 'next/server'
-import { createWorker, PSM } from 'tesseract.js'
-import sharp from 'sharp'
-import path from 'node:path'
+import { NextResponse } from 'next/server'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { chooseBestMeterRecognition, extractMeterReading, meterLabelCode, normalizeLotKey } from '../../../lib/meter-reading'
+import { meterLabelCode, normalizeLotKey } from '../../../lib/meter-reading'
+import { recognizeMeterWithVision } from '../../../lib/meter-vision'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
@@ -23,121 +21,6 @@ function safePhotoType(bytes: ArrayBuffer) {
   if (buffer.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return { extension: 'png', mime: 'image/png' }
   if (buffer.subarray(0, 4).toString() === 'RIFF' && buffer.subarray(8, 12).toString() === 'WEBP') return { extension: 'webp', mime: 'image/webp' }
   return null
-}
-
-async function prepareRecognitionImages(bytes: ArrayBuffer) {
-  const oriented = await sharp(Buffer.from(bytes), { failOn: 'none', limitInputPixels: 40_000_000 })
-    .rotate()
-    .resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: false })
-    .jpeg({ quality: 92 })
-    .toBuffer()
-
-  const metadata = await sharp(oriented).metadata()
-  const width = metadata.width || 1200
-  const height = metadata.height || 900
-  const { data: scanData, info: scanInfo } = await sharp(oriented)
-    .resize({ width: 500 })
-    .grayscale()
-    .raw()
-    .toBuffer({ resolveWithObject: true })
-  let detectedRegion = { left: 0.23, top: 0.13, width: 0.46, height: 0.18 }
-  let bestScore = Number.POSITIVE_INFINITY
-  for (let top = 0.04; top <= 0.35; top += 0.015) {
-    for (let left = 0.16; left <= 0.38; left += 0.015) {
-      const scanWidth = Math.floor(scanInfo.width * 0.46)
-      const scanHeight = Math.floor(scanInfo.height * 0.18)
-      const scanLeft = Math.floor(scanInfo.width * left)
-      const scanTop = Math.floor(scanInfo.height * top)
-      if (scanLeft + scanWidth > scanInfo.width || scanTop + scanHeight > scanInfo.height) continue
-      let brightness = 0
-      let darkPixels = 0
-      let pixelCount = 0
-      for (let y = scanTop; y < scanTop + scanHeight; y += 2) {
-        for (let x = scanLeft; x < scanLeft + scanWidth; x += 2) {
-          const value = scanData[(y * scanInfo.width) + x]
-          brightness += value
-          if (value < 70) darkPixels += 1
-          pixelCount += 1
-        }
-      }
-      const score = (brightness / pixelCount) - ((darkPixels / pixelCount) * 90) + (Math.abs((left + 0.23) - 0.48) * 20)
-      if (score < bestScore) {
-        bestScore = score
-        detectedRegion = { left, top, width: 0.46, height: 0.18 }
-      }
-    }
-  }
-
-  const regions = [
-    { ...detectedRegion, pageMode: PSM.SINGLE_LINE, thresholds: [70, 80, 90] },
-    { left: 0.27, top: 0.18, width: 0.50, height: 0.26, pageMode: PSM.SINGLE_BLOCK, thresholds: [55, 120] },
-  ]
-  const images: { image: Buffer; pageMode: PSM }[] = []
-
-  for (const region of regions) {
-    const crop = {
-      left: Math.max(0, Math.floor(width * region.left)),
-      top: Math.max(0, Math.floor(height * region.top)),
-      width: Math.min(width, Math.max(1, Math.floor(width * region.width))),
-      height: Math.min(height, Math.max(1, Math.floor(height * region.height))),
-    }
-    crop.width = Math.min(crop.width, width - crop.left)
-    crop.height = Math.min(crop.height, height - crop.top)
-
-    for (const threshold of region.thresholds) {
-      images.push({ image: await sharp(oriented)
-        .extract(crop)
-        .resize({ width: 1200 })
-        .grayscale()
-        .normalize()
-        .threshold(threshold)
-        .negate()
-        .png()
-        .toBuffer(), pageMode: region.pageMode })
-    }
-  }
-  return images
-}
-
-async function recognizeReading(bytes: ArrayBuffer, previousReading: number | null = null) {
-  const images = await prepareRecognitionImages(bytes)
-  // Keep the language model in the deployment so live requests never wait on
-  // an outside download. This is essential on short-lived serverless workers.
-  const worker = await createWorker('eng', undefined, {
-    langPath: path.join(process.cwd(), 'public', 'tesseract'),
-    gzip: false,
-    cacheMethod: 'none',
-    cachePath: '/tmp',
-  })
-  try {
-    await worker.setParameters({
-      tessedit_char_whitelist: '0123456789,.- ',
-      tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
-    })
-    const candidates = []
-    let currentPageMode: PSM | null = null
-    for (const prepared of images) {
-      if (prepared.pageMode !== currentPageMode) {
-        await worker.setParameters({ tessedit_pageseg_mode: prepared.pageMode })
-        currentPageMode = prepared.pageMode
-      }
-      const result = await worker.recognize(prepared.image)
-      candidates.push({
-        ...extractMeterReading(result.data.text),
-        confidence: Number.isFinite(result.data.confidence) ? Math.round(result.data.confidence) : null,
-        text: result.data.text.slice(0, 2000),
-      })
-    }
-    const best = chooseBestMeterRecognition(candidates, previousReading)
-    return {
-      reading: best?.reading ?? null,
-      rawCandidate: best?.rawCandidate || '',
-      confidence: best?.confidence ?? null,
-      text: candidates.map((candidate) => candidate.text.trim()).filter(Boolean).join('\n---\n').slice(0, 4000),
-    }
-  } finally {
-    await worker.terminate()
-  }
 }
 
 async function findSiteCamper(context: any, lotNumber: string) {
@@ -255,9 +138,9 @@ export async function POST(request: Request) {
         const { camper } = await findSiteCamper(context, lotNumber)
         previousReading = await latestReadingForCamper(context, camper?.id)
       }
-      recognition = await recognizeReading(bytes, previousReading)
+      recognition = await recognizeMeterWithVision(bytes, { lotNumber, previousReading })
     } catch (error) {
-      console.error('Meter OCR failed:', error)
+      console.error('Meter vision failed:', error)
     }
     return NextResponse.json({ recognition })
   }
@@ -283,6 +166,17 @@ export async function POST(request: Request) {
 
   const { lot, camper } = await findSiteCamper(context, lotNumber)
   if (!camper) return NextResponse.json({ error: `No active camper billing record was found for Lot ${lotNumber}.` }, { status: 404 })
+
+  if (recognition.reading === null) {
+    try {
+      const previousReading = await latestReadingForCamper(context, camper.id)
+      recognition = await recognizeMeterWithVision(bytes, { lotNumber, previousReading })
+    } catch (visionError) {
+      // Never lose a field photo because the reader is temporarily unavailable.
+      // Save it for office review, where the same managed reader can be retried.
+      console.error('Meter vision could not complete during submission:', visionError)
+    }
+  }
 
   const meterNumber = String(lot?.meter_number || '').trim() || null
   const photoPath = `${normalizeLotKey(lotNumber)}/${Date.now()}-${crypto.randomUUID()}.${photoType.extension}`
@@ -313,30 +207,6 @@ export async function POST(request: Request) {
   if (error) {
     await context.admin.storage.from('meter-reading-photos').remove([photoPath])
     return NextResponse.json({ error: error.message }, { status: 500 })
-  }
-
-  // Return the saved photo immediately so the phone never waits on OCR. Vercel
-  // keeps this task alive after the response and fills the office review field.
-  if (recognition.reading === null) {
-    after(async () => {
-      try {
-        const previousReading = await latestReadingForCamper(context, camper.id)
-        const detected = await recognizeReading(bytes, previousReading)
-        if (detected.reading === null) return
-        const { error: updateError } = await context.admin
-          .from('meter_reading_submissions')
-          .update({
-            detected_reading: detected.reading,
-            ocr_confidence: detected.confidence,
-            ocr_text: detected.text,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', data.id)
-        if (updateError) console.error('Meter OCR result could not be saved:', updateError)
-      } catch (ocrError) {
-        console.error('Background meter OCR failed:', ocrError)
-      }
-    })
   }
 
   return NextResponse.json({ success: true, submission: await signedSubmission(context, data) })
@@ -406,7 +276,10 @@ export async function PATCH(request: Request) {
 
     try {
       const previousReading = await latestReadingForCamper(context, submission.camper_id)
-      const recognition = await recognizeReading(await photo.arrayBuffer(), previousReading)
+      const recognition = await recognizeMeterWithVision(await photo.arrayBuffer(), {
+        lotNumber: submission.lot_number,
+        previousReading,
+      })
       if (recognition.reading === null || recognition.reading <= 0) {
         return NextResponse.json({ error: 'The number could not be read clearly from this photo.' }, { status: 422 })
       }
