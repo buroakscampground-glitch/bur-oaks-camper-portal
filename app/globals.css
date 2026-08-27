@@ -13390,3 +13390,9 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 .admin-meter-tools>input{min-height:42px;min-width:230px;padding:0 12px;border:1px solid #cfd8cd!important;border-radius:11px!important;background:#fff!important;color:#293e31!important;font-size:12px!important}
 .meter-photo-review.photo-only{grid-template-columns:1fr}.meter-photo-ready{display:flex;align-items:center;gap:10px;padding:13px;border-radius:13px;background:#edf7eb;color:#315f3d}.meter-photo-ready span,.meter-photo-ready strong,.meter-photo-ready small{display:block}.meter-photo-ready small{margin-top:3px;color:#637168}.admin-meter-photo>a{display:grid;width:100%;height:100%;place-items:center}.admin-meter-photo>a img{width:100%;height:100%;max-height:470px;object-fit:contain}
 @media(max-width:760px){.admin-meter-tools{grid-template-columns:1fr}.admin-meter-capture-link{width:100%}}
+
+/* Meter photo removal controls. */
+.meter-photo-delete{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;border:1px solid #dca8a3!important;border-radius:11px!important;background:#fff1ef!important;color:#a1362d!important;font-size:11px;font-weight:950}
+.admin-meter-actions{grid-template-columns:auto auto minmax(220px,1fr)}
+.admin-meter-actions button.danger{border:1px solid #dca8a3!important;background:#fff1ef!important;color:#a1362d!important}
+@media(max-width:760px){.admin-meter-actions{grid-template-columns:1fr}}

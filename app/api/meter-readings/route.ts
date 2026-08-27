@@ -284,6 +284,43 @@ export async function POST(request: Request) {
   return NextResponse.json({ success: true, submission: await signedSubmission(context, data) })
 }
 
+export async function DELETE(request: Request) {
+  const context = await getAuthenticatedContext(request)
+  if (!context || staffRole(context) !== 'admin') {
+    return NextResponse.json({ error: 'Admin access is required.' }, { status: 403 })
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const id = String(body.id || '').trim()
+  if (!id) return NextResponse.json({ error: 'Meter submission ID is required.' }, { status: 400 })
+
+  const { data: submission, error: findError } = await context.admin
+    .from('meter_reading_submissions')
+    .select('id,lot_number,photo_path,status,invoice_id')
+    .eq('id', id)
+    .maybeSingle()
+  if (findError) return NextResponse.json({ error: findError.message }, { status: 500 })
+  if (!submission) return NextResponse.json({ error: 'This meter photo was already removed.' }, { status: 404 })
+  if (submission.status === 'used' || submission.invoice_id) {
+    return NextResponse.json({ error: 'This reading has already been used for billing and cannot be deleted here.' }, { status: 409 })
+  }
+
+  if (submission.photo_path) {
+    const { error: photoError } = await context.admin.storage
+      .from('meter-reading-photos')
+      .remove([submission.photo_path])
+    if (photoError) return NextResponse.json({ error: `The photo could not be removed: ${photoError.message}` }, { status: 500 })
+  }
+
+  const { error: deleteError } = await context.admin
+    .from('meter_reading_submissions')
+    .delete()
+    .eq('id', id)
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+
+  return NextResponse.json({ success: true, lotNumber: submission.lot_number })
+}
+
 export async function PATCH(request: Request) {
   const context = await getAuthenticatedContext(request)
   const role = staffRole(context)

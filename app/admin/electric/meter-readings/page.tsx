@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CalendarDays, Camera, CheckCircle2, Download, Gauge, LoaderCircle, Mail, Printer, RefreshCw, RotateCcw, Zap } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Camera, CheckCircle2, Download, Gauge, LoaderCircle, Mail, Printer, RefreshCw, RotateCcw, Trash2, Zap } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { campgroundAverageUsage, compareElectricUsage, groupedUsageHistory } from '../../../../lib/electric-reading-safeguards'
 
@@ -17,6 +17,7 @@ export default function AdminMeterReadingReviewPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [emailing, setEmailing] = useState(false)
+  const [deletingId, setDeletingId] = useState('')
   const [labelEmail, setLabelEmail] = useState('')
   const [reportMonth, setReportMonth] = useState(() => {
     const now = new Date()
@@ -75,6 +76,33 @@ export default function AdminMeterReadingReviewPage() {
       setMessage(`Lot ${submission.lot_number} marked for a new photo.`)
       load()
     }
+  }
+
+  async function deletePhoto(submission: any) {
+    const confirmed = window.confirm(`Permanently delete the meter photo and preview for Lot ${submission.lot_number}? This cannot be undone.`)
+    if (!confirmed) return
+
+    setDeletingId(submission.id)
+    setMessage('Deleting the meter photo and preview…')
+    const auth = await token()
+    const response = await fetch('/api/meter-readings', {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: submission.id }),
+    })
+    const result = await response.json().catch(() => ({}))
+    setDeletingId('')
+    if (!response.ok) {
+      setMessage(result.error || 'Unable to delete this meter photo.')
+      return
+    }
+    setSubmissions((current) => current.filter((item) => item.id !== submission.id))
+    setReviewed((current) => {
+      const next = { ...current }
+      delete next[submission.id]
+      return next
+    })
+    setMessage(`Lot ${submission.lot_number} meter photo and preview were permanently deleted.`)
   }
 
   async function emailLabels() {
@@ -173,6 +201,7 @@ export default function AdminMeterReadingReviewPage() {
                   {comparison && comparison.recentAverage > 0 && <p className="admin-meter-comparison">Site average: {Math.round(comparison.recentAverage).toLocaleString()} kWh · {comparison.comparisonLabel}</p>}
                   <label><span>Office-confirmed meter number</span><input inputMode="numeric" value={reviewed[submission.id] || ''} onChange={(event) => setReviewed((currentValues) => ({ ...currentValues, [submission.id]: event.target.value.replace(/\D/g, '') }))} /></label>
                   <div className="admin-meter-actions">
+                    <button type="button" className="danger" onClick={() => deletePhoto(submission)} disabled={deletingId === submission.id}>{deletingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <Trash2 size={16} />} Delete Photo</button>
                     <button type="button" className="secondary" onClick={() => markRetake(submission)}><RotateCcw size={16} /> Needs Retake</button>
                     <button type="button" onClick={() => openInBilling(submission)} disabled={usage !== null && usage <= 0}><Zap size={16} /> Continue in Electric Billing</button>
                   </div>

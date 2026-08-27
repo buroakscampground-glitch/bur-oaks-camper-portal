@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { Camera, CheckCircle2, Gauge, Image as ImageIcon, LoaderCircle, MapPin, QrCode, RotateCcw } from 'lucide-react'
+import { Camera, CheckCircle2, Gauge, Image as ImageIcon, LoaderCircle, MapPin, QrCode, RotateCcw, Trash2 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { displayLotNumber } from '../../../../lib/meter-reading'
 
@@ -125,6 +125,17 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     }
   }
 
+  function clearPhoto() {
+    if (preview) URL.revokeObjectURL(preview)
+    setPhoto(null)
+    setPreview('')
+    setReading('')
+    setDetectedReading('')
+    setOcrConfidence('')
+    setAnalyzing(false)
+    setMessage('Photo removed. Take a new picture when ready.')
+  }
+
   async function submitReading() {
     if (!lotNumber || !photo) {
       setMessage('Choose the site and take a meter photo first.')
@@ -232,6 +243,7 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
                 ) : (
                   <div className="meter-photo-ready"><CheckCircle2 size={24} /><span><strong>Picture ready</strong><small>The office will confirm the meter number from this photo.</small></span></div>
                 )}
+                <button className="meter-photo-delete" type="button" onClick={clearPhoto} disabled={analyzing || saving}><Trash2 size={16} /> Delete this photo and preview</button>
               </div>
             )}
 
