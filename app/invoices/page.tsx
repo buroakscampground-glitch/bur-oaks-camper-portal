@@ -39,6 +39,7 @@ import {
   type AutoPayPaymentMethod,
   type AutoPayPreference,
 } from '../../lib/autopay'
+import InvoiceSmsOptInAlert from '../components/invoice-sms-opt-in-alert'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -402,6 +403,17 @@ export default function InvoicesPage() {
           <div><span className="account-summary-icon blue"><FileText size={21} /></span><span><small>Total history</small><strong>{invoices.length}</strong></span></div>
           <div><span className="account-summary-icon plum"><CreditCard size={21} /></span><span><small>AutoPay</small><strong>{autoPayStatus.enabled ? 'Active' : 'Not enrolled'}</strong></span></div>
         </section>
+
+        <InvoiceSmsOptInAlert
+          optedIn={smsOptIn}
+          saving={smsSaving}
+          message={smsMessage}
+          onOptIn={() => saveSmsPreference(true)}
+        />
+
+        {smsOptIn && smsMessage && (
+          <p className="invoice-sms-success" role="status"><CheckCircle2 size={17} /> {smsMessage}</p>
+        )}
 
         <section className="account-trust-strip" aria-label="Secure payment information">
           <div>

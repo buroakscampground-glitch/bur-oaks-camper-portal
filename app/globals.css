@@ -13155,6 +13155,155 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   }
 }
 
+/* Urgent, in-context SMS consent on camper invoice screens. */
+.invoice-sms-alert {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 16px;
+  margin: 0 0 22px;
+  padding: 20px;
+  border: 3px solid #b72f2f;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fff1f0, #fffafa);
+  box-shadow: 0 14px 34px rgba(153, 35, 35, .15);
+}
+
+.invoice-sms-alert-icon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border-radius: 16px;
+  background: #b72f2f;
+  color: #fff;
+}
+
+.invoice-sms-alert-content > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #a32727;
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: .09em;
+}
+
+.invoice-sms-alert-content h2 {
+  margin: 5px 0 7px;
+  color: #752323;
+  font: 600 clamp(22px, 3vw, 30px)/1.08 Georgia, serif;
+}
+
+.invoice-sms-alert-content > p {
+  margin: 0;
+  color: #713d3d;
+  font-size: 14px;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.invoice-sms-alert-consent {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 11px;
+  margin-top: 14px;
+  padding: 13px;
+  border: 1px solid #e4b6b3;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .9);
+  cursor: pointer;
+}
+
+.invoice-sms-alert-consent input {
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: #b72f2f;
+}
+
+.invoice-sms-alert-consent strong,
+.invoice-sms-alert-consent small {
+  display: block;
+}
+
+.invoice-sms-alert-consent strong {
+  color: #712727;
+  font-size: 13px;
+}
+
+.invoice-sms-alert-consent small {
+  margin-top: 4px;
+  color: #735b5b;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.invoice-sms-alert-consent a {
+  color: #8e2525;
+  font-weight: 900;
+}
+
+.invoice-sms-alert-content > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 47px;
+  margin-top: 13px;
+  padding: 0 19px;
+  border: 0;
+  border-radius: 12px;
+  background: #b72f2f;
+  color: #fff;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.invoice-sms-alert-content > button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.invoice-sms-alert-message {
+  margin-top: 9px !important;
+  color: #9d2929 !important;
+  font-size: 12px !important;
+}
+
+.invoice-sms-success {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0;
+  padding: 12px 14px;
+  border: 1px solid #bcd7c0;
+  border-radius: 12px;
+  background: #eef8ef;
+  color: #2f683d;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+@media (max-width: 680px) {
+  .invoice-sms-alert {
+    grid-template-columns: 1fr;
+    gap: 11px;
+    padding: 16px;
+    border-width: 2px;
+    border-radius: 17px;
+  }
+
+  .invoice-sms-alert-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+  }
+
+  .invoice-sms-alert-content > button {
+    width: 100%;
+  }
+}
+
 .account-payment-method-choice,
 .camper-invoice-payment-choice {
   display: grid;

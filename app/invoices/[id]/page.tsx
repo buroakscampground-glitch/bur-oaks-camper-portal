@@ -24,6 +24,8 @@ import {
   cardProcessingFeeSettings,
   loadPaymentFeeSettings,
 } from '../../../lib/payment-fees'
+import { saveSmsConsentPreference } from '../../../lib/sms-consent'
+import InvoiceSmsOptInAlert from '../../components/invoice-sms-opt-in-alert'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -57,6 +59,9 @@ export default function CamperInvoiceDetailPage() {
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
   const [authorizedFamilyBilling, setAuthorizedFamilyBilling] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>('card')
+  const [smsOptIn, setSmsOptIn] = useState(false)
+  const [smsSaving, setSmsSaving] = useState(false)
+  const [smsMessage, setSmsMessage] = useState('')
 
   useEffect(() => {
     async function loadInvoice() {
@@ -68,6 +73,7 @@ export default function CamperInvoiceDetailPage() {
       }
 
       let visibleCamper = camperData
+      setSmsOptIn(Boolean(camperData.sms_opt_in))
       let { data, error } = await supabase
         .from('invoices')
         .select('*, invoice_items(*)')
@@ -177,6 +183,21 @@ export default function CamperInvoiceDetailPage() {
     }
   }
 
+  async function optInToTexts() {
+    setSmsSaving(true)
+    setSmsMessage('')
+
+    try {
+      const updatedCamper = await saveSmsConsentPreference(true)
+      setSmsOptIn(Boolean(updatedCamper.sms_opt_in))
+      setSmsMessage('Text alerts are now turned on for every mobile number saved on your household profile.')
+    } catch (error: any) {
+      setSmsMessage(error.message || 'Unable to turn on text alerts.')
+    } finally {
+      setSmsSaving(false)
+    }
+  }
+
   if (loading) {
     return (
       <main className="camper-invoice-detail-page">
@@ -251,6 +272,17 @@ export default function CamperInvoiceDetailPage() {
             <strong>{formatMoney(invoice.total_due)}</strong>
           </article>
         </section>
+
+        <InvoiceSmsOptInAlert
+          optedIn={smsOptIn}
+          saving={smsSaving}
+          message={smsMessage}
+          onOptIn={optInToTexts}
+        />
+
+        {smsOptIn && smsMessage && (
+          <p className="invoice-sms-success" role="status"><CheckCircle2 size={17} /> {smsMessage}</p>
+        )}
 
         <section className="camper-invoice-detail-card">
           <div className="camper-invoice-detail-heading">
