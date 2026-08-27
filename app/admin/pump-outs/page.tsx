@@ -226,7 +226,7 @@ export default function AdminPumpOutsPage() {
           return (
             <article className={`${request.status} ${isBilled ? 'billed' : ''}`} key={request.id}>
               <span>{statusLabels[request.status] || request.status}</span>
-              <div>
+              <div className="admin-pump-details">
                 <small>Lot {request.lot_number || 'N/A'} · {new Date(request.requested_at).toLocaleString()}</small>
                 <h2>{request.camper_name}</h2>
                 <p>{request.notes || 'No notes. Camper requested sewer pump-out from the portal.'}</p>
@@ -265,7 +265,7 @@ export default function AdminPumpOutsPage() {
         )}
       </section>
 
-      {message && <p className="admin-pump-message">{message}</p>}
+      {message && <div className="admin-pump-message" role="status"><p>{message}</p><button type="button" onClick={() => setMessage('')} aria-label="Dismiss message"><XCircle size={18} /></button></div>}
     </main>
   )
 }
