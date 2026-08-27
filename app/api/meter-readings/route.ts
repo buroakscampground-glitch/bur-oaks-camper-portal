@@ -50,7 +50,9 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
     crop.width = Math.min(crop.width, width - crop.left)
     crop.height = Math.min(crop.height, height - crop.top)
 
-    for (const threshold of [50, 55, 60, 65]) {
+    // Low thresholds handle shaded displays; high thresholds recover digits
+    // washed out by sun glare on the meter cover.
+    for (const threshold of [50, 60, 90, 120, 140]) {
       images.push(await sharp(oriented)
         .extract(crop)
         .resize({ width: 1200 })
@@ -345,6 +347,47 @@ export async function PATCH(request: Request) {
   const body = await request.json().catch(() => ({}))
   const id = String(body.id || '').trim()
   if (!id) return NextResponse.json({ error: 'Meter submission ID is required.' }, { status: 400 })
+
+  if (role === 'admin' && body.reanalyze === true) {
+    const { data: submission, error: findError } = await context.admin
+      .from('meter_reading_submissions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    if (findError) return NextResponse.json({ error: findError.message }, { status: 500 })
+    if (!submission?.photo_path) return NextResponse.json({ error: 'The meter photo is unavailable.' }, { status: 404 })
+
+    const { data: photo, error: photoError } = await context.admin.storage
+      .from('meter-reading-photos')
+      .download(submission.photo_path)
+    if (photoError || !photo) return NextResponse.json({ error: photoError?.message || 'The meter photo could not be opened.' }, { status: 500 })
+
+    try {
+      const previousReading = await latestReadingForCamper(context, submission.camper_id)
+      const recognition = await recognizeReading(await photo.arrayBuffer(), previousReading)
+      if (recognition.reading === null || recognition.reading <= 0) {
+        return NextResponse.json({ error: 'The number could not be read clearly from this photo.' }, { status: 422 })
+      }
+      const { data: updated, error: updateError } = await context.admin
+        .from('meter_reading_submissions')
+        .update({
+          detected_reading: recognition.reading,
+          reviewed_reading: null,
+          ocr_confidence: recognition.confidence,
+          ocr_text: recognition.text,
+          status: 'pending',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .select('*')
+        .single()
+      if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+      return NextResponse.json({ success: true, submission: await signedSubmission(context, updated) })
+    } catch (error) {
+      console.error('Meter photo reanalysis failed:', error)
+      return NextResponse.json({ error: 'The meter photo reader could not finish.' }, { status: 500 })
+    }
+  }
 
   const updates: Record<string, any> = { updated_at: new Date().toISOString() }
   if (role === 'admin') {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CalendarDays, Camera, CheckCircle2, Download, Gauge, LoaderCircle, Mail, Printer, RefreshCw, RotateCcw, Trash2, Zap } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { campgroundAverageUsage, compareElectricUsage, groupedUsageHistory } from '../../../../lib/electric-reading-safeguards'
@@ -19,6 +19,7 @@ export default function AdminMeterReadingReviewPage() {
   const [emailing, setEmailing] = useState(false)
   const [deletingId, setDeletingId] = useState('')
   const [labelEmail, setLabelEmail] = useState('')
+  const readingPhotoIds = useRef(new Set<string>())
   const [reportMonth, setReportMonth] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -35,10 +36,22 @@ export default function AdminMeterReadingReviewPage() {
     setSubmissions(result.submissions || [])
     setReadings(readingResult.data || [])
     const initial: Record<string, string> = {}
-    for (const item of result.submissions || []) initial[item.id] = String(item.reviewed_reading ?? item.submitted_reading ?? item.detected_reading ?? '')
+    for (const item of result.submissions || []) {
+      const value = [item.reviewed_reading, item.submitted_reading, item.detected_reading]
+        .map(Number)
+        .find((candidate) => Number.isFinite(candidate) && candidate > 0)
+      initial[item.id] = value === undefined ? '' : String(value)
+    }
     setReviewed(initial)
     if (!response.ok) setMessage(result.error || 'Unable to load meter readings.')
     setLoading(false)
+
+    const unread = (result.submissions || []).find((item: any) =>
+      !(Number(item.detected_reading) > 0) &&
+      !(Number(item.submitted_reading) > 0) &&
+      !readingPhotoIds.current.has(item.id)
+    )
+    if (unread) void readPhotoAutomatically(unread)
   }
 
   useEffect(() => {
@@ -48,6 +61,26 @@ export default function AdminMeterReadingReviewPage() {
   }, [])
 
   const average = useMemo(() => campgroundAverageUsage(readings), [readings])
+
+  async function readPhotoAutomatically(submission: any) {
+    readingPhotoIds.current.add(submission.id)
+    setMessage(`Reading the meter number from Lot ${submission.lot_number}…`)
+    const auth = await token()
+    const response = await fetch('/api/meter-readings', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: submission.id, reanalyze: true }),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setMessage(`Lot ${submission.lot_number}: ${result.error || 'The photo could not be read.'}`)
+      return
+    }
+    const detected = Number(result.submission?.detected_reading)
+    setSubmissions((current) => current.map((item) => item.id === submission.id ? result.submission : item))
+    setReviewed((current) => ({ ...current, [submission.id]: detected > 0 ? String(detected) : '' }))
+    setMessage(`Lot ${submission.lot_number} was read as ${detected.toLocaleString()}. Verify the photo, then continue to billing.`)
+  }
 
   async function updateSubmission(id: string, updates: any) {
     const auth = await token()
@@ -65,9 +98,10 @@ export default function AdminMeterReadingReviewPage() {
   }
 
   async function openInBilling(submission: any) {
-    const value = Number(reviewed[submission.id])
-    if (!Number.isFinite(value) || value < 0) {
-      setMessage('Enter the confirmed number before opening Electric Billing.')
+    const text = String(reviewed[submission.id] || '').trim()
+    const value = Number(text)
+    if (!text || !Number.isFinite(value) || value <= 0) {
+      setMessage('Wait for a valid photo reading before opening Electric Billing.')
       return
     }
     const saved = await updateSubmission(submission.id, { reviewedReading: value, status: 'ready' })
@@ -181,8 +215,9 @@ export default function AdminMeterReadingReviewPage() {
         <div className="admin-meter-grid">
           {submissions.map((submission) => {
             const previous = readings.find((item) => item.camper_id === submission.camper_id)?.current_reading
-            const current = Number(reviewed[submission.id] || 0)
-            const usage = previous !== undefined && previous !== null ? current - Number(previous) : null
+            const currentText = String(reviewed[submission.id] || '').trim()
+            const current = currentText ? Number(currentText) : null
+            const usage = previous !== undefined && previous !== null && current !== null ? current - Number(previous) : null
             const comparison = usage !== null && usage > 0
               ? compareElectricUsage(usage, groupedUsageHistory(readings, submission.camper_id), average)
               : null
