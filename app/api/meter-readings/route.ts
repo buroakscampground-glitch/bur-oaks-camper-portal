@@ -69,9 +69,8 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
   }
 
   const regions = [
-    { ...detectedRegion, pageMode: PSM.SINGLE_LINE, thresholds: [60, 70, 80, 90] },
-    { left: 0.29, top: 0.21, width: 0.46, height: 0.20, pageMode: PSM.SINGLE_BLOCK, thresholds: [50, 60, 80, 120] },
-    { left: 0.27, top: 0.18, width: 0.50, height: 0.26, pageMode: PSM.SINGLE_BLOCK, thresholds: [50, 60, 80, 120] },
+    { ...detectedRegion, pageMode: PSM.SINGLE_LINE, thresholds: [70, 80, 90] },
+    { left: 0.27, top: 0.18, width: 0.50, height: 0.26, pageMode: PSM.SINGLE_BLOCK, thresholds: [55, 120] },
   ]
   const images: { image: Buffer; pageMode: PSM }[] = []
 
