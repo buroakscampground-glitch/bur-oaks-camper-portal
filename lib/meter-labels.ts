@@ -14,7 +14,7 @@ const MARGIN_X = 24
 const MARGIN_Y = 24
 const GAP = 10
 const COLUMNS = 2
-const ROWS = 4
+const ROWS = 5
 const LABEL_WIDTH = (PAGE_WIDTH - MARGIN_X * 2 - GAP) / COLUMNS
 const LABEL_HEIGHT = (PAGE_HEIGHT - MARGIN_Y * 2 - GAP * (ROWS - 1)) / ROWS
 
