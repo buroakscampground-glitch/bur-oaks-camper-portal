@@ -13,6 +13,31 @@ async function authToken() {
   return data.session?.access_token || ''
 }
 
+async function prepareMeterPhoto(file: File) {
+  const sourceUrl = URL.createObjectURL(file)
+  try {
+    const image = new Image()
+    image.src = sourceUrl
+    await image.decode()
+    const maxDimension = 1600
+    const scale = Math.min(1, maxDimension / Math.max(image.naturalWidth, image.naturalHeight))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale))
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale))
+    const context = canvas.getContext('2d')
+    if (!context) return file
+    context.drawImage(image, 0, 0, canvas.width, canvas.height)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', .82))
+    return blob
+      ? new File([blob], `meter-${Date.now()}.jpg`, { type: 'image/jpeg' })
+      : file
+  } catch {
+    return file
+  } finally {
+    URL.revokeObjectURL(sourceUrl)
+  }
+}
+
 export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean }) {
   const [sites, setSites] = useState<Site[]>([])
   const [lotNumber, setLotNumber] = useState('')
@@ -45,40 +70,54 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     [sites, lotNumber]
   )
 
-  async function choosePhoto(file: File | null) {
-    setPhoto(file)
+  async function choosePhoto(originalFile: File | null) {
+    setPhoto(null)
     setReading('')
     setDetectedReading('')
     setOcrConfidence('')
     setComplete(false)
     setMessage('')
     if (preview) URL.revokeObjectURL(preview)
-    setPreview(file ? URL.createObjectURL(file) : '')
-    if (!file) return
+    setPreview('')
+    if (!originalFile) return
 
     setAnalyzing(true)
-    setMessage('Reading the meter number from the photo…')
+    setMessage('Preparing and reading the meter photo…')
+    const file = await prepareMeterPhoto(originalFile)
+    setPhoto(file)
+    setPreview(URL.createObjectURL(file))
     const form = new FormData()
     form.append('photo', file)
     form.append('lotNumber', lotNumber)
     const token = await authToken()
-    const response = await fetch('/api/meter-readings?analyze=1', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: form,
-    })
-    const result = await response.json().catch(() => ({}))
-    if (response.ok && result.recognition?.reading !== null && result.recognition?.reading !== undefined) {
-      setReading(String(result.recognition.reading))
-      setDetectedReading(String(result.recognition.reading))
-      setOcrConfidence(result.recognition.confidence === null ? '' : String(result.recognition.confidence))
-      setMessage(result.recognition.confidence !== null && result.recognition.confidence < 65
-        ? 'A possible number was found. Carefully compare every digit with the photo before submitting.'
-        : 'Number detected. Compare it with the photo, correct it if needed, then submit.')
-    } else {
-      setMessage(result.error || 'The number was not clear enough. Enter it from the photo below.')
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 25_000)
+    try {
+      const response = await fetch('/api/meter-readings?analyze=1', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+        signal: controller.signal,
+      })
+      const result = await response.json().catch(() => ({}))
+      if (response.ok && result.recognition?.reading !== null && result.recognition?.reading !== undefined) {
+        setReading(String(result.recognition.reading))
+        setDetectedReading(String(result.recognition.reading))
+        setOcrConfidence(result.recognition.confidence === null ? '' : String(result.recognition.confidence))
+        setMessage(result.recognition.confidence !== null && result.recognition.confidence < 65
+          ? 'A possible number was found. Carefully compare every digit with the photo before submitting.'
+          : 'Number detected. Compare it with the photo, correct it if needed, then submit.')
+      } else {
+        setMessage(result.error || 'Automatic reading was not clear. Enter the number shown in the photo below.')
+      }
+    } catch (error) {
+      setMessage(error instanceof DOMException && error.name === 'AbortError'
+        ? 'Automatic reading took too long. Enter the number shown in the photo below—your picture is still ready to submit.'
+        : 'Automatic reading was unavailable. Enter the number shown in the photo below.')
+    } finally {
+      window.clearTimeout(timeout)
+      setAnalyzing(false)
     }
-    setAnalyzing(false)
   }
 
   async function submitReading() {

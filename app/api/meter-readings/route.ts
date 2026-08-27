@@ -27,46 +27,35 @@ function safePhotoType(bytes: ArrayBuffer) {
 async function prepareRecognitionImages(bytes: ArrayBuffer) {
   const normalized = await sharp(Buffer.from(bytes), { failOn: 'none', limitInputPixels: 40_000_000 })
     .rotate()
-    .resize({ width: 1600, height: 1200, fit: 'inside', withoutEnlargement: false })
+    .resize({ width: 1100, height: 825, fit: 'inside', withoutEnlargement: false })
     .grayscale()
     .normalize()
     .sharpen({ sigma: 1.2 })
     .png()
     .toBuffer()
-
-  const threshold = await sharp(normalized).threshold(155).png().toBuffer()
-  const inverted = await sharp(threshold).negate().png().toBuffer()
-  return { normalized, threshold, inverted }
+  return normalized
 }
 
 async function recognizeReading(bytes: ArrayBuffer, previousReading: number | null = null) {
-  const images = await prepareRecognitionImages(bytes)
+  const image = await prepareRecognitionImages(bytes)
   const worker = await createWorker('eng')
   try {
     await worker.setParameters({
       tessedit_char_whitelist: '0123456789,.- ',
+      tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
     })
-    const attempts = [
-      { image: images.normalized, mode: PSM.SPARSE_TEXT },
-      { image: images.threshold, mode: PSM.SINGLE_BLOCK },
-      { image: images.inverted, mode: PSM.SINGLE_LINE },
-    ]
-    const candidates = []
-    for (const attempt of attempts) {
-      await worker.setParameters({ tessedit_pageseg_mode: attempt.mode })
-      const result = await worker.recognize(attempt.image)
-      candidates.push({
-        ...extractMeterReading(result.data.text),
-        confidence: Number.isFinite(result.data.confidence) ? Math.round(result.data.confidence) : null,
-        text: result.data.text.slice(0, 700),
-      })
-    }
+    const result = await worker.recognize(image)
+    const candidates = [{
+      ...extractMeterReading(result.data.text),
+      confidence: Number.isFinite(result.data.confidence) ? Math.round(result.data.confidence) : null,
+      text: result.data.text.slice(0, 2000),
+    }]
     const best = chooseBestMeterRecognition(candidates, previousReading)
     return {
       reading: best?.reading ?? null,
       rawCandidate: best?.rawCandidate || '',
       confidence: best?.confidence ?? null,
-      text: candidates.map((candidate) => candidate.text).filter(Boolean).join('\n---\n').slice(0, 2000),
+      text: candidates[0].text,
     }
   } finally {
     await worker.terminate()
