@@ -34,11 +34,45 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
   const metadata = await sharp(oriented).metadata()
   const width = metadata.width || 1200
   const height = metadata.height || 900
+  const { data: scanData, info: scanInfo } = await sharp(oriented)
+    .resize({ width: 500 })
+    .grayscale()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  let detectedRegion = { left: 0.23, top: 0.13, width: 0.46, height: 0.18 }
+  let bestScore = Number.POSITIVE_INFINITY
+  for (let top = 0.04; top <= 0.35; top += 0.015) {
+    for (let left = 0.16; left <= 0.38; left += 0.015) {
+      const scanWidth = Math.floor(scanInfo.width * 0.46)
+      const scanHeight = Math.floor(scanInfo.height * 0.18)
+      const scanLeft = Math.floor(scanInfo.width * left)
+      const scanTop = Math.floor(scanInfo.height * top)
+      if (scanLeft + scanWidth > scanInfo.width || scanTop + scanHeight > scanInfo.height) continue
+      let brightness = 0
+      let darkPixels = 0
+      let pixelCount = 0
+      for (let y = scanTop; y < scanTop + scanHeight; y += 2) {
+        for (let x = scanLeft; x < scanLeft + scanWidth; x += 2) {
+          const value = scanData[(y * scanInfo.width) + x]
+          brightness += value
+          if (value < 70) darkPixels += 1
+          pixelCount += 1
+        }
+      }
+      const score = (brightness / pixelCount) - ((darkPixels / pixelCount) * 90) + (Math.abs((left + 0.23) - 0.48) * 20)
+      if (score < bestScore) {
+        bestScore = score
+        detectedRegion = { left, top, width: 0.46, height: 0.18 }
+      }
+    }
+  }
+
   const regions = [
-    { left: 0.29, top: 0.21, width: 0.46, height: 0.20 },
-    { left: 0.27, top: 0.18, width: 0.50, height: 0.26 },
+    { ...detectedRegion, pageMode: PSM.SINGLE_LINE },
+    { left: 0.29, top: 0.21, width: 0.46, height: 0.20, pageMode: PSM.SINGLE_BLOCK },
+    { left: 0.27, top: 0.18, width: 0.50, height: 0.26, pageMode: PSM.SINGLE_BLOCK },
   ]
-  const images: Buffer[] = []
+  const images: { image: Buffer; pageMode: PSM }[] = []
 
   for (const region of regions) {
     const crop = {
@@ -52,8 +86,8 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
 
     // Low thresholds handle shaded displays; high thresholds recover digits
     // washed out by sun glare on the meter cover.
-    for (const threshold of [50, 60, 90, 120, 140]) {
-      images.push(await sharp(oriented)
+    for (const threshold of [50, 60, 70, 80, 90, 120, 140]) {
+      images.push({ image: await sharp(oriented)
         .extract(crop)
         .resize({ width: 1200 })
         .grayscale()
@@ -61,7 +95,7 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
         .threshold(threshold)
         .negate()
         .png()
-        .toBuffer())
+        .toBuffer(), pageMode: region.pageMode })
     }
   }
   return images
@@ -78,8 +112,13 @@ async function recognizeReading(bytes: ArrayBuffer, previousReading: number | nu
       tessedit_pageseg_mode: PSM.SINGLE_BLOCK,
     })
     const candidates = []
-    for (const image of images) {
-      const result = await worker.recognize(image)
+    let currentPageMode: PSM | null = null
+    for (const prepared of images) {
+      if (prepared.pageMode !== currentPageMode) {
+        await worker.setParameters({ tessedit_pageseg_mode: prepared.pageMode })
+        currentPageMode = prepared.pageMode
+      }
+      const result = await worker.recognize(prepared.image)
       candidates.push({
         ...extractMeterReading(result.data.text),
         confidence: Number.isFinite(result.data.confidence) ? Math.round(result.data.confidence) : null,

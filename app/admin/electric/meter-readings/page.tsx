@@ -18,6 +18,7 @@ export default function AdminMeterReadingReviewPage() {
   const [message, setMessage] = useState('')
   const [emailing, setEmailing] = useState(false)
   const [deletingId, setDeletingId] = useState('')
+  const [readingId, setReadingId] = useState('')
   const [labelEmail, setLabelEmail] = useState('')
   const readingPhotoIds = useRef(new Set<string>())
   const [reportMonth, setReportMonth] = useState(() => {
@@ -62,8 +63,9 @@ export default function AdminMeterReadingReviewPage() {
 
   const average = useMemo(() => campgroundAverageUsage(readings), [readings])
 
-  async function readPhotoAutomatically(submission: any) {
+  async function readPhotoAutomatically(submission: any, continueToBilling = false) {
     readingPhotoIds.current.add(submission.id)
+    setReadingId(submission.id)
     setMessage(`Reading the meter number from Lot ${submission.lot_number}…`)
     const auth = await token()
     const response = await fetch('/api/meter-readings', {
@@ -72,6 +74,7 @@ export default function AdminMeterReadingReviewPage() {
       body: JSON.stringify({ id: submission.id, reanalyze: true }),
     })
     const result = await response.json().catch(() => ({}))
+    setReadingId('')
     if (!response.ok) {
       setMessage(`Lot ${submission.lot_number}: ${result.error || 'The photo could not be read.'}`)
       return
@@ -80,6 +83,10 @@ export default function AdminMeterReadingReviewPage() {
     setSubmissions((current) => current.map((item) => item.id === submission.id ? result.submission : item))
     setReviewed((current) => ({ ...current, [submission.id]: detected > 0 ? String(detected) : '' }))
     setMessage(`Lot ${submission.lot_number} was read as ${detected.toLocaleString()}. Verify the photo, then continue to billing.`)
+    if (continueToBilling && detected > 0) {
+      const saved = await updateSubmission(submission.id, { reviewedReading: detected, status: 'ready' })
+      if (saved) window.location.href = `/admin/electric?meterDraft=${encodeURIComponent(submission.id)}`
+    }
   }
 
   async function updateSubmission(id: string, updates: any) {
@@ -101,7 +108,7 @@ export default function AdminMeterReadingReviewPage() {
     const text = String(reviewed[submission.id] || '').trim()
     const value = Number(text)
     if (!text || !Number.isFinite(value) || value <= 0) {
-      setMessage('Wait for a valid photo reading before opening Electric Billing.')
+      await readPhotoAutomatically(submission, true)
       return
     }
     const saved = await updateSubmission(submission.id, { reviewedReading: value, status: 'ready' })
@@ -242,7 +249,8 @@ export default function AdminMeterReadingReviewPage() {
                   <div className="admin-meter-actions">
                     <button type="button" className="danger" onClick={() => deletePhoto(submission)} disabled={deletingId === submission.id}>{deletingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <Trash2 size={16} />} Delete Photo</button>
                     <button type="button" className="secondary" onClick={() => markRetake(submission)}><RotateCcw size={16} /> Needs Retake</button>
-                    <button type="button" onClick={() => openInBilling(submission)} disabled={usage !== null && usage <= 0}><Zap size={16} /> Continue in Electric Billing</button>
+                    <button type="button" className="secondary" onClick={() => readPhotoAutomatically(submission)} disabled={readingId === submission.id}>{readingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <Camera size={16} />} Read Photo Now</button>
+                    <button type="button" onClick={() => openInBilling(submission)} disabled={readingId === submission.id || (usage !== null && usage <= 0)}>{readingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <Zap size={16} />} Continue in Electric Billing</button>
                   </div>
                 </div>
               </article>

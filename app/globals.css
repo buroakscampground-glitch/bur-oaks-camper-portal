@@ -13393,6 +13393,6 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 
 /* Meter photo removal controls. */
 .meter-photo-delete{grid-column:1/-1;display:flex;align-items:center;justify-content:center;gap:7px;min-height:42px;border:1px solid #dca8a3!important;border-radius:11px!important;background:#fff1ef!important;color:#a1362d!important;font-size:11px;font-weight:950}
-.admin-meter-actions{grid-template-columns:auto auto minmax(220px,1fr)}
+.admin-meter-actions{grid-template-columns:auto auto auto minmax(220px,1fr)}
 .admin-meter-actions button.danger{border:1px solid #dca8a3!important;background:#fff1ef!important;color:#a1362d!important}
 @media(max-width:760px){.admin-meter-actions{grid-template-columns:1fr}}
