@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Camera, CheckCircle2, Gauge } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { createInvoiceBundle, formatCreditMoney } from '../../../lib/account-credits'
@@ -41,6 +42,7 @@ export default function AdminElectricPage() {
   const [searchText, setSearchText] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [meterDraft, setMeterDraft] = useState<any>(null)
   const currentReadingRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -59,6 +61,54 @@ export default function AdminElectricPage() {
     loadAccountCredits()
     loadSettings()
   }, [])
+
+  useEffect(() => {
+    if (!campers.length || meterDraft) return
+    const draftId = new URLSearchParams(window.location.search).get('meterDraft')
+    if (!draftId) return
+
+    async function loadMeterDraft() {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) return
+      const response = await fetch(`/api/meter-readings?id=${encodeURIComponent(draftId!)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const result = await response.json().catch(() => ({}))
+      const draft = result.submission
+      if (!response.ok || !draft) {
+        setMessage(result.error || 'That meter photo could not be loaded.')
+        return
+      }
+
+      const selectedId = String(draft.camper_id || '')
+      const selectedCamper = campers.find((camper) => camper.id === selectedId)
+      if (!selectedCamper) {
+        setMessage(`The billing record for Lot ${draft.lot_number || '—'} could not be found.`)
+        return
+      }
+
+      const { data: latest } = await supabase
+        .from('electric_readings')
+        .select('*')
+        .eq('camper_id', selectedId)
+        .order('reading_date', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const today = dateInputToday()
+      setMeterDraft(draft)
+      setCamperId(selectedId)
+      setPreviousReading(latest ? String(latest.current_reading) : '')
+      setCurrentReading(String(draft.reviewed_reading ?? draft.submitted_reading ?? draft.detected_reading ?? ''))
+      setReadingDate(String(draft.captured_at || '').slice(0, 10) || today)
+      setDueDate(today)
+      setMessage(`Meter photo for Lot ${draft.lot_number} loaded. Review the photo, reading, usage, and other charges before creating the invoice.`)
+      window.setTimeout(() => currentReadingRef.current?.focus(), 100)
+    }
+
+    loadMeterDraft()
+  }, [campers, meterDraft])
 
   async function loadSettings() {
     const settings = await loadCampgroundBillingSettings(supabase)
@@ -581,6 +631,23 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
       resultMessage += ` Text alert failed: ${error.message || 'unknown error'}.`
     }
 
+    if (meterDraft?.id) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData.session?.access_token
+        if (token) {
+          const response = await fetch('/api/meter-readings', {
+            method: 'PATCH',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: meterDraft.id, status: 'used', invoiceId: invoice.id }),
+          })
+          if (!response.ok) resultMessage += ' Meter photo remains in the review queue and should be cleared manually.'
+        }
+      } catch {
+        resultMessage += ' Meter photo remains in the review queue and should be cleared manually.'
+      }
+    }
+
     setMessage(resultMessage)
     setPreviousReading('')
     setCurrentReading('')
@@ -599,6 +666,8 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
     setNewCreditReason('Electric billing credit')
     setNewCreditNotes('')
     setSearchText('')
+    setMeterDraft(null)
+    window.history.replaceState({}, '', '/admin/electric')
     loadReadings()
     loadPumpOuts()
     loadSiteServiceCharges()
@@ -639,6 +708,25 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
           <h1>Electric Billing</h1>
           <p className="muted">Enter meter readings and automatically create an electric invoice.</p>
 
+          <div className="electric-meter-entry-link">
+            <span><Gauge size={22} /></span>
+            <div><small>METER PHOTO WORKFLOW</small><strong>Review maintenance meter photos</strong><p>Open captured readings, verify the photo, then return here with the lot and current reading filled in.</p></div>
+            <a href="/admin/electric/meter-readings">Open Meter Readings</a>
+          </div>
+
+          {meterDraft && (
+            <section className="electric-meter-draft">
+              <div className="electric-meter-draft-photo">
+                {meterDraft.photo_url ? <img src={meterDraft.photo_url} alt={`Meter photo for Lot ${meterDraft.lot_number}`} /> : <span><Camera size={28} /> Photo unavailable</span>}
+              </div>
+              <div>
+                <span><CheckCircle2 size={16} /> OFFICE REVIEW DRAFT</span>
+                <h2>Lot {meterDraft.lot_number} meter photo is attached</h2>
+                <p>Maintenance confirmed <strong>{meterDraft.submitted_reading}</strong>{meterDraft.detected_reading !== null ? ` · Camera detected ${meterDraft.detected_reading}` : ''}. Confirm the current reading below, then add the usual charges and create the invoice.</p>
+              </div>
+            </section>
+          )}
+
           <select
   value={camperId}
   onChange={async (e) => {
@@ -646,6 +734,10 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 	    setCamperId(selectedId)
 	    setPreviousReading('')
 	    setCurrentReading('')
+	    if (meterDraft && selectedId !== meterDraft.camper_id) {
+	      setMeterDraft(null)
+	      window.history.replaceState({}, '', '/admin/electric')
+	    }
 	
 	    if (!selectedId) return
 

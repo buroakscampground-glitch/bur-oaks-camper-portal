@@ -17,6 +17,7 @@ import {
   LayoutDashboard,
   Mail,
   Map,
+  ScanLine,
   Menu,
   Megaphone,
   MessageCircle,
@@ -88,6 +89,7 @@ const navGroups = [
       { href: '/admin/invoices', label: 'Invoices', icon: ReceiptText },
       { href: '/admin/open-balance', label: 'Open Balances', icon: CircleDollarSign },
       { href: '/admin/electric', label: 'Electric Billing', icon: Zap },
+      { href: '/admin/electric/meter-readings', label: 'Meter Reading Review', icon: ScanLine },
       { href: '/admin/credits', label: 'Credits', icon: WalletCards },
       { href: '/admin/reports', label: 'Reports', icon: ClipboardList },
     ],
@@ -138,6 +140,7 @@ const navGroups = [
 
 function isActiveLink(pathname: string, href: string) {
   if (href === '/admin') return pathname === '/admin'
+  if (href === '/admin/electric') return pathname === href
   if (href === '/admin/maintenance') {
     return pathname === href || (
       pathname.startsWith(`${href}/`) &&

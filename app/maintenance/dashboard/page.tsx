@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, ListChecks, PackageCheck, PlusCircle, Warehouse, Wrench } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, Gauge, ListChecks, PackageCheck, PlusCircle, Warehouse, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import MaintenanceSupplyRequestPanel from '../../../components/MaintenanceSupplyRequestPanel'
@@ -191,6 +191,7 @@ export default function MaintenanceDashboard() {
           <p>Use this screen in the field. New items you enter go to the office first. Only approved work shows in your queue.</p>
         </div>
         <div className="maintenance-staff-hero-links">
+          <Link className="maintenance-meter-link" href="/maintenance/dashboard/meter-readings"><Gauge size={16} /> Read Electric Meters</Link>
           <Link href="/maintenance/dashboard/inventory"><Warehouse size={16} /> Supply inventory</Link>
           <Link href="/maintenance/history">Completed history →</Link>
         </div>
