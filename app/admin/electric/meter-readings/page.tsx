@@ -68,12 +68,27 @@ export default function AdminMeterReadingReviewPage() {
     setReadingId(submission.id)
     setMessage(`Reading the meter number from Lot ${submission.lot_number}…`)
     const auth = await token()
-    const response = await fetch('/api/meter-readings', {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: submission.id, reanalyze: true }),
-    })
-    const result = await response.json().catch(() => ({}))
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 30_000)
+    let response: Response
+    let result: any
+    try {
+      response = await fetch('/api/meter-readings', {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: submission.id, reanalyze: true }),
+        signal: controller.signal,
+      })
+      result = await response.json().catch(() => ({}))
+    } catch (error) {
+      setReadingId('')
+      setMessage(error instanceof DOMException && error.name === 'AbortError'
+        ? `Lot ${submission.lot_number}: photo reading took too long. Try Read Photo Now again.`
+        : `Lot ${submission.lot_number}: the photo reader could not connect.`)
+      return
+    } finally {
+      window.clearTimeout(timeout)
+    }
     setReadingId('')
     if (!response.ok) {
       setMessage(`Lot ${submission.lot_number}: ${result.error || 'The photo could not be read.'}`)

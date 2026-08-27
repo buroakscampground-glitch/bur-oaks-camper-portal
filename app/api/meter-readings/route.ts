@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server'
 import { createWorker, PSM } from 'tesseract.js'
 import sharp from 'sharp'
+import path from 'node:path'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { chooseBestMeterRecognition, extractMeterReading, meterLabelCode, normalizeLotKey } from '../../../lib/meter-reading'
 import { checkRateLimit } from '../../../lib/rate-limit'
@@ -68,9 +69,9 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
   }
 
   const regions = [
-    { ...detectedRegion, pageMode: PSM.SINGLE_LINE },
-    { left: 0.29, top: 0.21, width: 0.46, height: 0.20, pageMode: PSM.SINGLE_BLOCK },
-    { left: 0.27, top: 0.18, width: 0.50, height: 0.26, pageMode: PSM.SINGLE_BLOCK },
+    { ...detectedRegion, pageMode: PSM.SINGLE_LINE, thresholds: [60, 70, 80, 90] },
+    { left: 0.29, top: 0.21, width: 0.46, height: 0.20, pageMode: PSM.SINGLE_BLOCK, thresholds: [50, 60, 80, 120] },
+    { left: 0.27, top: 0.18, width: 0.50, height: 0.26, pageMode: PSM.SINGLE_BLOCK, thresholds: [50, 60, 80, 120] },
   ]
   const images: { image: Buffer; pageMode: PSM }[] = []
 
@@ -84,9 +85,7 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
     crop.width = Math.min(crop.width, width - crop.left)
     crop.height = Math.min(crop.height, height - crop.top)
 
-    // Low thresholds handle shaded displays; high thresholds recover digits
-    // washed out by sun glare on the meter cover.
-    for (const threshold of [50, 60, 70, 80, 90, 120, 140]) {
+    for (const threshold of region.thresholds) {
       images.push({ image: await sharp(oriented)
         .extract(crop)
         .resize({ width: 1200 })
@@ -103,9 +102,14 @@ async function prepareRecognitionImages(bytes: ArrayBuffer) {
 
 async function recognizeReading(bytes: ArrayBuffer, previousReading: number | null = null) {
   const images = await prepareRecognitionImages(bytes)
-  // Serverless deployments cannot write Tesseract's language cache beside the
-  // application bundle. /tmp is writable and is reused while the instance is warm.
-  const worker = await createWorker('eng', undefined, { cachePath: '/tmp' })
+  // Keep the language model in the deployment so live requests never wait on
+  // an outside download. This is essential on short-lived serverless workers.
+  const worker = await createWorker('eng', undefined, {
+    langPath: path.join(process.cwd(), 'public', 'tesseract'),
+    gzip: false,
+    cacheMethod: 'none',
+    cachePath: '/tmp',
+  })
   try {
     await worker.setParameters({
       tessedit_char_whitelist: '0123456789,.- ',
