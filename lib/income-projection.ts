@@ -21,6 +21,7 @@ export type ProjectionInvoice = {
   due_date?: string | null
   created_at?: string | null
   total_due?: number | string | null
+  status?: string | null
 }
 
 export type MonthlyIncomeProjection = {
@@ -30,6 +31,11 @@ export type MonthlyIncomeProjection = {
   association: number
   electric: number
   total: number
+  actualLotRent: number
+  actualAssociation: number
+  actualElectric: number
+  actualTotal: number
+  variance: number
 }
 
 type ProjectionOptions = {
@@ -39,6 +45,7 @@ type ProjectionOptions = {
   associationFee: number
   fallbackLotRentMonth: number
   fallbackAssociationMonth: number
+  projectionYear?: number
 }
 
 function average(values: number[]) {
@@ -73,6 +80,7 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     associationFee,
     fallbackLotRentMonth,
     fallbackAssociationMonth,
+    projectionYear = new Date().getFullYear(),
   } = options
 
   const months: MonthlyIncomeProjection[] = projectionMonths.map((label, monthIndex) => ({
@@ -82,6 +90,11 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     association: 0,
     electric: 0,
     total: 0,
+    actualLotRent: 0,
+    actualAssociation: 0,
+    actualElectric: 0,
+    actualTotal: 0,
+    variance: 0,
   }))
 
   const siteByCamper = new Map<string, string>()
@@ -113,6 +126,28 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     const key = `${period.lotNumber}:${period.month}`
     readingValues.set(key, [...(readingValues.get(key) || []), period.amount])
     allSiteValues.set(period.lotNumber, [...(allSiteValues.get(period.lotNumber) || []), period.amount])
+  }
+
+  for (const reading of readings) {
+    if (!siteByCamper.has(String(reading.camper_id || ''))) continue
+    const month = recordMonth(reading.reading_date)
+    const year = Number(String(reading.reading_date || '').slice(0, 4))
+    const amount = Number(reading.amount_due || 0)
+    if (year !== projectionYear || month === null || !Number.isFinite(amount) || amount < 0) continue
+    months[month].actualElectric += amount
+  }
+
+  for (const invoice of invoices) {
+    if (!siteByCamper.has(String(invoice.camper_id || ''))) continue
+    if (String(invoice.status || '').toLowerCase() === 'cancelled') continue
+    const billingDate = invoice.due_date || invoice.created_at
+    const month = recordMonth(billingDate)
+    const year = Number(String(billingDate || '').slice(0, 4))
+    const amount = Number(invoice.total_due || 0)
+    if (year !== projectionYear || month === null || !Number.isFinite(amount) || amount < 0) continue
+    const type = String(invoice.invoice_type || '').toLowerCase()
+    if (type.includes('association')) months[month].actualAssociation += amount
+    else if (type.includes('rent')) months[month].actualLotRent += amount
   }
 
   const monthlySeasonalAverages = projectionMonths.map((_, monthIndex) => {
@@ -179,11 +214,19 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     month.association = Number(month.association.toFixed(2))
     month.electric = Number(month.electric.toFixed(2))
     month.total = Number((month.lotRent + month.association + month.electric).toFixed(2))
+    month.actualLotRent = Number(month.actualLotRent.toFixed(2))
+    month.actualAssociation = Number(month.actualAssociation.toFixed(2))
+    month.actualElectric = Number(month.actualElectric.toFixed(2))
+    month.actualTotal = Number((month.actualLotRent + month.actualAssociation + month.actualElectric).toFixed(2))
+    month.variance = Number((month.actualTotal - month.total).toFixed(2))
   }
 
   const annualLotRent = months.reduce((sum, month) => sum + month.lotRent, 0)
   const annualAssociation = months.reduce((sum, month) => sum + month.association, 0)
   const annualElectric = months.reduce((sum, month) => sum + month.electric, 0)
+  const actualLotRent = months.reduce((sum, month) => sum + month.actualLotRent, 0)
+  const actualAssociation = months.reduce((sum, month) => sum + month.actualAssociation, 0)
+  const actualElectric = months.reduce((sum, month) => sum + month.actualElectric, 0)
 
   return {
     months,
@@ -191,6 +234,10 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     annualAssociation,
     annualElectric,
     annualTotal: annualLotRent + annualAssociation + annualElectric,
+    actualLotRent,
+    actualAssociation,
+    actualElectric,
+    actualTotal: actualLotRent + actualAssociation + actualElectric,
     configuredRentSites,
     savedRentSites,
     inferredRentSites,

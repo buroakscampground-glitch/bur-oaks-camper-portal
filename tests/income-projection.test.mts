@@ -65,3 +65,27 @@ test('latest lot-rent invoice fills a missing saved annual rent amount', () => {
   assert.equal(result.inferredRentSites, 1)
   assert.equal(result.missingRentSites, 0)
 })
+
+test('actual monthly income updates from entered readings and campground invoices', () => {
+  const result = buildIncomeProjection({
+    sites: [{ lotNumber: '12', camperIds: ['camper-12'], annualLotRent: 2_000 }],
+    readings: [
+      { camper_id: 'camper-12', reading_date: '2026-08-20', amount_due: 85 },
+      { camper_id: 'camper-12', reading_date: '2025-08-20', amount_due: 75 },
+    ],
+    invoices: [
+      { camper_id: 'camper-12', invoice_type: 'Lot Rent', due_date: '2026-04-01', total_due: 2_000, status: 'paid' },
+      { camper_id: 'camper-12', invoice_type: 'Association Fee', due_date: '2026-03-01', total_due: 250, status: 'open' },
+      { camper_id: 'camper-12', invoice_type: 'Association Fee', due_date: '2026-03-01', total_due: 250, status: 'cancelled' },
+    ],
+    associationFee: 250,
+    fallbackLotRentMonth: 3,
+    fallbackAssociationMonth: 2,
+    projectionYear: 2026,
+  })
+
+  assert.equal(result.months[7].actualElectric, 85)
+  assert.equal(result.months[3].actualLotRent, 2_000)
+  assert.equal(result.months[2].actualAssociation, 250)
+  assert.equal(result.actualTotal, 2_335)
+})

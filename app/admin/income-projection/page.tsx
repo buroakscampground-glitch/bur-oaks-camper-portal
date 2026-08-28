@@ -56,7 +56,7 @@ export default function AdminIncomeProjectionPage() {
         supabase.from('campers').select('id,lot_number,role,active').eq('active', true),
         supabase.from('lots').select('lot_number,lot_rent_amount'),
         supabase.from('electric_readings').select('camper_id,reading_date,amount_due'),
-        supabase.from('invoices').select('camper_id,invoice_type,due_date,created_at,total_due'),
+        supabase.from('invoices').select('camper_id,invoice_type,due_date,created_at,total_due,status'),
       ])
 
       const errors = [camperResult.error, lotResult.error, readingResult.error, invoiceResult.error].filter(Boolean)
@@ -95,15 +95,16 @@ export default function AdminIncomeProjectionPage() {
     associationFee: Math.max(0, Number(associationFee || 0)),
     fallbackLotRentMonth: lotRentMonth,
     fallbackAssociationMonth: associationMonth,
-  }), [associationFee, associationMonth, invoices, lotRentMonth, readings, sites])
+    projectionYear,
+  }), [associationFee, associationMonth, invoices, lotRentMonth, projectionYear, readings, sites])
 
   const strongestMonth = projection.months.reduce((best, month) => month.total > best.total ? month : best, projection.months[0])
   const slimmestMonth = projection.months.reduce((best, month) => month.total < best.total ? month : best, projection.months[0])
-  const maxMonthTotal = Math.max(...projection.months.map((month) => month.total), 1)
+  const maxMonthTotal = Math.max(...projection.months.flatMap((month) => [month.total, month.actualTotal]), 1)
   const categoryRows = [
-    { key: 'lotRent', label: 'Lot rent', total: projection.annualLotRent, color: categoryColors.lotRent },
-    { key: 'association', label: 'Association fees', total: projection.annualAssociation, color: categoryColors.association },
-    { key: 'electric', label: 'Estimated electric', total: projection.annualElectric, color: categoryColors.electric },
+    { key: 'lotRent', label: 'Lot rent', total: projection.annualLotRent, actual: projection.actualLotRent, color: categoryColors.lotRent },
+    { key: 'association', label: 'Association fees', total: projection.annualAssociation, actual: projection.actualAssociation, color: categoryColors.association },
+    { key: 'electric', label: 'Estimated electric', total: projection.annualElectric, actual: projection.actualElectric, color: categoryColors.electric },
   ]
   let pieOffset = 0
   const pieSegments = categoryRows.map((category) => {
@@ -119,9 +120,9 @@ export default function AdminIncomeProjectionPage() {
   function exportProjection() {
     const rows = [
       ['Bur Oaks projected income', projectionYear],
-      ['Month', 'Lot Rent', 'Association Fees', 'Estimated Electric', 'Projected Total'],
-      ...projection.months.map((month) => [month.label, month.lotRent, month.association, month.electric, month.total]),
-      ['YEAR TOTAL', projection.annualLotRent, projection.annualAssociation, projection.annualElectric, projection.annualTotal],
+      ['Month', 'Projected Lot Rent', 'Projected Association', 'Projected Electric', 'Projected Total', 'Actual Lot Rent', 'Actual Association', 'Actual Electric Entered', 'Actual Total', 'Variance'],
+      ...projection.months.map((month) => [month.label, month.lotRent, month.association, month.electric, month.total, month.actualLotRent, month.actualAssociation, month.actualElectric, month.actualTotal, month.variance]),
+      ['YEAR TOTAL', projection.annualLotRent, projection.annualAssociation, projection.annualElectric, projection.annualTotal, projection.actualLotRent, projection.actualAssociation, projection.actualElectric, projection.actualTotal, projection.actualTotal - projection.annualTotal],
     ]
     const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
@@ -169,14 +170,14 @@ export default function AdminIncomeProjectionPage() {
 
         <section className="income-projection-kpis">
           <article><span><CircleDollarSign size={21} /></span><div><small>{projectionYear} PROJECTED INCOME</small><strong>{formatMoney(projection.annualTotal)}</strong><em>Rent + association + estimated electric</em></div></article>
+          <article><span><Gauge size={21} /></span><div><small>{projectionYear} ACTUAL ENTERED</small><strong>{formatMoney(projection.actualTotal)}</strong><em>Updates from invoices and electric readings</em></div></article>
           <article><span><TrendingUp size={21} /></span><div><small>STRONGEST MONTH</small><strong>{strongestMonth.label}</strong><em>{formatMoney(strongestMonth.total)} projected</em></div></article>
           <article><span><TrendingDown size={21} /></span><div><small>SLIMMEST MONTH</small><strong>{slimmestMonth.label}</strong><em>{formatMoney(slimmestMonth.total)} projected</em></div></article>
-          <article><span><Gauge size={21} /></span><div><small>ACTIVE CAMPSITES</small><strong>{sites.length}</strong><em>{projection.configuredRentSites} have projected annual rent</em></div></article>
         </section>
 
         <section className="income-projection-main-grid">
           <article className="income-projection-panel income-projection-month-chart">
-            <header><div><small>MONTH-BY-MONTH</small><h2>Projected income flow</h2></div><span>Hover or tap a month for the total</span></header>
+            <header><div><small>PROJECTED VS. ACTUAL</small><h2>Month-by-month income flow</h2></div><span>The white line is actual entered</span></header>
             <div className="income-projection-bars" aria-label={`${projectionYear} projected income by month`}>
               {projection.months.map((month) => (
                 <div key={month.label}>
@@ -185,6 +186,7 @@ export default function AdminIncomeProjectionPage() {
                     <b className="electric" style={{ height: `${(month.electric / maxMonthTotal) * 100}%` }} />
                     <b className="association" style={{ height: `${(month.association / maxMonthTotal) * 100}%` }} />
                     <b className="rent" style={{ height: `${(month.lotRent / maxMonthTotal) * 100}%` }} />
+                    {month.actualTotal > 0 && <em style={{ bottom: `${(month.actualTotal / maxMonthTotal) * 100}%` }} title={`Actual entered: ${formatMoney(month.actualTotal)}`} />}
                   </i>
                   <small>{month.label.slice(0, 3)}</small>
                 </div>
@@ -194,6 +196,7 @@ export default function AdminIncomeProjectionPage() {
               <span><i style={{ background: categoryColors.lotRent }} /> Lot rent</span>
               <span><i style={{ background: categoryColors.association }} /> Association</span>
               <span><i style={{ background: categoryColors.electric }} /> Estimated electric</span>
+              <span><i className="actual-line" /> Actual entered</span>
             </footer>
           </article>
 
@@ -222,7 +225,7 @@ export default function AdminIncomeProjectionPage() {
             </div>
             <div className="income-projection-legend">
               {categoryRows.map((category) => (
-                <p key={category.key}><i style={{ background: category.color }} /><span><strong>{category.label}</strong><small>{projection.annualTotal ? Math.round((category.total / projection.annualTotal) * 100) : 0}% of projection</small></span><b>{formatMoney(category.total)}</b></p>
+                <p key={category.key}><i style={{ background: category.color }} /><span><strong>{category.label}</strong><small>{projection.annualTotal ? Math.round((category.total / projection.annualTotal) * 100) : 0}% · Actual entered {formatMoney(category.actual)}</small></span><b>{formatMoney(category.total)}</b></p>
               ))}
             </div>
           </article>
@@ -242,19 +245,19 @@ export default function AdminIncomeProjectionPage() {
           <header><div><small>12-MONTH DETAIL</small><h2>{projectionYear} projection table</h2></div></header>
           <div className="income-projection-table-wrap">
             <table>
-              <thead><tr><th>Month</th><th>Lot rent</th><th>Association</th><th>Estimated electric</th><th>Projected total</th><th>Month strength</th></tr></thead>
+              <thead><tr><th>Month</th><th>Projected total</th><th>Actual rent</th><th>Actual association</th><th>Actual electric</th><th>Actual total</th><th>Difference</th></tr></thead>
               <tbody>
                 {projection.months.map((month) => {
                   const strength = month.monthIndex === strongestMonth.monthIndex ? 'Strongest' : month.monthIndex === slimmestMonth.monthIndex ? 'Slimmest' : 'Typical'
-                  return <tr key={`row-${month.label}`}><td><strong>{month.label}</strong></td><td>{formatMoney(month.lotRent)}</td><td>{formatMoney(month.association)}</td><td>{formatMoney(month.electric)}</td><td><strong>{formatMoney(month.total)}</strong></td><td><span className={strength.toLowerCase()}>{strength}</span></td></tr>
+                  return <tr key={`row-${month.label}`}><td><strong>{month.label}</strong><span className={strength.toLowerCase()}>{strength}</span></td><td>{formatMoney(month.total)}</td><td>{formatMoney(month.actualLotRent)}</td><td>{formatMoney(month.actualAssociation)}</td><td>{formatMoney(month.actualElectric)}</td><td><strong>{formatMoney(month.actualTotal)}</strong></td><td className={month.variance >= 0 ? 'positive' : 'negative'}>{month.actualTotal ? formatMoney(month.variance) : '—'}</td></tr>
                 })}
               </tbody>
-              <tfoot><tr><td>YEAR TOTAL</td><td>{formatMoney(projection.annualLotRent)}</td><td>{formatMoney(projection.annualAssociation)}</td><td>{formatMoney(projection.annualElectric)}</td><td>{formatMoney(projection.annualTotal)}</td><td>Projection</td></tr></tfoot>
+              <tfoot><tr><td>YEAR TOTAL</td><td>{formatMoney(projection.annualTotal)}</td><td>{formatMoney(projection.actualLotRent)}</td><td>{formatMoney(projection.actualAssociation)}</td><td>{formatMoney(projection.actualElectric)}</td><td>{formatMoney(projection.actualTotal)}</td><td>{formatMoney(projection.actualTotal - projection.annualTotal)}</td></tr></tfoot>
             </table>
           </div>
         </section>
 
-        <p className="income-projection-note">Planning estimate only. Electric uses historical averages and actual income will change with occupancy, weather, meter usage, credits, late fees, and payment timing.</p>
+        <p className="income-projection-note">Actual means charges entered into the portal—not necessarily cash collected. Electric updates from saved meter readings; lot rent and association update from invoices. The projection remains a planning estimate.</p>
       </div>
     </main>
   )
