@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, CheckCircle2, Gauge } from 'lucide-react'
+import { Camera, CheckCircle2, ClipboardCheck, Gauge } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { createInvoiceBundle, formatCreditMoney } from '../../../lib/account-credits'
@@ -21,6 +21,10 @@ export default function AdminElectricPage() {
   const [siteServiceCharges, setSiteServiceCharges] = useState<any[]>([])
   const [accountCredits, setAccountCredits] = useState<any[]>([])
   const [meterSubmissions, setMeterSubmissions] = useState<any[]>([])
+  const [billingChecklist, setBillingChecklist] = useState<any[]>([])
+  const [checklistCounts, setChecklistCounts] = useState<Record<string, number>>({})
+  const [checklistFilter, setChecklistFilter] = useState('all')
+  const [checklistMonth, setChecklistMonth] = useState('')
   const [camperId, setCamperId] = useState('')
   const [previousReading, setPreviousReading] = useState('')
   const [currentReading, setCurrentReading] = useState('')
@@ -61,11 +65,15 @@ export default function AdminElectricPage() {
     loadSiteServiceCharges()
     loadAccountCredits()
     loadMeterSubmissions()
+    loadBillingChecklist()
     loadSettings()
   }, [])
 
   useEffect(() => {
-    const refresh = () => loadMeterSubmissions()
+    const refresh = () => {
+      loadMeterSubmissions()
+      loadBillingChecklist()
+    }
     const timer = window.setInterval(refresh, 15000)
     window.addEventListener('focus', refresh)
     return () => {
@@ -187,6 +195,18 @@ export default function AdminElectricPage() {
     }
   }
 
+  async function loadBillingChecklist() {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (!token) return
+    const response = await fetch('/api/meter-readings?checklist=1', { headers: { Authorization: `Bearer ${token}` } })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) return
+    setBillingChecklist(result.entries || [])
+    setChecklistCounts(result.counts || {})
+    setChecklistMonth(result.monthStart || '')
+  }
+
   function draftReading(draft: any) {
     const value = [draft?.reviewed_reading, draft?.submitted_reading, draft?.detected_reading]
       .find((candidate) => candidate !== null && candidate !== undefined && Number.isFinite(Number(candidate)) && Number(candidate) > 0)
@@ -271,6 +291,10 @@ const estimatedCreditTotal =
   availableCreditTotal + (Number.isFinite(newCreditValue) && newCreditValue > 0 ? newCreditValue : 0)
 const liveInvoiceTotal = liveAmount + liveSecondAmount + selectedWaterTrashFee + manualPumpCharge + pumpOutChargeTotal + siteServiceChargeTotal
 const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTotal)
+const filteredBillingChecklist = checklistFilter === 'all'
+  ? billingChecklist
+  : billingChecklist.filter((item) => item.status === checklistFilter)
+const billedCount = Number(checklistCounts.invoice_created || 0) + Number(checklistCounts.paid || 0)
 
   async function saveElectricAndCreateInvoice() {
     setMessage('')
@@ -702,6 +726,7 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
     loadPumpOuts()
     loadSiteServiceCharges()
     loadAccountCredits()
+    loadBillingChecklist()
     setSaving(false)
   }
 
@@ -743,6 +768,58 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
             <div><small>METER PHOTOS CONNECTED</small><strong>{meterSubmissions.filter((item) => draftReading(item)).length} readings ready in the camper dropdown</strong><p>Select a camper below and the newest unused photograph, previous reading, and current reading load automatically. Open the review page only for exceptions.</p></div>
             <a href="/admin/electric/meter-readings">Review Exceptions</a>
           </div>
+
+          <section className="electric-billing-checklist">
+            <header>
+              <span><ClipboardCheck size={22} /></span>
+              <div>
+                <small>MONTHLY BILLING CHECKLIST</small>
+                <h2>{billedCount} of {billingChecklist.length} sites billed</h2>
+                <p>{checklistMonth ? new Date(`${checklistMonth.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'Current month'} · Updates automatically</p>
+              </div>
+            </header>
+
+            <div className="electric-billing-statuses" role="group" aria-label="Filter monthly billing checklist">
+              {[
+                ['all', 'All Sites', billingChecklist.length],
+                ['not_read', 'Not Read', checklistCounts.not_read || 0],
+                ['photo_ready', 'Photo Ready', checklistCounts.photo_ready || 0],
+                ['needs_retake', 'Needs Retake', checklistCounts.needs_retake || 0],
+                ['invoice_created', 'Invoice Created', checklistCounts.invoice_created || 0],
+                ['paid', 'Paid', checklistCounts.paid || 0],
+              ].map(([key, label, count]) => (
+                <button
+                  className={checklistFilter === key ? 'active' : ''}
+                  key={String(key)}
+                  onClick={() => setChecklistFilter(String(key))}
+                  type="button"
+                >
+                  <strong>{Number(count)}</strong>
+                  <span>{String(label)}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="electric-billing-site-list">
+              {filteredBillingChecklist.map((item) => (
+                <article key={item.lot_number}>
+                  <div>
+                    <strong>Lot {item.lot_number}</strong>
+                    <small>{item.camper_name}</small>
+                  </div>
+                  <span className={`status-${item.status}`}>{String(item.status).replaceAll('_', ' ')}</span>
+                  {item.status === 'photo_ready' && item.submission_id ? (
+                    <a href={`/admin/electric?meterDraft=${encodeURIComponent(item.submission_id)}`}>Open for Billing</a>
+                  ) : item.status === 'needs_retake' ? (
+                    <a href="/admin/electric/meter-readings">Review</a>
+                  ) : item.invoice_id ? (
+                    <a href={`/admin/invoices/${encodeURIComponent(item.invoice_id)}`}>View Invoice</a>
+                  ) : <em>Waiting on maintenance</em>}
+                </article>
+              ))}
+              {!filteredBillingChecklist.length && <p>No sites are in this group.</p>}
+            </div>
+          </section>
 
           {meterDraft && (
             <section className="electric-meter-draft">
