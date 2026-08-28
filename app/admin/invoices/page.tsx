@@ -28,6 +28,15 @@ import { nextInvoiceNumber } from '../../../lib/invoice-number'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
+const invoiceDescriptionOptions = [
+  'Lot Rent',
+  'Association Fee',
+  'Electric Bill',
+  'Late Fee',
+  'Gate Card',
+  'Maintenance Charge',
+]
+
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
     style: 'currency',
@@ -48,6 +57,7 @@ export default function AdminInvoicesPage() {
   const [camperId, setCamperId] = useState('')
   const [invoiceNumber, setInvoiceNumber] = useState('')
   const [description, setDescription] = useState('Lot Rent')
+  const [customDescription, setCustomDescription] = useState(false)
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [searchText, setSearchText] = useState('')
@@ -319,16 +329,30 @@ export default function AdminInvoicesPage() {
 
             <label>
               <span>Description</span>
-              <input list="invoice-types" value={description} onChange={(event) => changeDescription(event.target.value)} placeholder="Lot Rent" />
-              <datalist id="invoice-types">
-                <option value="Lot Rent" />
-                <option value="Association Fee">$250</option>
-                <option value="Electric Bill" />
-                <option value="Late Fee" />
-                <option value="Gate Card" />
-                <option value="Maintenance Charge" />
-              </datalist>
+              <select
+                value={customDescription ? 'Other charge' : description}
+                onChange={(event) => {
+                  const nextDescription = event.target.value
+                  const isCustom = nextDescription === 'Other charge'
+                  setCustomDescription(isCustom)
+                  changeDescription(isCustom ? '' : nextDescription)
+                }}
+              >
+                {invoiceDescriptionOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option === 'Association Fee' ? 'Association Fee — $250' : option}
+                  </option>
+                ))}
+                <option value="Other charge">Other charge</option>
+              </select>
             </label>
+
+            {customDescription && (
+              <label>
+                <span>Custom description</span>
+                <input value={description} onChange={(event) => changeDescription(event.target.value)} placeholder="Enter charge description" />
+              </label>
+            )}
 
             <label><span>Amount</span><div className="admin-money-input"><i>$</i><input type="number" min="0.50" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="0.00" /></div></label>
 
