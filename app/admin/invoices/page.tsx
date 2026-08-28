@@ -58,6 +58,17 @@ export default function AdminInvoicesPage() {
   const [deletingInvoiceId, setDeletingInvoiceId] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
 
+  function changeDescription(nextDescription: string) {
+    const wasAssociationFee = description === 'Association Fee'
+    setDescription(nextDescription)
+
+    if (nextDescription === 'Association Fee') {
+      setAmount('250')
+    } else if (wasAssociationFee && amount === '250') {
+      setAmount('')
+    }
+  }
+
   async function loadInvoices() {
     const { data } = await supabase
       .from('invoices')
@@ -308,9 +319,10 @@ export default function AdminInvoicesPage() {
 
             <label>
               <span>Description</span>
-              <input list="invoice-types" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Lot Rent" />
+              <input list="invoice-types" value={description} onChange={(event) => changeDescription(event.target.value)} placeholder="Lot Rent" />
               <datalist id="invoice-types">
                 <option value="Lot Rent" />
+                <option value="Association Fee">$250</option>
                 <option value="Electric Bill" />
                 <option value="Late Fee" />
                 <option value="Gate Card" />
