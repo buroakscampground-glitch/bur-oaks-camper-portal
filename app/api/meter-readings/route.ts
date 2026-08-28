@@ -11,6 +11,11 @@ export const maxDuration = 60
 const MAX_PHOTO_SIZE = 8 * 1024 * 1024
 const allowedRoles = new Set(['admin', 'maintenance'])
 
+function currentMonthStart() {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
+}
+
 function staffRole(context: any) {
   return String(context?.camper?.role || '').trim().toLowerCase()
 }
@@ -70,23 +75,35 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url)
   if (url.searchParams.get('sites') === '1') {
-    const [{ data: lots }, { data: campers }] = await Promise.all([
+    const [{ data: lots }, { data: campers }, { data: capturedRows }] = await Promise.all([
       context.admin.from('lots').select('lot_number,meter_number,camper_id'),
       context.admin.from('campers').select('id,lot_number,role,active'),
+      context.admin
+        .from('meter_reading_submissions')
+        .select('id,lot_number,status,detected_reading,submitted_reading,reviewed_reading,captured_at,captured_by_email')
+        .gte('captured_at', currentMonthStart())
+        .neq('status', 'cancelled')
+        .order('captured_at', { ascending: false }),
     ])
-    const siteMap = new Map<string, { lot_number: string; meter_number: string | null }>()
+    const capturedByLot = new Map<string, any>()
+    for (const row of capturedRows || []) {
+      const key = normalizeLotKey(row.lot_number)
+      if (key && !capturedByLot.has(key)) capturedByLot.set(key, row)
+    }
+    const siteMap = new Map<string, { lot_number: string; meter_number: string | null; captured: any }>()
     for (const camper of campers || []) {
       if (camper.active === false || !isOperationalCamper(camper) || !normalizeLotKey(camper.lot_number)) continue
       const lot = (lots || []).find((item: any) => normalizeLotKey(item.lot_number) === normalizeLotKey(camper.lot_number))
       siteMap.set(normalizeLotKey(camper.lot_number), {
         lot_number: String(camper.lot_number),
         meter_number: lot?.meter_number || null,
+        captured: capturedByLot.get(normalizeLotKey(camper.lot_number)) || null,
       })
     }
     const sites = [...siteMap.values()].sort((a, b) =>
       a.lot_number.localeCompare(b.lot_number, undefined, { numeric: true })
     )
-    return NextResponse.json({ sites })
+    return NextResponse.json({ sites, monthStart: currentMonthStart() })
   }
 
   const id = String(url.searchParams.get('id') || '').trim()
@@ -110,7 +127,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const limit = await checkRateLimit(request, 'meter-photo', 30, 10 * 60_000)
+  const limit = await checkRateLimit(request, 'meter-photo', 150, 30 * 60_000)
   if (!limit.allowed) return NextResponse.json({ error: 'Too many meter photos. Please wait and try again.' }, { status: 429 })
 
   const context = await getAuthenticatedContext(request)
@@ -129,7 +146,7 @@ export async function POST(request: Request) {
   if (!photoType) return NextResponse.json({ error: 'Use a clear JPG, PNG, or WebP meter photo.' }, { status: 400 })
 
   const analyzeOnly = new URL(request.url).searchParams.get('analyze') === '1'
-  let recognition = { reading: null as number | null, rawCandidate: '', confidence: null as number | null, text: '' }
+  let recognition = { reading: null as number | null, rawCandidate: '', visibleLot: null as string | null, confidence: null as number | null, text: '' }
   if (analyzeOnly) {
     try {
       const lotNumber = String(form.get('lotNumber') || '').trim()
@@ -152,11 +169,13 @@ export async function POST(request: Request) {
   recognition = {
     reading: Number.isFinite(clientDetected) && clientDetected >= 0 ? clientDetected : null,
     rawCandidate: '',
+    visibleLot: null,
     confidence: Number.isFinite(clientConfidence) ? clientConfidence : null,
     text: '',
   }
 
   const lotNumber = String(form.get('lotNumber') || '').trim()
+  const routeMode = String(form.get('routeMode') || '') === '1'
   const submittedText = String(form.get('reading') || '').trim()
   const submittedReading = submittedText ? Number(submittedText) : null
   if (!normalizeLotKey(lotNumber)) return NextResponse.json({ error: 'Choose the meter site first.' }, { status: 400 })
@@ -167,6 +186,23 @@ export async function POST(request: Request) {
   const { lot, camper } = await findSiteCamper(context, lotNumber)
   if (!camper) return NextResponse.json({ error: `No active camper billing record was found for Lot ${lotNumber}.` }, { status: 404 })
 
+  if (routeMode) {
+    const { data: currentMonthRows } = await context.admin
+      .from('meter_reading_submissions')
+      .select('id,lot_number,status,captured_at')
+      .gte('captured_at', currentMonthStart())
+      .not('status', 'in', '(cancelled,retake)')
+      .order('captured_at', { ascending: false })
+    const existing = (currentMonthRows || []).find((row: any) => normalizeLotKey(row.lot_number) === normalizeLotKey(lotNumber))
+    if (existing) {
+      return NextResponse.json({
+        error: `Lot ${lotNumber} already has a meter photo for this month.`,
+        alreadyCaptured: true,
+        submissionId: existing.id,
+      }, { status: 409 })
+    }
+  }
+
   if (recognition.reading === null) {
     try {
       const previousReading = await latestReadingForCamper(context, camper.id)
@@ -175,6 +211,22 @@ export async function POST(request: Request) {
       // Never lose a field photo because the reader is temporarily unavailable.
       // Save it for office review, where the same managed reader can be retried.
       console.error('Meter vision could not complete during submission:', visionError)
+    }
+  }
+
+  if (routeMode) {
+    if (!recognition.visibleLot) {
+      return NextResponse.json({
+        error: 'The Bur Oaks lot label was not clear. Retake one photo showing both the meter digits and the QR/lot label.',
+        needsRetake: true,
+      }, { status: 422 })
+    }
+    if (normalizeLotKey(recognition.visibleLot) !== normalizeLotKey(lotNumber)) {
+      return NextResponse.json({
+        error: `This photo shows Lot ${recognition.visibleLot}, but the route expected Lot ${lotNumber}. Nothing was saved.`,
+        needsRetake: true,
+        visibleLot: recognition.visibleLot,
+      }, { status: 409 })
     }
   }
 
@@ -209,7 +261,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ success: true, submission: await signedSubmission(context, data) })
+  return NextResponse.json({
+    success: true,
+    submission: await signedSubmission(context, data),
+    verification: {
+      visibleLot: recognition.visibleLot,
+      lotMatched: recognition.visibleLot ? normalizeLotKey(recognition.visibleLot) === normalizeLotKey(lotNumber) : null,
+    },
+  })
 }
 
 export async function DELETE(request: Request) {

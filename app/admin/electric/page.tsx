@@ -20,6 +20,7 @@ export default function AdminElectricPage() {
   const [pumpOuts, setPumpOuts] = useState<any[]>([])
   const [siteServiceCharges, setSiteServiceCharges] = useState<any[]>([])
   const [accountCredits, setAccountCredits] = useState<any[]>([])
+  const [meterSubmissions, setMeterSubmissions] = useState<any[]>([])
   const [camperId, setCamperId] = useState('')
   const [previousReading, setPreviousReading] = useState('')
   const [currentReading, setCurrentReading] = useState('')
@@ -59,7 +60,18 @@ export default function AdminElectricPage() {
     loadPumpOuts()
     loadSiteServiceCharges()
     loadAccountCredits()
+    loadMeterSubmissions()
     loadSettings()
+  }, [])
+
+  useEffect(() => {
+    const refresh = () => loadMeterSubmissions()
+    const timer = window.setInterval(refresh, 15000)
+    window.addEventListener('focus', refresh)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+    }
   }, [])
 
   useEffect(() => {
@@ -162,6 +174,23 @@ export default function AdminElectricPage() {
       .order('created_at', { ascending: true })
 
     setAccountCredits(data || [])
+  }
+
+  async function loadMeterSubmissions() {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (!token) return
+    const response = await fetch('/api/meter-readings', { headers: { Authorization: `Bearer ${token}` } })
+    const result = await response.json().catch(() => ({}))
+    if (response.ok) {
+      setMeterSubmissions((result.submissions || []).filter((item: any) => item.status !== 'retake' && !item.invoice_id))
+    }
+  }
+
+  function draftReading(draft: any) {
+    const value = [draft?.reviewed_reading, draft?.submitted_reading, draft?.detected_reading]
+      .find((candidate) => candidate !== null && candidate !== undefined && Number.isFinite(Number(candidate)) && Number(candidate) > 0)
+    return value === undefined ? '' : String(value)
   }
 
   const filteredReadings = useMemo(() => {
@@ -642,6 +671,7 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
             body: JSON.stringify({ id: meterDraft.id, status: 'used', invoiceId: invoice.id }),
           })
           if (!response.ok) resultMessage += ' Meter photo remains in the review queue and should be cleared manually.'
+          else setMeterSubmissions((current) => current.filter((item) => item.id !== meterDraft.id))
         }
       } catch {
         resultMessage += ' Meter photo remains in the review queue and should be cleared manually.'
@@ -710,8 +740,8 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 
           <div className="electric-meter-entry-link">
             <span><Gauge size={22} /></span>
-            <div><small>METER PHOTO WORKFLOW</small><strong>Review maintenance meter photos</strong><p>Open captured readings, verify the photo, then return here with the lot and current reading filled in.</p></div>
-            <a href="/admin/electric/meter-readings">Open Meter Readings</a>
+            <div><small>METER PHOTOS CONNECTED</small><strong>{meterSubmissions.filter((item) => draftReading(item)).length} readings ready in the camper dropdown</strong><p>Select a camper below and the newest unused photograph, previous reading, and current reading load automatically. Open the review page only for exceptions.</p></div>
+            <a href="/admin/electric/meter-readings">Review Exceptions</a>
           </div>
 
           {meterDraft && (
@@ -734,10 +764,8 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 	    setCamperId(selectedId)
 	    setPreviousReading('')
 	    setCurrentReading('')
-	    if (meterDraft && selectedId !== meterDraft.camper_id) {
-	      setMeterDraft(null)
-	      window.history.replaceState({}, '', '/admin/electric')
-	    }
+	    setMeterDraft(null)
+	    window.history.replaceState({}, '', '/admin/electric')
 	
 	    if (!selectedId) return
 
@@ -753,20 +781,25 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 	      .limit(1)
 	      .maybeSingle()
 
-    if (data) {
-  setPreviousReading(
-    String(data.current_reading)
-  )
+    if (data) setPreviousReading(String(data.current_reading))
 
-setTimeout(() => {
-  currentReadingRef.current?.focus()
-}, 100)
-}
+    const waitingPhoto = meterSubmissions.find((item) => String(item.camper_id) === selectedId && draftReading(item))
+    if (waitingPhoto) {
+      setMeterDraft(waitingPhoto)
+      setCurrentReading(draftReading(waitingPhoto))
+      setReadingDate(String(waitingPhoto.captured_at || '').slice(0, 10) || today)
+      setMessage(`Lot ${waitingPhoto.lot_number} photo and reading loaded automatically. Verify the picture and number before creating the invoice.`)
+    }
+
+    setTimeout(() => { currentReadingRef.current?.focus() }, 100)
   }} style={{ display: 'block', width: '100%', marginBottom: '12px' }}>
             <option value="">Select Camper</option>
             {campers.map((camper) => (
               <option key={camper.id} value={camper.id}>
-                Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
+                Lot {camper.lot_number} - {camper.first_name} {camper.last_name}{(() => {
+                  const waiting = meterSubmissions.find((item) => String(item.camper_id) === String(camper.id) && draftReading(item))
+                  return waiting ? ` · Photo ready: ${Number(draftReading(waiting)).toLocaleString()}` : ''
+                })()}
               </option>
             ))}
           </select>

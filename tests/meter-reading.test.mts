@@ -40,16 +40,19 @@ test('meter OCR favors a reading repeated across several image treatments', () =
 test('managed meter vision preserves leading zeroes while returning a numeric reading', () => {
   const result = parseMeterVisionPayload({
     reading_digits: '03713',
+    visible_lot_label: 'LOT FF18',
     confidence: 'high',
     explanation: 'Five mechanical register wheels are visible.',
   })
 
   assert.equal(result.reading, 3713)
   assert.equal(result.rawCandidate, '03713')
+  assert.equal(result.visibleLot, 'FF18')
   assert.equal(result.confidence, 96)
+  assert.equal(parseMeterVisionPayload({ reading_digits: '3713', visible_lot_label: 'BUR OAKS LOT FF-18', confidence: 'high', explanation: 'Clear' }).visibleLot, 'FF-18')
 })
 
 test('managed meter vision refuses malformed or unreadable output', () => {
-  assert.equal(parseMeterVisionPayload({ reading_digits: null, confidence: 'unreadable', explanation: 'Glare' }).reading, null)
-  assert.equal(parseMeterVisionPayload({ reading_digits: '12', confidence: 'low', explanation: 'Partial' }).reading, null)
+  assert.equal(parseMeterVisionPayload({ reading_digits: null, visible_lot_label: null, confidence: 'unreadable', explanation: 'Glare' }).reading, null)
+  assert.equal(parseMeterVisionPayload({ reading_digits: '12', visible_lot_label: '39', confidence: 'low', explanation: 'Partial' }).reading, null)
 })

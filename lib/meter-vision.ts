@@ -3,12 +3,14 @@ import sharp from 'sharp'
 export type MeterVisionResult = {
   reading: number | null
   rawCandidate: string
+  visibleLot: string | null
   confidence: number | null
   text: string
 }
 
 type VisionPayload = {
   reading_digits: string | null
+  visible_lot_label: string | null
   confidence: 'high' | 'medium' | 'low' | 'unreadable'
   explanation: string
 }
@@ -28,6 +30,10 @@ const responseSchema = {
       type: ['string', 'null'],
       description: 'Only the digits visible in the mechanical kilowatthour register, preserving leading zeroes, or null when unreadable.',
     },
+    visible_lot_label: {
+      type: ['string', 'null'],
+      description: 'The campsite identifier visibly printed on the Bur Oaks label beside the QR code, such as FF18 or 39, or null when it is not visible.',
+    },
     confidence: {
       type: 'string',
       enum: ['high', 'medium', 'low', 'unreadable'],
@@ -37,7 +43,7 @@ const responseSchema = {
       description: 'A short explanation of what was visible or unclear.',
     },
   },
-  required: ['reading_digits', 'confidence', 'explanation'],
+  required: ['reading_digits', 'visible_lot_label', 'confidence', 'explanation'],
 } as const
 
 function responseText(payload: any) {
@@ -61,14 +67,24 @@ export function parseMeterVisionPayload(value: unknown): MeterVisionResult {
   const confidenceName = payload?.confidence && payload.confidence in confidenceScores
     ? payload.confidence
     : 'unreadable'
+  const visibleLot = typeof payload?.visible_lot_label === 'string'
+    ? payload.visible_lot_label
+      .trim()
+      .replace(/^bur\s*oaks(?:\s*campground)?[\s:.-]*/i, '')
+      .replace(/^bo[\s-]*/i, '')
+      .replace(/^lot\s+/i, '')
+      .slice(0, 30) || null
+    : null
 
   return {
     reading: Number.isSafeInteger(reading) && reading >= 0 ? reading : null,
     rawCandidate,
+    visibleLot,
     confidence: confidenceScores[confidenceName],
     text: JSON.stringify({
       provider: 'openai',
       reading_digits: rawCandidate || null,
+      visible_lot_label: visibleLot,
       confidence: confidenceName,
       explanation: String(payload?.explanation || '').slice(0, 500),
     }),
@@ -93,14 +109,13 @@ export async function recognizeMeterWithVision(
   const image = await imageForVision(bytes)
   const model = String(process.env.METER_VISION_MODEL || 'gpt-4.1-mini').trim()
   const previous = Number.isFinite(options.previousReading) ? Number(options.previousReading) : null
-  const lot = String(options.lotNumber || '').trim()
   const prompt = [
     'Read the ELECTRIC METER REGISTER in this photograph.',
     'Return the digits shown in the small mechanical kilowatthour number window only.',
-    'Ignore every printed label, QR code, lot number, serial number, phone status bar, and other number.',
+    'Separately read the campsite identifier visibly printed on the BUR OAKS CAMPGROUND label beside the QR code, such as LOT FF18 or LOT 39.',
+    'Do not treat that lot identifier, the QR code, a serial number, or a phone status bar as the meter reading.',
     'Mechanical wheels may be between digits: choose the digit that has fully passed, which is normally the lower digit.',
     'Preserve leading zeroes. Do not calculate usage and do not invent an obscured digit.',
-    lot ? `The selected campsite is Lot ${lot}; this is context only and is not the reading.` : '',
     previous !== null ? `The previous confirmed reading was ${previous}; use it only as a plausibility check, never to change visible digits.` : 'There is no previous confirmed reading.',
   ].filter(Boolean).join('\n')
 
