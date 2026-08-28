@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import AddressFinder from '../../../../components/AddressFinder'
+import { isInvoiceDueNow, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 
@@ -475,10 +476,7 @@ export default function CamperDetailPage() {
   }
 
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
-  const balanceDue = openInvoices.reduce(
-    (sum, invoice) => sum + Number(invoice.total_due || 0),
-    0,
-  )
+  const balanceDue = totalInvoiceBalance(invoices.filter((invoice) => isInvoiceDueNow(invoice)))
   const initials = `${camper.first_name?.[0] || ''}${camper.last_name?.[0] || ''}`.toUpperCase()
 
   return (

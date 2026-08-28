@@ -41,6 +41,7 @@ import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 import { getSeasonalTheme } from '../../lib/seasonal-theme'
+import { isInvoiceDueNow, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 const serviceLinks = [
   {
@@ -576,11 +577,8 @@ export default function CamperPortalPage() {
     )
   }
 
-  const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
-  const openBalance = openInvoices.reduce(
-    (sum, invoice) => sum + Number(invoice.total_due || 0),
-    0
-  )
+  const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
+  const openBalance = totalInvoiceBalance(dueNowInvoices)
   const nextEvent = events[0]
   const documentsNeedingSignature = documents.filter(
     (document) =>
@@ -647,8 +645,8 @@ export default function CamperPortalPage() {
     },
     {
       label: 'Check payments',
-      detail: openInvoices.length ? `${openInvoices.length} open invoice${openInvoices.length === 1 ? '' : 's'}.` : 'No open balance right now.',
-      complete: openInvoices.length === 0,
+      detail: dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due now.` : 'No payment is due right now.',
+      complete: dueNowInvoices.length === 0,
       href: '/invoices',
     },
     {
@@ -676,11 +674,11 @@ export default function CamperPortalPage() {
         detail: `${documentsNeedingSignature.length} document${documentsNeedingSignature.length === 1 ? '' : 's'} waiting for you.`,
         action: 'Review documents',
       }
-    : openInvoices.length
+    : dueNowInvoices.length
       ? {
           href: '/invoices',
           title: 'Balance to review',
-          detail: `$${openBalance.toFixed(2)} open across ${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'}.`,
+          detail: `$${openBalance.toFixed(2)} due across ${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'}.`,
           action: 'Open billing',
         }
       : nextEvent
@@ -703,12 +701,12 @@ export default function CamperPortalPage() {
   const siteReadiness = [
     { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
     { label: 'Documents', value: documentsNeedingSignature.length ? `${documentsNeedingSignature.length} open` : 'Clear', complete: documentsNeedingSignature.length === 0 },
-    { label: 'Balance', value: openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00', complete: openInvoices.length === 0 },
+    { label: 'Balance', value: dueNowInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00', complete: dueNowInvoices.length === 0 },
     { label: 'Maintenance', value: activeMaintenance.length ? latestMaintenanceStatus : latestMaintenance?.status === 'Completed' ? 'Completed' : 'None', complete: activeMaintenance.length === 0 },
   ]
   const urgentCount =
     (documentsNeedingSignature.length ? 1 : 0) +
-    (openInvoices.length ? 1 : 0) +
+    (dueNowInvoices.length ? 1 : 0) +
     (activeMaintenance.length ? 1 : 0) +
     (activePumpOutRequests.length ? 1 : 0) +
     (officePendingMessages.length ? 1 : 0)
@@ -797,11 +795,11 @@ export default function CamperPortalPage() {
           icon: FileText,
         }]
       : []),
-    ...(openInvoices.length
+    ...(dueNowInvoices.length
       ? [{
           href: '/invoices',
           label: 'Payment ready',
-          title: `$${openBalance.toFixed(2)} open balance`,
+          title: `$${openBalance.toFixed(2)} due now`,
           tone: 'attention',
           icon: ReceiptText,
         }]
@@ -844,7 +842,7 @@ export default function CamperPortalPage() {
       tone: notice.priority === 'Important' ? 'red' : 'gold',
       icon: ClipboardCheck,
     })),
-    ...openInvoices.slice(0, 2).map((invoice) => ({
+    ...dueNowInvoices.slice(0, 2).map((invoice) => ({
       href: '/invoices',
       label: 'Billing',
       title: `$${Number(invoice.total_due || 0).toFixed(2)} open invoice`,
@@ -906,7 +904,7 @@ export default function CamperPortalPage() {
   const completedCamperSignals = [
     latestMaintenance?.status === 'Completed' ? 'Latest maintenance request completed' : '',
     pumpOutRequests.some((request) => request.status === 'completed' || request.billed_at) ? 'Recent pump-out completed or moved to billing' : '',
-    !openInvoices.length ? 'No open balance' : '',
+    !dueNowInvoices.length ? 'No payment due now' : '',
     !documentsNeedingSignature.length ? 'Documents caught up' : '',
   ].filter(Boolean)
   const mobileMoreNeedsAttention = documentsNeedingSignature.length > 0 || alerts.length > 0
@@ -1087,10 +1085,10 @@ export default function CamperPortalPage() {
           </div>
 
           <div className="portal-arrival-status">
-            <a href="/invoices" className={openInvoices.length ? 'attention' : 'good'}>
+            <a href="/invoices" className={dueNowInvoices.length ? 'attention' : 'good'}>
               <small>Balance</small>
-              <strong>{openInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00'}</strong>
-              <em>{openInvoices.length ? `${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'} open` : 'Nothing due'}</em>
+              <strong>{dueNowInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00'}</strong>
+              <em>{dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due` : 'Nothing due'}</em>
             </a>
             <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'good'}>
               <small>Documents</small>
@@ -1156,11 +1154,11 @@ export default function CamperPortalPage() {
         )}
 
         <section className="portal-quick-actions portal-quick-actions-top" aria-label="Camper quick actions">
-          <a className={openInvoices.length ? 'attention' : ''} href="/invoices">
+          <a className={dueNowInvoices.length ? 'attention' : ''} href="/invoices">
             <ReceiptText size={20} />
             <span>
-              <small>{openInvoices.length ? 'Payment ready' : 'Billing'}</small>
-              <strong>{openInvoices.length ? `$${openBalance.toFixed(2)} open` : 'All clear'}</strong>
+              <small>{dueNowInvoices.length ? 'Payment ready' : 'Billing'}</small>
+              <strong>{dueNowInvoices.length ? `$${openBalance.toFixed(2)} due` : 'All clear'}</strong>
             </span>
           </a>
           <a className={documentsNeedingSignature.length ? 'attention' : ''} href="/documents">
@@ -1536,11 +1534,11 @@ export default function CamperPortalPage() {
               <p>{documentsNeedingSignature.length ? 'Review and sign assigned leases or renewals.' : 'No documents need your signature right now.'}</p>
             </a>
 
-            <a className={`portal-today-card ${openInvoices.length ? 'needs-attention' : 'complete'}`} href="/invoices">
-              <span>{openInvoices.length ? <CircleDollarSign size={22} /> : <CheckCircle2 size={22} />}</span>
+            <a className={`portal-today-card ${dueNowInvoices.length ? 'needs-attention' : 'complete'}`} href="/invoices">
+              <span>{dueNowInvoices.length ? <CircleDollarSign size={22} /> : <CheckCircle2 size={22} />}</span>
               <small>Payments</small>
-              <strong>{openInvoices.length ? `$${openBalance.toFixed(2)} open` : 'Balance clear'}</strong>
-              <p>{openInvoices.length ? `${openInvoices.length} invoice${openInvoices.length === 1 ? '' : 's'} ready to review.` : 'No open invoices are due in the portal.'}</p>
+              <strong>{dueNowInvoices.length ? `$${openBalance.toFixed(2)} due` : 'Balance clear'}</strong>
+              <p>{dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due now.` : 'No invoices are due right now.'}</p>
             </a>
 
             <a className="portal-today-card" href="/maintenance">
@@ -1574,9 +1572,9 @@ export default function CamperPortalPage() {
               <CircleDollarSign size={22} />
             </span>
             <span>
-              <small>Open balance</small>
+              <small>Amount due</small>
               <strong>${openBalance.toFixed(2)}</strong>
-              <em>{openInvoices.length} open invoice{openInvoices.length === 1 ? '' : 's'}</em>
+              <em>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? '' : 's'} due now</em>
             </span>
           </a>
 
@@ -1766,7 +1764,7 @@ export default function CamperPortalPage() {
           <div className="portal-site-command-grid">
             <article><small>Camper</small><strong>{camper?.first_name || ''} {camper?.last_name || ''}</strong></article>
             <article><small>Latest electric</small><strong>{latestElectric ? `${latestElectric.kwh_used || 0} kWh` : 'No reading'}</strong></article>
-            <article><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong></article>
+            <article><small>Amount due</small><strong>${openBalance.toFixed(2)}</strong></article>
             <article><small>Insurance</small><strong>{insuranceOnFile ? 'On file' : 'Optional'}</strong></article>
             <article><small>Text alerts</small><strong>{camper?.sms_opt_in ? 'On' : 'Off'}</strong></article>
             <article><small>Office messages</small><strong>{unreadOfficeMessages ? `${unreadOfficeMessages} unread` : 'Clear'}</strong></article>
@@ -1783,7 +1781,7 @@ export default function CamperPortalPage() {
         </footer>
 
         <nav className="portal-mobile-dock" aria-label="Quick portal navigation">
-          <a href="/invoices" className={openInvoices.length ? 'attention' : ''}>
+          <a href="/invoices" className={dueNowInvoices.length ? 'attention' : ''}>
             <ReceiptText size={18} />
             <span>Pay</span>
           </a>

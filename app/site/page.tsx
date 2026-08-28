@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollarSign, FileText, Gauge, Home, MapPin, Phone, ShieldCheck, UserRound, Wrench } from 'lucide-react'
 import CampgroundMap from '../../components/CampgroundMap'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
+import { isInvoiceDueNow, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 function formatDate(value?: string) {
   if (!value) return 'Not recorded'
@@ -80,8 +81,8 @@ export default function MySitePage() {
     return <main className="my-site-page"><div className="portal-loading"><Home size={34} /><p>Opening your site profile…</p></div></main>
   }
 
-  const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
-  const openBalance = openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
+  const openBalance = totalInvoiceBalance(dueNowInvoices)
   const documentsNeedingSignature = documents.filter((document) => document.signature_status !== 'signed' && document.signature_status !== 'not_required' && document.signature_status !== 'declined')
   const insuranceDocs = documents.filter((document) => document.document_type === 'Golf Cart Insurance')
   const activeMaintenance = maintenance.filter((ticket) => ticket.status !== 'Completed')
@@ -107,7 +108,7 @@ export default function MySitePage() {
       </section>
 
       <section className="my-site-status-grid">
-        <a href="/invoices" className={openInvoices.length ? 'attention' : 'complete'}><CircleDollarSign /><small>Open balance</small><strong>${openBalance.toFixed(2)}</strong><span>{openInvoices.length} invoice{openInvoices.length === 1 ? '' : 's'}</span><em>{openInvoices.length ? 'Needs review' : 'Ready'}</em></a>
+        <a href="/invoices" className={dueNowInvoices.length ? 'attention' : 'complete'}><CircleDollarSign /><small>Amount due</small><strong>${openBalance.toFixed(2)}</strong><span>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? '' : 's'} due now</span><em>{dueNowInvoices.length ? 'Payment ready' : 'Ready'}</em></a>
         <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'complete'}><FileText /><small>Documents</small><strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} pending` : 'Complete'}</strong><span>{documents.length} total files</span><em>{documentsNeedingSignature.length ? 'Signature needed' : 'Ready'}</em></a>
         <a href="/profile" className="complete"><ShieldCheck /><small>Insurance</small><strong>{insuranceDocs.length ? 'Uploaded' : 'Optional'}</strong><span>Golf cart insurance</span><em>{insuranceDocs.length ? 'On file' : 'Upload if you have it'}</em></a>
         <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'complete'}><Wrench /><small>Maintenance</small><strong>{maintenanceCardTitle}</strong><span>{maintenanceCardDetail}</span><em>{activeMaintenance.length ? 'Active request' : latestMaintenance?.status === 'Completed' ? 'Closed' : 'Ready'}</em></a>
@@ -159,7 +160,7 @@ export default function MySitePage() {
         <div className="my-site-activity-grid">
           <article><small>Latest maintenance</small><strong>{latestMaintenance?.title || 'No recent requests'}</strong><span>{latestMaintenance ? latestMaintenanceStatus : 'All quiet'}</span></article>
           <article><small>Newest document</small><strong>{documents[0]?.document_name || 'No documents yet'}</strong><span>{documents[0]?.signature_status || 'Nothing assigned'}</span></article>
-          <article><small>Next step</small><strong>{documentsNeedingSignature.length ? 'Sign documents' : openInvoices.length ? 'Review balance' : 'Enjoy the campground'}</strong><span>{documentsNeedingSignature.length ? 'Documents waiting' : openInvoices.length ? 'Payment available' : 'You are caught up'}</span></article>
+          <article><small>Next step</small><strong>{documentsNeedingSignature.length ? 'Sign documents' : dueNowInvoices.length ? 'Review balance' : 'Enjoy the campground'}</strong><span>{documentsNeedingSignature.length ? 'Documents waiting' : dueNowInvoices.length ? 'Payment available' : 'You are caught up'}</span></article>
         </div>
       </section>
     </main>

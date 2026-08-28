@@ -40,6 +40,7 @@ import {
   type AutoPayPreference,
 } from '../../lib/autopay'
 import InvoiceSmsOptInAlert from '../components/invoice-sms-opt-in-alert'
+import { isInvoiceDueNow, isInvoiceUpcoming, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -277,13 +278,12 @@ export default function InvoicesPage() {
     setSmsSaving(false)
   }
 
-  const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
   const payableInvoices = invoices.filter((invoice) => invoice.status !== 'paid' && invoice.status !== 'processing')
   const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid')
-  const openTotal = openInvoices.reduce(
-    (sum, invoice) => sum + Number(invoice.total_due || 0),
-    0
-  )
+  const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
+  const upcomingInvoices = invoices.filter((invoice) => isInvoiceUpcoming(invoice))
+  const amountDueNow = totalInvoiceBalance(dueNowInvoices)
+  const upcomingTotal = totalInvoiceBalance(upcomingInvoices)
   const selectedTotal = payableInvoices
     .filter((invoice) => selectedInvoices.includes(invoice.id))
     .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
@@ -385,19 +385,21 @@ export default function InvoicesPage() {
               </p>
             </div>
             <div className="account-balance-card">
-              <span>Current balance</span>
-              <strong>{formatMoney(openTotal)}</strong>
+              <span>Amount due now</span>
+              <strong>{formatMoney(amountDueNow)}</strong>
               <small>
-                {openInvoices.length === 0
-                  ? 'You are all caught up'
-                  : `${openInvoices.length} open invoice${openInvoices.length === 1 ? '' : 's'}`}
+                {dueNowInvoices.length > 0
+                  ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due now${upcomingInvoices.length ? ` · ${formatMoney(upcomingTotal)} upcoming` : ''}`
+                  : upcomingInvoices.length > 0
+                    ? `${formatMoney(upcomingTotal)} in future invoices—not due yet`
+                    : 'You are all caught up'}
               </small>
             </div>
           </div>
         </header>
 
         <section className="account-summary" aria-label="Account summary">
-          <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>Amount due</small><strong>{formatMoney(openTotal)}</strong></span></div>
+          <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>Amount due</small><strong>{formatMoney(amountDueNow)}</strong></span></div>
           <div><span className="account-summary-icon green"><WalletCards size={21} /></span><span><small>Account credit</small><strong>{formatMoney(creditBalance)}</strong></span></div>
           <div><span className="account-summary-icon green"><CheckCircle2 size={21} /></span><span><small>Paid invoices</small><strong>{paidInvoices.length}</strong></span></div>
           <div><span className="account-summary-icon blue"><FileText size={21} /></span><span><small>Total history</small><strong>{invoices.length}</strong></span></div>
