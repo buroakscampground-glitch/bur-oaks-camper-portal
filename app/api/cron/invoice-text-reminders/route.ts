@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { sendInvoiceEmail } from '../../../../lib/invoice-emailing'
 import { daysUntilDate, sendInvoiceText, todayInCentral } from '../../../../lib/invoice-texting'
+import { shouldSendUpcomingInvoiceNotice } from '../../../../lib/invoice-reminder-schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,6 +69,26 @@ export async function GET(request: Request) {
     (lateFeeNotices || [])
       .filter((notice) => notice.automation_key === 'invoice-late-fee')
       .map((notice) => notice.invoice_id)
+  )
+
+  const { data: upcomingNotices, error: upcomingNoticeError } = invoiceIds.length
+    ? await admin
+        .from('text_reminders')
+        .select('invoice_id,automation_key,status')
+        .in('invoice_id', invoiceIds)
+        .in('automation_key', ['invoice-upcoming', 'invoice-upcoming-email'])
+        .eq('status', 'sent')
+    : { data: [], error: null }
+
+  if (upcomingNoticeError) {
+    return NextResponse.json({ error: upcomingNoticeError.message }, { status: 500 })
+  }
+
+  const upcomingTextSent = new Set(
+    (upcomingNotices || []).filter((notice) => notice.automation_key === 'invoice-upcoming').map((notice) => notice.invoice_id)
+  )
+  const upcomingEmailSent = new Set(
+    (upcomingNotices || []).filter((notice) => notice.automation_key === 'invoice-upcoming-email').map((notice) => notice.invoice_id)
   )
 
   const summary = {
@@ -162,6 +183,42 @@ export async function GET(request: Request) {
         text: textResult,
         email: emailResult,
       })
+      continue
+    }
+
+    const needsUpcomingText = shouldSendUpcomingInvoiceNotice(daysUntilDue, upcomingTextSent.has(invoice.id))
+    const needsUpcomingEmail = shouldSendUpcomingInvoiceNotice(daysUntilDue, upcomingEmailSent.has(invoice.id))
+    if (needsUpcomingText || needsUpcomingEmail) {
+      const [textResult, emailResult] = await Promise.all([
+        needsUpcomingText
+          ? sendInvoiceText({
+              client: admin,
+              invoiceId: invoice.id,
+              kind: 'upcoming',
+              automationKey: 'invoice-upcoming',
+              reminderDate: today,
+              sentBy: 'invoice-reminder-cron',
+            })
+          : Promise.resolve({ status: 'skipped', reason: 'The 30-day text notice was already sent.' }),
+        needsUpcomingEmail
+          ? sendInvoiceEmail({
+              client: admin,
+              invoiceId: invoice.id,
+              kind: 'upcoming',
+              automationKey: 'invoice-upcoming-email',
+              reminderDate: today,
+              sentBy: 'invoice-reminder-cron',
+            })
+          : Promise.resolve({ status: 'skipped', reason: 'The 30-day email notice was already sent.' }),
+      ])
+
+      if (textResult.status === 'sent') summary.textSent += 1
+      else if (textResult.status === 'failed') summary.failed += 1
+      else summary.skipped += 1
+      if (emailResult.status === 'sent') summary.emailSent += 1
+      else if (emailResult.status === 'failed') summary.failed += 1
+      else summary.skipped += 1
+      summary.results.push({ invoiceId: invoice.id, dueDate: invoice.due_date, kind: 'upcoming', text: textResult, email: emailResult })
       continue
     }
 

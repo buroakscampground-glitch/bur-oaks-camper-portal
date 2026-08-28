@@ -1,7 +1,8 @@
 import { escapeHtml } from './portal-invite-email'
 import { createFinalInvoiceToken } from './final-invoice-token'
+import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
 
-type InvoiceEmailKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee'
+type InvoiceEmailKind = InvoiceNoticeKind
 
 type SendInvoiceEmailOptions = {
   client: any
@@ -249,6 +250,16 @@ function emailCopy(invoice: any, kind: InvoiceEmailKind) {
       intro: `A new invoice is ready in your Bur Oaks Camper Portal. It is due ${due}.`,
       statusLine: `Amount due: ${total}`,
       reminderType: 'New Invoice',
+    }
+  }
+
+  if (kind === 'upcoming') {
+    return {
+      subject: `Upcoming Bur Oaks bill due ${due}`,
+      heading: 'You have a bill coming due.',
+      intro: `Invoice ${invoiceNumber} is available in your Bur Oaks Camper Portal and is due ${due}.`,
+      statusLine: `Amount due: ${total}`,
+      reminderType: 'Invoice Coming Due',
     }
   }
 

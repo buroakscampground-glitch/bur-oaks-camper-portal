@@ -83,8 +83,9 @@ export default function BulkInvoicesPage() {
           if (autoPay.charged) autoPaid++
         }
         const textResult = await notifyInvoiceCreated(invoice.id)
-        if (textResult.status === 'sent') textSent++
-        else if (textResult.status === 'failed') textFailed++
+        const invoiceTextResult = textResult?.text || textResult
+        if (invoiceTextResult.status === 'sent') textSent++
+        else if (invoiceTextResult.status === 'failed') textFailed++
         else textSkipped++
         created++
       } catch (error: any) {

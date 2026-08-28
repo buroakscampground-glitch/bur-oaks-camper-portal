@@ -2,8 +2,10 @@ import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
 import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized-billing'
 import { consentedCamperSmsPhones, phoneAutomationKey } from './camper-sms'
+import { daysUntilDate, todayInCentral } from './invoice-reminder-schedule'
+import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
 
-type InvoiceTextKind = 'new' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee'
+type InvoiceTextKind = InvoiceNoticeKind
 
 type SendInvoiceTextOptions = {
   client: any
@@ -14,29 +16,7 @@ type SendInvoiceTextOptions = {
   sentBy?: string | null
 }
 
-export function todayInCentral() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date())
-
-  const year = parts.find((part) => part.type === 'year')?.value
-  const month = parts.find((part) => part.type === 'month')?.value
-  const day = parts.find((part) => part.type === 'day')?.value
-
-  return `${year}-${month}-${day}`
-}
-
-export function daysUntilDate(dateValue: string, todayValue = todayInCentral()) {
-  const toUtc = (value: string) => {
-    const [year, month, day] = value.split('-').map(Number)
-    return Date.UTC(year, month - 1, day)
-  }
-
-  return Math.round((toUtc(dateValue) - toUtc(todayValue)) / 86_400_000)
-}
+export { daysUntilDate, todayInCentral }
 
 function money(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -66,6 +46,10 @@ function buildInvoiceSms(invoice: any, kind: InvoiceTextKind, camper: any) {
 
   if (kind === 'new') {
     return `Bur Oaks Campground: A new invoice #${invoiceNumber}${site} is ${total}, due ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+  }
+
+  if (kind === 'upcoming') {
+    return `Bur Oaks Campground: Upcoming bill — invoice #${invoiceNumber}${site} for ${total} is due ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
   }
 
   if (kind === 'due_3_days') {
@@ -186,6 +170,8 @@ export async function sendInvoiceText({
   const reminderType =
     kind === 'new'
       ? 'New Invoice'
+      : kind === 'upcoming'
+        ? 'Invoice Coming Due'
       : kind === 'due_3_days'
         ? 'Invoice Due in 3 Days'
         : kind === 'due_1_day'
