@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {
   Archive,
   ArrowRight,
+  BarChart3,
   BellRing,
   CalendarDays,
   CalendarClock,
@@ -436,6 +437,7 @@ export default function AdminPage() {
         { href: '/admin/open-balance', title: 'Amounts due', detail: `$${stats.balance.toFixed(2)} due now`, icon: CircleDollarSign },
         { href: '/admin/electric', title: 'Electric billing', detail: `${stats.electric} readings`, icon: Zap },
         { href: '/admin/reports', title: 'Reports', detail: 'Monthly & annual', icon: FileSpreadsheet },
+        { href: '/admin/income-projection', title: 'Income projection', detail: 'Strong & slim months', icon: BarChart3 },
         { href: '/admin/credits', title: 'Account credits', detail: `$${stats.activeCreditBalance.toFixed(2)} active`, icon: WalletCards },
       ],
     },
