@@ -20,6 +20,7 @@ export default function AdminMeterReadingReviewPage() {
   const [deletingId, setDeletingId] = useState('')
   const [readingId, setReadingId] = useState('')
   const [labelEmail, setLabelEmail] = useState('')
+  const [singleLabelLot, setSingleLabelLot] = useState('FF17')
   const readingPhotoIds = useRef(new Set<string>())
   const [reportMonth, setReportMonth] = useState(() => {
     const now = new Date()
@@ -200,6 +201,30 @@ export default function AdminMeterReadingReviewPage() {
     setMessage('Meter label PDF downloaded.')
   }
 
+  async function downloadSingleLabel() {
+    const lot = singleLabelLot.trim().toUpperCase().replace(/^LOT\s*/i, '')
+    if (!lot) {
+      setMessage('Enter the lot number for the QR label.')
+      return
+    }
+    setMessage(`Creating the Lot ${lot} QR label…`)
+    const auth = await token()
+    const response = await fetch(`/api/meter-labels?lot=${encodeURIComponent(lot)}`, { headers: { Authorization: `Bearer ${auth}` } })
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}))
+      setMessage(result.error || `Unable to create the Lot ${lot} label.`)
+      return
+    }
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `bur-oaks-meter-qr-${lot}.pdf`
+    link.click()
+    URL.revokeObjectURL(url)
+    setMessage(`Lot ${lot} QR label downloaded.`)
+  }
+
   return (
     <main className="admin-meter-page">
       <section className="admin-meter-hero">
@@ -213,6 +238,12 @@ export default function AdminMeterReadingReviewPage() {
         <button type="button" className="secondary" onClick={downloadLabels}><Download size={17} /> Download PDF</button>
         <input type="email" aria-label="Meter label delivery email" placeholder="Email address (blank sends to me)" value={labelEmail} onChange={(event) => setLabelEmail(event.target.value)} />
         <button type="button" onClick={emailLabels} disabled={emailing}>{emailing ? <LoaderCircle className="meter-spin" size={17} /> : <Mail size={17} />} Email Labels</button>
+      </section>
+
+      <section className="admin-meter-single-label">
+        <div><small>SINGLE REPLACEMENT LABEL</small><strong>Need one QR code that was missing from the last list?</strong><p>Enter the lot and download only its correctly targeted meter label.</p></div>
+        <label><span>Lot number</span><input value={singleLabelLot} onChange={(event) => setSingleLabelLot(event.target.value)} placeholder="Example: FF17" /></label>
+        <button type="button" onClick={downloadSingleLabel}><Download size={17} /> Download This Lot</button>
       </section>
 
       <section className="admin-meter-monthly-print">

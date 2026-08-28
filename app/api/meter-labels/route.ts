@@ -34,6 +34,15 @@ async function loadSites(context: any) {
   return [...sites.values()].sort((a, b) => a.lot_number.localeCompare(b.lot_number, undefined, { numeric: true }))
 }
 
+function selectRequestedLot(
+  sites: { lot_number: string; meter_number: string | null }[],
+  requestedLot: unknown,
+) {
+  const key = normalizeLotKey(requestedLot)
+  if (!key || key === 'STAFF' || !isOperationalCamper({ lot_number: key, role: 'camper' })) return null
+  return sites.find((site) => normalizeLotKey(site.lot_number) === key) || { lot_number: key, meter_number: null }
+}
+
 async function sendPdf(to: string, pdfBytes: Uint8Array, count: number) {
   const from = (process.env.SENDGRID_FROM || process.env.ADMIN_ALERT_FROM || process.env.INVOICE_EMAIL_FROM || '').trim()
   if (!from) return { sent: false, error: 'The campground email sender is not configured.' }
@@ -91,11 +100,16 @@ export async function GET(request: Request) {
   const context = await authorized(request)
   if (!context) return NextResponse.json({ error: 'Admin access is required.' }, { status: 403 })
   const sites = await loadSites(context)
-  const pdf = await buildMeterLabelsPdf(sites)
+  const requestedLot = new URL(request.url).searchParams.get('lot')
+  const singleSite = requestedLot ? selectRequestedLot(sites, requestedLot) : null
+  if (requestedLot && !singleSite) return NextResponse.json({ error: 'Enter a valid lot number.' }, { status: 400 })
+  const labelSites = singleSite ? [singleSite] : sites
+  const pdf = await buildMeterLabelsPdf(labelSites)
+  const filename = singleSite ? `bur-oaks-meter-qr-${normalizeLotKey(singleSite.lot_number)}.pdf` : 'bur-oaks-meter-qr-labels.pdf'
   return new NextResponse(Buffer.from(pdf), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': 'attachment; filename="bur-oaks-meter-qr-labels.pdf"',
+      'Content-Disposition': `attachment; filename="${filename}"`,
       'Cache-Control': 'private, no-store',
     },
   })
@@ -108,8 +122,11 @@ export async function POST(request: Request) {
   const recipient = String(body.email || context.user.email || '').trim().toLowerCase()
   if (!/^\S+@\S+\.\S+$/.test(recipient)) return NextResponse.json({ error: 'Enter a valid delivery email.' }, { status: 400 })
   const sites = await loadSites(context)
-  const pdf = await buildMeterLabelsPdf(sites)
-  const delivery = await sendPdf(recipient, pdf, sites.length)
+  const singleSite = body.lot ? selectRequestedLot(sites, body.lot) : null
+  if (body.lot && !singleSite) return NextResponse.json({ error: 'Enter a valid lot number.' }, { status: 400 })
+  const labelSites = singleSite ? [singleSite] : sites
+  const pdf = await buildMeterLabelsPdf(labelSites)
+  const delivery = await sendPdf(recipient, pdf, labelSites.length)
   if (!delivery.sent) return NextResponse.json({ error: delivery.error || 'The labels could not be emailed.' }, { status: 500 })
-  return NextResponse.json({ success: true, count: sites.length, recipient, provider: delivery.provider })
+  return NextResponse.json({ success: true, count: labelSites.length, recipient, provider: delivery.provider })
 }
