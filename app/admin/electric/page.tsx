@@ -8,6 +8,7 @@ import { attemptAutoPay } from '../../../lib/autopay'
 import { createInvoiceBundle, formatCreditMoney } from '../../../lib/account-credits'
 import { invoiceTextSummary, notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
+import { buildMonthlyBillingChecklist } from '../../../lib/meter-billing-checklist'
 import {
   campgroundAverageUsage,
   compareElectricUsage,
@@ -201,10 +202,42 @@ export default function AdminElectricPage() {
     if (!token) return
     const response = await fetch('/api/meter-readings?checklist=1', { headers: { Authorization: `Bearer ${token}` } })
     const result = await response.json().catch(() => ({}))
-    if (!response.ok) return
-    setBillingChecklist(result.entries || [])
-    setChecklistCounts(result.counts || {})
-    setChecklistMonth(result.monthStart || '')
+    if (response.ok) {
+      setBillingChecklist(result.entries || [])
+      setChecklistCounts(result.counts || {})
+      setChecklistMonth(result.monthStart || '')
+      return
+    }
+
+    // Admin accounts can have more than one campground profile. In that case,
+    // use the signed-in admin's normal RLS access instead of leaving the tracker empty.
+    const monthStart = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)).toISOString()
+    const [lotsResult, campersResult, submissionsResult, invoicesResult] = await Promise.all([
+      supabase.from('lots').select('lot_number,meter_number,camper_id'),
+      supabase.from('campers').select('id,first_name,last_name,lot_number,role,active'),
+      supabase
+        .from('meter_reading_submissions')
+        .select('id,camper_id,lot_number,status,detected_reading,submitted_reading,reviewed_reading,captured_at,invoice_id')
+        .gte('captured_at', monthStart)
+        .neq('status', 'cancelled')
+        .order('captured_at', { ascending: false }),
+      supabase
+        .from('invoices')
+        .select('id,camper_id,status,created_at,paid_at,invoice_type')
+        .gte('created_at', monthStart)
+        .ilike('invoice_type', '%Electric%')
+        .order('created_at', { ascending: false }),
+    ])
+    if (lotsResult.error || campersResult.error || submissionsResult.error || invoicesResult.error) return
+    const fallback = buildMonthlyBillingChecklist({
+      lots: lotsResult.data || [],
+      campers: campersResult.data || [],
+      submissions: submissionsResult.data || [],
+      invoices: invoicesResult.data || [],
+    })
+    setBillingChecklist(fallback.entries)
+    setChecklistCounts(fallback.counts)
+    setChecklistMonth(monthStart)
   }
 
   function draftReading(draft: any) {
