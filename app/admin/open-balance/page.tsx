@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Download, Search, WalletCards } from 'lucide-react'
 import { supabase } from "../../../lib/supabase"
+import { isInvoiceDueNow } from '../../../lib/invoice-balance'
 
 export default function OpenBalancePage() {
   const [balances, setBalances] = useState<any[]>([])
@@ -34,8 +35,9 @@ export default function OpenBalancePage() {
     }
 
     const grouped: any = {}
+    const dueInvoices = (invoices || []).filter((invoice) => isInvoiceDueNow(invoice))
 
-    invoices?.forEach((invoice) => {
+    dueInvoices.forEach((invoice) => {
       const camperId = invoice.camper_id
 
       if (!grouped[camperId]) {
@@ -102,8 +104,8 @@ export default function OpenBalancePage() {
         <button type="button" onClick={() => router.push('/admin')}>← Back to Dashboard</button>
         <div>
           <span><WalletCards size={18} /> Billing command center</span>
-          <h1>Open Balances</h1>
-          <p>See who owes, how long it has been open, and jump straight into the camper invoice record.</p>
+          <h1>Amounts Due Now</h1>
+          <p>See what is currently due without including future-dated invoices.</p>
         </div>
         <button type="button" className="admin-open-export" onClick={exportToSpreadsheet}>
           <Download size={17} /> Export
@@ -111,9 +113,9 @@ export default function OpenBalancePage() {
       </section>
 
       <section className="admin-open-balance-stats">
-        <article><small>Outstanding balance</small><strong>${totalBalance.toFixed(2)}</strong><em>Total unpaid</em></article>
-        <article><small>Campers owing</small><strong>{balances.length}</strong><em>With open invoices</em></article>
-        <article><small>Open invoices</small><strong>{balances.reduce((sum, row) => sum + row.invoiceCount, 0)}</strong><em>Awaiting payment</em></article>
+        <article><small>Amount due</small><strong>${totalBalance.toFixed(2)}</strong><em>Due now</em></article>
+        <article><small>Campers owing</small><strong>{balances.length}</strong><em>With invoices due now</em></article>
+        <article><small>Invoices due</small><strong>{balances.reduce((sum, row) => sum + row.invoiceCount, 0)}</strong><em>Due today or earlier</em></article>
         <article><small>Late accounts</small><strong>{balances.filter((row) => row.status === "Late").length}</strong><em>Over 10 days</em></article>
       </section>
 
@@ -139,7 +141,7 @@ export default function OpenBalancePage() {
                 <strong>{row.camper}</strong>
               </div>
               <div><small>Balance Due</small><strong>${row.balance.toFixed(2)}</strong></div>
-              <div><small>Open Invoices</small><strong>{row.invoiceCount}</strong></div>
+              <div><small>Invoices Due</small><strong>{row.invoiceCount}</strong></div>
               <div><small>Oldest Due</small><strong>{row.oldestDue || '—'}</strong></div>
               <div><small>Days Late</small><strong>{row.daysLate}</strong></div>
               <span className={`admin-open-status ${String(row.status).toLowerCase()}`}>{row.status}</span>
@@ -152,8 +154,8 @@ export default function OpenBalancePage() {
           {filteredBalances.length === 0 && (
             <div className="admin-open-empty">
               <WalletCards size={32} />
-              <h2>No open balances found</h2>
-              <p>Try another search or check back after new invoices are created.</p>
+              <h2>No payments are due now</h2>
+              <p>Future-dated invoices are not included here.</p>
             </div>
           )}
         </div>

@@ -39,6 +39,7 @@ import AdminWeather from '../../components/AdminWeather'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
+import { isInvoiceDueNow, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 type AdminStats = {
   campers: number
@@ -234,6 +235,7 @@ export default function AdminPage() {
       .filter((event: any) => !event.event_date || event.event_date >= todayIso)
       .map((event: any) => String(event.id)))
     const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
+    const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice, todayIso))
     const pastDueInvoices = openInvoices.filter((invoice) => {
       if (!invoice.due_date) return false
       const dueDate = new Date(`${invoice.due_date}T12:00:00`)
@@ -341,15 +343,13 @@ export default function AdminPage() {
     setStats({
       campers: campers.length,
       archivedCampers: archivedResult.data?.length || 0,
-      balance: invoices
-        .filter((invoice) => invoice.status !== 'paid')
-        .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+      balance: totalInvoiceBalance(dueNowInvoices),
       events: eventsResult.data?.length || 0,
       announcements: announcementsResult.data?.length || 0,
       rsvps: rsvpsResult.data?.length || 0,
       electric: electricResult.data?.length || 0,
       waitlist: waitlistResult.data?.length || 0,
-      unpaidInvoices: invoices.filter((invoice) => invoice.status !== 'paid').length,
+      unpaidInvoices: dueNowInvoices.length,
       totalRevenue: invoices
         .filter((invoice) => invoice.status === 'paid')
         .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
@@ -432,8 +432,8 @@ export default function AdminPage() {
     {
       label: 'Money & billing',
       items: [
-        { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} unpaid`, icon: ReceiptText },
-        { href: '/admin/open-balance', title: 'Open balances', detail: `$${stats.balance.toFixed(2)} outstanding`, icon: CircleDollarSign },
+        { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} due now`, icon: ReceiptText },
+        { href: '/admin/open-balance', title: 'Amounts due', detail: `$${stats.balance.toFixed(2)} due now`, icon: CircleDollarSign },
         { href: '/admin/electric', title: 'Electric billing', detail: `${stats.electric} readings`, icon: Zap },
         { href: '/admin/reports', title: 'Reports', detail: 'Monthly & annual', icon: FileSpreadsheet },
         { href: '/admin/credits', title: 'Account credits', detail: `$${stats.activeCreditBalance.toFixed(2)} active`, icon: WalletCards },
@@ -597,9 +597,9 @@ export default function AdminPage() {
             <small>{activeAttentionItems.length} areas</small>
           </div>
           <div>
-            <span>Open balance</span>
+            <span>Amount due</span>
             <strong>${stats.balance.toFixed(2)}</strong>
-            <small>{stats.unpaidInvoices} unpaid invoices</small>
+            <small>{stats.unpaidInvoices} invoices due now</small>
           </div>
           <div>
             <span>Active campers</span>
