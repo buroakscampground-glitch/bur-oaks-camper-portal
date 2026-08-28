@@ -23,11 +23,11 @@ export async function GET(request: Request) {
   const [{ data: primaryRows, error: primaryError }, { data: secondaryRows, error: secondaryError }, { data: inviteRows, error: inviteError }, usersResult] = await Promise.all([
     admin
       .from('campers')
-      .select('id,lot_number,first_name,last_name,email,secondary_email,active,role,updated_at')
+      .select('id,lot_number,first_name,last_name,email,secondary_email,active,role')
       .ilike('email', PEGGY_EMAIL),
     admin
       .from('campers')
-      .select('id,lot_number,first_name,last_name,email,secondary_email,active,role,updated_at')
+      .select('id,lot_number,first_name,last_name,email,secondary_email,active,role')
       .ilike('secondary_email', PEGGY_EMAIL),
     admin
       .from('portal_invite_log')
@@ -55,7 +55,6 @@ export async function GET(request: Request) {
       secondaryEmailMatches: cleanEmail(row.secondary_email) === PEGGY_EMAIL,
       active: row.active !== false,
       role: row.role,
-      recordUpdatedAt: row.updated_at,
     })),
     loginAccounts: authUsers.map((user) => ({
       email: cleanEmail(user.email),
