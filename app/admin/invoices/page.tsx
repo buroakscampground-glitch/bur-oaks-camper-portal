@@ -38,6 +38,8 @@ const invoiceDescriptionOptions = [
   'Maintenance Charge',
 ]
 
+const lotRentAmountOptions = [375, 400, 750, 800, 1500, 1600]
+
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
     style: 'currency',
@@ -352,6 +354,20 @@ export default function AdminInvoicesPage() {
               <label>
                 <span>Custom description</span>
                 <input value={description} onChange={(event) => changeDescription(event.target.value)} placeholder="Enter charge description" />
+              </label>
+            )}
+
+            {!customDescription && description === 'Lot Rent' && (
+              <label>
+                <span>Quick lot-rent amount</span>
+                <select
+                  value={lotRentAmountOptions.includes(Number(amount)) ? amount : ''}
+                  onChange={(event) => setAmount(event.target.value)}
+                >
+                  <option value="">Choose an amount</option>
+                  {lotRentAmountOptions.map((option) => <option key={option} value={option}>{formatMoney(option)}</option>)}
+                </select>
+                <small>Select a common amount, or type a different amount below.</small>
               </label>
             )}
 
