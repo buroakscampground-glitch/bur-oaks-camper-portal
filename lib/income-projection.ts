@@ -43,9 +43,9 @@ type ProjectionOptions = {
   readings: ProjectionReading[]
   invoices: ProjectionInvoice[]
   associationFee: number
-  fallbackLotRentMonth: number
   fallbackAssociationMonth: number
   projectionYear?: number
+  lotRentTiming?: 'spread' | 'history'
 }
 
 function average(values: number[]) {
@@ -78,9 +78,9 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     readings,
     invoices,
     associationFee,
-    fallbackLotRentMonth,
     fallbackAssociationMonth,
     projectionYear = new Date().getFullYear(),
+    lotRentTiming = 'spread',
   } = options
 
   const months: MonthlyIncomeProjection[] = projectionMonths.map((label, monthIndex) => ({
@@ -105,7 +105,7 @@ export function buildIncomeProjection(options: ProjectionOptions) {
   const readingValues = new Map<string, number[]>()
   const allSiteValues = new Map<string, number[]>()
   const readingYears = new Set<string>()
-  const siteReadingPeriodTotals = new Map<string, { lotNumber: string; month: number; amount: number }>()
+  const siteReadingPeriodTotals = new Map<string, { lotNumber: string; month: number; year: number; amount: number }>()
   for (const reading of readings) {
     const lotNumber = siteByCamper.get(String(reading.camper_id || ''))
     const month = recordMonth(reading.reading_date)
@@ -117,15 +117,21 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     siteReadingPeriodTotals.set(periodKey, {
       lotNumber,
       month,
+      year: Number(String(reading.reading_date || '').slice(0, 4)),
       amount: Number(((current?.amount || 0) + amount).toFixed(2)),
     })
     if (reading.reading_date) readingYears.add(String(reading.reading_date).slice(0, 4))
   }
 
+  const latestElectricYear = Math.max(
+    ...[...siteReadingPeriodTotals.values()].map((period) => period.year).filter(Number.isFinite),
+    0,
+  )
   for (const period of siteReadingPeriodTotals.values()) {
     const key = `${period.lotNumber}:${period.month}`
-    readingValues.set(key, [...(readingValues.get(key) || []), period.amount])
-    allSiteValues.set(period.lotNumber, [...(allSiteValues.get(period.lotNumber) || []), period.amount])
+    const weightedAmounts = period.year === latestElectricYear ? [period.amount, period.amount] : [period.amount]
+    readingValues.set(key, [...(readingValues.get(key) || []), ...weightedAmounts])
+    allSiteValues.set(period.lotNumber, [...(allSiteValues.get(period.lotNumber) || []), ...weightedAmounts])
   }
 
   for (const reading of readings) {
@@ -184,7 +190,12 @@ export function buildIncomeProjection(options: ProjectionOptions) {
         ? recordMonth(historicRentInvoice.due_date || historicRentInvoice.created_at)
         : null
       if (historicRentMonth !== null) rentHistoryMatches += 1
-      months[historicRentMonth ?? fallbackLotRentMonth].lotRent += projectedAnnualRent
+      if (lotRentTiming === 'history' && historicRentMonth !== null) {
+        months[historicRentMonth].lotRent += projectedAnnualRent
+      } else {
+        const monthlyRent = projectedAnnualRent / 12
+        for (const month of months) month.lotRent += monthlyRent
+      }
     }
 
     const historicAssociationInvoice = latestBillingInvoice(
@@ -247,5 +258,6 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     exactElectricSiteMonths,
     totalElectricSiteMonths: sites.length * 12,
     readingYears: readingYears.size,
+    latestElectricYear,
   }
 }

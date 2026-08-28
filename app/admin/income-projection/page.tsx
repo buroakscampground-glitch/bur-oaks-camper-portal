@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   BarChart3,
@@ -44,14 +44,16 @@ export default function AdminIncomeProjectionPage() {
   const [invoices, setInvoices] = useState<any[]>([])
   const [projectionYear, setProjectionYear] = useState(new Date().getFullYear())
   const [associationFee, setAssociationFee] = useState(250)
-  const [lotRentMonth, setLotRentMonth] = useState(3)
+  const [lotRentTiming, setLotRentTiming] = useState<'spread' | 'history'>('spread')
   const [associationMonth, setAssociationMonth] = useState(2)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [message, setMessage] = useState('')
 
-  useEffect(() => {
-    async function loadProjectionData() {
-      setLoading(true)
+  const loadProjectionData = useCallback(async (initialLoad = false) => {
+      if (initialLoad) setLoading(true)
+      else setRefreshing(true)
       const [camperResult, lotResult, readingResult, invoiceResult] = await Promise.all([
         supabase.from('campers').select('id,lot_number,role,active').eq('active', true),
         supabase.from('lots').select('lot_number,lot_rent_amount'),
@@ -60,7 +62,7 @@ export default function AdminIncomeProjectionPage() {
       ])
 
       const errors = [camperResult.error, lotResult.error, readingResult.error, invoiceResult.error].filter(Boolean)
-      if (errors.length) setMessage(errors.map((error) => error?.message).join(' '))
+      setMessage(errors.map((error) => error?.message).join(' '))
 
       const activeCampers = (camperResult.data || []).filter(isOperationalCamper)
       const rentByLot = new Map(
@@ -82,21 +84,33 @@ export default function AdminIncomeProjectionPage() {
       setSites([...siteMap.values()])
       setReadings(readingResult.data || [])
       setInvoices(invoiceResult.data || [])
+      setLastUpdated(new Date())
       setLoading(false)
-    }
-
-    loadProjectionData()
+      setRefreshing(false)
   }, [])
+
+  useEffect(() => {
+    loadProjectionData(true)
+    const timer = window.setInterval(() => loadProjectionData(), 30_000)
+    const refresh = () => loadProjectionData()
+    window.addEventListener('focus', refresh)
+    window.addEventListener('pageshow', refresh)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      window.removeEventListener('pageshow', refresh)
+    }
+  }, [loadProjectionData])
 
   const projection = useMemo(() => buildIncomeProjection({
     sites,
     readings,
     invoices,
     associationFee: Math.max(0, Number(associationFee || 0)),
-    fallbackLotRentMonth: lotRentMonth,
+    lotRentTiming,
     fallbackAssociationMonth: associationMonth,
     projectionYear,
-  }), [associationFee, associationMonth, invoices, lotRentMonth, projectionYear, readings, sites])
+  }), [associationFee, associationMonth, invoices, lotRentTiming, projectionYear, readings, sites])
 
   const strongestMonth = projection.months.reduce((best, month) => month.total > best.total ? month : best, projection.months[0])
   const slimmestMonth = projection.months.reduce((best, month) => month.total < best.total ? month : best, projection.months[0])
@@ -160,11 +174,11 @@ export default function AdminIncomeProjectionPage() {
           <div>
             <small>PLANNING ASSUMPTIONS</small>
             <h2>Adjust the forecast</h2>
-            <p>Saved invoice history chooses each site’s usual billing month. These defaults are used only when a site has no matching history.</p>
+            <p>Live forecast · refreshes every 30 seconds{lastUpdated ? ` · Updated ${lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}{refreshing ? ' · Refreshing…' : ''}</p>
           </div>
           <label><span>Projection year</span><input type="number" min="2026" max="2100" value={projectionYear} onChange={(event) => setProjectionYear(Number(event.target.value || new Date().getFullYear()))} /></label>
           <label><span>Association fee per site</span><div><i>$</i><input type="number" min="0" step="1" value={associationFee} onChange={(event) => setAssociationFee(Number(event.target.value || 0))} /></div></label>
-          <label><span>Default lot-rent month</span><select value={lotRentMonth} onChange={(event) => setLotRentMonth(Number(event.target.value))}>{projectionMonths.map((month, index) => <option value={index} key={month}>{month}</option>)}</select></label>
+          <label><span>Lot-rent projection</span><select value={lotRentTiming} onChange={(event) => setLotRentTiming(event.target.value as 'spread' | 'history')}><option value="spread">Spread evenly all year</option><option value="history">Use invoice timing</option></select></label>
           <label><span>Default association month</span><select value={associationMonth} onChange={(event) => setAssociationMonth(Number(event.target.value))}>{projectionMonths.map((month, index) => <option value={index} key={month}>{month}</option>)}</select></label>
         </section>
 
@@ -235,8 +249,8 @@ export default function AdminIncomeProjectionPage() {
           <header><div><small>FORECAST CONFIDENCE</small><h2>What the projection is based on</h2></div></header>
           <div>
             <article><Landmark size={20} /><span><strong>{projection.configuredRentSites} of {sites.length}</strong><small>{projection.savedRentSites} use saved annual rent; {projection.inferredRentSites} use the latest lot-rent invoice</small></span></article>
-            <article><CalendarRange size={20} /><span><strong>{projection.rentHistoryMatches}</strong><small>sites use a historical lot-rent billing month; the rest use {projectionMonths[lotRentMonth]}</small></span></article>
-            <article><Gauge size={20} /><span><strong>{electricCoverage}% exact seasonal coverage</strong><small>{projection.readingYears} year{projection.readingYears === 1 ? '' : 's'} of electric history found; missing months use the campground seasonal average</small></span></article>
+            <article><CalendarRange size={20} /><span><strong>{lotRentTiming === 'spread' ? 'Even monthly planning' : `${projection.rentHistoryMatches} timed sites`}</strong><small>{lotRentTiming === 'spread' ? `${projection.configuredRentSites} saved annual rent amounts are divided across all 12 months` : 'saved invoice history determines timing; unmatched rent is spread evenly'}</small></span></article>
+            <article><Gauge size={20} /><span><strong>{electricCoverage}% exact seasonal coverage</strong><small>{projection.readingYears} year{projection.readingYears === 1 ? '' : 's'} of electric history found{projection.latestElectricYear ? `; ${projection.latestElectricYear} is weighted most heavily` : ''}; missing months use the campground seasonal average</small></span></article>
           </div>
           {projection.missingRentSites > 0 && <p><strong>{projection.missingRentSites} active campsite{projection.missingRentSites === 1 ? '' : 's'} need an annual lot-rent amount.</strong> Their rent is not guessed or included until it is entered in Camper Management or Lots.</p>}
         </section>
