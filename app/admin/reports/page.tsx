@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Download, Droplets, FileSpreadsheet, Landmark, Printer, ReceiptText, Search } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, ChevronDown, Download, Droplets, FileSpreadsheet, Landmark, Printer, ReceiptText, Search, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 
@@ -146,6 +146,7 @@ export default function AdminMonthlyReportsPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
+  const [openKpi, setOpenKpi] = useState<'received' | 'paid' | 'average' | 'past-due' | null>(null)
 
   const range = useMemo(() => monthRange(month), [month])
   const annualRange = useMemo(() => yearRange(month), [month])
@@ -413,6 +414,10 @@ export default function AdminMonthlyReportsPage() {
     window.setTimeout(() => window.print(), 50)
   }
 
+  function toggleKpi(kpi: 'received' | 'paid' | 'average' | 'past-due') {
+    setOpenKpi((current) => current === kpi ? null : kpi)
+  }
+
   return (
     <main className="admin-report-page">
       <div className="admin-report-shell">
@@ -477,31 +482,100 @@ export default function AdminMonthlyReportsPage() {
         </section>
 
         <section className="admin-report-kpis admin-report-section admin-report-overview">
-          <article>
+          <button type="button" className={openKpi === 'received' ? 'active' : ''} onClick={() => toggleKpi('received')} aria-expanded={openKpi === 'received'} aria-controls="admin-report-kpi-detail">
             <span><ReceiptText size={21} /></span>
             <small>Money received</small>
             <strong>{formatMoney(totalCollected)}</strong>
-            <em>{reportLabel}</em>
-          </article>
-          <article>
+            <em>{reportLabel} · Tap to see who paid</em>
+            <i><ChevronDown size={16} /> View payments</i>
+          </button>
+          <button type="button" className={openKpi === 'paid' ? 'active' : ''} onClick={() => toggleKpi('paid')} aria-expanded={openKpi === 'paid'} aria-controls="admin-report-kpi-detail">
             <span><CalendarDays size={21} /></span>
             <small>Paid invoices</small>
             <strong>{reportInvoices.length}</strong>
             <em>{allLineItems.length} itemized lines</em>
-          </article>
-          <article>
+            <i><ChevronDown size={16} /> View paid invoices</i>
+          </button>
+          <button type="button" className={openKpi === 'average' ? 'active' : ''} onClick={() => toggleKpi('average')} aria-expanded={openKpi === 'average'} aria-controls="admin-report-kpi-detail">
             <span><Landmark size={21} /></span>
             <small>Average payment</small>
             <strong>{formatMoney(averagePayment)}</strong>
             <em>Per paid invoice</em>
-          </article>
-          <article>
+            <i><ChevronDown size={16} /> See how it is calculated</i>
+          </button>
+          <button type="button" className={openKpi === 'past-due' ? 'active' : ''} onClick={() => toggleKpi('past-due')} aria-expanded={openKpi === 'past-due'} aria-controls="admin-report-kpi-detail">
             <span><AlertTriangle size={21} /></span>
             <small>Past due now</small>
             <strong>{formatMoney(pastDueBalance)}</strong>
             <em>{pastDueInvoices.length} invoice{pastDueInvoices.length === 1 ? '' : 's'} need follow-up</em>
-          </article>
+            <i><ChevronDown size={16} /> View who owes</i>
+          </button>
         </section>
+
+        {openKpi && (
+          <section className="admin-report-kpi-detail admin-report-section" id="admin-report-kpi-detail">
+            <div className="admin-report-kpi-detail-heading">
+              <div>
+                <small>
+                  {openKpi === 'received' && 'MONEY RECEIVED DETAILS'}
+                  {openKpi === 'paid' && 'PAID INVOICE DETAILS'}
+                  {openKpi === 'average' && 'AVERAGE PAYMENT DETAILS'}
+                  {openKpi === 'past-due' && 'PAST-DUE DETAILS'}
+                </small>
+                <h2>
+                  {openKpi === 'received' && `Who paid the ${formatMoney(totalCollected)}`}
+                  {openKpi === 'paid' && `The ${reportInvoices.length} paid invoice${reportInvoices.length === 1 ? '' : 's'}`}
+                  {openKpi === 'average' && `${formatMoney(totalCollected)} ÷ ${reportInvoices.length} paid invoice${reportInvoices.length === 1 ? '' : 's'} = ${formatMoney(averagePayment)}`}
+                  {openKpi === 'past-due' && `Who owes the ${formatMoney(pastDueBalance)}`}
+                </h2>
+                <p>
+                  {openKpi === 'average'
+                    ? 'The average uses every paid invoice in the selected report period. The payments used are listed below.'
+                    : openKpi === 'past-due'
+                      ? 'These are unpaid invoices whose due date has already passed.'
+                      : `Every payment included in the ${reportLabel} total is listed below.`}
+                </p>
+              </div>
+              <button type="button" onClick={() => setOpenKpi(null)} aria-label="Close details"><X size={19} /></button>
+            </div>
+
+            {openKpi === 'past-due' ? (
+              pastDueInvoices.length ? (
+                <div className="admin-report-kpi-rows">
+                  {pastDueInvoices.map((invoice) => (
+                    <article key={`kpi-past-due-${invoice.id}`}>
+                      <div>
+                        <small>LOT {invoice.campers?.lot_number || '—'} · DUE {formatShortDate(invoice.due_date)}</small>
+                        <strong>{camperName(invoice)}</strong>
+                        <span>{invoice.invoice_number || 'No invoice number'} · {invoice.invoice_type || 'Campground charge'}</span>
+                      </div>
+                      <div>
+                        <strong>{formatMoney(invoice.total_due)}</strong>
+                        <a href={`/admin/invoices/${invoice.id}`}>Open invoice</a>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : <p className="admin-report-kpi-clear">Everything is current—no campers are past due.</p>
+            ) : reportInvoices.length ? (
+              <div className="admin-report-kpi-rows">
+                {reportInvoices.map((invoice) => (
+                  <article key={`kpi-paid-${invoice.id}`}>
+                    <div>
+                      <small>LOT {invoice.campers?.lot_number || '—'} · PAID {formatDateTime(invoice.paid_at)}</small>
+                      <strong>{camperName(invoice)}</strong>
+                      <span>{invoice.invoice_number || 'No invoice number'} · {invoice.invoice_type || 'Invoice'} · {invoice.payment_method || 'Paid'}</span>
+                    </div>
+                    <div>
+                      <strong>{formatMoney(invoice.total_due)}</strong>
+                      <a href={`/admin/invoices/${invoice.id}`}>View invoice</a>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : <p className="admin-report-kpi-clear">No paid invoices were recorded for {reportLabel}.</p>}
+          </section>
+        )}
 
         <section className="admin-report-panel admin-report-tax-summary admin-report-section">
           <div className="admin-report-heading">
