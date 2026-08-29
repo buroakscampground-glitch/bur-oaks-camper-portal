@@ -24,6 +24,13 @@ export type ProjectionInvoice = {
   status?: string | null
 }
 
+export type ProjectionRenewal = {
+  camper_id?: string | null
+  lot_number?: string | null
+  contract_end_date?: string | null
+  status?: string | null
+}
+
 export type MonthlyIncomeProjection = {
   monthIndex: number
   label: string
@@ -42,10 +49,11 @@ type ProjectionOptions = {
   sites: ProjectionSite[]
   readings: ProjectionReading[]
   invoices: ProjectionInvoice[]
+  renewals?: ProjectionRenewal[]
   associationFee: number
   fallbackAssociationMonth: number
   projectionYear?: number
-  lotRentTiming?: 'spread' | 'history'
+  lotRentTiming?: 'contract' | 'spread' | 'history'
 }
 
 function average(values: number[]) {
@@ -72,15 +80,20 @@ function latestBillingInvoice(invoices: ProjectionInvoice[], camperIds: Set<stri
   return matching[0]
 }
 
+function normalizeLot(value: unknown) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
 export function buildIncomeProjection(options: ProjectionOptions) {
   const {
     sites,
     readings,
     invoices,
+    renewals = [],
     associationFee,
     fallbackAssociationMonth,
     projectionYear = new Date().getFullYear(),
-    lotRentTiming = 'spread',
+    lotRentTiming = 'contract',
   } = options
 
   const months: MonthlyIncomeProjection[] = projectionMonths.map((label, monthIndex) => ({
@@ -172,9 +185,26 @@ export function buildIncomeProjection(options: ProjectionOptions) {
   let configuredRentSites = 0
   let savedRentSites = 0
   let inferredRentSites = 0
+  let contractDateMatches = 0
+
+  const renewalByCamper = new Map<string, ProjectionRenewal>()
+  const renewalByLot = new Map<string, ProjectionRenewal>()
+  for (const renewal of renewals) {
+    if (!renewal.contract_end_date) continue
+    if (renewal.camper_id) renewalByCamper.set(String(renewal.camper_id), renewal)
+    const renewalLot = normalizeLot(renewal.lot_number)
+    if (renewalLot) renewalByLot.set(renewalLot, renewal)
+  }
 
   for (const site of sites) {
     const camperIds = new Set(site.camperIds.map(String))
+    const contractRenewal = site.camperIds
+      .map((camperId) => renewalByCamper.get(String(camperId)))
+      .find(Boolean) || renewalByLot.get(normalizeLot(site.lotNumber))
+    const contractMonth = contractRenewal
+      ? recordMonth(contractRenewal.contract_end_date)
+      : null
+    if (contractMonth !== null) contractDateMatches += 1
     const historicRentInvoice = latestBillingInvoice(
       invoices,
       camperIds,
@@ -190,7 +220,12 @@ export function buildIncomeProjection(options: ProjectionOptions) {
         ? recordMonth(historicRentInvoice.due_date || historicRentInvoice.created_at)
         : null
       if (historicRentMonth !== null) rentHistoryMatches += 1
-      if (lotRentTiming === 'history' && historicRentMonth !== null) {
+      if (lotRentTiming === 'contract' && contractMonth !== null) {
+        const quarterlyRent = projectedAnnualRent / 4
+        for (let quarter = 0; quarter < 4; quarter += 1) {
+          months[(contractMonth + quarter * 3) % 12].lotRent += quarterlyRent
+        }
+      } else if (lotRentTiming === 'history' && historicRentMonth !== null) {
         months[historicRentMonth].lotRent += projectedAnnualRent
       } else {
         const monthlyRent = projectedAnnualRent / 12
@@ -207,7 +242,7 @@ export function buildIncomeProjection(options: ProjectionOptions) {
       ? recordMonth(historicAssociationInvoice.due_date || historicAssociationInvoice.created_at)
       : null
     if (historicAssociationMonth !== null) associationHistoryMatches += 1
-    months[historicAssociationMonth ?? fallbackAssociationMonth].association += associationFee
+    months[contractMonth ?? historicAssociationMonth ?? fallbackAssociationMonth].association += associationFee
 
     for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
       const exactValues = readingValues.get(`${site.lotNumber}:${monthIndex}`) || []
@@ -253,6 +288,7 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     savedRentSites,
     inferredRentSites,
     missingRentSites: Math.max(0, sites.length - configuredRentSites),
+    contractDateMatches,
     rentHistoryMatches,
     associationHistoryMatches,
     exactElectricSiteMonths,

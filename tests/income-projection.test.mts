@@ -101,6 +101,29 @@ test('default planning mode spreads annual lot rent instead of creating an artif
   assert.deepEqual(result.months.map((month) => month.lotRent), Array(12).fill(200))
 })
 
+test('actual contract anniversary starts four quarterly payments and never uses the earlier renewal notice month', () => {
+  const result = buildIncomeProjection({
+    sites: [{ lotNumber: 'FF1', camperIds: ['camper-ff1'], annualLotRent: 1_500 }],
+    readings: [],
+    invoices: [
+      { camper_id: 'camper-ff1', invoice_type: 'Association Fee', due_date: '2027-02-01', total_due: 250 },
+    ],
+    renewals: [
+      { camper_id: 'camper-ff1', lot_number: 'FF1', contract_end_date: '2027-05-01' },
+    ],
+    associationFee: 250,
+    fallbackAssociationMonth: 1,
+  })
+
+  assert.equal(result.months[1].lotRent, 375)
+  assert.equal(result.months[4].lotRent, 375)
+  assert.equal(result.months[7].lotRent, 375)
+  assert.equal(result.months[10].lotRent, 375)
+  assert.equal(result.months[1].association, 0)
+  assert.equal(result.months[4].association, 250)
+  assert.equal(result.contractDateMatches, 1)
+})
+
 test('newest electric season receives more weight as current readings are entered', () => {
   const result = buildIncomeProjection({
     sites: [{ lotNumber: '18', camperIds: ['camper-18'], annualLotRent: 0 }],

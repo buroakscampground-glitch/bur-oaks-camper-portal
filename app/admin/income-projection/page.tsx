@@ -42,9 +42,10 @@ export default function AdminIncomeProjectionPage() {
   const [sites, setSites] = useState<ProjectionSite[]>([])
   const [readings, setReadings] = useState<any[]>([])
   const [invoices, setInvoices] = useState<any[]>([])
+  const [renewals, setRenewals] = useState<any[]>([])
   const [projectionYear, setProjectionYear] = useState(new Date().getFullYear())
   const [associationFee, setAssociationFee] = useState(250)
-  const [lotRentTiming, setLotRentTiming] = useState<'spread' | 'history'>('spread')
+  const [lotRentTiming, setLotRentTiming] = useState<'contract' | 'spread' | 'history'>('contract')
   const [associationMonth, setAssociationMonth] = useState(2)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -54,14 +55,15 @@ export default function AdminIncomeProjectionPage() {
   const loadProjectionData = useCallback(async (initialLoad = false) => {
       if (initialLoad) setLoading(true)
       else setRefreshing(true)
-      const [camperResult, lotResult, readingResult, invoiceResult] = await Promise.all([
+      const [camperResult, lotResult, readingResult, invoiceResult, renewalResult] = await Promise.all([
         supabase.from('campers').select('id,lot_number,role,active').eq('active', true),
         supabase.from('lots').select('lot_number,lot_rent_amount'),
         supabase.from('electric_readings').select('camper_id,reading_date,amount_due'),
         supabase.from('invoices').select('camper_id,invoice_type,due_date,created_at,total_due,status'),
+        supabase.from('season_renewals').select('camper_id,lot_number,contract_end_date,status'),
       ])
 
-      const errors = [camperResult.error, lotResult.error, readingResult.error, invoiceResult.error].filter(Boolean)
+      const errors = [camperResult.error, lotResult.error, readingResult.error, invoiceResult.error, renewalResult.error].filter(Boolean)
       setMessage(errors.map((error) => error?.message).join(' '))
 
       const activeCampers = (camperResult.data || []).filter(isOperationalCamper)
@@ -84,6 +86,7 @@ export default function AdminIncomeProjectionPage() {
       setSites([...siteMap.values()])
       setReadings(readingResult.data || [])
       setInvoices(invoiceResult.data || [])
+      setRenewals(renewalResult.data || [])
       setLastUpdated(new Date())
       setLoading(false)
       setRefreshing(false)
@@ -106,11 +109,12 @@ export default function AdminIncomeProjectionPage() {
     sites,
     readings,
     invoices,
+    renewals,
     associationFee: Math.max(0, Number(associationFee || 0)),
     lotRentTiming,
     fallbackAssociationMonth: associationMonth,
     projectionYear,
-  }), [associationFee, associationMonth, invoices, lotRentTiming, projectionYear, readings, sites])
+  }), [associationFee, associationMonth, invoices, lotRentTiming, projectionYear, readings, renewals, sites])
 
   const strongestMonth = projection.months.reduce((best, month) => month.total > best.total ? month : best, projection.months[0])
   const slimmestMonth = projection.months.reduce((best, month) => month.total < best.total ? month : best, projection.months[0])
@@ -178,8 +182,8 @@ export default function AdminIncomeProjectionPage() {
           </div>
           <label><span>Projection year</span><input type="number" min="2026" max="2100" value={projectionYear} onChange={(event) => setProjectionYear(Number(event.target.value || new Date().getFullYear()))} /></label>
           <label><span>Association fee per site</span><div><i>$</i><input type="number" min="0" step="1" value={associationFee} onChange={(event) => setAssociationFee(Number(event.target.value || 0))} /></div></label>
-          <label><span>Lot-rent projection</span><select value={lotRentTiming} onChange={(event) => setLotRentTiming(event.target.value as 'spread' | 'history')}><option value="spread">Spread evenly all year</option><option value="history">Use invoice timing</option></select></label>
-          <label><span>Default association month</span><select value={associationMonth} onChange={(event) => setAssociationMonth(Number(event.target.value))}>{projectionMonths.map((month, index) => <option value={index} key={month}>{month}</option>)}</select></label>
+          <label><span>Lot-rent projection</span><select value={lotRentTiming} onChange={(event) => setLotRentTiming(event.target.value as 'contract' | 'spread' | 'history')}><option value="contract">Actual contract date · quarterly</option><option value="spread">Spread evenly all year</option><option value="history">Use invoice timing</option></select></label>
+          <label><span>Fallback month if contract date is missing</span><select value={associationMonth} onChange={(event) => setAssociationMonth(Number(event.target.value))}>{projectionMonths.map((month, index) => <option value={index} key={month}>{month}</option>)}</select></label>
         </section>
 
         <section className="income-projection-kpis">
@@ -249,7 +253,7 @@ export default function AdminIncomeProjectionPage() {
           <header><div><small>FORECAST CONFIDENCE</small><h2>What the projection is based on</h2></div></header>
           <div>
             <article><Landmark size={20} /><span><strong>{projection.configuredRentSites} of {sites.length}</strong><small>{projection.savedRentSites} use saved annual rent; {projection.inferredRentSites} use the latest lot-rent invoice</small></span></article>
-            <article><CalendarRange size={20} /><span><strong>{lotRentTiming === 'spread' ? 'Even monthly planning' : `${projection.rentHistoryMatches} timed sites`}</strong><small>{lotRentTiming === 'spread' ? `${projection.configuredRentSites} saved annual rent amounts are divided across all 12 months` : 'saved invoice history determines timing; unmatched rent is spread evenly'}</small></span></article>
+            <article><CalendarRange size={20} /><span><strong>{lotRentTiming === 'contract' ? `${projection.contractDateMatches} actual contract dates` : lotRentTiming === 'spread' ? 'Even monthly planning' : `${projection.rentHistoryMatches} invoice-timed sites`}</strong><small>{lotRentTiming === 'contract' ? 'Annual rent is divided into four payments beginning in the actual 12-month contract month, then every three months; the nine-month renewal notice date is never used' : lotRentTiming === 'spread' ? `${projection.configuredRentSites} saved annual rent amounts are divided across all 12 months` : 'saved invoice history determines timing; unmatched rent is spread evenly'}</small></span></article>
             <article><Gauge size={20} /><span><strong>{electricCoverage}% exact seasonal coverage</strong><small>{projection.readingYears} year{projection.readingYears === 1 ? '' : 's'} of electric history found{projection.latestElectricYear ? `; ${projection.latestElectricYear} is weighted most heavily` : ''}; missing months use the campground seasonal average</small></span></article>
           </div>
           {projection.missingRentSites > 0 && <p><strong>{projection.missingRentSites} active campsite{projection.missingRentSites === 1 ? '' : 's'} need an annual lot-rent amount.</strong> Their rent is not guessed or included until it is entered in Camper Management or Lots.</p>}
@@ -271,7 +275,7 @@ export default function AdminIncomeProjectionPage() {
           </div>
         </section>
 
-        <p className="income-projection-note">Actual means charges entered into the portal—not necessarily cash collected. Electric updates from saved meter readings; lot rent and association update from invoices. The projection remains a planning estimate.</p>
+        <p className="income-projection-note">Projected contract income uses the actual 12-month contract anniversary—not the earlier renewal-notice date. Actual means charges entered into the portal, not necessarily cash collected. Electric updates from saved meter readings; lot rent and association actuals update from invoices.</p>
       </div>
     </main>
   )
