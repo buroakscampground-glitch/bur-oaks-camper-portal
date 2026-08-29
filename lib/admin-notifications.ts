@@ -34,6 +34,7 @@ export async function createAdminNotification(admin: any, input: NotificationInp
     title: input.title,
     message: input.message,
     lotNumber: input.lot_number,
+    camperId: input.camper_id,
   }).catch((textError) => {
     console.error('Owner text alert failed:', textError)
     return { skipped: true, reason: textError?.message || 'Owner text alert failed.' }

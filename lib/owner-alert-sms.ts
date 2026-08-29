@@ -6,6 +6,7 @@ type OwnerTextAlertInput = {
   title: string
   message: string
   lotNumber?: string | null
+  camperId?: string | null
 }
 
 function ownerTextEnabled() {
@@ -53,10 +54,14 @@ function cleanSmsText(value: unknown, maxLength: number) {
     .slice(0, maxLength)
 }
 
-function adminPathForAlertType(type: string) {
+function adminPathForAlertType(type: string, camperId?: string | null) {
   if (type === 'maintenance_request') return '/admin/maintenance'
   if (type === 'payment_received') return '/admin/invoices'
-  if (type === 'direct_message') return '/admin/messages'
+  if (type === 'direct_message') {
+    return camperId
+      ? `/admin/messages?camperId=${encodeURIComponent(camperId)}`
+      : '/admin/messages'
+  }
   if (type === 'sewer_pump_out') return '/admin/pump-outs'
   if (type === 'saturday_dinner') return '/admin/dinners'
   if (type === 'site_care') return '/admin/site-care'
@@ -73,6 +78,7 @@ export async function sendOwnerTextAlert({
   title,
   message,
   lotNumber,
+  camperId,
 }: OwnerTextAlertInput) {
   if (!ownerTextEnabled()) {
     return { skipped: true, reason: 'Owner text alerts are turned off.' }
@@ -94,7 +100,7 @@ export async function sendOwnerTextAlert({
 
   const siteLine = lotNumber ? `Site ${lotNumber}: ` : ''
   const body = cleanSmsText(
-    `Bur Oaks Alert: ${siteLine}${title}. ${message}. Click here to review: ${portalSmsUrl(adminPathForAlertType(type))}`,
+    `Bur Oaks Alert: ${siteLine}${title}. ${message}. Tap to read and reply: ${portalSmsUrl(adminPathForAlertType(type, camperId))}`,
     1200
   )
 
