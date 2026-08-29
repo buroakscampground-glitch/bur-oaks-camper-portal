@@ -25,8 +25,8 @@ test('projection keeps rent, association, and seasonal electric separate', () =>
 
   assert.equal(result.months[3].lotRent, 1_350)
   assert.equal(result.months[4].lotRent, 150)
-  assert.equal(result.months[1].association, 250)
-  assert.equal(result.months[2].association, 250)
+  assert.equal(result.months[1].association, 500)
+  assert.equal(result.months[2].association, 0)
   assert.equal(result.months[0].electric, 150)
   assert.equal(result.months[6].electric, 350)
   assert.equal(result.annualLotRent, 3_000)
@@ -119,8 +119,8 @@ test('actual contract anniversary starts four quarterly payments and never uses 
   assert.equal(result.months[4].lotRent, 375)
   assert.equal(result.months[7].lotRent, 375)
   assert.equal(result.months[10].lotRent, 375)
-  assert.equal(result.months[1].association, 0)
-  assert.equal(result.months[4].association, 250)
+  assert.equal(result.months[1].association, 250)
+  assert.equal(result.months[4].association, 0)
   assert.equal(result.contractDateMatches, 1)
 })
 

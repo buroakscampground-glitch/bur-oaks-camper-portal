@@ -46,7 +46,7 @@ export default function AdminIncomeProjectionPage() {
   const [projectionYear, setProjectionYear] = useState(new Date().getFullYear())
   const [associationFee, setAssociationFee] = useState(250)
   const [lotRentTiming, setLotRentTiming] = useState<'contract' | 'spread' | 'history'>('contract')
-  const [associationMonth, setAssociationMonth] = useState(2)
+  const [associationMonth, setAssociationMonth] = useState(1)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
@@ -183,7 +183,7 @@ export default function AdminIncomeProjectionPage() {
           <label><span>Projection year</span><input type="number" min="2026" max="2100" value={projectionYear} onChange={(event) => setProjectionYear(Number(event.target.value || new Date().getFullYear()))} /></label>
           <label><span>Association fee per site</span><div><i>$</i><input type="number" min="0" step="1" value={associationFee} onChange={(event) => setAssociationFee(Number(event.target.value || 0))} /></div></label>
           <label><span>Lot-rent projection</span><select value={lotRentTiming} onChange={(event) => setLotRentTiming(event.target.value as 'contract' | 'spread' | 'history')}><option value="contract">Actual contract date · quarterly</option><option value="spread">Spread evenly all year</option><option value="history">Use invoice timing</option></select></label>
-          <label><span>Fallback month if contract date is missing</span><select value={associationMonth} onChange={(event) => setAssociationMonth(Number(event.target.value))}>{projectionMonths.map((month, index) => <option value={index} key={month}>{month}</option>)}</select></label>
+          <label><span>One-time annual association fee month</span><select value={associationMonth} onChange={(event) => setAssociationMonth(Number(event.target.value))}>{projectionMonths.map((month, index) => <option value={index} key={month}>{month}</option>)}</select></label>
         </section>
 
         <section className="income-projection-kpis">
@@ -275,7 +275,7 @@ export default function AdminIncomeProjectionPage() {
           </div>
         </section>
 
-        <p className="income-projection-note">Projected contract income uses the actual 12-month contract anniversary—not the earlier renewal-notice date. Actual means charges entered into the portal, not necessarily cash collected. Electric updates from saved meter readings; lot rent and association actuals update from invoices.</p>
+        <p className="income-projection-note">Projected quarterly rent uses the actual 12-month contract anniversary—not the earlier renewal-notice date. The Association Fee is counted once per site in the selected annual fee month and is never spread across contract months. Actual means charges entered into the portal, not necessarily cash collected.</p>
       </div>
     </main>
   )

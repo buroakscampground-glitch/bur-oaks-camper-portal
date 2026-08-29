@@ -242,7 +242,9 @@ export function buildIncomeProjection(options: ProjectionOptions) {
       ? recordMonth(historicAssociationInvoice.due_date || historicAssociationInvoice.created_at)
       : null
     if (historicAssociationMonth !== null) associationHistoryMatches += 1
-    months[contractMonth ?? historicAssociationMonth ?? fallbackAssociationMonth].association += associationFee
+    // The association fee is one campground-wide annual charge. Contract
+    // anniversaries control quarterly rent, but never move or spread this fee.
+    months[fallbackAssociationMonth].association += associationFee
 
     for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
       const exactValues = readingValues.get(`${site.lotNumber}:${monthIndex}`) || []
