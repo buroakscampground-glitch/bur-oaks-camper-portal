@@ -4,6 +4,7 @@ import { todayInCentral } from '../../../../lib/invoice-texting'
 import { formatSmsPhone, sendTwilioSms } from '../../../../lib/twilio-sms'
 import { consentedCamperSmsPhones } from '../../../../lib/camper-sms'
 import { isSystemPortalAccount } from '../../../../lib/camper-records'
+import { runPendingDocumentSignatureReminders } from '../../../../lib/document-reminders'
 
 export const dynamic = 'force-dynamic'
 
@@ -239,6 +240,8 @@ export async function GET(request: Request) {
           : 'failed'
     }
 
+    const documentNotices = await runPendingDocumentSignatureReminders(admin, [String(document.id)])
+
     await admin.from('season_renewals').update({
       renewal_sent_at: today,
       status: 'Awaiting Response',
@@ -247,7 +250,7 @@ export async function GET(request: Request) {
       automation_error: null,
     }).eq('id', record.id)
 
-    results.push({ renewalId: record.id, lot: camper.lot_number, status: 'sent', smsStatus })
+    results.push({ renewalId: record.id, lot: camper.lot_number, status: 'sent', smsStatus, documentNotices })
   }
 
   return NextResponse.json({

@@ -84,6 +84,23 @@ export default function AdminDocumentsPage() {
     loadData()
   }, [])
 
+  async function notifyAssignedDocuments(documentIds: string[]) {
+    if (!documentIds.length) return null
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (!token) return null
+
+    const response = await fetch('/api/document-reminders', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ documentIds }),
+    })
+    return response.json().catch(() => null)
+  }
+
   function documentTypeForFile(file: File) {
     if (/lease|renewal/i.test(file.name)) return 'Lease / Renewal Template'
     if (/rule|policy|agreement/i.test(file.name)) return 'Campground Form Template'
@@ -184,14 +201,14 @@ export default function AdminDocumentsPage() {
       const { error: uploadError } = await supabase.storage.from('camper-documents').upload(filePath, assignedFile)
       if (uploadError) throw uploadError
 
-      const { error } = await supabase.from('documents').insert({
+      const { data: insertedDocument, error } = await supabase.from('documents').insert({
         camper_id: camperId,
         document_name: documentName.trim(),
         document_type: documentType,
         file_url: filePath,
         signature_status: 'pending',
         ...(requiresTwoSignatures ? { requires_two_signatures: true } : {}),
-      })
+      }).select('id').single()
 
       if (error) {
         await supabase.storage.from('camper-documents').remove([filePath])
@@ -202,7 +219,8 @@ export default function AdminDocumentsPage() {
       setDocumentName('')
       setAssignedFile(null)
       setRequiresTwoSignatures(false)
-      setMessage('Document assigned successfully.')
+      await notifyAssignedDocuments(insertedDocument?.id ? [String(insertedDocument.id)] : [])
+      setMessage('Document assigned successfully. Email and eligible text notices were checked automatically.')
     } catch (error: any) {
       setMessage(error.message || 'Unable to assign the document.')
     } finally {
@@ -264,14 +282,14 @@ export default function AdminDocumentsPage() {
         .copy(template.storage_path, destinationPath)
       if (copyError) throw copyError
 
-      const { error: insertError } = await supabase.from('documents').insert({
+      const { data: insertedDocument, error: insertError } = await supabase.from('documents').insert({
         camper_id: targetCamperId,
         document_name: template.document_name,
         document_type: template.document_type || 'Seasonal Lease',
         file_url: destinationPath,
         signature_status: 'pending',
         ...(requiresTwoSignatures ? { requires_two_signatures: true } : {}),
-      })
+      }).select('id').single()
 
       if (insertError) {
         await supabase.storage.from('camper-documents').remove([destinationPath])
@@ -279,7 +297,8 @@ export default function AdminDocumentsPage() {
       }
 
       setSelectedTemplateId('')
-      setMessage(`${template.document_name} was assigned to Lot ${camper.lot_number} — ${camper.first_name} ${camper.last_name}.`)
+      await notifyAssignedDocuments(insertedDocument?.id ? [String(insertedDocument.id)] : [])
+      setMessage(`${template.document_name} was assigned to Lot ${camper.lot_number} — ${camper.first_name} ${camper.last_name}. Email and eligible text notices were checked automatically.`)
       await loadData()
     } catch (error: any) {
       setMessage(error.message || 'Unable to assign this lease.')
@@ -300,6 +319,7 @@ export default function AdminDocumentsPage() {
     if (!ok) return
 
     let assigned = 0
+    const assignedDocumentIds: string[] = []
     setWorking(true)
 
     for (const camper of filteredCampers) {
@@ -324,14 +344,14 @@ export default function AdminDocumentsPage() {
         .copy(template.storage_path, destinationPath)
       if (copyError) continue
 
-      const { error: insertError } = await supabase.from('documents').insert({
+      const { data: insertedDocument, error: insertError } = await supabase.from('documents').insert({
         camper_id: camper.id,
         document_name: template.document_name,
         document_type: template.document_type || 'Seasonal Lease',
         file_url: destinationPath,
         signature_status: 'pending',
         ...(requiresTwoSignatures ? { requires_two_signatures: true } : {}),
-      })
+      }).select('id').single()
 
       if (insertError) {
         await supabase.storage.from('camper-documents').remove([destinationPath])
@@ -339,10 +359,12 @@ export default function AdminDocumentsPage() {
       }
 
       assigned += 1
+      if (insertedDocument?.id) assignedDocumentIds.push(String(insertedDocument.id))
     }
 
+    await notifyAssignedDocuments(assignedDocumentIds)
     setWorking(false)
-    setMessage(`Assigned the selected document to ${assigned} camper${assigned === 1 ? '' : 's'}.`)
+    setMessage(`Assigned the selected document to ${assigned} camper${assigned === 1 ? '' : 's'}. Email and eligible text notices were checked automatically.`)
     await loadData()
   }
 

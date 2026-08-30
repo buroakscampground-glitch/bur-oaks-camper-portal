@@ -25,6 +25,10 @@
       "schedule": "15 14 * * *"
     },
     {
+      "path": "/api/cron/document-signature-reminders",
+      "schedule": "20 15 * * *"
+    },
+    {
       "path": "/api/cron/camper-celebrations",
       "schedule": "30 14 * * *"
     },
