@@ -10295,6 +10295,18 @@ tbody tr:hover {
   font-weight: 800;
 }
 
+.camper-document-shared-account {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid #d6c58f;
+  border-radius: 11px;
+  background: #fff6d8;
+  color: #73571d;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
+}
+
 .camper-document-signers {
   display: grid;
   gap: 7px;

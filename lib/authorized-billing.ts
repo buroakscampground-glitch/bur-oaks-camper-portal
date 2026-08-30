@@ -3,8 +3,9 @@ export type AuthorizedBillingLink = {
   ownerLot: string
 }
 
-// Billing-only family access. These links never grant access to profiles,
-// documents, messages, maintenance records, or other camper data.
+// Authorized family-account access. These links grant access only to billing
+// and assigned campground documents. They never grant access to profiles,
+// messages, maintenance records, or other camper data.
 export const authorizedBillingLinks: AuthorizedBillingLink[] = [
   { delegateEmail: 'dmonke69@yahoo.com', ownerLot: 'FF2' },
   { delegateEmail: 'stacymcnish@yahoo.com', ownerLot: 'FF12' },
@@ -54,3 +55,18 @@ export async function loadAuthorizedBillingCampers(client: any, email: unknown) 
     )
 }
 
+export async function loadAuthorizedDocumentCamper(client: any, email: unknown, camperId: unknown) {
+  const lots = billingOwnerLotsForEmail(email).map(normalizeBillingLot)
+  if (!lots.length || !camperId) return null
+
+  const { data, error } = await client
+    .from('campers')
+    .select('id,lot_number,first_name,last_name,active,role')
+    .eq('id', String(camperId))
+    .maybeSingle()
+
+  if (error) throw error
+  if (!data || data.active === false || String(data.role || 'camper').toLowerCase() !== 'camper') return null
+
+  return lots.includes(normalizeBillingLot(data.lot_number)) ? data : null
+}

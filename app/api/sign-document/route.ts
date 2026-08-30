@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { loadAuthorizedDocumentCamper } from '../../../lib/authorized-billing'
 
 const consentText =
   'I agree to use electronic records and signatures for this Bur Oaks Campground document. I understand that typing my full legal name and selecting Sign Document is my electronic signature and shows my intent to sign this document.'
@@ -50,7 +51,12 @@ export async function POST(request: Request) {
       .eq('id', documentId)
       .single()
 
-    if (documentError || !document || String(document.camper_id) !== String(context.camper.id)) {
+    const isOwnDocument = document && String(document.camper_id) === String(context.camper.id)
+    const delegatedCamper = document && !isOwnDocument
+      ? await loadAuthorizedDocumentCamper(context.admin, context.user.email, document.camper_id)
+      : null
+
+    if (documentError || !document || (!isOwnDocument && !delegatedCamper)) {
       return NextResponse.json({ error: 'Document not found.' }, { status: 404 })
     }
 
@@ -90,7 +96,7 @@ export async function POST(request: Request) {
       'record_document_signature_atomic',
       {
         p_document_id: document.id,
-        p_camper_id: context.camper.id,
+        p_camper_id: document.camper_id,
         p_user_id: context.user.id,
         p_email: context.user.email,
         p_name: cleanName,

@@ -262,10 +262,13 @@ export default function CamperPortalPage() {
               .order('reading_date', { ascending: false })
               .limit(1)
               .maybeSingle(),
-            supabase
-              .from('documents')
-              .select('*')
-              .eq('camper_id', camperData.id),
+            session?.access_token
+              ? fetch('/api/camper-documents', {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                })
+                  .then((response) => response.ok ? response.json() : null)
+                  .catch(() => null)
+              : Promise.resolve(null),
             supabase
               .from('events')
               .select('*')
@@ -328,7 +331,7 @@ export default function CamperPortalPage() {
 
         setInvoices(invoiceResult.data || [])
         setLatestElectric(electricResult.data || null)
-        setDocuments(documentResult.data || [])
+        setDocuments(documentResult?.documents || [])
         setEvents(eventResult.data || [])
         setAnnouncements(announcementResult.data || [])
         let dismissedAlertIds = new Set<string>()

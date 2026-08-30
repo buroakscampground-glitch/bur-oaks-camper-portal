@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckCircle2, DoorOpen, FileSignature, LockKeyhole, ShieldCheck } from 'lucide-react'
-import { getCurrentCamper, supabase } from '../../lib/supabase'
+import { supabase } from '../../lib/supabase'
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([])
@@ -33,22 +33,22 @@ export default function DocumentsPage() {
       }
       setCurrentUserEmail(user.email?.trim().toLowerCase() || '')
 
-      const camper = await getCurrentCamper()
-
-      if (!camper) {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) {
         setLoading(false)
         return
       }
 
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .eq('camper_id', camper.id)
+      const response = await fetch('/api/camper-documents', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const result = await response.json().catch(() => null)
 
-      if (error) {
-        console.error(error)
+      if (!response.ok) {
+        setMessage(result?.error || 'Unable to load your documents.')
       } else {
-        setDocuments(data || [])
+        setDocuments(result?.documents || [])
       }
 
       setLoading(false)
@@ -203,6 +203,11 @@ export default function DocumentsPage() {
         </div>
         <small>{doc.document_type || 'General'}</small>
         <h2>{doc.document_name}</h2>
+        {doc.access_is_delegated && (
+          <p className="camper-document-shared-account">
+            Authorized family account · Lot {doc.access_lot_number || '—'} · {doc.access_camper_name || 'Camper'}
+          </p>
+        )}
         <p className="camper-document-status">{documentStatusText(doc)}</p>
         {doc.requires_two_signatures && (
           <div className="camper-document-signers">
@@ -233,7 +238,7 @@ export default function DocumentsPage() {
               Sign Document
             </button>
           )}
-          {canCurrentUserSign(doc) && isRenewalDocument(doc) && (
+          {canCurrentUserSign(doc) && isRenewalDocument(doc) && !doc.access_is_delegated && (
             <button type="button" className="decline-renewal" disabled={decliningId === String(doc.id)} onClick={() => declineRenewal(doc)}>
               <DoorOpen size={15} /> {decliningId === String(doc.id) ? 'Recording…' : 'I Am Not Renewing'}
             </button>
@@ -252,7 +257,7 @@ export default function DocumentsPage() {
         <button type="button" onClick={() => router.push('/portal')}>← Back to Portal</button>
         <span><ShieldCheck size={17} /> Secure document center</span>
         <h1>Leases, renewals, and campground documents.</h1>
-        <p>Review assigned documents, open the original file, and electronically sign when a signature is required.</p>
+        <p>Review documents assigned to your campsite or an authorized family account, open the original file, and electronically sign when required.</p>
         <div className="camper-documents-summary">
           <article><small>Needs signature</small><strong>{documentsNeedingSignature.length}</strong></article>
           <article><small>Completed / records</small><strong>{signedDocuments.length + referenceDocuments.length + declinedDocuments.length}</strong></article>

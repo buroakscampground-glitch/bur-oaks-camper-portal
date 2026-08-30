@@ -4,6 +4,7 @@ import { getSiteUrl } from './site-url'
 import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { todayInCentral } from './invoice-reminder-schedule'
 import { documentReminderCentralDay, documentReminderIsDue } from './document-reminder-schedule'
+import { billingDelegateEmailsForLot } from './authorized-billing'
 
 const REMINDER_TYPE = 'Document Signature Reminder'
 
@@ -144,7 +145,11 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
     .limit(300)
   if (priorError) return { email: 'failed', sms: 'failed', emailSent: 0, smsSent: 0, errors: [priorError.message] }
 
-  const emails = uniqueEmails([camper.email, camper.secondary_email])
+  const emails = uniqueEmails([
+    camper.email,
+    camper.secondary_email,
+    ...billingDelegateEmailsForLot(camper.lot_number),
+  ])
   const emailKey = `document-reminder-${document.id}-email`
   const lastEmail = (prior || []).find((row: any) => row.automation_key === emailKey)
   const copy = documentCopy(document, camper, Boolean(lastEmail))

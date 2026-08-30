@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { loadAuthorizedDocumentCamper } from '../../../lib/authorized-billing'
 
 export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(request, 'document-url', 30, 60_000)
@@ -32,8 +33,12 @@ export async function POST(request: Request) {
       .single()
 
     const isAdmin = String(context.camper.role || '').toLowerCase() === 'admin'
+    const isOwnDocument = document && String(document.camper_id) === String(context.camper.id)
+    const delegatedCamper = document && !isAdmin && !isOwnDocument
+      ? await loadAuthorizedDocumentCamper(context.admin, context.user.email, document.camper_id)
+      : null
 
-    if (!document || (!isAdmin && String(document.camper_id) !== String(context.camper.id))) {
+    if (!document || (!isAdmin && !isOwnDocument && !delegatedCamper)) {
       return NextResponse.json({ error: 'Document not found.' }, { status: 404 })
     }
 
