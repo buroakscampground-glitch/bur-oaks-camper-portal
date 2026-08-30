@@ -17,7 +17,11 @@ export async function GET(request: Request) {
 
   try {
     const admin = createClient(url, key)
-    const [{ data: namedMatches, error }, { data: siteMatches, error: siteError }] = await Promise.all([
+    const [
+      { data: namedMatches, error },
+      { data: siteMatches, error: siteError },
+      { data: marshallMatches, error: marshallError },
+    ] = await Promise.all([
       admin
         .from('campers')
         .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,active,role')
@@ -26,11 +30,17 @@ export async function GET(request: Request) {
         .from('campers')
         .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,active,role')
         .in('lot_number', ['TEMP 1', 'TEMP1', '20']),
+      admin
+        .from('campers')
+        .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,active,role')
+        .or('last_name.ilike.Marshall,second_profile_last_name.ilike.Marshall'),
     ])
 
-    if (error || siteError) throw new Error(error?.message || siteError?.message)
+    if (error || siteError || marshallError) {
+      throw new Error(error?.message || siteError?.message || marshallError?.message)
+    }
 
-    const initialMatches = [...(namedMatches || []), ...(siteMatches || [])]
+    const initialMatches = [...(namedMatches || []), ...(siteMatches || []), ...(marshallMatches || [])]
       .filter((camper, index, all) => all.findIndex((candidate) => candidate.id === camper.id) === index)
 
     const emails = Array.from(new Set(initialMatches
