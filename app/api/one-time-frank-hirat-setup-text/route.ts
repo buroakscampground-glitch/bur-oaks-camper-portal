@@ -35,15 +35,15 @@ async function findFrank(admin: any) {
 
   const candidates = (data || []).filter((row: any) => !['admin', 'maintenance'].includes(clean(row.role)))
   const exact = candidates.filter((row: any) => (
-    (clean(row.first_name) === 'frank' && clean(row.last_name) === 'hirat') ||
-    (clean(row.second_profile_first_name) === 'frank' && clean(row.second_profile_last_name) === 'hirat')
+    (clean(row.first_name) === 'frank' && ['hirat', 'horat'].includes(clean(row.last_name))) ||
+    (clean(row.second_profile_first_name) === 'frank' && ['hirat', 'horat'].includes(clean(row.second_profile_last_name)))
   ))
 
   return { candidates, exact }
 }
 
 function emailForFrank(camper: any) {
-  const isSecondary = clean(camper.second_profile_first_name) === 'frank' && clean(camper.second_profile_last_name) === 'hirat'
+  const isSecondary = clean(camper.second_profile_first_name) === 'frank' && ['hirat', 'horat'].includes(clean(camper.second_profile_last_name))
   return clean(isSecondary ? camper.secondary_email : camper.email)
 }
 
