@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ArrowRight, CalendarDays, CloudSun, FileText, LockKeyhole, Mail, MessageCircle, ReceiptText, ShieldCheck, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { safeLoginReturnPath } from '../../lib/login-return-path'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -46,7 +47,9 @@ export default function LoginPage() {
         return
       }
 
-      window.location.href = destinationResult.destination
+      const requestedReturnTo = new URLSearchParams(window.location.search).get('returnTo')
+      const returnTo = safeLoginReturnPath(requestedReturnTo, destinationResult.role)
+      window.location.href = returnTo || destinationResult.destination
     } catch (err) {
       console.error(err)
       setError('Login failed')

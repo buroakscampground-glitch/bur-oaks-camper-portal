@@ -34,7 +34,8 @@ export default function RoleGuard({
         const token = session?.access_token
 
         if (!token || !session.user?.email) {
-          window.location.replace('/login')
+          const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
+          window.location.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`)
           return
         }
 

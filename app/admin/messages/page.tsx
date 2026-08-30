@@ -75,7 +75,8 @@ export default function AdminMessagesPage() {
     } else {
       setConversations(result.conversations || [])
       const firstMessageConversation = result.conversations?.find((conversation: any) => conversation.messageCount > 0)
-      if (!selectedCamperId && firstMessageConversation?.camper?.id) {
+      const requestedCamperId = new URLSearchParams(window.location.search).get('camperId')
+      if (!selectedCamperId && !requestedCamperId && firstMessageConversation?.camper?.id) {
         setSelectedCamperId(firstMessageConversation.camper.id)
       }
     }
