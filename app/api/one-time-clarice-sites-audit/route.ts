@@ -17,14 +17,23 @@ export async function GET(request: Request) {
 
   try {
     const admin = createClient(url, key)
-    const { data: namedMatches, error } = await admin
-      .from('campers')
-      .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,active,role')
-      .or('first_name.ilike.%Clarice%,second_profile_first_name.ilike.%Clarice%')
+    const [{ data: namedMatches, error }, { data: siteMatches, error: siteError }] = await Promise.all([
+      admin
+        .from('campers')
+        .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,active,role')
+        .or('first_name.ilike.%Clari%,second_profile_first_name.ilike.%Clari%'),
+      admin
+        .from('campers')
+        .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,active,role')
+        .in('lot_number', ['TEMP 1', 'TEMP1', '20']),
+    ])
 
-    if (error) throw error
+    if (error || siteError) throw new Error(error?.message || siteError?.message)
 
-    const emails = Array.from(new Set((namedMatches || [])
+    const initialMatches = [...(namedMatches || []), ...(siteMatches || [])]
+      .filter((camper, index, all) => all.findIndex((candidate) => candidate.id === camper.id) === index)
+
+    const emails = Array.from(new Set(initialMatches
       .flatMap((camper: any) => [camper.email, camper.secondary_email])
       .map((email: unknown) => String(email || '').trim().toLowerCase())
       .filter(Boolean)))
@@ -39,7 +48,7 @@ export async function GET(request: Request) {
       relatedByEmail.push(...(related || []))
     }
 
-    const matches = [...(namedMatches || []), ...relatedByEmail]
+    const matches = [...initialMatches, ...relatedByEmail]
       .filter((camper, index, all) => all.findIndex((candidate) => candidate.id === camper.id) === index)
 
     return NextResponse.json({ matches })
