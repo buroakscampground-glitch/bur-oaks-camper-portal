@@ -186,6 +186,8 @@ export default function CamperPortalPage() {
   const [alerts, setAlerts] = useState<any[]>([])
   const [maintenanceTickets, setMaintenanceTickets] = useState<any[]>([])
   const [pumpOutRequests, setPumpOutRequests] = useState<any[]>([])
+  const [pumpOutServiceLots, setPumpOutServiceLots] = useState<string[]>([])
+  const [selectedPumpLot, setSelectedPumpLot] = useState('')
   const [officePendingMessages, setOfficePendingMessages] = useState<any[]>([])
   const [latestElectric, setLatestElectric] = useState<any>(null)
   const [unreadOfficeMessages, setUnreadOfficeMessages] = useState(0)
@@ -299,12 +301,13 @@ export default function CamperPortalPage() {
               .eq('sender_role', 'admin')
               .is('camper_archived_at', null)
               .is('read_by_camper_at', null),
-            supabase
-              .from('sewer_pump_out_requests')
-              .select('*')
-              .eq('camper_id', camperData.id)
-              .order('requested_at', { ascending: false })
-              .limit(6),
+            session?.access_token
+              ? fetch('/api/sewer-pump-out', {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                })
+                  .then((response) => response.ok ? response.json() : null)
+                  .catch(() => null)
+              : Promise.resolve(null),
             supabase
               .from('office_messages')
               .select('id,body,created_at,read_by_admin_at')
@@ -344,7 +347,8 @@ export default function CamperPortalPage() {
         setAlerts((alertResult.data || []).filter((alert: any) => !dismissedAlertIds.has(String(alert.id))))
         setMaintenanceTickets(maintenanceResult.data || [])
         setUnreadOfficeMessages(messageResult.count || 0)
-        setPumpOutRequests(pumpOutResult.data || [])
+        setPumpOutRequests(pumpOutResult?.requests || [])
+        setPumpOutServiceLots(pumpOutResult?.serviceLots || [camperData.lot_number].filter(Boolean))
         setOfficePendingMessages(pendingOfficeResult.data || [])
         setSiteCareNotices(siteCareResult.data || [])
         if (birthdayResult?.success) {
@@ -457,7 +461,7 @@ export default function CamperPortalPage() {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ serviceLot: selectedPumpLot || camper?.lot_number }),
     })
     const result = await response.json().catch(() => null)
 
@@ -469,7 +473,7 @@ export default function CamperPortalPage() {
 
     let emailNote = ''
     if (result?.duplicate) {
-      setPumpMessage(`Lot ${camper?.lot_number || 'your site'} is already on the sewer pump-out list. No duplicate charge was added.`)
+      setPumpMessage(`Lot ${result?.serviceLot || selectedPumpLot || camper?.lot_number || 'your site'} is already on the sewer pump-out list. No duplicate charge was added.`)
       setRequestingPump(false)
       return
     }
@@ -477,7 +481,13 @@ export default function CamperPortalPage() {
     if (result?.emailStatus === 'failed') emailNote = ' Office email alert failed, but the request was saved.'
     if (result?.emailStatus === 'skipped') emailNote = ' Office email alert skipped, but the request was saved.'
 
-    setPumpMessage(`Sewer pump-out requested for Lot ${camper?.lot_number || 'your site'}. $10 will be added to your next electric bill.${emailNote}`)
+    const serviceLot = result?.serviceLot || selectedPumpLot || camper?.lot_number || 'your site'
+    const billingLot = result?.billingLot || camper?.lot_number || 'your account'
+    const chargeAmount = Number(result?.chargeAmount || getSewerPumpOutFeeForLot(serviceLot, 10))
+    setPumpOutRequests((current) => result?.request
+      ? [result.request, ...current.filter((request) => String(request.id) !== String(result.request.id))]
+      : current)
+    setPumpMessage(`Sewer pump-out requested for Lot ${serviceLot}. $${chargeAmount.toFixed(2)} will be added to the next electric bill for Lot ${billingLot}.${emailNote}`)
     setRequestingPump(false)
   }
 
@@ -912,7 +922,13 @@ export default function CamperPortalPage() {
   ].filter(Boolean)
   const mobileMoreNeedsAttention = documentsNeedingSignature.length > 0 || alerts.length > 0
   const pumpNeedsAttention = activePumpOutRequests.length > 0
-  const displayedPumpOutFee = getSewerPumpOutFeeForLot(camper?.lot_number, 10)
+  const availablePumpOutLots = pumpOutServiceLots.length
+    ? pumpOutServiceLots
+    : [camper?.lot_number].filter(Boolean) as string[]
+  const activeSelectedPumpOutRequests = activePumpOutRequests.filter(
+    (request) => String(request.lot_number || '').trim().toUpperCase() === String(selectedPumpLot || camper?.lot_number || '').trim().toUpperCase()
+  )
+  const displayedPumpOutFee = getSewerPumpOutFeeForLot(selectedPumpLot || camper?.lot_number, 10)
 
   return (
     <main className="camper-portal-page">
@@ -1416,12 +1432,23 @@ export default function CamperPortalPage() {
           <div>
             <span><Droplets size={18} /> SEWER PUMP-OUT</span>
             <h2>Need your sewer pumped?</h2>
-            <p>Tap the red button and the office will add you to the pump-out list. A {`$${displayedPumpOutFee.toFixed(2)}`} charge is added to your next electric bill.</p>
+            <p>{availablePumpOutLots.length > 1
+              ? `Choose the campsite that needs service. The charge will stay on your Lot ${camper?.lot_number || 'billing'} account.`
+              : `Tap the red button and the office will add you to the pump-out list. A $${displayedPumpOutFee.toFixed(2)} charge is added to your next electric bill.`}</p>
             {pumpMessage && <small>{pumpMessage}</small>}
           </div>
-          <button type="button" onClick={() => setShowPumpConfirm(true)} disabled={requestingPump}>
-            {requestingPump ? 'Sending…' : 'Request pump-out'}
-          </button>
+          <div className="portal-pumpout-actions">
+            {availablePumpOutLots.map((lot) => (
+              <button
+                type="button"
+                key={lot}
+                onClick={() => { setSelectedPumpLot(lot); setShowPumpConfirm(true) }}
+                disabled={requestingPump}
+              >
+                {requestingPump ? 'Sending…' : availablePumpOutLots.length > 1 ? `Pump Lot ${lot}` : 'Request pump-out'}
+              </button>
+            ))}
+          </div>
         </section>
 
         <div id="weather">
@@ -1813,10 +1840,10 @@ export default function CamperPortalPage() {
                 <X size={18} />
               </button>
               <span><Droplets size={18} /> Sewer pump-out</span>
-              <h2>Request a pump-out for Lot {camper?.lot_number || 'your site'}?</h2>
-              <p>The office will add your site to the pump-out list. A <strong>{`$${displayedPumpOutFee.toFixed(2)} charge`}</strong> will be added to your next electric bill.</p>
-              {activePumpOutRequests.length > 0 && (
-                <em>Your site already appears to be on the pump-out list. Sending again will not add a duplicate charge.</em>
+              <h2>Request a pump-out for Lot {selectedPumpLot || camper?.lot_number || 'your site'}?</h2>
+              <p>The office will add Lot {selectedPumpLot || camper?.lot_number || 'your site'} to the pump-out list. A <strong>{`$${displayedPumpOutFee.toFixed(2)} charge`}</strong> will be added to the next electric bill for Lot {camper?.lot_number || 'your billing account'}.</p>
+              {activeSelectedPumpOutRequests.length > 0 && (
+                <em>Lot {selectedPumpLot || camper?.lot_number} already appears to be on the pump-out list. Sending again will not add a duplicate charge.</em>
               )}
               <div>
                 <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump}>

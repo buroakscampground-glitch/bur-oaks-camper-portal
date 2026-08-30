@@ -1676,6 +1676,14 @@ button:hover {
   opacity: .72;
 }
 
+.portal-pumpout-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .portal-arrival-card {
   position: relative;
   z-index: 6;
@@ -5162,6 +5170,10 @@ button:hover {
   }
 
   .portal-pumpout-alert button {
+    width: 100%;
+  }
+
+  .portal-pumpout-actions {
     width: 100%;
   }
 
