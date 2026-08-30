@@ -88,6 +88,13 @@ export async function GET(request: Request) {
         hasSetupEmail: Boolean(emailForFrank(row)),
       })),
       candidateCount: candidates.length,
+      candidates: candidates.map((row: any) => ({
+        name: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+        secondProfileName: `${row.second_profile_first_name || ''} ${row.second_profile_last_name || ''}`.trim(),
+        lotNumber: row.lot_number,
+        hasPrimaryEmail: Boolean(clean(row.email)),
+        hasSecondaryEmail: Boolean(clean(row.secondary_email)),
+      })),
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Unable to find Frank Hirat.' }, { status: 500 })
