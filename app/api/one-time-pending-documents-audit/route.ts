@@ -18,8 +18,7 @@ export async function GET(request: Request) {
 
   const { data: documents, error: documentError } = await admin
     .from('documents')
-    .select('id,document_name,document_type,signature_status,camper_id,requires_two_signatures,created_at,file_url')
-    .order('created_at', { ascending: false })
+    .select('id,document_name,document_type,signature_status,camper_id,requires_two_signatures,file_url')
   if (documentError) return NextResponse.json({ error: documentError.message }, { status: 500 })
 
   const pending = (documents || []).filter((document: any) => {
@@ -51,7 +50,6 @@ export async function GET(request: Request) {
       hasFile: Boolean(document.file_url),
       visibleInCamperPortal: Boolean(camper && camper.active !== false && document.camper_id),
       appearsToBeRenewal: /renew|lease|contract/.test(documentLabel),
-      createdAt: document.created_at,
     }
   })
 
