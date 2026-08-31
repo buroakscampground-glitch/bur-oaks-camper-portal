@@ -28,7 +28,7 @@ export async function GET(request: Request) {
       .limit(500),
     camperIds.length
       ? admin.from('electric_readings')
-        .select('id,camper_id,previous_reading,current_reading,usage,reading_date,invoice_id')
+        .select('id,camper_id,previous_reading,current_reading,reading_date,invoice_id')
         .in('camper_id', camperIds)
         .order('reading_date', { ascending: false })
         .limit(20)
