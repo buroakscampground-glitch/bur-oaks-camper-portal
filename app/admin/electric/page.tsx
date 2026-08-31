@@ -14,6 +14,7 @@ import {
   compareElectricUsage,
   groupedUsageHistory,
 } from '../../../lib/electric-reading-safeguards'
+import { electricChargeRowsSignature, electricWaterReviewKey } from '../../../lib/electric-invoice-review'
 
 export default function AdminElectricPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -48,6 +49,8 @@ export default function AdminElectricPage() {
   const [searchText, setSearchText] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [approvedWaterTrashKey, setApprovedWaterTrashKey] = useState('')
+  const [approvedAdditionalChargesKey, setApprovedAdditionalChargesKey] = useState('')
   const [meterDraft, setMeterDraft] = useState<any>(null)
   const currentReadingRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -119,6 +122,8 @@ export default function AdminElectricPage() {
 
       const today = dateInputToday()
       setMeterDraft(draft)
+      setApprovedWaterTrashKey('')
+      setApprovedAdditionalChargesKey('')
       setCamperId(selectedId)
       setPreviousReading(latest ? String(latest.current_reading) : '')
       setCurrentReading(String(draft.reviewed_reading ?? draft.submitted_reading ?? draft.detected_reading ?? ''))
@@ -328,6 +333,20 @@ const filteredBillingChecklist = checklistFilter === 'all'
   ? billingChecklist
   : billingChecklist.filter((item) => item.status === checklistFilter)
 const billedCount = Number(checklistCounts.invoice_created || 0) + Number(checklistCounts.paid || 0)
+const waterTrashReviewKey = electricWaterReviewKey(camperId, includeWaterTrash, selectedWaterTrashFee)
+const additionalChargesReviewKey = [
+  camperId,
+  includeSecondMeter
+    ? `second:${secondMeterReason}:${secondPreviousReading}:${secondCurrentReading}:${secondRate}`
+    : 'second:none',
+  `manual-pump:${manualPumpChargeOption}:${manualPumpCustomAmount}`,
+  `pump-outs:${electricChargeRowsSignature(selectedPumpOuts)}`,
+  `site-services:${electricChargeRowsSignature(selectedSiteServices)}`,
+  `credits:${electricChargeRowsSignature(selectedAccountCredits)}:${newCreditAmount}:${newCreditReason}:${newCreditNotes}`,
+].join('|')
+const waterTrashReviewed = Boolean(camperId) && approvedWaterTrashKey === waterTrashReviewKey
+const additionalChargesReviewed = Boolean(camperId) && approvedAdditionalChargesKey === additionalChargesReviewKey
+const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
 
   async function saveElectricAndCreateInvoice() {
     setMessage('')
@@ -335,6 +354,18 @@ const billedCount = Number(checklistCounts.invoice_created || 0) + Number(checkl
 
     if (!camperId || !previousReading || !currentReading || !rate || !readingDate || !dueDate) {
       setMessage('Please fill out all fields.')
+      setSaving(false)
+      return
+    }
+
+    if (!waterTrashReviewed) {
+      setMessage('Invoice not created. Review and approve the Water/Trash decision first.')
+      setSaving(false)
+      return
+    }
+
+    if (!additionalChargesReviewed) {
+      setMessage('Invoice not created. Review and approve all additional charges and credits first.')
       setSaving(false)
       return
     }
@@ -520,6 +551,16 @@ const billedCount = Number(checklistCounts.invoice_created || 0) + Number(checkl
     }
 
     const activeSiteServices = freshSiteServices || []
+    if (
+      electricChargeRowsSignature(activePumpOuts) !== electricChargeRowsSignature(selectedPumpOuts) ||
+      electricChargeRowsSignature(activeSiteServices) !== electricChargeRowsSignature(selectedSiteServices)
+    ) {
+      setApprovedAdditionalChargesKey('')
+      await Promise.all([loadPumpOuts(), loadSiteServiceCharges()])
+      setMessage('Invoice not created. A pump-out or site-service charge changed while you were reviewing. Check the updated charges and approve them again.')
+      setSaving(false)
+      return
+    }
     const siteServiceTotal = Number(activeSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0).toFixed(2))
     const totalDue = Number((amountDue + secondAmountDue + waterTrashAmount + manualPumpAmount + pumpOutTotal + siteServiceTotal).toFixed(2))
 
@@ -754,6 +795,8 @@ const billedCount = Number(checklistCounts.invoice_created || 0) + Number(checkl
     setNewCreditNotes('')
     setSearchText('')
     setMeterDraft(null)
+    setApprovedWaterTrashKey('')
+    setApprovedAdditionalChargesKey('')
     window.history.replaceState({}, '', '/admin/electric')
     loadReadings()
     loadPumpOuts()
@@ -872,6 +915,8 @@ const billedCount = Number(checklistCounts.invoice_created || 0) + Number(checkl
   onChange={async (e) => {
 	    const selectedId = e.target.value
 	    setCamperId(selectedId)
+	    setApprovedWaterTrashKey('')
+	    setApprovedAdditionalChargesKey('')
 	    setPreviousReading('')
 	    setCurrentReading('')
 	    setMeterDraft(null)
@@ -1401,8 +1446,55 @@ const billedCount = Number(checklistCounts.invoice_created || 0) + Number(checkl
             </section>
           )}
 
-          <button onClick={saveElectricAndCreateInvoice} disabled={saving}>
-            {saving ? 'Saving…' : includeWaterTrash ? 'Save Reading + Create Combined Invoice' : 'Save Reading + Create Invoice'}
+          {camperId && (
+            <section
+              style={{
+                marginBottom: '14px',
+                padding: '16px',
+                border: billingReviewComplete ? '2px solid #2f5d3a' : '2px solid #b97721',
+                borderRadius: '14px',
+                background: billingReviewComplete ? '#eef6eb' : '#fff8e8',
+              }}
+            >
+              <strong>Required final charge review</strong>
+              <p className="muted" style={{ margin: '4px 0 12px' }}>
+                The invoice stays locked until both items are approved. Changing a charge automatically removes its approval.
+              </p>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontWeight: 800 }}>
+                  <input
+                    type="checkbox"
+                    checked={waterTrashReviewed}
+                    onChange={(event) => setApprovedWaterTrashKey(event.target.checked ? waterTrashReviewKey : '')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <span>
+                    Water/Trash reviewed — {includeWaterTrash ? `$${selectedWaterTrashFee.toFixed(2)} will be charged` : 'no Water/Trash charge on this invoice'}
+                  </span>
+                </label>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontWeight: 800 }}>
+                  <input
+                    type="checkbox"
+                    checked={additionalChargesReviewed}
+                    onChange={(event) => setApprovedAdditionalChargesKey(event.target.checked ? additionalChargesReviewKey : '')}
+                    style={{ marginTop: '3px' }}
+                  />
+                  <span>
+                    All other charges and credits reviewed — pump-outs, site services, manual charges, second meter, and credits
+                  </span>
+                </label>
+              </div>
+            </section>
+          )}
+
+          <button onClick={saveElectricAndCreateInvoice} disabled={saving || !billingReviewComplete}>
+            {saving
+              ? 'Saving…'
+              : !billingReviewComplete
+                ? 'Review Charges Before Creating Invoice'
+                : includeWaterTrash
+                  ? 'Save Reading + Create Combined Invoice'
+                  : 'Save Reading + Create Invoice'}
           </button>
 
           {message && <p style={{ color: '#b02a37' }}>{message}</p>}
