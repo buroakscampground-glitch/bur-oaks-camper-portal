@@ -69,12 +69,13 @@ export function getSeasonalTheme(date = new Date()): SeasonalTheme {
   const memorialDay = lastWeekday(parts.year, 5, 1)
   const laborDay = nthWeekday(parts.year, 9, 1, 1)
   const thanksgiving = nthWeekday(parts.year, 11, 4, 4)
+  const laborDayDistance = daysFrom(parts, { year: parts.year, month: 9, day: laborDay })
 
-  if (mmdd >= 1227 || mmdd <= 102) return { key: 'new-year', label: 'Happy New Year', detail: 'A fresh season at Bur Oaks', symbol: '✦' }
-  if (mmdd >= 1201 && mmdd <= 1226) return { key: 'christmas', label: 'Christmas at Bur Oaks', detail: 'Warm wishes from the campground', symbol: '★' }
+  if (mmdd <= 102) return { key: 'new-year', label: 'Happy New Year', detail: 'A fresh season at Bur Oaks', symbol: '✦' }
+  if (parts.month === 12) return { key: 'christmas', label: 'Christmas at Bur Oaks', detail: 'Warm wishes from the campground', symbol: '★' }
   if (parts.month === 11 && parts.day >= thanksgiving - 7 && parts.day <= thanksgiving + 2) return { key: 'thanksgiving', label: 'Thanksgiving at Bur Oaks', detail: 'Grateful for our campground family', symbol: '◆' }
-  if (mmdd >= 1020 && mmdd <= 1031) return { key: 'halloween', label: 'Halloween at Bur Oaks', detail: 'Campfire nights and autumn fun', symbol: '☾' }
-  if (parts.month === 9 && parts.day >= laborDay - 3 && parts.day <= laborDay + 1) return { key: 'patriotic', label: 'Labor Day Weekend', detail: 'One more summer weekend together', symbol: '★' }
+  if (parts.month === 10) return { key: 'halloween', label: 'Halloween at Bur Oaks', detail: 'Campfire nights and autumn fun', symbol: '☾' }
+  if (laborDayDistance >= -7 && laborDayDistance <= 0) return { key: 'patriotic', label: 'Labor Day Weekend', detail: 'One more summer weekend together', symbol: '★' }
   if (mmdd >= 629 && mmdd <= 705) return { key: 'patriotic', label: 'Fourth of July', detail: 'Summer celebration at Bur Oaks', symbol: '★' }
   if (parts.month === 5 && parts.day >= memorialDay - 3 && parts.day <= memorialDay + 1) return { key: 'patriotic', label: 'Memorial Day Weekend', detail: 'Remembering and honoring together', symbol: '★' }
   if (Math.abs(daysFrom(parts, { year: parts.year, ...easter })) <= 5) return { key: 'easter', label: 'Easter at Bur Oaks', detail: 'Springtime is here', symbol: '✿' }
