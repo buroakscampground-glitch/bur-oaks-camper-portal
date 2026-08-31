@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { meterLabelCode, normalizeLotKey } from '../../../lib/meter-reading'
+import { displayLotNumber, meterLabelCode, normalizeLotKey } from '../../../lib/meter-reading'
 import { buildMonthlyBillingChecklist } from '../../../lib/meter-billing-checklist'
 import { recognizeMeterWithVision } from '../../../lib/meter-vision'
 import { checkRateLimit } from '../../../lib/rate-limit'
@@ -130,7 +130,7 @@ export async function GET(request: Request) {
       })
     }
     const sites = [...siteMap.values()].sort((a, b) =>
-      a.lot_number.localeCompare(b.lot_number, undefined, { numeric: true })
+      displayLotNumber(a.lot_number).localeCompare(displayLotNumber(b.lot_number), undefined, { numeric: true })
     )
     return NextResponse.json({ sites, monthStart: currentMonthStart() })
   }

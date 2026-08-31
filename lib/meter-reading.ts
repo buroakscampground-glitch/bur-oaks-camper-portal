@@ -9,7 +9,11 @@ export type MeterRecognitionCandidate = MeterOcrResult & {
 }
 
 export function normalizeLotKey(value: unknown) {
-  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/^LOT(?:\s+|[-#]+|(?=\d))/, '')
+    .replace(/[^A-Z0-9]/g, '')
 }
 
 export function displayLotNumber(value: unknown) {

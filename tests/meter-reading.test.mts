@@ -11,6 +11,9 @@ test('meter OCR extracts the longest likely numeric display', () => {
 
 test('meter labels contain stable lot and optional meter references', () => {
   assert.equal(normalizeLotKey(' ff-6 '), 'FF6')
+  assert.equal(normalizeLotKey('Lot 17'), '17')
+  assert.equal(normalizeLotKey('LOT17'), '17')
+  assert.equal(normalizeLotKey('17'), '17')
   assert.equal(meterLabelCode('ff-6', 'm 22'), 'BO-FF6-M22')
   assert.equal(meterLabelCode('39'), 'BO-39')
   assert.equal(displayLotNumber('Lot 17'), '17')
