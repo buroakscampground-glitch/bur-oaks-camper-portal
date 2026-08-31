@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
 import { isSystemPortalAccount } from './camper-records'
+import { uniquePrinterEmails } from './report-printer-emails'
 
 type PumpOutRequest = {
   id: string
@@ -236,12 +237,32 @@ export async function sendPumpOutReport(client: any, reportDate: string) {
   const pdfBytes = await buildPumpOutListPdf(requests, reportDate)
   const officeEmail = process.env.PUMP_OUT_REPORT_EMAIL || 'buroakscampground@gmail.com'
   const printerEmail = process.env.PUMP_OUT_PRINTER_EMAIL || 'una63106xie2gt@print.epsonconnect.com'
-
-  // Epson Email Print should receive its own message, not a CC, so it can process the attachment reliably.
-  const [office, printer] = await Promise.all([
-    sendReportEmail(officeEmail, pdfBytes, reportDate, requests.length),
-    sendReportEmail(printerEmail, pdfBytes, reportDate, requests.length),
+  const printerEmails = uniquePrinterEmails([
+    printerEmail,
+    process.env.PUMP_OUT_SECOND_PRINTER_EMAIL,
+    process.env.PUMP_OUT_ADDITIONAL_PRINTER_EMAILS,
   ])
 
-  return { requests, pdfBytes, office, printer, officeEmail, printerEmail }
+  // Epson Email Print should receive its own message, not a CC, so it can process the attachment reliably.
+  const [office, printers] = await Promise.all([
+    sendReportEmail(officeEmail, pdfBytes, reportDate, requests.length),
+    Promise.all(printerEmails.map(async (email) => ({
+      email,
+      delivery: await sendReportEmail(email, pdfBytes, reportDate, requests.length),
+    }))),
+  ])
+
+  const failedPrinters = printers.filter((item) => !item.delivery.sent)
+  const printer: DeliveryResult = {
+    sent: printers.length > 0 && failedPrinters.length === 0,
+    provider: printers.every((item) => item.delivery.provider === 'sendgrid')
+      ? 'sendgrid'
+      : printers.every((item) => item.delivery.provider === 'resend')
+        ? 'resend'
+        : null,
+    providerMessageId: printers.map((item) => item.delivery.providerMessageId).filter(Boolean).join(',') || null,
+    error: failedPrinters.map((item) => `${item.email}: ${item.delivery.error || 'delivery failed'}`).join(' | ') || undefined,
+  }
+
+  return { requests, pdfBytes, office, printer, printers, officeEmail, printerEmail, printerEmails }
 }
