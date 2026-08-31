@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { displayLotNumber, meterLabelCode, meterLotLabelsMatch, normalizeLotKey } from '../../../lib/meter-reading'
+import { displayLotNumber, meterLabelCode, meterLotLabelsMatch, meterLotLabelsShareBase, normalizeLotKey } from '../../../lib/meter-reading'
 import { buildMonthlyBillingChecklist } from '../../../lib/meter-billing-checklist'
 import { recognizeMeterWithVision } from '../../../lib/meter-vision'
 import { checkRateLimit } from '../../../lib/rate-limit'
@@ -244,14 +244,19 @@ export async function POST(request: Request) {
     }
   }
 
+  const lotMatched = recognition.visibleLot
+    ? meterLotLabelsMatch(lotNumber, recognition.visibleLot, knownLotNumbers)
+    : false
+  const relatedFLabel = recognition.visibleLot
+    ? meterLotLabelsShareBase(lotNumber, recognition.visibleLot)
+    : false
+  const lotNeedsReview = routeMode && !lotMatched
+
   if (routeMode) {
-    if (!recognition.visibleLot) {
-      return NextResponse.json({
-        error: 'The Bur Oaks lot label was not clear. Retake one photo showing both the meter digits and the QR/lot label.',
-        needsRetake: true,
-      }, { status: 422 })
-    }
-    if (!meterLotLabelsMatch(lotNumber, recognition.visibleLot, knownLotNumbers)) {
+    // Repeated leading letters are the weak point in camera OCR. Preserve a
+    // readable F/FF photo for mandatory office review instead of making the
+    // field worker retake it. Clearly different campsite labels still fail.
+    if (recognition.visibleLot && !lotMatched && !relatedFLabel) {
       return NextResponse.json({
         error: `This photo shows Lot ${recognition.visibleLot}, but the route expected Lot ${lotNumber}. Nothing was saved.`,
         needsRetake: true,
@@ -296,7 +301,8 @@ export async function POST(request: Request) {
     submission: await signedSubmission(context, data),
     verification: {
       visibleLot: recognition.visibleLot,
-      lotMatched: recognition.visibleLot ? meterLotLabelsMatch(lotNumber, recognition.visibleLot, knownLotNumbers) : null,
+      lotMatched,
+      lotNeedsReview,
     },
   })
 }

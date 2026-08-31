@@ -38,6 +38,15 @@ export function meterLotLabelsMatch(expected: unknown, visible: unknown, knownLo
   return !knownKeys.has(visibleKey)
 }
 
+export function meterLotLabelsShareBase(expected: unknown, visible: unknown) {
+  const expectedKey = normalizeLotKey(expected)
+  const visibleKey = normalizeLotKey(visible)
+  if (!expectedKey || !visibleKey || !expectedKey.startsWith('F')) return false
+  const expectedBase = expectedKey.replace(/^F+/, '')
+  const visibleBase = visibleKey.replace(/^F+/, '')
+  return Boolean(expectedBase && expectedBase === visibleBase)
+}
+
 export function extractMeterReading(text: string): MeterOcrResult {
   const candidates = String(text || '')
     .replace(/[Oo]/g, '0')

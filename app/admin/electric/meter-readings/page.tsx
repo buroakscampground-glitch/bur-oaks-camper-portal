@@ -4,10 +4,25 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CalendarDays, Camera, CheckCircle2, Download, Gauge, LoaderCircle, Mail, Printer, RefreshCw, RotateCcw, Trash2, Zap } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { campgroundAverageUsage, compareElectricUsage, groupedUsageHistory } from '../../../../lib/electric-reading-safeguards'
+import { normalizeLotKey } from '../../../../lib/meter-reading'
 
 async function token() {
   const { data } = await supabase.auth.getSession()
   return data.session?.access_token || ''
+}
+
+function visibleLotFromOcr(submission: any) {
+  try {
+    const parsed = JSON.parse(String(submission?.ocr_text || ''))
+    return String(parsed?.visible_lot_label || '').trim()
+  } catch {
+    return ''
+  }
+}
+
+function lotLabelNeedsReview(submission: any) {
+  const visible = visibleLotFromOcr(submission)
+  return !visible || normalizeLotKey(visible) !== normalizeLotKey(submission?.lot_number)
 }
 
 export default function AdminMeterReadingReviewPage() {
@@ -100,6 +115,13 @@ export default function AdminMeterReadingReviewPage() {
     setReviewed((current) => ({ ...current, [submission.id]: detected > 0 ? String(detected) : '' }))
     setMessage(`Lot ${submission.lot_number} was read as ${detected.toLocaleString()}. Verify the photo, then continue to billing.`)
     if (continueToBilling && detected > 0) {
+      if (lotLabelNeedsReview(result.submission)) {
+        const visible = visibleLotFromOcr(result.submission)
+        const confirmed = window.confirm(visible
+          ? `Safety check: the photo reader saw Lot ${visible}, but this reading is assigned to Lot ${submission.lot_number}. Verify the F/FF label in the photo before continuing.`
+          : `Safety check: the photo reader could not verify the printed lot label. Confirm this photo belongs to Lot ${submission.lot_number} before continuing.`)
+        if (!confirmed) return
+      }
       const saved = await updateSubmission(submission.id, { reviewedReading: detected, status: 'ready' })
       if (saved) window.location.href = `/admin/electric?meterDraft=${encodeURIComponent(submission.id)}`
     }
@@ -126,6 +148,13 @@ export default function AdminMeterReadingReviewPage() {
     if (!text || !Number.isFinite(value) || value <= 0) {
       await readPhotoAutomatically(submission, true)
       return
+    }
+    if (lotLabelNeedsReview(submission)) {
+      const visible = visibleLotFromOcr(submission)
+      const confirmed = window.confirm(visible
+        ? `Safety check: the photo reader saw Lot ${visible}, but this reading is assigned to Lot ${submission.lot_number}. Verify the F/FF label in the photo before continuing.`
+        : `Safety check: the photo reader could not verify the printed lot label. Confirm this photo belongs to Lot ${submission.lot_number} before continuing.`)
+      if (!confirmed) return
     }
     const saved = await updateSubmission(submission.id, { reviewedReading: value, status: 'ready' })
     if (saved) window.location.href = `/admin/electric?meterDraft=${encodeURIComponent(submission.id)}`
@@ -275,6 +304,8 @@ export default function AdminMeterReadingReviewPage() {
               ? compareElectricUsage(usage, groupedUsageHistory(readings, submission.camper_id), average)
               : null
             const needsAttention = usage !== null && (usage <= 0 || comparison?.status !== 'normal')
+            const visibleLot = visibleLotFromOcr(submission)
+            const needsLotReview = lotLabelNeedsReview(submission)
             return (
               <article className={`admin-meter-card ${needsAttention ? 'attention' : ''}`} key={submission.id}>
                 <div className="admin-meter-photo">
@@ -290,6 +321,7 @@ export default function AdminMeterReadingReviewPage() {
                     <div><dt>Usage</dt><dd>{usage !== null ? `${usage.toLocaleString()} kWh` : 'Needs history'}</dd></div>
                   </dl>
                   {needsAttention && <p className="admin-meter-warning"><AlertTriangle size={16} /> {usage !== null && usage <= 0 ? 'Current number is not above the previous reading.' : `Usage appears unusually ${comparison?.status}. Compare the photo carefully.`}</p>}
+                  {needsLotReview && <p className="admin-meter-warning"><AlertTriangle size={16} /> {visibleLot ? `F/FF safety check: reader saw Lot ${visibleLot}. Verify this is Lot ${submission.lot_number} before billing.` : `The printed lot label was not clear. Verify this is Lot ${submission.lot_number} before billing.`}</p>}
                   {comparison && comparison.recentAverage > 0 && <p className="admin-meter-comparison">Site average: {Math.round(comparison.recentAverage).toLocaleString()} kWh · {comparison.comparisonLabel}</p>}
                   <label><span>Office-confirmed meter number</span><input inputMode="numeric" value={reviewed[submission.id] || ''} onChange={(event) => setReviewed((currentValues) => ({ ...currentValues, [submission.id]: event.target.value.replace(/\D/g, '') }))} /></label>
                   <div className="admin-meter-actions">

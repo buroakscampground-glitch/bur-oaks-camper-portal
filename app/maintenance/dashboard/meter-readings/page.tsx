@@ -199,9 +199,14 @@ export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean
     }
 
     const readingValue = Number(submission?.detected_reading)
-    setMessage(readingValue > 0
-      ? `Lot ${selectedLot} verified and read as ${readingValue.toLocaleString()}. Moving to the next meter…`
-      : `Lot ${selectedLot} verified. The office will review the number. Moving to the next meter…`)
+    const labelNeedsReview = result.verification?.lotNeedsReview === true
+    setMessage(labelNeedsReview
+      ? readingValue > 0
+        ? `Lot ${selectedLot} read as ${readingValue.toLocaleString()}. The office will verify the F/FF label. Moving to the next meter…`
+        : `Lot ${selectedLot} photo was saved. The office will verify the label and number. Moving to the next meter…`
+      : readingValue > 0
+        ? `Lot ${selectedLot} verified and read as ${readingValue.toLocaleString()}. Moving to the next meter…`
+        : `Lot ${selectedLot} verified. The office will review the number. Moving to the next meter…`)
     const nextSkipped = skippedLots.filter((key) => key !== normalizeLotKey(selectedLot))
     storeSkipped(nextSkipped)
     window.setTimeout(() => advanceRoute(selectedLot, nextSkipped, updatedSites), 1100)

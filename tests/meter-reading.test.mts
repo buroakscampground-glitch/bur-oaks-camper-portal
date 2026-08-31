@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { chooseBestMeterRecognition, displayLotNumber, extractMeterReading, meterLabelCode, meterLotLabelsMatch, normalizeLotKey } from '../lib/meter-reading.ts'
+import { chooseBestMeterRecognition, displayLotNumber, extractMeterReading, meterLabelCode, meterLotLabelsMatch, meterLotLabelsShareBase, normalizeLotKey } from '../lib/meter-reading.ts'
 import { parseMeterVisionPayload } from '../lib/meter-vision.ts'
 
 test('meter OCR extracts the longest likely numeric display', () => {
@@ -25,6 +25,13 @@ test('meter labels tolerate a missed leading F only when the shorter site does n
   assert.equal(meterLotLabelsMatch('F2', 'FF2', ['F2', 'FF2']), false)
   assert.equal(meterLotLabelsMatch('FF2', 'F-2', ['F2', 'FF2']), false)
   assert.equal(meterLotLabelsMatch('FF15A', 'F15A', ['FF15A', 'F15A']), false)
+})
+
+test('related F and FF labels can be saved for office review without matching automatically', () => {
+  assert.equal(meterLotLabelsShareBase('FF1', 'F1'), true)
+  assert.equal(meterLotLabelsShareBase('FF2', 'F-2'), true)
+  assert.equal(meterLotLabelsShareBase('FF15A', '15A'), true)
+  assert.equal(meterLotLabelsShareBase('FF15A', '41'), false)
 })
 
 test('meter OCR favors a plausible reading near the previous lot reading', () => {
