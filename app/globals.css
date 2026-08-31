@@ -13476,3 +13476,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 .admin-report-kpi-clear{margin:0;padding:34px 22px;color:#315f3d;font-weight:900;text-align:center}
 @media(max-width:640px){.admin-report-kpis button{min-height:208px;padding:25px}.admin-report-kpis button>i{margin-top:10px;font-size:11px}.admin-report-kpi-detail-heading{padding:18px}.admin-report-kpi-detail-heading h2{font-size:24px}.admin-report-kpi-rows{max-height:none}.admin-report-kpi-rows article{grid-template-columns:1fr;padding:16px 18px}.admin-report-kpi-rows article>div:last-child{justify-items:start}.admin-report-kpi-rows article>div:last-child>strong{font-size:26px}}
 @media print{.admin-report-kpi-detail{display:none!important}}
+
+/* Zero-usage meter completions are finished without creating an invoice. */
+@media(min-width:761px){.electric-billing-statuses{grid-template-columns:repeat(7,minmax(0,1fr))}}
+.electric-billing-site-list article>span.status-no_bill{background:#e8f0f5;color:#315b6f}

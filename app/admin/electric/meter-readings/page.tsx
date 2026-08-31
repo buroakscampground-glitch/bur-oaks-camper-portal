@@ -33,6 +33,7 @@ export default function AdminMeterReadingReviewPage() {
   const [message, setMessage] = useState('')
   const [emailing, setEmailing] = useState(false)
   const [deletingId, setDeletingId] = useState('')
+  const [completingId, setCompletingId] = useState('')
   const [readingId, setReadingId] = useState('')
   const [labelEmail, setLabelEmail] = useState('')
   const [singleLabelLot, setSingleLabelLot] = useState('FF17')
@@ -166,6 +167,36 @@ export default function AdminMeterReadingReviewPage() {
       setMessage(`Lot ${submission.lot_number} marked for a new photo.`)
       load()
     }
+  }
+
+  async function completeNoUsage(submission: any) {
+    const text = String(reviewed[submission.id] || '').trim()
+    const value = Number(text)
+    if (!text || !Number.isFinite(value) || value <= 0) {
+      setMessage(`Confirm the meter number for Lot ${submission.lot_number} first.`)
+      return
+    }
+    const confirmed = window.confirm(
+      `Complete Lot ${submission.lot_number} with no electric bill?\n\nThe confirmed reading ${value.toLocaleString()} will be saved as next month's previous reading. No invoice, email, or text will be sent.`
+    )
+    if (!confirmed) return
+
+    setCompletingId(submission.id)
+    setMessage(`Saving Lot ${submission.lot_number} as no usage…`)
+    const auth = await token()
+    const response = await fetch('/api/meter-readings', {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${auth}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: submission.id, reviewedReading: value, completeNoUsage: true }),
+    })
+    const result = await response.json().catch(() => ({}))
+    setCompletingId('')
+    if (!response.ok) {
+      setMessage(result.error || 'Unable to complete this no-usage reading.')
+      return
+    }
+    setSubmissions((current) => current.filter((item) => item.id !== submission.id))
+    setMessage(`Lot ${submission.lot_number} completed with no usage. Reading ${value.toLocaleString()} was saved for next month; no bill or alert was sent.`)
   }
 
   async function deletePhoto(submission: any) {
@@ -328,7 +359,8 @@ export default function AdminMeterReadingReviewPage() {
                     <button type="button" className="danger" onClick={() => deletePhoto(submission)} disabled={deletingId === submission.id}>{deletingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <Trash2 size={16} />} Delete Photo</button>
                     <button type="button" className="secondary" onClick={() => markRetake(submission)}><RotateCcw size={16} /> Needs Retake</button>
                     <button type="button" className="secondary" onClick={() => readPhotoAutomatically(submission)} disabled={readingId === submission.id}>{readingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <Camera size={16} />} Read Photo Now</button>
-                    <button type="button" onClick={() => openInBilling(submission)} disabled={readingId === submission.id || (usage !== null && usage <= 0)}>{readingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <Zap size={16} />} Continue in Electric Billing</button>
+                    {usage === 0 && <button type="button" className="secondary" onClick={() => completeNoUsage(submission)} disabled={completingId === submission.id}>{completingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <CheckCircle2 size={16} />} No Usage — Complete Reading</button>}
+                    <button type="button" onClick={() => openInBilling(submission)} disabled={readingId === submission.id || (usage !== null && usage < 0)}>{readingId === submission.id ? <LoaderCircle className="meter-spin" size={16} /> : <Zap size={16} />} Continue in Electric Billing</button>
                   </div>
                 </div>
               </article>

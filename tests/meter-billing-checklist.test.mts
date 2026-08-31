@@ -25,5 +25,26 @@ test('monthly billing checklist groups shared profiles by lot and advances billi
   assert.equal(result.entries.length, 2)
   assert.equal(result.entries.find((item) => item.lot_number === '5')?.status, 'photo_ready')
   assert.equal(result.entries.find((item) => item.lot_number === '6')?.status, 'paid')
-  assert.deepEqual(result.counts, { not_read: 0, photo_ready: 1, needs_retake: 0, invoice_created: 0, paid: 1 })
+  assert.deepEqual(result.counts, { not_read: 0, photo_ready: 1, needs_retake: 0, no_bill: 0, invoice_created: 0, paid: 1 })
+})
+
+test('monthly billing checklist treats a saved zero-usage reading as complete without an invoice', () => {
+  const result = buildMonthlyBillingChecklist({
+    lots: [{ lot_number: '19', camper_id: 'camper-19' }],
+    campers: [{ id: 'camper-19', first_name: 'No', last_name: 'Usage', lot_number: '19', role: 'camper', active: true }],
+    submissions: [{
+      id: 'photo-19',
+      camper_id: 'camper-19',
+      lot_number: '19',
+      status: 'used',
+      reviewed_reading: 14318,
+      invoice_id: null,
+      ocr_text: JSON.stringify({ office_completion: 'no_usage' }),
+      captured_at: '2026-08-31T10:00:00Z',
+    }],
+    invoices: [],
+  })
+
+  assert.equal(result.entries[0]?.status, 'no_bill')
+  assert.deepEqual(result.counts, { not_read: 0, photo_ready: 0, needs_retake: 0, no_bill: 1, invoice_created: 0, paid: 0 })
 })

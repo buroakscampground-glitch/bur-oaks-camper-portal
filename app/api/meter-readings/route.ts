@@ -87,7 +87,7 @@ export async function GET(request: Request) {
       context.admin.from('campers').select('id,first_name,last_name,lot_number,role,active'),
       context.admin
         .from('meter_reading_submissions')
-        .select('id,camper_id,lot_number,status,detected_reading,submitted_reading,reviewed_reading,captured_at,invoice_id')
+        .select('id,camper_id,lot_number,status,detected_reading,submitted_reading,reviewed_reading,captured_at,invoice_id,ocr_text')
         .gte('captured_at', monthStart)
         .neq('status', 'cancelled')
         .order('captured_at', { ascending: false }),
@@ -354,6 +354,132 @@ export async function PATCH(request: Request) {
   const body = await request.json().catch(() => ({}))
   const id = String(body.id || '').trim()
   if (!id) return NextResponse.json({ error: 'Meter submission ID is required.' }, { status: 400 })
+
+  if (role === 'admin' && body.completeNoUsage === true) {
+    const reviewed = Number(body.reviewedReading)
+    if (!Number.isFinite(reviewed) || reviewed <= 0) {
+      return NextResponse.json({ error: 'Confirm the meter number before completing a no-usage reading.' }, { status: 400 })
+    }
+
+    const { data: submission, error: findError } = await context.admin
+      .from('meter_reading_submissions')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+    if (findError) return NextResponse.json({ error: findError.message }, { status: 500 })
+    if (!submission) return NextResponse.json({ error: 'This meter photo was not found.' }, { status: 404 })
+    if (submission.invoice_id) return NextResponse.json({ error: 'This meter photo is already connected to an invoice.' }, { status: 409 })
+
+    let ocrData: Record<string, any> = {}
+    try {
+      const parsed = JSON.parse(String(submission.ocr_text || '{}'))
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ocrData = parsed
+    } catch {
+      ocrData = { original_ocr_text: String(submission.ocr_text || '') }
+    }
+    if (submission.status === 'used' && ocrData.office_completion === 'no_usage') {
+      return NextResponse.json({ success: true, alreadyCompleted: true, submission })
+    }
+    if (!['pending', 'ready', 'retake'].includes(String(submission.status || ''))) {
+      return NextResponse.json({ error: 'This meter photo is no longer waiting for office review.' }, { status: 409 })
+    }
+
+    const [{ data: previous, error: previousError }, { data: pumpOuts, error: pumpError }, { data: siteCharges, error: siteChargeError }] = await Promise.all([
+      context.admin
+        .from('electric_readings')
+        .select('id,current_reading,rate_per_kwh,reading_date,invoice_id')
+        .eq('camper_id', submission.camper_id)
+        .order('reading_date', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      context.admin
+        .from('sewer_pump_out_requests')
+        .select('id')
+        .eq('camper_id', submission.camper_id)
+        .is('billed_at', null)
+        .neq('status', 'cancelled')
+        .limit(1),
+      context.admin
+        .from('site_service_charges')
+        .select('id')
+        .eq('camper_id', submission.camper_id)
+        .is('billed_at', null)
+        .is('cancelled_at', null)
+        .limit(1),
+    ])
+    if (previousError || pumpError || siteChargeError) {
+      return NextResponse.json({ error: previousError?.message || pumpError?.message || siteChargeError?.message }, { status: 500 })
+    }
+    if ((pumpOuts || []).length || (siteCharges || []).length) {
+      return NextResponse.json({ error: 'This site has another unbilled charge. Continue in Electric Billing so that charge is not missed.' }, { status: 409 })
+    }
+
+    const previousReading = Number(previous?.current_reading)
+    if (!Number.isFinite(previousReading) || previousReading <= 0) {
+      return NextResponse.json({ error: 'No previous meter reading exists. Review this one in Electric Billing before completing it.' }, { status: 409 })
+    }
+    if (reviewed < previousReading) {
+      return NextResponse.json({ error: `The confirmed reading ${reviewed} is below the previous reading ${previousReading}. Check the photo or mark it for retake.` }, { status: 409 })
+    }
+    if (reviewed > previousReading) {
+      return NextResponse.json({ error: `This site used ${reviewed - previousReading} kWh. Continue in Electric Billing instead of marking it no usage.` }, { status: 409 })
+    }
+
+    const readingDate = String(submission.captured_at || new Date().toISOString()).slice(0, 10)
+    const { data: existingReading, error: existingError } = await context.admin
+      .from('electric_readings')
+      .select('id,current_reading,kwh_used,invoice_id')
+      .eq('camper_id', submission.camper_id)
+      .eq('reading_date', readingDate)
+      .limit(1)
+      .maybeSingle()
+    if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 })
+    if (existingReading && !(Number(existingReading.current_reading) === reviewed && Number(existingReading.kwh_used) === 0 && !existingReading.invoice_id)) {
+      return NextResponse.json({ error: 'A different electric reading already exists for this site and date.' }, { status: 409 })
+    }
+
+    let insertedReadingId = ''
+    if (!existingReading) {
+      const { data: inserted, error: insertError } = await context.admin
+        .from('electric_readings')
+        .insert({
+          camper_id: submission.camper_id,
+          reading_date: readingDate,
+          previous_reading: previousReading,
+          current_reading: reviewed,
+          kwh_used: 0,
+          rate_per_kwh: Number(previous?.rate_per_kwh || 0),
+          amount_due: 0,
+          invoice_id: null,
+        })
+        .select('id')
+        .single()
+      if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
+      insertedReadingId = inserted.id
+    }
+
+    const completedAt = new Date().toISOString()
+    const { data: updated, error: updateError } = await context.admin
+      .from('meter_reading_submissions')
+      .update({
+        reviewed_reading: reviewed,
+        reviewed_by: context.user.email || null,
+        reviewed_at: completedAt,
+        status: 'used',
+        ocr_text: JSON.stringify({ ...ocrData, office_completion: 'no_usage', no_usage_completed_at: completedAt }),
+        updated_at: completedAt,
+      })
+      .eq('id', id)
+      .in('status', ['pending', 'ready', 'retake'])
+      .select('*')
+      .maybeSingle()
+    if (updateError || !updated) {
+      if (insertedReadingId) await context.admin.from('electric_readings').delete().eq('id', insertedReadingId)
+      return NextResponse.json({ error: updateError?.message || 'This meter photo changed before completion. Refresh and try again.' }, { status: 409 })
+    }
+
+    return NextResponse.json({ success: true, submission: updated, previousReading, currentReading: reviewed, invoiceCreated: false })
+  }
 
   if (role === 'admin' && body.reanalyze === true) {
     const { data: submission, error: findError } = await context.admin

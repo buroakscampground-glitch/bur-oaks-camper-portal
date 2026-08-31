@@ -36,9 +36,16 @@ export function buildMonthlyBillingChecklist({ lots = [], campers = [], submissi
     const invoice = linkedInvoice || siteInvoices[0] || null
     const reading = [latestSubmission?.reviewed_reading, latestSubmission?.submitted_reading, latestSubmission?.detected_reading]
       .find((value) => value !== null && value !== undefined && Number.isFinite(Number(value)) && Number(value) > 0)
+    let noUsage = false
+    try {
+      noUsage = latestSubmission?.status === 'used' && JSON.parse(String(latestSubmission?.ocr_text || '{}'))?.office_completion === 'no_usage'
+    } catch {
+      noUsage = false
+    }
 
     let status = 'not_read'
-    if (invoice?.status === 'paid') status = 'paid'
+    if (noUsage) status = 'no_bill'
+    else if (invoice?.status === 'paid') status = 'paid'
     else if (invoice || latestSubmission?.invoice_id || latestSubmission?.status === 'used') status = 'invoice_created'
     else if (latestSubmission?.status === 'retake' || (latestSubmission && reading === undefined)) status = 'needs_retake'
     else if (latestSubmission && reading !== undefined) status = 'photo_ready'
@@ -61,7 +68,7 @@ export function buildMonthlyBillingChecklist({ lots = [], campers = [], submissi
   const counts = entries.reduce((result: Record<string, number>, entry) => {
     result[entry.status] = (result[entry.status] || 0) + 1
     return result
-  }, { not_read: 0, photo_ready: 0, needs_retake: 0, invoice_created: 0, paid: 0 })
+  }, { not_read: 0, photo_ready: 0, needs_retake: 0, no_bill: 0, invoice_created: 0, paid: 0 })
 
   return { entries, counts }
 }

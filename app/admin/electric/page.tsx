@@ -222,7 +222,7 @@ export default function AdminElectricPage() {
       supabase.from('campers').select('id,first_name,last_name,lot_number,role,active'),
       supabase
         .from('meter_reading_submissions')
-        .select('id,camper_id,lot_number,status,detected_reading,submitted_reading,reviewed_reading,captured_at,invoice_id')
+        .select('id,camper_id,lot_number,status,detected_reading,submitted_reading,reviewed_reading,captured_at,invoice_id,ocr_text')
         .gte('captured_at', monthStart)
         .neq('status', 'cancelled')
         .order('captured_at', { ascending: false }),
@@ -332,7 +332,7 @@ const liveInvoiceAfterCredits = Math.max(0, liveInvoiceTotal - estimatedCreditTo
 const filteredBillingChecklist = checklistFilter === 'all'
   ? billingChecklist
   : billingChecklist.filter((item) => item.status === checklistFilter)
-const billedCount = Number(checklistCounts.invoice_created || 0) + Number(checklistCounts.paid || 0)
+const completedCount = Number(checklistCounts.no_bill || 0) + Number(checklistCounts.invoice_created || 0) + Number(checklistCounts.paid || 0)
 const waterTrashReviewKey = electricWaterReviewKey(camperId, includeWaterTrash, selectedWaterTrashFee)
 const additionalChargesReviewKey = [
   camperId,
@@ -430,8 +430,8 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
       return
     }
 
-    if (current <= previous) {
-      setMessage('Current reading must be greater than previous reading.')
+    if (current < previous) {
+      setMessage('Current reading cannot be below the previous reading.')
       setSaving(false)
       return
     }
@@ -563,17 +563,23 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
     }
     const siteServiceTotal = Number(activeSiteServices.reduce((sum, charge) => sum + Number(charge.charge_amount || 0), 0).toFixed(2))
     const totalDue = Number((amountDue + secondAmountDue + waterTrashAmount + manualPumpAmount + pumpOutTotal + siteServiceTotal).toFixed(2))
+    if (kwhUsed === 0 && totalDue <= 0) {
+      setMessage('No invoice was created. This site has no usage or other charges; use “No Usage — Complete Reading” on the meter review screen.')
+      setSaving(false)
+      return
+    }
 
     const invoiceNumber = `ELECTRIC-${selectedCamper?.lot_number || 'UNKNOWN'}-${Date.now()}`
 
-    const invoiceItems = [
-      {
+    const invoiceItems: Array<{ description: string; quantity: number; unit_price: number; total: number }> = []
+    if (kwhUsed > 0) {
+      invoiceItems.push({
         description: `Electric Usage - Main meter - ${kwhUsed} kWh used @ $${rateNumber.toFixed(2)}/kWh`,
         quantity: kwhUsed,
         unit_price: rateNumber,
         total: amountDue,
-      },
-    ]
+      })
+    }
 
     if (includeSecondMeter) {
       invoiceItems.push({
@@ -659,7 +665,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
           camper_id: camperId,
           invoice_number: invoiceNumber,
           invoice_type: [
-            'Electric',
+            kwhUsed > 0 ? 'Electric' : '',
             includeSecondMeter ? 'Second Meter' : '',
             includeWaterTrash ? 'Water/Trash' : '',
             manualPumpAmount > 0 ? 'Manual Pumping Charge' : '',
@@ -698,7 +704,9 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
       return
     }
 
-    let resultMessage = `Electric invoice created. Main meter: ${kwhUsed} kWh × $${rateNumber.toFixed(2)} = $${amountDue.toFixed(2)}`
+    let resultMessage = kwhUsed > 0
+      ? `Electric invoice created. Main meter: ${kwhUsed} kWh × $${rateNumber.toFixed(2)} = $${amountDue.toFixed(2)}`
+      : 'Charge-only invoice created. The meter reading was saved with no electric usage'
 
     if (includeSecondMeter) {
       resultMessage += ` + ${secondMeterReason || 'Second meter'}: ${secondKwhUsed} kWh × $${secondRateNumber.toFixed(2)} = $${secondAmountDue.toFixed(2)}`
@@ -850,7 +858,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
               <span><ClipboardCheck size={22} /></span>
               <div>
                 <small>MONTHLY BILLING CHECKLIST</small>
-                <h2>{billedCount} of {billingChecklist.length} sites billed</h2>
+                <h2>{completedCount} of {billingChecklist.length} sites completed</h2>
                 <p>{checklistMonth ? new Date(`${checklistMonth.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'Current month'} · Updates automatically</p>
               </div>
             </header>
@@ -861,6 +869,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
                 ['not_read', 'Not Read', checklistCounts.not_read || 0],
                 ['photo_ready', 'Photo Ready', checklistCounts.photo_ready || 0],
                 ['needs_retake', 'Needs Retake', checklistCounts.needs_retake || 0],
+                ['no_bill', 'No Usage', checklistCounts.no_bill || 0],
                 ['invoice_created', 'Invoice Created', checklistCounts.invoice_created || 0],
                 ['paid', 'Paid', checklistCounts.paid || 0],
               ].map(([key, label, count]) => (
@@ -888,6 +897,8 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
                     <a href={`/admin/electric?meterDraft=${encodeURIComponent(item.submission_id)}`}>Open for Billing</a>
                   ) : item.status === 'needs_retake' ? (
                     <a href="/admin/electric/meter-readings">Review</a>
+                  ) : item.status === 'no_bill' ? (
+                    <em>Reading saved · no bill</em>
                   ) : item.invoice_id ? (
                     <a href={`/admin/invoices/${encodeURIComponent(item.invoice_id)}`}>View Invoice</a>
                   ) : <em>Waiting on maintenance</em>}
@@ -1492,6 +1503,8 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
               ? 'Saving…'
               : !billingReviewComplete
                 ? 'Review Charges Before Creating Invoice'
+                : liveUsage === 0 && liveInvoiceTotal > 0
+                  ? 'Save Reading + Create Charge-Only Invoice'
                 : includeWaterTrash
                   ? 'Save Reading + Create Combined Invoice'
                   : 'Save Reading + Create Invoice'}
