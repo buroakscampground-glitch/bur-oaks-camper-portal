@@ -1,4 +1,4 @@
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { PDFDocument, PDFFont, StandardFonts, rgb } from 'pdf-lib'
 import QRCode from 'qrcode'
 import { getSiteUrl } from './site-url'
 import { displayLotNumber, meterLabelCode } from './meter-reading'
@@ -18,6 +18,12 @@ const ROWS = 5
 const LABEL_WIDTH = (PAGE_WIDTH - MARGIN_X * 2 - GAP) / COLUMNS
 const LABEL_HEIGHT = (PAGE_HEIGHT - MARGIN_Y * 2 - GAP * (ROWS - 1)) / ROWS
 
+function fitTextSize(font: PDFFont, text: string, maximum: number, minimum: number, width: number) {
+  const widthAtOnePoint = font.widthOfTextAtSize(text, 1)
+  if (!widthAtOnePoint) return maximum
+  return Math.max(minimum, Math.min(maximum, width / widthAtOnePoint))
+}
+
 export async function buildMeterLabelsPdf(sites: MeterLabelSite[]) {
   const pdf = await PDFDocument.create()
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
@@ -34,6 +40,11 @@ export async function buildMeterLabelsPdf(sites: MeterLabelSite[]) {
       const row = Math.floor(slot / COLUMNS)
       const x = MARGIN_X + column * (LABEL_WIDTH + GAP)
       const y = PAGE_HEIGHT - MARGIN_Y - (row + 1) * LABEL_HEIGHT - row * GAP
+      const qrX = x + LABEL_WIDTH - 124
+      const leftTextX = x + 13
+      const leftTextWidth = qrX - leftTextX - 10
+      const lotLabel = `LOT ${displayedLot}`
+      const lotLabelSize = fitTextSize(bold, lotLabel, 31, 17, leftTextWidth)
       const code = meterLabelCode(site.lot_number, site.meter_number)
       const scanUrl = new URL('/maintenance/dashboard/meter-readings', getSiteUrl())
       scanUrl.searchParams.set('lot', String(site.lot_number))
@@ -63,17 +74,18 @@ export async function buildMeterLabelsPdf(sites: MeterLabelSite[]) {
         font: bold,
         color: rgb(.12, .28, .18),
       })
-      page.drawText(`LOT ${displayedLot}`, {
-        x: x + 13,
+      page.drawText(lotLabel, {
+        x: leftTextX,
         y: y + LABEL_HEIGHT - 65,
-        size: displayedLot.length > 6 ? 24 : 31,
+        size: lotLabelSize,
         font: bold,
         color: rgb(.55, .13, .11),
       })
-      page.drawText(site.meter_number ? `Meter ${site.meter_number}` : 'Meter number not entered', {
-        x: x + 13,
+      const meterLabel = site.meter_number ? `Meter ${site.meter_number}` : 'Meter number not entered'
+      page.drawText(meterLabel, {
+        x: leftTextX,
         y: y + LABEL_HEIGHT - 88,
-        size: 10,
+        size: fitTextSize(bold, meterLabel, 10, 7, leftTextWidth),
         font: bold,
         color: rgb(.22, .28, .23),
       })
@@ -92,7 +104,7 @@ export async function buildMeterLabelsPdf(sites: MeterLabelSite[]) {
         color: rgb(.42, .45, .42),
       })
       page.drawImage(qrImage, {
-        x: x + LABEL_WIDTH - 124,
+        x: qrX,
         y: y + 25,
         width: 110,
         height: 110,
