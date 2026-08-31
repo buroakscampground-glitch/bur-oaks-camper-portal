@@ -53,6 +53,7 @@ export default function CamperInvoiceDetailPage() {
   const [camper, setCamper] = useState<any>(null)
   const [invoice, setInvoice] = useState<any>(null)
   const [items, setItems] = useState<any[]>([])
+  const [meterPhoto, setMeterPhoto] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [message, setMessage] = useState('')
@@ -106,6 +107,19 @@ export default function CamperInvoiceDetailPage() {
       setFeeSettings(paymentFeeSettings)
       setInvoice(data || null)
       setItems(Array.isArray(data?.invoice_items) ? data.invoice_items : [])
+
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (data && token) {
+        const response = await fetch(`/api/camper-meter-photos?invoiceId=${encodeURIComponent(invoiceId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null)
+
+        if (response?.ok) {
+          const result = await response.json()
+          setMeterPhoto(Array.isArray(result.photos) ? result.photos[0] || null : null)
+        }
+      }
       setLoading(false)
     }
 
@@ -304,6 +318,24 @@ export default function CamperInvoiceDetailPage() {
               </article>
             ))}
           </div>
+
+          {meterPhoto && (
+            <section style={{ marginTop: '22px', padding: '18px', border: '1px solid #dfe7dc', borderRadius: '16px', background: '#f7faf6' }}>
+              <small style={{ display: 'block', marginBottom: '8px', fontWeight: 800, letterSpacing: '.08em' }}>METER PHOTO</small>
+              <a href={meterPhoto.photo_url} target="_blank" rel="noreferrer" title="Open the full-size meter photo">
+                <img
+                  src={meterPhoto.photo_url}
+                  alt={`Meter reading for Lot ${meterPhoto.lot_number}`}
+                  style={{ display: 'block', width: '100%', maxHeight: '460px', objectFit: 'contain', borderRadius: '12px', background: '#e9efe7' }}
+                />
+              </a>
+              <p style={{ margin: '10px 0 0' }}>
+                <strong>Lot {meterPhoto.lot_number}</strong>
+                {' · '}{new Date(meterPhoto.captured_at).toLocaleDateString()}
+                {meterPhoto.reading !== null ? ` · Reading ${Number(meterPhoto.reading).toLocaleString()}` : ''}
+              </p>
+            </section>
+          )}
 
           {!isPaid && !isProcessing && (
             <div className="camper-invoice-payment-choice">

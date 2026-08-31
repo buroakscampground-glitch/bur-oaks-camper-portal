@@ -6,6 +6,7 @@ import { getCurrentCamper, supabase } from '../../lib/supabase'
 
 export default function ElectricPage() {
   const [readings, setReadings] = useState<any[]>([])
+  const [meterPhotos, setMeterPhotos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
@@ -34,6 +35,19 @@ export default function ElectricPage() {
         .order('reading_date', { ascending: false })
 
       setReadings(data || [])
+
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (token) {
+        const response = await fetch('/api/camper-meter-photos', {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null)
+
+        if (response?.ok) {
+          const result = await response.json()
+          setMeterPhotos(Array.isArray(result.photos) ? result.photos : [])
+        }
+      }
       setLoading(false)
     }
 
@@ -161,6 +175,41 @@ const yearlyUsage = readings
   <p className="muted">Lifetime Usage</p>
 </section>
 </div>
+
+        {meterPhotos.length > 0 && (
+          <section className="card" style={{ marginBottom: '25px' }}>
+            <h2 style={{ marginBottom: '6px' }}>Your Meter Photos</h2>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Each billed meter reading includes the picture taken at your campsite.
+            </p>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '16px',
+              }}
+            >
+              {meterPhotos.map((photo) => (
+                <article key={photo.id} style={{ border: '1px solid #dfe7dc', borderRadius: '12px', overflow: 'hidden' }}>
+                  <a href={photo.photo_url} target="_blank" rel="noreferrer" title="Open the full-size meter photo">
+                    <img
+                      src={photo.photo_url}
+                      alt={`Meter reading for Lot ${photo.lot_number}`}
+                      style={{ display: 'block', width: '100%', height: '190px', objectFit: 'cover', background: '#eef4ea' }}
+                    />
+                  </a>
+                  <div style={{ padding: '12px 14px' }}>
+                    <strong>Lot {photo.lot_number}</strong>
+                    <p className="muted" style={{ margin: '4px 0 0' }}>
+                      {new Date(photo.captured_at).toLocaleDateString()}
+                      {photo.reading !== null ? ` · Reading ${Number(photo.reading).toLocaleString()}` : ''}
+                    </p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
 
         {readings.length === 0 && (
           <section className="card">
