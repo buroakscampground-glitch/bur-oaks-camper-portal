@@ -18,7 +18,8 @@ export async function GET(request: Request) {
   ])
   if (camperError || lotError) return NextResponse.json({ error: camperError?.message || lotError?.message }, { status: 500 })
 
-  const camperRows = (campers || []).filter((row: any) => normalizeLotKey(row.lot_number) === 'FF17')
+  const relatedTo17 = (value: unknown) => normalizeLotKey(value).replace(/^F+/, '') === '17'
+  const camperRows = (campers || []).filter((row: any) => relatedTo17(row.lot_number))
   const camperIds = camperRows.map((row: any) => row.id)
   const [{ data: submissions, error: submissionError }, { data: readings, error: readingError }] = await Promise.all([
     admin.from('meter_reading_submissions')
@@ -36,9 +37,10 @@ export async function GET(request: Request) {
   if (submissionError || readingError) return NextResponse.json({ error: submissionError?.message || readingError?.message }, { status: 500 })
 
   return NextResponse.json({
+    exactFf17Exists: camperRows.some((row: any) => normalizeLotKey(row.lot_number) === 'FF17') || (lots || []).some((row: any) => normalizeLotKey(row.lot_number) === 'FF17'),
     campers: camperRows,
-    lot: (lots || []).find((row: any) => normalizeLotKey(row.lot_number) === 'FF17') || null,
-    submissions: (submissions || []).filter((row: any) => normalizeLotKey(row.lot_number) === 'FF17' || camperIds.includes(row.camper_id)).slice(0, 20),
+    lots: (lots || []).filter((row: any) => relatedTo17(row.lot_number)),
+    submissions: (submissions || []).filter((row: any) => relatedTo17(row.lot_number) || camperIds.includes(row.camper_id)).slice(0, 20),
     readings: readings || [],
   })
 }
