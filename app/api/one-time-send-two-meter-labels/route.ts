@@ -38,10 +38,9 @@ export async function POST(request: Request) {
 
   const selected = requestedKeys.map((key) =>
     (lots || []).find((lot: any) => normalizeLotKey(lot.lot_number) === key) ||
-    (campers || []).find((camper: any) => camper.active !== false && normalizeLotKey(camper.lot_number) === key)
+    (campers || []).find((camper: any) => camper.active !== false && normalizeLotKey(camper.lot_number) === key) ||
+    { lot_number: key, meter_number: null }
   )
-  const missing = requestedKeys.filter((_, index) => !selected[index])
-  if (missing.length) return NextResponse.json({ error: `Missing lot records: ${missing.join(', ')}` }, { status: 404 })
 
   const labels = selected.map((lot: any) => ({
     lot_number: String(lot.lot_number),
