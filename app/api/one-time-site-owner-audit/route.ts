@@ -28,10 +28,23 @@ export async function GET(request: Request) {
   const relevantLot = (value: unknown) => ['1', 'TEMP1', '16', 'FF16', '17', 'FF17', '18'].includes(normalizeLotKey(value))
   const camperRows = (campers || []).filter((row: any) => relevantName(row) || relevantLot(row.lot_number))
   const camperIds = new Set(camperRows.map((row: any) => row.id))
+  const submissionRows = (submissions || []).filter((row: any) => relevantLot(row.lot_number) || camperIds.has(row.camper_id)).slice(0, 100)
+  const invoiceIds = submissionRows.map((row: any) => row.invoice_id).filter(Boolean)
+  const [{ data: invoices, error: invoiceError }, { data: readings, error: readingError }] = await Promise.all([
+    invoiceIds.length
+      ? admin.from('invoices').select('id,camper_id,invoice_number,invoice_type,status,subtotal,late_fee,total_due,due_date,paid_at,created_at,invoice_items(id,description,quantity,unit_price,total)').in('id', invoiceIds)
+      : Promise.resolve({ data: [], error: null }),
+    invoiceIds.length
+      ? admin.from('electric_readings').select('id,camper_id,previous_reading,current_reading,kwh_used,rate_per_kwh,amount_due,reading_date,invoice_id').in('invoice_id', invoiceIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (invoiceError || readingError) return NextResponse.json({ error: invoiceError?.message || readingError?.message }, { status: 500 })
 
   return NextResponse.json({
     campers: camperRows,
     lots: (lots || []).filter((row: any) => relevantLot(row.lot_number) || camperIds.has(row.camper_id)),
-    submissions: (submissions || []).filter((row: any) => relevantLot(row.lot_number) || camperIds.has(row.camper_id)).slice(0, 100),
+    submissions: submissionRows,
+    invoices: invoices || [],
+    readings: readings || [],
   })
 }
