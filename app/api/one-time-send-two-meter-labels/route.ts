@@ -28,11 +28,17 @@ export async function POST(request: Request) {
   }
 
   const admin = createClient(url, serviceKey)
-  const { data: lots, error } = await admin.from('lots').select('lot_number,meter_number')
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const [{ data: lots, error: lotsError }, { data: campers, error: campersError }] = await Promise.all([
+    admin.from('lots').select('lot_number,meter_number'),
+    admin.from('campers').select('lot_number,active,role'),
+  ])
+  if (lotsError || campersError) {
+    return NextResponse.json({ error: lotsError?.message || campersError?.message }, { status: 500 })
+  }
 
   const selected = requestedKeys.map((key) =>
-    (lots || []).find((lot: any) => normalizeLotKey(lot.lot_number) === key)
+    (lots || []).find((lot: any) => normalizeLotKey(lot.lot_number) === key) ||
+    (campers || []).find((camper: any) => camper.active !== false && normalizeLotKey(camper.lot_number) === key)
   )
   const missing = requestedKeys.filter((_, index) => !selected[index])
   if (missing.length) return NextResponse.json({ error: `Missing lot records: ${missing.join(', ')}` }, { status: 404 })
