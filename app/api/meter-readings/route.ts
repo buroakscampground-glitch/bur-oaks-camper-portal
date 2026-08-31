@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { displayLotNumber, meterLabelCode, normalizeLotKey } from '../../../lib/meter-reading'
+import { displayLotNumber, meterLabelCode, meterLotLabelsMatch, normalizeLotKey } from '../../../lib/meter-reading'
 import { buildMonthlyBillingChecklist } from '../../../lib/meter-billing-checklist'
 import { recognizeMeterWithVision } from '../../../lib/meter-vision'
 import { checkRateLimit } from '../../../lib/rate-limit'
@@ -43,7 +43,8 @@ async function findSiteCamper(context: any, lotNumber: string) {
     normalizeLotKey(camper.lot_number) === normalizedLot
   )
   const camper = operational.find((item: any) => item.id === lot?.camper_id) || operational[0] || null
-  return { lot, camper }
+  const knownLotNumbers = [...(lotRows || []), ...(camperRows || [])].map((row: any) => row.lot_number)
+  return { lot, camper, knownLotNumbers }
 }
 
 async function latestReadingForCamper(context: any, camperId: string | null | undefined) {
@@ -212,7 +213,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Confirm the meter number shown in the photo.' }, { status: 400 })
   }
 
-  const { lot, camper } = await findSiteCamper(context, lotNumber)
+  const { lot, camper, knownLotNumbers } = await findSiteCamper(context, lotNumber)
   if (!camper) return NextResponse.json({ error: `No active camper billing record was found for Lot ${lotNumber}.` }, { status: 404 })
 
   if (routeMode) {
@@ -250,7 +251,7 @@ export async function POST(request: Request) {
         needsRetake: true,
       }, { status: 422 })
     }
-    if (normalizeLotKey(recognition.visibleLot) !== normalizeLotKey(lotNumber)) {
+    if (!meterLotLabelsMatch(lotNumber, recognition.visibleLot, knownLotNumbers)) {
       return NextResponse.json({
         error: `This photo shows Lot ${recognition.visibleLot}, but the route expected Lot ${lotNumber}. Nothing was saved.`,
         needsRetake: true,
@@ -295,7 +296,7 @@ export async function POST(request: Request) {
     submission: await signedSubmission(context, data),
     verification: {
       visibleLot: recognition.visibleLot,
-      lotMatched: recognition.visibleLot ? normalizeLotKey(recognition.visibleLot) === normalizeLotKey(lotNumber) : null,
+      lotMatched: recognition.visibleLot ? meterLotLabelsMatch(lotNumber, recognition.visibleLot, knownLotNumbers) : null,
     },
   })
 }

@@ -113,6 +113,7 @@ export async function recognizeMeterWithVision(
     'Read the ELECTRIC METER REGISTER in this photograph.',
     'Return the digits shown in the small mechanical kilowatthour number window only.',
     'Separately read the campsite identifier visibly printed on the BUR OAKS CAMPGROUND label beside the QR code, such as LOT FF18 or LOT 39.',
+    options.lotNumber ? `The selected campsite is ${options.lotNumber}. Carefully count every leading F on the printed label; F2 and FF2 are different campsites.` : '',
     'Do not treat that lot identifier, the QR code, a serial number, or a phone status bar as the meter reading.',
     'Mechanical wheels may be between digits: choose the digit that has fully passed, which is normally the lower digit.',
     'Preserve leading zeroes. Do not calculate usage and do not invent an obscured digit.',

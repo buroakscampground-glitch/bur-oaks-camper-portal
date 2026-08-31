@@ -20,6 +20,24 @@ export function displayLotNumber(value: unknown) {
   return String(value || '').trim().replace(/^lot\s+/i, '')
 }
 
+export function meterLotLabelsMatch(expected: unknown, visible: unknown, knownLots: unknown[] = []) {
+  const expectedKey = normalizeLotKey(expected)
+  const visibleKey = normalizeLotKey(visible)
+  if (!expectedKey || !visibleKey) return false
+  if (expectedKey === visibleKey) return true
+
+  // A camera can miss one of the tightly-spaced leading F characters on labels
+  // such as FF15A. Accept that only when no real campsite uses the shorter key.
+  // This keeps distinct sites such as F2 and FF2 from ever being confused.
+  if (!expectedKey.startsWith('F')) return false
+  const expectedBase = expectedKey.replace(/^F+/, '')
+  const visibleBase = visibleKey.replace(/^F+/, '')
+  if (!expectedBase || expectedBase !== visibleBase) return false
+
+  const knownKeys = new Set(knownLots.map(normalizeLotKey).filter(Boolean))
+  return !knownKeys.has(visibleKey)
+}
+
 export function extractMeterReading(text: string): MeterOcrResult {
   const candidates = String(text || '')
     .replace(/[Oo]/g, '0')
