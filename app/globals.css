@@ -5017,9 +5017,22 @@ button:hover {
 }
 
 @media(max-width:1280px) {
-  .seasonal-theme-card { margin: 0; }
-  .camper-sidebar>.seasonal-theme-card,
-  .admin-sidebar>.seasonal-theme-card { display: none; }
+  .seasonal-theme-card {
+    grid-template-columns: 34px minmax(0, 1fr);
+    margin: 0 0 12px;
+    padding: 9px 11px;
+    border-radius: 14px;
+  }
+
+  .seasonal-theme-card>span {
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    font-size: 18px;
+  }
+
+  .seasonal-theme-card strong { font-size: 13px; }
+  .seasonal-theme-card small { font-size: 9px; }
 }
 
 @media(prefers-reduced-motion: reduce) {
