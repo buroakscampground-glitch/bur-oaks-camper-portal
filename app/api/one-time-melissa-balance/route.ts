@@ -9,9 +9,12 @@ export async function GET(request: Request) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return NextResponse.json({ error: 'Database is not configured.' }, { status: 500 })
   const admin = createClient(url, key)
-  const camperResult = await admin.from('campers').select('id,first_name,last_name,lot_number,active').ilike('last_name', '%hassan%')
+  const camperResult = await admin.from('campers').select('id,first_name,last_name,lot_number,active').or('first_name.ilike.%melis%,last_name.ilike.%hass%')
   if (camperResult.error) return NextResponse.json({ error: camperResult.error.message }, { status: 500 })
-  const campers = camperResult.data || []
+  const campers = (camperResult.data || []).filter((camper) => {
+    const name = `${camper.first_name || ''} ${camper.last_name || ''}`.toLowerCase()
+    return name.includes('melis') && name.includes('hass')
+  })
   const ids = campers.map((camper) => camper.id)
   if (!ids.length) return NextResponse.json({ campers: [], openInvoices: [], pumpOuts: [], balance: 0 })
   const [invoiceResult, pumpResult] = await Promise.all([
