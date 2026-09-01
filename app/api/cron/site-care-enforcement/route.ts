@@ -32,6 +32,10 @@ function isAuthorized(request: Request) {
   return Boolean(secret) && request.headers.get('authorization') === `Bearer ${secret}`
 }
 
+function cleanLotNumber(value: unknown) {
+  return String(value || '').trim().replace(/^lot\s+/i, '')
+}
+
 export async function GET(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
 
@@ -77,7 +81,7 @@ export async function GET(request: Request) {
 
     const marker = siteCareSourceMarker(String(notice.id))
     const camperName = `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
-    const lotNumber = String(notice.lot_number || camper.lot_number || '').trim()
+    const lotNumber = cleanLotNumber(notice.lot_number || camper.lot_number)
     const chargeNotes = `Automatic deadline charge · ${marker}`
     const ticketDescription = `${notice.message} The camper did not mark this site-care item ready for office review before the automatic date ${notice.due_date}. Complete only the listed grounds work; do not move or handle the camper's personal property. ${marker}`
 
