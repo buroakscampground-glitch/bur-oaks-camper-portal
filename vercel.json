@@ -26,7 +26,11 @@
     },
     {
       "path": "/api/cron/daily-payment-report-retry",
-      "schedule": "15 13,14 * * *"
+      "schedule": "15 13 * * *"
+    },
+    {
+      "path": "/api/cron/daily-payment-report-retry-late",
+      "schedule": "15 14 * * *"
     },
     {
       "path": "/api/cron/season-renewals",
