@@ -126,12 +126,14 @@ export default function AdminMonthlyReportsPage() {
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [openKpi, setOpenKpi] = useState<'received' | 'paid' | 'average' | 'past-due' | 'owed' | null>(null)
+  const [monthlyDetail, setMonthlyDetail] = useState('all')
 
   const range = useMemo(() => monthRange(month), [month])
   const annualRange = useMemo(() => yearRange(month), [month])
 
   useEffect(() => {
     loadReport()
+    setMonthlyDetail('all')
   }, [month])
 
   useEffect(() => {
@@ -175,7 +177,7 @@ export default function AdminMonthlyReportsPage() {
         .order('paid_at', { ascending: false }),
       supabase
         .from('invoices')
-        .select('id,invoice_number,invoice_type,total_due,due_date,status,created_at,campers(first_name,last_name,lot_number)')
+        .select(invoiceSelect)
         .in('status', ['open', 'sent', 'overdue', 'processing'])
         .order('due_date', { ascending: true }),
       supabase
@@ -305,6 +307,25 @@ export default function AdminMonthlyReportsPage() {
   const dueMonthSummary = monthlyDueSummary(dueInvoices, month)
   const carryoverInvoices = outstandingInvoices.filter((invoice) => invoice.due_date && invoice.due_date < `${month}-01`)
   const carryoverBalance = carryoverInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const carryoverLines = carryoverInvoices.flatMap(invoiceLineItems)
+  const monthlyDetailLines = monthlyDetail === 'carryover'
+    ? carryoverLines
+    : dueMonthSummary.lines.filter((line) => {
+        const status = String(line.invoice.status || '').toLowerCase()
+        if (monthlyDetail === 'paid') return status === 'paid'
+        if (monthlyDetail === 'open') return status !== 'paid'
+        if (monthlyDetail.startsWith('category:')) return line.category === monthlyDetail.slice('category:'.length)
+        return true
+      })
+  const monthlyDetailLabel = monthlyDetail === 'paid'
+    ? `Already paid in ${range.label}`
+    : monthlyDetail === 'open'
+      ? `Still open for ${range.label}`
+      : monthlyDetail === 'carryover'
+        ? 'Earlier-month unpaid carryover'
+        : monthlyDetail.startsWith('category:')
+          ? `${monthlyDetail.slice('category:'.length)} charges in ${range.label}`
+          : `All charges due in ${range.label}`
   const futureDueMonths = futureOpenSchedule(outstandingInvoices, month)
   const futureDueTotal = futureDueMonths.reduce((sum, row) => sum + row.total, 0)
   const today = new Date().toISOString().slice(0, 10)
@@ -418,6 +439,11 @@ export default function AdminMonthlyReportsPage() {
 
   function toggleKpi(kpi: 'received' | 'paid' | 'average' | 'past-due') {
     setOpenKpi((current) => current === kpi ? null : kpi)
+  }
+
+  function showMonthlyDetail(detail: string) {
+    setMonthlyDetail(detail)
+    window.setTimeout(() => document.getElementById('admin-report-month-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }
 
   return (
@@ -594,11 +620,13 @@ export default function AdminMonthlyReportsPage() {
               <strong className="admin-report-prepared">{dueMonthSummary.invoices.length} invoices · {formatMoney(dueMonthSummary.total)}</strong>
             </div>
 
+            <p className="admin-report-month-click-hint">Tap any box to see every camper, invoice, and charge included in that number.</p>
+
             <div className="admin-report-month-totals">
-              <article><small>Total due in {range.label}</small><strong>{formatMoney(dueMonthSummary.total)}</strong><em>Paid and unpaid scheduled for this month</em></article>
-              <article><small>Already paid</small><strong>{formatMoney(dueMonthSummary.paid)}</strong><em>Invoices from this due month marked paid</em></article>
-              <article><small>Still open</small><strong>{formatMoney(dueMonthSummary.open)}</strong><em>Unpaid invoices due this month</em></article>
-              <article><small>Earlier-month carryover</small><strong>{formatMoney(carryoverBalance)}</strong><em>{carryoverInvoices.length} unpaid invoice{carryoverInvoices.length === 1 ? '' : 's'} shown separately</em></article>
+              <button type="button" className={monthlyDetail === 'all' ? 'active' : ''} onClick={() => showMonthlyDetail('all')}><small>Total due in {range.label}</small><strong>{formatMoney(dueMonthSummary.total)}</strong><em>Paid and unpaid scheduled for this month</em><i>View details →</i></button>
+              <button type="button" className={monthlyDetail === 'paid' ? 'active' : ''} onClick={() => showMonthlyDetail('paid')}><small>Already paid</small><strong>{formatMoney(dueMonthSummary.paid)}</strong><em>Invoices from this due month marked paid</em><i>View details →</i></button>
+              <button type="button" className={monthlyDetail === 'open' ? 'active' : ''} onClick={() => showMonthlyDetail('open')}><small>Still open</small><strong>{formatMoney(dueMonthSummary.open)}</strong><em>Unpaid invoices due this month</em><i>View details →</i></button>
+              <button type="button" className={monthlyDetail === 'carryover' ? 'active' : ''} onClick={() => showMonthlyDetail('carryover')}><small>Earlier-month carryover</small><strong>{formatMoney(carryoverBalance)}</strong><em>{carryoverInvoices.length} unpaid invoice{carryoverInvoices.length === 1 ? '' : 's'} shown separately</em><i>View details →</i></button>
             </div>
 
             <div className="admin-report-month-categories" aria-label={`${range.label} charges by category`}>
@@ -607,20 +635,26 @@ export default function AdminMonthlyReportsPage() {
                 const categoryPaid = categoryLines
                   .filter((line) => String(line.invoice.status || '').toLowerCase() === 'paid')
                   .reduce((sum, line) => sum + Number(line.item.total || 0), 0)
+                const categoryDetail = `category:${category.label}`
                 return (
-                  <article key={`due-category-${category.label}`}>
+                  <button type="button" className={monthlyDetail === categoryDetail ? 'active' : ''} onClick={() => showMonthlyDetail(categoryDetail)} key={`due-category-${category.label}`}>
                     <span style={{ background: colorForCategory(category.label) }} />
-                    <div><small>{category.label}</small><strong>{formatMoney(category.total)}</strong><em>{formatMoney(categoryPaid)} paid · {formatMoney(category.total - categoryPaid)} open · {category.count} line{category.count === 1 ? '' : 's'}</em></div>
-                  </article>
+                    <div><small>{category.label}</small><strong>{formatMoney(category.total)}</strong><em>{formatMoney(categoryPaid)} paid · {formatMoney(category.total - categoryPaid)} open · {category.count} line{category.count === 1 ? '' : 's'}</em><i>View details →</i></div>
+                  </button>
                 )
               }) : <p className="admin-report-empty">No invoices are scheduled for this month.</p>}
+            </div>
+
+            <div className="admin-report-month-detail-heading" id="admin-report-month-detail">
+              <div><small>SELECTED BREAKDOWN</small><h3>{monthlyDetailLabel}</h3><p>{monthlyDetailLines.length} itemized charge{monthlyDetailLines.length === 1 ? '' : 's'} shown below.</p></div>
+              {monthlyDetail !== 'all' && <button type="button" onClick={() => showMonthlyDetail('all')}>Show all {range.label} charges</button>}
             </div>
 
             <div className="admin-report-table-wrap">
               <table className="admin-report-table admin-report-monthly-table">
                 <thead><tr><th>Category</th><th>Lot</th><th>Camper</th><th>Invoice</th><th>Item</th><th>Due</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead>
                 <tbody>
-                  {dueMonthSummary.lines.length ? dueMonthSummary.lines.map(({ invoice, item, category }) => (
+                  {monthlyDetailLines.length ? monthlyDetailLines.map(({ invoice, item, category }) => (
                     <tr key={`due-${invoice.id}-${item.id || item.description}`}>
                       <td><strong>{category}</strong></td>
                       <td><strong>{invoice.campers?.lot_number || '—'}</strong></td>
@@ -632,7 +666,7 @@ export default function AdminMonthlyReportsPage() {
                       <td className={Number(item.total || 0) < 0 ? 'credit' : ''}><strong>{formatMoney(item.total)}</strong></td>
                       <td><a href={`/admin/invoices/${invoice.id}`}>Open invoice</a></td>
                     </tr>
-                  )) : <tr><td colSpan={9}>No invoices have a due date in {range.label}.</td></tr>}
+                  )) : <tr><td colSpan={9}>No charges are included in this selection.</td></tr>}
                 </tbody>
               </table>
             </div>
