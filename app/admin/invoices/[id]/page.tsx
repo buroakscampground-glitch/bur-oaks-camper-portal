@@ -340,8 +340,8 @@ export default function InvoiceDetailPage() {
                 <CheckCircle2 size={16} /> Mark paid
               </button>
             )}
-            <button type="button" onClick={() => window.print()}>
-              <Printer size={16} /> Print
+            <button type="button" onClick={() => window.print()} aria-label="Print this invoice">
+              <Printer size={16} /> Print Invoice
             </button>
             <button type="button" className="danger" onClick={deleteInvoice} disabled={busy || isProcessing || editing}>
               <Trash2 size={16} /> {isProcessing ? 'Payment locked' : 'Delete'}

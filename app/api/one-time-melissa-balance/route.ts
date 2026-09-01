@@ -9,11 +9,11 @@ export async function GET(request: Request) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !key) return NextResponse.json({ error: 'Database is not configured.' }, { status: 500 })
   const admin = createClient(url, key)
-  const camperResult = await admin.from('campers').select('id,first_name,last_name,lot_number,active').or('first_name.ilike.%melis%,last_name.ilike.%hass%')
+  const camperResult = await admin.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,active').or('first_name.ilike.%mel%,last_name.ilike.%has%,second_profile_first_name.ilike.%mel%,second_profile_last_name.ilike.%has%')
   if (camperResult.error) return NextResponse.json({ error: camperResult.error.message }, { status: 500 })
   const campers = (camperResult.data || []).filter((camper) => {
-    const name = `${camper.first_name || ''} ${camper.last_name || ''}`.toLowerCase()
-    return name.includes('melis') && name.includes('hass')
+    const name = `${camper.first_name || ''} ${camper.last_name || ''} ${camper.second_profile_first_name || ''} ${camper.second_profile_last_name || ''}`.toLowerCase()
+    return name.includes('mel') && name.includes('has')
   })
   const ids = campers.map((camper) => camper.id)
   if (!ids.length) return NextResponse.json({ campers: [], openInvoices: [], pumpOuts: [], balance: 0 })

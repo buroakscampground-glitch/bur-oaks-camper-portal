@@ -64,6 +64,16 @@ export default function CamperInvoiceDetailPage() {
   const [smsSaving, setSmsSaving] = useState(false)
   const [smsMessage, setSmsMessage] = useState('')
 
+  function printInvoice() {
+    const cleanup = () => {
+      delete document.body.dataset.printCamperInvoice
+      window.removeEventListener('afterprint', cleanup)
+    }
+    document.body.dataset.printCamperInvoice = 'true'
+    window.addEventListener('afterprint', cleanup)
+    window.print()
+  }
+
   useEffect(() => {
     async function loadInvoice() {
       const camperData = await getCurrentCamper()
@@ -265,8 +275,8 @@ export default function CamperInvoiceDetailPage() {
               <em className="camper-invoice-family-access">Authorized account · invoice and payment access only</em>
             )}
           </div>
-          <button type="button" onClick={() => window.print()}>
-            <Printer size={16} /> Print
+          <button type="button" onClick={printInvoice} aria-label="Print this invoice">
+            <Printer size={16} /> Print Invoice
           </button>
         </header>
 
