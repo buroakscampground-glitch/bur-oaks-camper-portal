@@ -17,6 +17,13 @@ function currentMonthStart() {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString()
 }
 
+function requestedMonthStart(value: string | null) {
+  if (!value || !/^\d{4}-\d{2}$/.test(value)) return currentMonthStart()
+  const [year, month] = value.split('-').map(Number)
+  if (month < 1 || month > 12) return currentMonthStart()
+  return new Date(Date.UTC(year, month - 1, 1)).toISOString()
+}
+
 function staffRole(context: any) {
   return String(context?.camper?.role || '').trim().toLowerCase()
 }
@@ -81,7 +88,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Admin access is required.' }, { status: 403 })
     }
 
-    const monthStart = currentMonthStart()
+    const monthStart = requestedMonthStart(url.searchParams.get('month'))
     const [{ data: lots }, { data: campers }, { data: submissions }, { data: invoices }] = await Promise.all([
       context.admin.from('lots').select('lot_number,meter_number,camper_id'),
       context.admin.from('campers').select('id,first_name,last_name,lot_number,role,active'),

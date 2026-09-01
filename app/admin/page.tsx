@@ -50,6 +50,12 @@ type AdminStats = {
   announcements: number
   rsvps: number
   electric: number
+  electricInvoiceCount: number
+  electricBilled: number
+  electricPaid: number
+  electricOutstanding: number
+  electricSitesLeft: number
+  electricBillingLabel: string
   waitlist: number
   unpaidInvoices: number
   totalRevenue: number
@@ -103,6 +109,12 @@ const emptyStats: AdminStats = {
   announcements: 0,
   rsvps: 0,
   electric: 0,
+  electricInvoiceCount: 0,
+  electricBilled: 0,
+  electricPaid: 0,
+  electricOutstanding: 0,
+  electricSitesLeft: 0,
+  electricBillingLabel: 'Current run',
   waitlist: 0,
   unpaidInvoices: 0,
   totalRevenue: 0,
@@ -191,6 +203,7 @@ export default function AdminPage() {
       dinnerResult,
       supplyRequestResult,
       siteCareResult,
+      latestMeterSubmissionResult,
     ] = await Promise.all([
       supabase.from('campers').select('id,email,secondary_email,phone,mailing_address_line1,mailing_city,mailing_state,mailing_zip,lot_number,role').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
@@ -210,6 +223,7 @@ export default function AdminPage() {
       supabase.from('saturday_dinner_signups').select('*'),
       supabase.from('maintenance_supply_requests').select('*').in('status', ['Requested', 'Ordered']).order('requested_at', { ascending: false }),
       supabase.from('site_care_notices').select('*').neq('status', 'Resolved').order('created_at', { ascending: false }),
+      supabase.from('meter_reading_submissions').select('captured_at').neq('status', 'cancelled').order('captured_at', { ascending: false }).limit(1).maybeSingle(),
     ])
 
     const invoices = invoicesResult.data || []
@@ -223,6 +237,42 @@ export default function AdminPage() {
     const unreadMessages = messageResult.data || []
     const activeSupplyRequests = supplyRequestResult.data || []
     const activeSiteCare = siteCareResult.data || []
+    const electricInvoices = invoices.filter((invoice) =>
+      String(invoice.invoice_type || '').toLowerCase().includes('electric') &&
+      String(invoice.status || '').toLowerCase() !== 'cancelled'
+    )
+    const latestElectricInvoiceDate = electricInvoices
+      .map((invoice) => String(invoice.created_at || ''))
+      .sort()
+      .at(-1) || ''
+    const latestMeterDate = String(latestMeterSubmissionResult.data?.captured_at || '')
+    const latestElectricActivity = [latestElectricInvoiceDate, latestMeterDate].filter(Boolean).sort().at(-1) || new Date().toISOString()
+    const electricBillingMonth = latestElectricActivity.slice(0, 7)
+    const cycleElectricInvoices = electricInvoices.filter((invoice) => String(invoice.created_at || '').startsWith(electricBillingMonth))
+    const electricBilled = cycleElectricInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+    const electricPaid = cycleElectricInvoices
+      .filter((invoice) => String(invoice.status || '').toLowerCase() === 'paid')
+      .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+    const electricOutstanding = cycleElectricInvoices
+      .filter((invoice) => String(invoice.status || '').toLowerCase() !== 'paid')
+      .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+    const electricBillingLabel = new Date(`${electricBillingMonth}-01T12:00:00`).toLocaleDateString('en-US', {
+      month: 'long',
+      year: 'numeric',
+    })
+    let electricSitesLeft = 0
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData.session?.access_token
+    if (token) {
+      const checklistResponse = await fetch(`/api/meter-readings?checklist=1&month=${encodeURIComponent(electricBillingMonth)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => null)
+      if (checklistResponse?.ok) {
+        const checklist = await checklistResponse.json().catch(() => ({}))
+        const counts = checklist.counts || {}
+        electricSitesLeft = Number(counts.not_read || 0) + Number(counts.photo_ready || 0) + Number(counts.needs_retake || 0)
+      }
+    }
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     const dueSoonCutoff = new Date(today)
@@ -349,6 +399,12 @@ export default function AdminPage() {
       announcements: announcementsResult.data?.length || 0,
       rsvps: rsvpsResult.data?.length || 0,
       electric: electricResult.data?.length || 0,
+      electricInvoiceCount: cycleElectricInvoices.length,
+      electricBilled,
+      electricPaid,
+      electricOutstanding,
+      electricSitesLeft,
+      electricBillingLabel,
       waitlist: waitlistResult.data?.length || 0,
       unpaidInvoices: dueNowInvoices.length,
       totalRevenue: invoices
@@ -613,6 +669,12 @@ export default function AdminPage() {
             <strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong>
             <small>{stats.pendingMaintenance} awaiting approval</small>
           </div>
+          <a className="electric-summary" href="/admin/electric" aria-label={`Open ${stats.electricBillingLabel} electric billing`}>
+            <span>Electric invoiced · {stats.electricBillingLabel}</span>
+            <strong>${stats.electricBilled.toFixed(2)}</strong>
+            <small>${stats.electricPaid.toFixed(2)} paid · ${stats.electricOutstanding.toFixed(2)} open</small>
+            <em>{stats.electricInvoiceCount} invoice{stats.electricInvoiceCount === 1 ? '' : 's'} · {stats.electricSitesLeft} site{stats.electricSitesLeft === 1 ? '' : 's'} left</em>
+          </a>
         </section>
 
         <div className="admin-desk-workspace">
