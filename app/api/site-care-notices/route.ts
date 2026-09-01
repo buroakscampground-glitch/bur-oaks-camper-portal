@@ -6,6 +6,8 @@ import { sendTwilioSms } from '../../../lib/twilio-sms'
 import { camperTextWithLink } from '../../../lib/portal-sms-links'
 import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
 import { createAdminNotification } from '../../../lib/admin-notifications'
+import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
+import { siteCareEnforcementFor, storedSiteCareTemplateKey } from '../../../lib/site-care-enforcement'
 
 export const runtime = 'nodejs'
 
@@ -32,13 +34,29 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const camperId = cleanText(body.camperId, 80)
   const title = cleanText(body.title, 160)
-  const message = cleanText(body.message, 1200)
-  const templateKey = cleanText(body.templateKey, 80) || null
+  let message = cleanText(body.message, 1200)
+  const requestedTemplateKey = cleanText(body.templateKey, 80)
+  const autoEnforce = body.autoEnforce === true
+  let templateKey: string | null = requestedTemplateKey || null
   const priority = body.priority === 'Important' ? 'Important' : 'Standard'
   const dueDate = /^\d{4}-\d{2}-\d{2}$/.test(String(body.dueDate || '')) ? body.dueDate : null
 
   if (!camperId || !title || !message) {
     return NextResponse.json({ error: 'Choose a camper and add the notice details.' }, { status: 400 })
+  }
+
+  if (autoEnforce && !dueDate) {
+    return NextResponse.json({ error: 'Choose the automatic work-order date first.' }, { status: 400 })
+  }
+
+  if (autoEnforce) {
+    const billingSettings = await loadCampgroundBillingSettings(context.admin)
+    const enforcement = siteCareEnforcementFor(requestedTemplateKey, billingSettings)
+    if (!enforcement) {
+      return NextResponse.json({ error: 'This item does not have a safe automatic site-service charge.' }, { status: 400 })
+    }
+    templateKey = storedSiteCareTemplateKey(requestedTemplateKey, true, enforcement.chargeAmount)
+    message = cleanText(`${message} If this is not marked ready for office review by the automatic date, Bur Oaks will create an approved grounds work order and add the ${enforcement.serviceLabel.toLowerCase()} charge of $${enforcement.chargeAmount.toFixed(2)} to your next electric bill.`, 1200)
   }
 
   const { data: targetCamper, error: camperError } = await context.admin
