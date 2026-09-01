@@ -146,7 +146,7 @@ export default function AdminMonthlyReportsPage() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
-  const [openKpi, setOpenKpi] = useState<'received' | 'paid' | 'average' | 'past-due' | null>(null)
+  const [openKpi, setOpenKpi] = useState<'received' | 'paid' | 'average' | 'past-due' | 'owed' | null>(null)
 
   const range = useMemo(() => monthRange(month), [month])
   const annualRange = useMemo(() => yearRange(month), [month])
@@ -154,6 +154,14 @@ export default function AdminMonthlyReportsPage() {
   useEffect(() => {
     loadReport()
   }, [month])
+
+  useEffect(() => {
+    const detail = new URLSearchParams(window.location.search).get('detail')
+    if (detail && ['received', 'paid', 'average', 'past-due', 'owed'].includes(detail)) {
+      setOpenKpi(detail as 'received' | 'paid' | 'average' | 'past-due' | 'owed')
+      window.setTimeout(() => document.getElementById('admin-report-kpi-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 500)
+    }
+  }, [])
 
   async function loadReport() {
     setLoading(true)
@@ -309,6 +317,7 @@ export default function AdminMonthlyReportsPage() {
   const today = new Date().toISOString().slice(0, 10)
   const pastDueInvoices = outstandingInvoices.filter((invoice) => invoice.status !== 'processing' && invoice.due_date && invoice.due_date < today)
   const pastDueBalance = pastDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const balanceDetailInvoices = openKpi === 'owed' ? outstandingInvoices : pastDueInvoices
   const itemizedNet = positiveLineTotal - creditsApplied
   const reconciliationDifference = totalCollected - itemizedNet
   const onlineCollected = paymentMethodTotals
@@ -521,28 +530,32 @@ export default function AdminMonthlyReportsPage() {
                   {openKpi === 'paid' && 'PAID INVOICE DETAILS'}
                   {openKpi === 'average' && 'AVERAGE PAYMENT DETAILS'}
                   {openKpi === 'past-due' && 'PAST-DUE DETAILS'}
+                  {openKpi === 'owed' && 'AMOUNT OWED DETAILS'}
                 </small>
                 <h2>
                   {openKpi === 'received' && `Who paid the ${formatMoney(totalCollected)}`}
                   {openKpi === 'paid' && `The ${reportInvoices.length} paid invoice${reportInvoices.length === 1 ? '' : 's'}`}
                   {openKpi === 'average' && `${formatMoney(totalCollected)} ÷ ${reportInvoices.length} paid invoice${reportInvoices.length === 1 ? '' : 's'} = ${formatMoney(averagePayment)}`}
                   {openKpi === 'past-due' && `Who owes the ${formatMoney(pastDueBalance)}`}
+                  {openKpi === 'owed' && `Who owes the ${formatMoney(outstandingBalance)}`}
                 </h2>
                 <p>
                   {openKpi === 'average'
                     ? 'The average uses every paid invoice in the selected report period. The payments used are listed below.'
                     : openKpi === 'past-due'
                       ? 'These are unpaid invoices whose due date has already passed.'
+                      : openKpi === 'owed'
+                        ? 'Every open or processing invoice included in the amount owed is listed below.'
                       : `Every payment included in the ${reportLabel} total is listed below.`}
                 </p>
               </div>
               <button type="button" onClick={() => setOpenKpi(null)} aria-label="Close details"><X size={19} /></button>
             </div>
 
-            {openKpi === 'past-due' ? (
-              pastDueInvoices.length ? (
+            {openKpi === 'past-due' || openKpi === 'owed' ? (
+              balanceDetailInvoices.length ? (
                 <div className="admin-report-kpi-rows">
-                  {pastDueInvoices.map((invoice) => (
+                  {balanceDetailInvoices.map((invoice) => (
                     <article key={`kpi-past-due-${invoice.id}`}>
                       <div>
                         <small>LOT {invoice.campers?.lot_number || '—'} · DUE {formatShortDate(invoice.due_date)}</small>
@@ -556,7 +569,7 @@ export default function AdminMonthlyReportsPage() {
                     </article>
                   ))}
                 </div>
-              ) : <p className="admin-report-kpi-clear">Everything is current—no campers are past due.</p>
+              ) : <p className="admin-report-kpi-clear">{openKpi === 'owed' ? 'Everything is paid—there are no open balances.' : 'Everything is current—no campers are past due.'}</p>
             ) : reportInvoices.length ? (
               <div className="admin-report-kpi-rows">
                 {reportInvoices.map((invoice) => (

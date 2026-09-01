@@ -40,7 +40,7 @@ import AdminWeather from '../../components/AdminWeather'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
-import { isInvoiceDueNow, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { totalInvoiceBalance } from '../../lib/invoice-balance'
 
 type AdminStats = {
   campers: number
@@ -59,6 +59,7 @@ type AdminStats = {
   waitlist: number
   unpaidInvoices: number
   totalRevenue: number
+  paidInvoicesThisMonth: number
   activeCreditBalance: number
   activeCredits: number
   openMaintenance: number
@@ -118,6 +119,7 @@ const emptyStats: AdminStats = {
   waitlist: 0,
   unpaidInvoices: 0,
   totalRevenue: 0,
+  paidInvoicesThisMonth: 0,
   activeCreditBalance: 0,
   activeCredits: 0,
   openMaintenance: 0,
@@ -227,6 +229,11 @@ export default function AdminPage() {
     ])
 
     const invoices = invoicesResult.data || []
+    const currentPaidMonth = new Date().toISOString().slice(0, 7)
+    const paidThisMonth = invoices.filter((invoice) =>
+      String(invoice.status || '').toLowerCase() === 'paid' &&
+      String(invoice.paid_at || '').slice(0, 7) === currentPaidMonth
+    )
     const maintenance = maintenanceResult.data || []
     const notifications = notificationResult.data || []
     const documents = documentResult.data || []
@@ -285,8 +292,7 @@ export default function AdminPage() {
     const upcomingEventIds = new Set((eventsResult.data || [])
       .filter((event: any) => !event.event_date || event.event_date >= todayIso)
       .map((event: any) => String(event.id)))
-    const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
-    const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice, todayIso))
+    const openInvoices = invoices.filter((invoice) => ['open', 'sent', 'overdue', 'processing'].includes(String(invoice.status || '').toLowerCase()))
     const pastDueInvoices = openInvoices.filter((invoice) => {
       if (!invoice.due_date) return false
       const dueDate = new Date(`${invoice.due_date}T12:00:00`)
@@ -394,7 +400,7 @@ export default function AdminPage() {
     setStats({
       campers: campers.length,
       archivedCampers: archivedResult.data?.length || 0,
-      balance: totalInvoiceBalance(dueNowInvoices),
+      balance: totalInvoiceBalance(openInvoices),
       events: eventsResult.data?.length || 0,
       announcements: announcementsResult.data?.length || 0,
       rsvps: rsvpsResult.data?.length || 0,
@@ -406,10 +412,9 @@ export default function AdminPage() {
       electricSitesLeft,
       electricBillingLabel,
       waitlist: waitlistResult.data?.length || 0,
-      unpaidInvoices: dueNowInvoices.length,
-      totalRevenue: invoices
-        .filter((invoice) => invoice.status === 'paid')
-        .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+      unpaidInvoices: openInvoices.length,
+      totalRevenue: paidThisMonth.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+      paidInvoicesThisMonth: paidThisMonth.length,
       activeCreditBalance: activeCredits.reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
       activeCredits: activeCredits.length,
       openMaintenance: maintenance.filter(
@@ -495,7 +500,7 @@ export default function AdminPage() {
     {
       label: 'Money & billing',
       items: [
-        { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} due now`, icon: ReceiptText },
+        { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} open`, icon: ReceiptText },
         { href: '/admin/open-balance', title: 'Amounts due', detail: `$${stats.balance.toFixed(2)} due now`, icon: CircleDollarSign },
         { href: '/admin/electric', title: 'Electric billing', detail: `${stats.electric} readings`, icon: Zap },
         { href: '/admin/reports', title: 'Reports', detail: 'Monthly & annual', icon: FileSpreadsheet },
@@ -660,16 +665,16 @@ export default function AdminPage() {
             <strong>{attentionTotal}</strong>
             <small>{activeAttentionItems.length} areas</small>
           </div>
-          <div>
-            <span>Amount due</span>
+          <a className="money-summary owed" href="/admin/reports?detail=owed" aria-label="Open the campers and invoices included in the amount owed">
+            <span>Amount owed</span>
             <strong>${stats.balance.toFixed(2)}</strong>
-            <small>{stats.unpaidInvoices} invoices due now</small>
-          </div>
-          <div>
-            <span>Active campers</span>
-            <strong>{stats.campers}</strong>
-            <small>Current accounts</small>
-          </div>
+            <small>{stats.unpaidInvoices} open invoice{stats.unpaidInvoices === 1 ? '' : 's'} · Tap for details</small>
+          </a>
+          <a className="money-summary paid" href="/admin/reports?detail=received" aria-label="Open who paid, what they paid, the amount, and payment date">
+            <span>Paid this month</span>
+            <strong>${stats.totalRevenue.toFixed(2)}</strong>
+            <small>{stats.paidInvoicesThisMonth} paid invoice{stats.paidInvoicesThisMonth === 1 ? '' : 's'} · Tap for details</small>
+          </a>
           <div>
             <span>Maintenance active</span>
             <strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong>

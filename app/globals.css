@@ -12705,6 +12705,8 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   background: linear-gradient(135deg, #e4f3f4, #f5faf5);
 }
 
+.admin-desk-summary .money-summary{position:relative;color:inherit;text-decoration:none;transition:background .18s ease}.admin-desk-summary .money-summary:after{content:'Open →';position:absolute;right:12px;top:10px;color:#8d7138;font-size:8px;font-weight:950;letter-spacing:.07em;text-transform:uppercase}.admin-desk-summary .money-summary:hover{background:#fffaf0}.admin-desk-summary .money-summary.paid{background:linear-gradient(135deg,#eff8f0,#fff)}.admin-desk-summary .money-summary.paid strong{color:#347044}.admin-desk-summary .money-summary.owed strong{color:#8d5d22}
+
 .admin-desk-workspace {
   display: grid;
   grid-template-columns: minmax(320px, 0.78fr) minmax(560px, 1.42fr);
