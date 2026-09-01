@@ -7,7 +7,7 @@ import { camperTextWithLink } from '../../../lib/portal-sms-links'
 import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
-import { siteCareEnforcementFor, storedSiteCareTemplateKey } from '../../../lib/site-care-enforcement'
+import { siteCareEnforcementFor, siteCareSourceMarker, storedSiteCareTemplateKey } from '../../../lib/site-care-enforcement'
 
 export const runtime = 'nodejs'
 
@@ -172,7 +172,87 @@ export async function PATCH(request: Request) {
   const now = new Date().toISOString()
   let updates: Record<string, string | null> = {}
 
-  if (adminUser && action === 'resolve') {
+  let converted: Record<string, unknown> | null = null
+
+  if (adminUser && action === 'convert_and_charge') {
+    if (!['Acknowledged', 'Ready for Review'].includes(String(existing.status))) {
+      return NextResponse.json({ error: 'Only an acknowledged or review-requested item can be manually converted.' }, { status: 400 })
+    }
+
+    const billingSettings = await loadCampgroundBillingSettings(context.admin)
+    const enforcement = siteCareEnforcementFor(existing.template_key, billingSettings)
+    if (!enforcement) {
+      return NextResponse.json({ error: 'This notice does not have an approved automatic grounds charge.' }, { status: 400 })
+    }
+
+    const { data: targetCamper, error: targetError } = await context.admin
+      .from('campers')
+      .select('id,first_name,last_name,lot_number')
+      .eq('id', existing.camper_id)
+      .maybeSingle()
+    if (targetError || !targetCamper) {
+      return NextResponse.json({ error: targetError?.message || 'The camper account could not be found.' }, { status: 404 })
+    }
+
+    const marker = siteCareSourceMarker(String(existing.id))
+    const chargeNotes = `Automatic deadline charge · ${marker}`
+    const camperName = `${targetCamper.first_name || ''} ${targetCamper.last_name || ''}`.trim() || 'Camper'
+    const lotNumber = String(existing.lot_number || targetCamper.lot_number || '').trim().replace(/^lot\s+/i, '')
+    const ticketDescription = `${existing.message} The office inspected this acknowledged/review-requested item and confirmed the listed grounds work was not completed. Complete only the listed grounds work; do not move or handle the camper's personal property. ${marker}`
+
+    const [{ data: existingCharge, error: existingChargeError }, { data: existingTicket, error: existingTicketError }] = await Promise.all([
+      context.admin.from('site_service_charges').select('id').eq('notes', chargeNotes).limit(1).maybeSingle(),
+      context.admin.from('maintenance_tickets').select('id').ilike('description', `%${marker}%`).limit(1).maybeSingle(),
+    ])
+    if (existingChargeError || existingTicketError) {
+      return NextResponse.json({ error: existingChargeError?.message || existingTicketError?.message }, { status: 500 })
+    }
+
+    let chargeId = existingCharge?.id || ''
+    if (!chargeId) {
+      const { data: charge, error: chargeError } = await context.admin.from('site_service_charges').insert({
+        camper_id: targetCamper.id,
+        lot_number: lotNumber || null,
+        camper_name: camperName,
+        service_type: enforcement.serviceType,
+        service_label: enforcement.serviceLabel,
+        charge_amount: enforcement.chargeAmount,
+        notes: chargeNotes,
+        performed_at: now,
+        created_by: context.user.email || 'Bur Oaks Admin',
+      }).select('id').single()
+      if (chargeError || !charge) {
+        return NextResponse.json({ error: chargeError?.message || 'The site-service charge could not be created.' }, { status: 500 })
+      }
+      chargeId = charge.id
+    }
+
+    let ticketId = existingTicket?.id || ''
+    if (!ticketId) {
+      const { data: ticket, error: ticketError } = await context.admin.from('maintenance_tickets').insert({
+        camper_id: targetCamper.id,
+        title: enforcement.maintenanceTitle,
+        description: ticketDescription,
+        category: 'Grounds',
+        priority: existing.priority === 'Important' ? 'High' : 'Normal',
+        assigned_to: 'Open',
+        lot_number: lotNumber,
+        reported_by: context.user.email || 'Bur Oaks Admin',
+        status: 'Open',
+        work_order: true,
+        admin_approved: true,
+        approved_at: now,
+        approved_by: context.user.email || 'Bur Oaks Admin',
+      }).select('id').single()
+      if (ticketError || !ticket) {
+        return NextResponse.json({ error: ticketError?.message || 'The maintenance work order could not be created.', chargeId }, { status: 500 })
+      }
+      ticketId = ticket.id
+    }
+
+    converted = { chargeId, ticketId, chargeAmount: enforcement.chargeAmount, serviceLabel: enforcement.serviceLabel }
+    updates = { status: 'Resolved', resolved_at: now, resolved_by: context.user.email || 'Bur Oaks Admin' }
+  } else if (adminUser && action === 'resolve') {
     updates = { status: 'Resolved', resolved_at: now, resolved_by: context.user.email || 'Bur Oaks Admin' }
   } else if (adminUser && action === 'reopen') {
     updates = { status: 'Open', resolved_at: null, resolved_by: null, ready_for_review_at: null }
@@ -199,7 +279,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to update this notice.' }, { status: 500 })
   }
 
-  if (adminUser && action === 'resolve') {
+  if (adminUser && ['resolve', 'convert_and_charge'].includes(action)) {
     const { error: clearAlertError } = await context.admin
       .from('admin_notifications')
       .update({ read_at: now })
@@ -231,5 +311,5 @@ export async function PATCH(request: Request) {
     })
   }
 
-  return NextResponse.json({ success: true, notice, adminAlert })
+  return NextResponse.json({ success: true, notice, adminAlert, converted })
 }
