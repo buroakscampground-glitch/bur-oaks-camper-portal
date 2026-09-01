@@ -46,7 +46,7 @@ export async function loadOperationsSnapshot(client: any) {
   ] = await Promise.all([
     safeRows(client.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,role,active').order('lot_number')),
     safeRows(client.from('invoices').select('id,camper_id,invoice_number,invoice_type,total_due,due_date,status,paid_at,created_at,campers(first_name,last_name,lot_number)').order('created_at', { ascending: false }).limit(1000)),
-    safeRows(client.from('documents').select('id,camper_id,document_name,document_type,signature_status,requires_two_signatures,signed_at,created_at,campers(first_name,last_name,lot_number)').order('created_at', { ascending: false }).limit(500)),
+    safeRows(client.from('documents').select('id,camper_id,document_name,document_type,signature_status,requires_two_signatures,signed_at,campers(first_name,last_name,lot_number)').order('document_name', { ascending: true }).limit(500)),
     safeRows(client.from('maintenance_tickets').select('id,camper_id,lot_number,title,status,priority,admin_approved,created_at,completed_at').order('created_at', { ascending: false }).limit(500)),
     safeRows(client.from('sewer_pump_out_requests').select('id,camper_id,lot_number,camper_name,status,billed_at,requested_at,completed_at').order('requested_at', { ascending: false }).limit(500)),
     safeRows(client.from('office_messages').select('id,camper_id,lot_number,sender_role,sender_name,body,read_by_admin_at,created_at').order('created_at', { ascending: false }).limit(300)),
