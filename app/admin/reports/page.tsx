@@ -5,16 +5,19 @@ import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Chevr
 import { supabase } from '../../../lib/supabase'
 import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 import { isInvoiceDueThroughCurrentMonth } from '../../../lib/invoice-balance'
+import { futureOpenSchedule, invoiceReportLines, monthlyDueSummary } from '../../../lib/monthly-billing-report'
 
 const categoryColors: Record<string, string> = {
   Electric: '#2f6fad',
-  'Water/Trash': '#268b8f',
-  'Sewer pump-outs': '#9f4f1f',
-  'Site services': '#7b8f35',
-  'Lot rent': '#315f3d',
-  'Processing fees': '#8b6f2f',
-  'Account credits applied': '#b54b42',
-  'Other campground charges': '#6f7280',
+  'Water / Trash': '#268b8f',
+  'Pump-Outs': '#9f4f1f',
+  'Site Services': '#7b8f35',
+  'Lot Rent': '#315f3d',
+  'Association Fees': '#9a6a22',
+  Maintenance: '#76558d',
+  'Processing Fees': '#8b6f2f',
+  'Account Credits': '#b54b42',
+  'Other Charges': '#6f7280',
 }
 
 function monthInputValue(date = new Date()) {
@@ -49,7 +52,7 @@ function formatMoney(value: unknown) {
   })
 }
 
-function formatDateTime(value?: string) {
+function formatDateTime(value?: string | null) {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
@@ -62,30 +65,20 @@ function formatDateTime(value?: string) {
   })
 }
 
-function formatShortDate(value?: string) {
+function formatShortDate(value?: string | null) {
   if (!value) return '—'
   const date = new Date(`${value}T12:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
-function camperName(invoice: any) {
-  return `${invoice.campers?.first_name || ''} ${invoice.campers?.last_name || ''}`.trim() || 'Camper'
+function formatMonth(value: string) {
+  const date = new Date(`${value}-01T12:00:00`)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
-function categoryForItem(item: any, invoice: any) {
-  const text = `${item?.description || ''} ${invoice?.invoice_type || ''}`.toLowerCase()
-  const amount = Number(item?.total || 0)
-
-  if (amount < 0 || text.includes('credit')) return 'Account credits applied'
-  if (text.includes('electric') || text.includes('kwh') || text.includes('meter')) return 'Electric'
-  if (text.includes('water') || text.includes('trash')) return 'Water/Trash'
-  if (text.includes('sewer') || text.includes('pump')) return 'Sewer pump-outs'
-  if (text.includes('weed') || text.includes('spray') || text.includes('pressure') || text.includes('site service')) return 'Site services'
-  if (text.includes('rent') || text.includes('lot')) return 'Lot rent'
-  if (text.includes('processing') || text.includes('card fee')) return 'Processing fees'
-
-  return invoice?.invoice_type || 'Other campground charges'
+function camperName(invoice: any) {
+  return `${invoice.campers?.first_name || ''} ${invoice.campers?.last_name || ''}`.trim() || 'Camper'
 }
 
 function colorForCategory(label: string) {
@@ -117,23 +110,7 @@ function csvEscape(value: unknown) {
 }
 
 function invoiceLineItems(invoice: any) {
-  const items = Array.isArray(invoice.invoice_items) && invoice.invoice_items.length
-    ? invoice.invoice_items
-    : [
-        {
-          id: `${invoice.id}-fallback`,
-          description: invoice.invoice_type || 'Invoice total',
-          quantity: 1,
-          unit_price: invoice.total_due,
-          total: invoice.total_due,
-        },
-      ]
-
-  return items.map((item: any) => ({
-    invoice,
-    item,
-    category: categoryForItem(item, invoice),
-  }))
+  return invoiceReportLines(invoice)
 }
 
 export default function AdminMonthlyReportsPage() {
@@ -142,6 +119,7 @@ export default function AdminMonthlyReportsPage() {
   const [invoices, setInvoices] = useState<any[]>([])
   const [yearInvoices, setYearInvoices] = useState<any[]>([])
   const [outstandingInvoices, setOutstandingInvoices] = useState<any[]>([])
+  const [dueInvoices, setDueInvoices] = useState<any[]>([])
   const [pumpOuts, setPumpOuts] = useState<any[]>([])
   const [yearPumpOuts, setYearPumpOuts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -180,7 +158,7 @@ export default function AdminMonthlyReportsPage() {
       invoice_items (*)
     `
 
-    const [invoiceResult, yearInvoiceResult, outstandingResult, pumpOutResult, yearPumpOutResult] = await Promise.all([
+    const [invoiceResult, yearInvoiceResult, outstandingResult, dueInvoiceResult, pumpOutResult, yearPumpOutResult] = await Promise.all([
       supabase
         .from('invoices')
         .select(invoiceSelect)
@@ -201,6 +179,12 @@ export default function AdminMonthlyReportsPage() {
         .in('status', ['open', 'sent', 'overdue', 'processing'])
         .order('due_date', { ascending: true }),
       supabase
+        .from('invoices')
+        .select(invoiceSelect)
+        .gte('due_date', `${annualRange.year}-01-01`)
+        .lt('due_date', `${annualRange.year + 1}-01-01`)
+        .order('due_date', { ascending: true }),
+      supabase
         .from('sewer_pump_out_requests')
         .select('id,lot_number,camper_name,charge_amount,gallons_used,notes,completed_at,billed_at')
         .eq('status', 'completed')
@@ -215,11 +199,12 @@ export default function AdminMonthlyReportsPage() {
         .lt('completed_at', annualRange.end.toISOString()),
     ])
 
-    const errors = [invoiceResult.error, yearInvoiceResult.error, outstandingResult.error, pumpOutResult.error, yearPumpOutResult.error].filter(Boolean)
+    const errors = [invoiceResult.error, yearInvoiceResult.error, outstandingResult.error, dueInvoiceResult.error, pumpOutResult.error, yearPumpOutResult.error].filter(Boolean)
     setMessage(errors.map((error) => error?.message).join(' '))
     setInvoices(invoiceResult.data || [])
     setYearInvoices(yearInvoiceResult.data || [])
     setOutstandingInvoices(outstandingResult.data || [])
+    setDueInvoices(dueInvoiceResult.data || [])
     setPumpOuts(pumpOutResult.data || [])
     setYearPumpOuts(yearPumpOutResult.data || [])
 
@@ -317,6 +302,11 @@ export default function AdminMonthlyReportsPage() {
   const outstandingBalance = outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const amountDueInvoices = outstandingInvoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
   const amountDueBalance = amountDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const dueMonthSummary = monthlyDueSummary(dueInvoices, month)
+  const carryoverInvoices = outstandingInvoices.filter((invoice) => invoice.due_date && invoice.due_date < `${month}-01`)
+  const carryoverBalance = carryoverInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const futureDueMonths = futureOpenSchedule(outstandingInvoices, month)
+  const futureDueTotal = futureDueMonths.reduce((sum, row) => sum + row.total, 0)
   const today = new Date().toISOString().slice(0, 10)
   const pastDueInvoices = outstandingInvoices.filter((invoice) => invoice.status !== 'processing' && invoice.due_date && invoice.due_date < today)
   const pastDueBalance = pastDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
@@ -590,6 +580,75 @@ export default function AdminMonthlyReportsPage() {
                 ))}
               </div>
             ) : <p className="admin-report-kpi-clear">No paid invoices were recorded for {reportLabel}.</p>}
+          </section>
+        )}
+
+        {reportScope === 'month' && (
+          <section className="admin-report-panel admin-report-section admin-report-monthly-billing">
+            <div className="admin-report-heading">
+              <div>
+                <span><CalendarDays size={14} /> MONTHLY BILLING BREAKDOWN</span>
+                <h2>Exactly what belongs to {range.label}</h2>
+                <p>Only invoices with a due date in this month are counted below. Future invoices stay in their future month.</p>
+              </div>
+              <strong className="admin-report-prepared">{dueMonthSummary.invoices.length} invoices · {formatMoney(dueMonthSummary.total)}</strong>
+            </div>
+
+            <div className="admin-report-month-totals">
+              <article><small>Total due in {range.label}</small><strong>{formatMoney(dueMonthSummary.total)}</strong><em>Paid and unpaid scheduled for this month</em></article>
+              <article><small>Already paid</small><strong>{formatMoney(dueMonthSummary.paid)}</strong><em>Invoices from this due month marked paid</em></article>
+              <article><small>Still open</small><strong>{formatMoney(dueMonthSummary.open)}</strong><em>Unpaid invoices due this month</em></article>
+              <article><small>Earlier-month carryover</small><strong>{formatMoney(carryoverBalance)}</strong><em>{carryoverInvoices.length} unpaid invoice{carryoverInvoices.length === 1 ? '' : 's'} shown separately</em></article>
+            </div>
+
+            <div className="admin-report-month-categories" aria-label={`${range.label} charges by category`}>
+              {dueMonthSummary.categories.length ? dueMonthSummary.categories.map((category) => {
+                const categoryLines = dueMonthSummary.lines.filter((line) => line.category === category.label)
+                const categoryPaid = categoryLines
+                  .filter((line) => String(line.invoice.status || '').toLowerCase() === 'paid')
+                  .reduce((sum, line) => sum + Number(line.item.total || 0), 0)
+                return (
+                  <article key={`due-category-${category.label}`}>
+                    <span style={{ background: colorForCategory(category.label) }} />
+                    <div><small>{category.label}</small><strong>{formatMoney(category.total)}</strong><em>{formatMoney(categoryPaid)} paid · {formatMoney(category.total - categoryPaid)} open · {category.count} line{category.count === 1 ? '' : 's'}</em></div>
+                  </article>
+                )
+              }) : <p className="admin-report-empty">No invoices are scheduled for this month.</p>}
+            </div>
+
+            <div className="admin-report-table-wrap">
+              <table className="admin-report-table admin-report-monthly-table">
+                <thead><tr><th>Category</th><th>Lot</th><th>Camper</th><th>Invoice</th><th>Item</th><th>Due</th><th>Status</th><th>Amount</th><th>Action</th></tr></thead>
+                <tbody>
+                  {dueMonthSummary.lines.length ? dueMonthSummary.lines.map(({ invoice, item, category }) => (
+                    <tr key={`due-${invoice.id}-${item.id || item.description}`}>
+                      <td><strong>{category}</strong></td>
+                      <td><strong>{invoice.campers?.lot_number || '—'}</strong></td>
+                      <td>{camperName(invoice)}</td>
+                      <td>{invoice.invoice_number || '—'}</td>
+                      <td>{item.description || invoice.invoice_type || 'Campground charge'}</td>
+                      <td>{formatShortDate(invoice.due_date)}</td>
+                      <td><strong>{String(invoice.status || 'open').toUpperCase()}</strong>{invoice.paid_at ? <span>Paid {formatDateTime(invoice.paid_at)}</span> : null}</td>
+                      <td className={Number(item.total || 0) < 0 ? 'credit' : ''}><strong>{formatMoney(item.total)}</strong></td>
+                      <td><a href={`/admin/invoices/${invoice.id}`}>Open invoice</a></td>
+                    </tr>
+                  )) : <tr><td colSpan={9}>No invoices have a due date in {range.label}.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="admin-report-future-money">
+              <div>
+                <small>FUTURE MONEY OWED — NOT COUNTED IN {range.label.toUpperCase()}</small>
+                <h3>{formatMoney(futureDueTotal)} scheduled after this month</h3>
+                <p>These balances remain visible for planning, but each one stays in its actual due month.</p>
+              </div>
+              <div className="admin-report-future-months">
+                {futureDueMonths.length ? futureDueMonths.map((row) => (
+                  <article key={`future-${row.month}`}><small>{formatMonth(row.month)}</small><strong>{formatMoney(row.total)}</strong><em>{row.count} invoice{row.count === 1 ? '' : 's'}</em></article>
+                )) : <p className="admin-report-empty">No unpaid future invoices are scheduled after this month.</p>}
+              </div>
+            </div>
           </section>
         )}
 
