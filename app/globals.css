@@ -4793,6 +4793,8 @@ button:hover {
   --season-soft: #e6f2ed;
   --season-paper: #f7f5e9;
   --season-symbol: "☀";
+  --season-garland: "✦  ☀  ✦";
+  --season-overlay: radial-gradient(circle, rgba(255,255,255,.2) 0 2px, transparent 2.6px) 0 0 / 34px 34px;
 }
 
 .seasonal-theme-spring {
@@ -4802,6 +4804,8 @@ button:hover {
   --season-soft: #edf5e8;
   --season-paper: #fff7f5;
   --season-symbol: "✿";
+  --season-garland: "✿  •  ✿";
+  --season-overlay: radial-gradient(circle, rgba(255,255,255,.24) 0 3px, transparent 3.6px) 0 0 / 38px 38px;
 }
 
 .seasonal-theme-summer {
@@ -4811,6 +4815,7 @@ button:hover {
   --season-soft: #e4f2ee;
   --season-paper: #fff9e8;
   --season-symbol: "☀";
+  --season-garland: "☀  •  ☀";
 }
 
 .seasonal-theme-fall,
@@ -4822,6 +4827,22 @@ button:hover {
   --season-soft: #f4e5d5;
   --season-paper: #fff8eb;
   --season-symbol: "◆";
+  --season-garland: "◆  ✦  ◆";
+  --season-overlay: radial-gradient(ellipse at center, rgba(255,202,112,.2) 0 3px, transparent 3.8px) 0 0 / 42px 30px;
+}
+
+.seasonal-theme-halloween {
+  --season-deep: #2f203a;
+  --season-main: #74402b;
+  --season-accent: #f39a35;
+  --season-soft: #f2e4d5;
+  --season-symbol: "☾";
+  --season-garland: "☾  ✦  ☾";
+}
+
+.seasonal-theme-thanksgiving {
+  --season-symbol: "◆";
+  --season-garland: "◆  ♥  ◆";
 }
 
 .seasonal-theme-winter,
@@ -4832,6 +4853,8 @@ button:hover {
   --season-soft: #e8f1f5;
   --season-paper: #f8fbfc;
   --season-symbol: "❄";
+  --season-garland: "❄  ✦  ❄";
+  --season-overlay: radial-gradient(circle, rgba(255,255,255,.32) 0 2px, transparent 2.8px) 0 0 / 32px 32px;
 }
 
 .seasonal-theme-christmas {
@@ -4841,6 +4864,8 @@ button:hover {
   --season-soft: #edf3e9;
   --season-paper: #fff8ed;
   --season-symbol: "★";
+  --season-garland: "★  ❄  ★";
+  --season-overlay: radial-gradient(circle, rgba(255,239,189,.46) 0 2px, transparent 2.8px) 0 0 / 34px 34px;
 }
 
 .seasonal-theme-valentines {
@@ -4850,6 +4875,8 @@ button:hover {
   --season-soft: #fae9ed;
   --season-paper: #fff8f8;
   --season-symbol: "♥";
+  --season-garland: "♥  ✦  ♥";
+  --season-overlay: radial-gradient(circle, rgba(255,218,226,.3) 0 3px, transparent 3.8px) 0 0 / 39px 39px;
 }
 
 .seasonal-theme-st-patricks {
@@ -4859,6 +4886,8 @@ button:hover {
   --season-soft: #e6f3e7;
   --season-paper: #fff9e8;
   --season-symbol: "♣";
+  --season-garland: "♣  ★  ♣";
+  --season-overlay: radial-gradient(circle, rgba(235,201,91,.3) 0 2px, transparent 2.8px) 0 0 / 35px 35px;
 }
 
 .seasonal-theme-easter {
@@ -4868,6 +4897,8 @@ button:hover {
   --season-soft: #f0ecf6;
   --season-paper: #fff8e9;
   --season-symbol: "✿";
+  --season-garland: "✿  •  ✿";
+  --season-overlay: radial-gradient(circle, rgba(255,225,241,.3) 0 3px, transparent 3.8px) 0 0 / 40px 40px;
 }
 
 .seasonal-theme-patriotic {
@@ -4877,6 +4908,8 @@ button:hover {
   --season-soft: #e8f0f5;
   --season-paper: #fffaf0;
   --season-symbol: "★";
+  --season-garland: "★  ★  ★";
+  --season-overlay: radial-gradient(circle, rgba(255,255,255,.38) 0 2px, transparent 2.8px) 0 0 / 34px 34px;
 }
 
 .camper-workspace-page.seasonal-theme,
@@ -4909,8 +4942,11 @@ button:hover {
   position: relative;
   isolation: isolate;
   background:
+    var(--season-overlay),
     radial-gradient(circle at 85% 10%, color-mix(in srgb, var(--season-accent) 28%, transparent), transparent 30%),
     linear-gradient(135deg, var(--season-deep), var(--season-main));
+  border-bottom: 4px solid var(--season-accent);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--season-deep) 24%, transparent);
 }
 
 .seasonal-theme .camper-workspace-header::after,
@@ -4956,16 +4992,32 @@ button:hover {
 }
 
 .seasonal-theme-card {
+  position: relative;
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr);
   gap: 10px;
   align-items: center;
   margin: 0 0 15px;
-  padding: 11px 12px;
-  border: 1px solid color-mix(in srgb, var(--season-main) 18%, #ded8ca);
+  overflow: hidden;
+  padding: 11px 76px 11px 12px;
+  border: 2px solid color-mix(in srgb, var(--season-accent) 46%, #ded8ca);
   border-radius: 16px;
-  background: color-mix(in srgb, var(--season-soft) 68%, #fff);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--season-soft) 78%, #fff), #fff);
   color: var(--season-deep);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--season-deep) 10%, transparent);
+}
+
+.seasonal-theme-card::after {
+  content: var(--season-garland);
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  color: color-mix(in srgb, var(--season-accent) 82%, var(--season-deep));
+  font: 700 13px/1 Georgia, serif;
+  letter-spacing: 2px;
+  transform: translateY(-50%) rotate(-5deg);
+  white-space: nowrap;
 }
 
 .seasonal-theme-card>span {
@@ -5003,7 +5055,7 @@ button:hover {
 
 .admin-sidebar .seasonal-theme-card {
   border-color: color-mix(in srgb, var(--season-accent) 28%, transparent);
-  background: rgba(255,255,255,.08);
+  background: linear-gradient(135deg, rgba(255,255,255,.13), rgba(255,255,255,.05));
   color: #fff;
 }
 
@@ -5016,11 +5068,15 @@ button:hover {
   color: rgba(255,255,255,.62);
 }
 
+.admin-sidebar .seasonal-theme-card::after {
+  color: color-mix(in srgb, var(--season-accent) 88%, #fff);
+}
+
 @media(max-width:1280px) {
   .seasonal-theme-card {
     grid-template-columns: 34px minmax(0, 1fr);
     margin: 0 0 12px;
-    padding: 9px 11px;
+    padding: 9px 66px 9px 11px;
     border-radius: 14px;
   }
 
@@ -5033,6 +5089,7 @@ button:hover {
 
   .seasonal-theme-card strong { font-size: 13px; }
   .seasonal-theme-card small { font-size: 9px; }
+  .seasonal-theme-card::after { right: 8px; font-size: 11px; letter-spacing: 1px; }
 }
 
 @media(prefers-reduced-motion: reduce) {
@@ -11350,19 +11407,35 @@ tbody tr:hover {
 
 /* HOLIDAY PORTAL HEROES */
 .portal-seasonal-banner {
+  position: relative;
   display: inline-grid;
   grid-template-columns: 42px minmax(0, 1fr);
   gap: 11px;
   align-items: center;
   max-width: min(430px, 100%);
   margin: 0 0 18px;
-  padding: 11px 15px 11px 11px;
-  border: 1px solid rgba(255,255,255,.25);
+  overflow: hidden;
+  padding: 11px 112px 11px 11px;
+  border: 2px solid color-mix(in srgb, var(--season-accent) 72%, rgba(255,255,255,.4));
   border-radius: 18px;
-  background: rgba(255,255,255,.14);
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.22), rgba(255,255,255,.1));
   color: #fff;
   box-shadow: 0 14px 34px rgba(0,0,0,.13);
   backdrop-filter: blur(14px);
+}
+
+.portal-seasonal-banner::after {
+  content: var(--season-garland);
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  color: color-mix(in srgb, var(--season-accent) 84%, #fff);
+  font: 700 15px/1 Georgia, serif;
+  letter-spacing: 3px;
+  text-shadow: 0 2px 8px rgba(0,0,0,.22);
+  transform: translateY(-50%) rotate(-5deg);
+  white-space: nowrap;
 }
 
 .portal-seasonal-banner>span {
@@ -11398,6 +11471,13 @@ tbody tr:hover {
   .portal-seasonal-banner {
     width: 100%;
     margin-bottom: 14px;
+    padding-right: 82px;
+  }
+
+  .portal-seasonal-banner::after {
+    right: 9px;
+    font-size: 11px;
+    letter-spacing: 1px;
   }
 }
 
@@ -11446,9 +11526,25 @@ tbody tr:hover {
 
 .portal-hero.portal-holiday-patriotic {
   background-image:
+    repeating-linear-gradient(135deg,rgba(255,255,255,.06) 0 10px,rgba(196,52,49,.1) 10px 20px,transparent 20px 40px),
     linear-gradient(90deg,rgba(28,54,78,.97),rgba(60,100,127,.74) 50%,rgba(149,50,47,.24)),
     radial-gradient(circle at 82% 72%,rgba(207,89,82,.28),transparent 29%),
     url('/campground.jpg');
+}
+
+.portal-hero.portal-holiday-halloween {
+  border-bottom-color: #f39a35;
+  box-shadow: inset 0 -5px 0 rgba(116,52,132,.72), 0 24px 60px rgba(42,24,20,.18);
+}
+
+.portal-hero.portal-holiday-christmas {
+  border-bottom-color: #d5b45c;
+  box-shadow: inset 0 -5px 0 rgba(186,55,53,.78), 0 24px 60px rgba(24,48,28,.18);
+}
+
+.portal-hero.portal-holiday-patriotic {
+  border-bottom: 5px solid #fff;
+  box-shadow: inset 0 -9px 0 #c84f4b, 0 24px 60px rgba(28,54,78,.2);
 }
 
 /* ADMIN MONTHLY REPORTS */
