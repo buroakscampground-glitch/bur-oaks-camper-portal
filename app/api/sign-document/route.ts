@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { loadAuthorizedDocumentCamper } from '../../../lib/authorized-billing'
+import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-schedule-service'
 
 const consentText =
   'I agree to use electronic records and signatures for this Bur Oaks Campground document. I understand that typing my full legal name and selecting Sign Document is my electronic signature and shows my intent to sign this document.'
@@ -119,6 +120,34 @@ export async function POST(request: Request) {
     const signatureResult = Array.isArray(signatureRows) ? signatureRows[0] : signatureRows
     const nextSignatureStatus = signatureResult?.result_status || 'signed'
     const signedSlot = signatureResult?.signed_slot || 'first'
+    let renewalRentSchedule: Awaited<ReturnType<typeof continueSignedRenewalRentSchedule>> | null = null
+
+    if (nextSignatureStatus === 'signed') {
+      try {
+        renewalRentSchedule = await continueSignedRenewalRentSchedule({
+          client: context.admin,
+          camperId: String(document.camper_id),
+          documentId: String(document.id),
+          signedAt,
+        })
+      } catch (scheduleError: any) {
+        const scheduleMessage = `Renewal signed, but the lot-rent schedule could not be continued automatically: ${String(scheduleError?.message || scheduleError).slice(0, 1600)}`
+        await context.admin
+          .from('season_renewals')
+          .update({ automation_error: scheduleMessage, last_automation_at: new Date().toISOString() })
+          .eq('camper_id', document.camper_id)
+          .eq('renewal_document_id', document.id)
+        await context.admin.from('admin_notifications').insert({
+          type: 'renewal_rent_schedule_error',
+          title: `Renewal rent schedule needs office review`,
+          message: scheduleMessage,
+          camper_id: document.camper_id,
+          source_table: 'documents',
+          source_id: document.id,
+        })
+        renewalRentSchedule = { status: 'failed', created: 0, skipped: 0 }
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -128,6 +157,7 @@ export async function POST(request: Request) {
       signatureStatus: nextSignatureStatus,
       signedSlot,
       requiresTwoSignatures: signatureResult?.requires_two ?? requiresTwoSignatures,
+      renewalRentSchedule,
     })
   } catch (error) {
     console.error('Unable to sign document:', error)
