@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   ClipboardCheck,
   ClipboardList,
+  DoorOpen,
   FileText,
   Hammer,
   Home,
@@ -72,6 +73,7 @@ const pageNames: Record<string, string> = {
   'pump-outs': 'Pump-Out Requests',
   'site-care': 'Site Care Notices',
   renewals: 'Season Renewal Forecast',
+  'site-availability': 'Site Availability',
   'system-health': 'System Health & Search',
 }
 
@@ -102,6 +104,7 @@ const navGroups = [
     links: [
       { href: '/admin/campers', label: 'Camper Records', icon: Users },
       { href: '/admin/renewals', label: 'Renewal Forecast', icon: CalendarClock },
+      { href: '/admin/site-availability', label: 'Site Availability', icon: DoorOpen },
       { href: '/admin/documents', label: 'Documents & Leases', icon: FileText },
       { href: '/admin/waitlist', label: 'Waitlist', icon: BookOpen },
       { href: '/admin/directory', label: 'Directory', icon: Mail },

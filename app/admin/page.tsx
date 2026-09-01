@@ -12,6 +12,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Droplets,
+  DoorOpen,
   FileText,
   FileSpreadsheet,
   Gauge,
@@ -522,6 +523,7 @@ export default function AdminPage() {
       label: 'Campers & records',
       items: [
         { href: '/admin/campers', title: 'Camper accounts', detail: `${stats.campers} active`, icon: Users },
+        { href: '/admin/site-availability', title: 'Site availability', detail: 'Open now & next 12 months', icon: DoorOpen },
         { href: '/admin/renewals', title: 'Renewal forecast', detail: 'Contracts & likely openings', icon: CalendarClock },
         { href: '/admin/directory', title: 'Directory', detail: 'Quick camper lookup', icon: UserRoundSearch },
         { href: '/admin/documents', title: 'Documents', detail: `${stats.documentActions} need action`, icon: FileText },

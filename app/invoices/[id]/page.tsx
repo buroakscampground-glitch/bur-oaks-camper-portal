@@ -26,6 +26,7 @@ import {
 } from '../../../lib/payment-fees'
 import { saveSmsConsentPreference } from '../../../lib/sms-consent'
 import InvoiceSmsOptInAlert from '../../components/invoice-sms-opt-in-alert'
+import { printPageWithFlag } from '../../../lib/print-page'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -65,13 +66,7 @@ export default function CamperInvoiceDetailPage() {
   const [smsMessage, setSmsMessage] = useState('')
 
   function printInvoice() {
-    const cleanup = () => {
-      delete document.body.dataset.printCamperInvoice
-      window.removeEventListener('afterprint', cleanup)
-    }
-    document.body.dataset.printCamperInvoice = 'true'
-    window.addEventListener('afterprint', cleanup)
-    window.print()
+    printPageWithFlag('data-print-camper-invoice')
   }
 
   useEffect(() => {

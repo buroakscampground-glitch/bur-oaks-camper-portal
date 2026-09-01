@@ -8,6 +8,7 @@ import { deleteInvoiceWithCreditRestore } from "../../../../lib/account-credits"
 import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from "../../../../lib/payment-fees"
 import AdminQuickText from "../../../../components/AdminQuickText"
 import { isInvoiceDueNow, totalInvoiceBalance } from '../../../../lib/invoice-balance'
+import { printPageWithFlag } from '../../../../lib/print-page'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString("en-US", {
@@ -178,7 +179,7 @@ Bur Oaks Campground
           <p>Lot {camper?.lot_number || "—"} · Review open invoices, print a statement, copy a reminder, mark paid, or delete incorrect invoices.</p>
         </div>
         <div className="admin-open-detail-actions">
-          <button type="button" onClick={() => window.print()}><Printer size={16} /> Print</button>
+          <button type="button" onClick={() => printPageWithFlag('data-print-open-balance')}><Printer size={16} /> Print Statement</button>
           <button type="button" onClick={sendReminder}><ClipboardCopy size={16} /> Copy reminder</button>
         </div>
       </section>

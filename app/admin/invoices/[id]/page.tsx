@@ -8,6 +8,7 @@ import { deleteInvoiceWithCreditRestore, formatCreditMoney, updateInvoiceBundle 
 import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../../lib/invoice-display'
 import AdminQuickText from '../../../../components/AdminQuickText'
+import { printPageWithFlag } from '../../../../lib/print-page'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -382,7 +383,7 @@ export default function InvoiceDetailPage() {
                 <CheckCircle2 size={16} /> Mark paid
               </button>
             )}
-            <button type="button" onClick={() => window.print()} aria-label="Print this invoice">
+            <button type="button" onClick={() => printPageWithFlag('data-print-camper-invoice')} aria-label="Print this invoice">
               <Printer size={16} /> Print Invoice
             </button>
             <button type="button" className="danger" onClick={deleteInvoice} disabled={busy || isProcessing || editing}>

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { CheckCircle2, CreditCard, Hourglass, LockKeyhole, Printer, ReceiptText, WalletCards } from 'lucide-react'
 import { achProcessingFeeLabel } from '../../../lib/payment-fees'
 import type { InvoicePaymentMethod } from '../../../lib/stripe'
+import { printPageWithFlag } from '../../../lib/print-page'
 
 function money(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -88,7 +89,7 @@ export default function FinalInvoicePage() {
       <section className="final-invoice-shell">
         <header className="final-invoice-hero">
           <div><span><LockKeyhole size={15} /> FINAL BILLING · PAYMENT ACCESS ONLY</span><h1>Invoice #{invoice.invoice_number}</h1><p>Lot {camper.lot_number || '—'} · {camper.first_name} {camper.last_name}</p></div>
-          <button type="button" onClick={() => window.print()}><Printer size={16} /> Print</button>
+          <button type="button" onClick={() => printPageWithFlag('data-print-final-invoice')}><Printer size={16} /> Print Invoice</button>
         </header>
 
         <section className="final-invoice-summary">
