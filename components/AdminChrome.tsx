@@ -23,6 +23,7 @@ import {
   MessageCircle,
   ReceiptText,
   Rocket,
+  Search,
   Send,
   Settings,
   ShieldCheck,
@@ -71,6 +72,7 @@ const pageNames: Record<string, string> = {
   'pump-outs': 'Pump-Out Requests',
   'site-care': 'Site Care Notices',
   renewals: 'Season Renewal Forecast',
+  'system-health': 'System Health & Search',
 }
 
 const navGroups = [
@@ -78,6 +80,7 @@ const navGroups = [
     label: 'Today',
     links: [
       { href: '/admin', label: 'Command Center', icon: LayoutDashboard },
+      { href: '/admin/system-health', label: 'System Health & Search', icon: ShieldCheck },
       { href: '/admin/notifications', label: 'Needs Attention', icon: Bell },
       { href: '/admin/messages', label: 'Office Inbox', icon: MessageCircle },
       { href: '/admin/texts', label: 'Text Alerts', icon: Send },
@@ -238,6 +241,10 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
                 </a>
 
                 <div className="admin-workspace-nav-actions">
+                  <form className="admin-global-search" action="/admin/system-health" method="get">
+                    <Search size={15} />
+                    <input name="q" aria-label="Search all admin records" placeholder="Search everything…" />
+                  </form>
                   <span><ShieldCheck size={15} /> Admin workspace</span>
                   <a href="/admin"><Home size={17} /> Dashboard</a>
                 </div>

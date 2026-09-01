@@ -487,6 +487,12 @@ export default function AdminPage() {
 
   const operationGroups = [
     {
+      label: 'System oversight',
+      items: [
+        { href: '/admin/system-health', title: 'System health & search', detail: 'Failures, access, activity & backups', icon: ShieldCheck },
+      ],
+    },
+    {
       label: 'Money & billing',
       items: [
         { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} due now`, icon: ReceiptText },

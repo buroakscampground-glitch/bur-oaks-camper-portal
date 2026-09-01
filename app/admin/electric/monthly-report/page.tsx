@@ -28,6 +28,12 @@ function monthLabel(month: string) {
   return new Date(year, monthNumber - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 }
 
+function previousMonth(month: string) {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const previous = new Date(year, monthNumber - 2, 1)
+  return `${previous.getFullYear()}-${String(previous.getMonth() + 1).padStart(2, '0')}`
+}
+
 function readingDate(value: string) {
   const date = new Date(`${value}T12:00:00`)
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString('en-US')
@@ -102,11 +108,27 @@ export default function MonthlyMeterReportPage() {
     autoPrinted.current = true
   }
 
+  function downloadCsv() {
+    const cells = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`
+    const content = [
+      ['Lot', 'Camper', 'Reading date', 'Previous', 'Current', 'Usage kWh', 'Rate', 'Amount due', 'Invoice ID'],
+      ...rows.map((row) => [row.lot_number, row.camper_name, row.reading_date, row.previous_reading, row.current_reading, row.kwh_used, row.rate_per_kwh, row.amount_due, row.invoice_id || '']),
+    ].map((row) => row.map(cells).join(',')).join('\n')
+    const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `bur-oaks-electric-${month}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <main className="monthly-meter-report">
       <header className="monthly-meter-report-controls">
         <a href="/admin/electric/meter-readings"><ArrowLeft size={16} /> Back to Meter Review</a>
         <label><CalendarDays size={16} /><span>Report month</span><input type="month" value={month} onChange={(event) => changeMonth(event.target.value)} /></label>
+        <button type="button" onClick={() => changeMonth(previousMonth(month))}>Previous Month</button>
+        <button type="button" onClick={downloadCsv}>Download CSV</button>
         <button type="button" onClick={() => window.print()}><Printer size={17} /> Print This Month</button>
       </header>
 

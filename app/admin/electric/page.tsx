@@ -333,6 +333,7 @@ const filteredBillingChecklist = checklistFilter === 'all'
   ? billingChecklist
   : billingChecklist.filter((item) => item.status === checklistFilter)
 const completedCount = Number(checklistCounts.no_bill || 0) + Number(checklistCounts.invoice_created || 0) + Number(checklistCounts.paid || 0)
+const remainingCount = Math.max(0, billingChecklist.length - completedCount)
 const waterTrashReviewKey = electricWaterReviewKey(camperId, includeWaterTrash, selectedWaterTrashFee)
 const additionalChargesReviewKey = [
   camperId,
@@ -862,6 +863,18 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
                 <p>{checklistMonth ? new Date(`${checklistMonth.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { month: 'long', year: 'numeric' }) : 'Current month'} · Updates automatically</p>
               </div>
             </header>
+
+            <div className={`electric-month-closeout ${remainingCount === 0 && billingChecklist.length ? 'ready' : ''}`}>
+              <div>
+                <small>MONTH-END CONTROL</small>
+                <strong>{remainingCount === 0 && billingChecklist.length ? 'Ready to close this electric month' : `${remainingCount} site${remainingCount === 1 ? '' : 's'} still need completion`}</strong>
+                <p>{remainingCount === 0 && billingChecklist.length ? 'Every site has an invoice, paid invoice, or recorded no-usage result.' : 'Finish the Not Read, Photo Ready, and Needs Retake groups before filing the month.'}</p>
+              </div>
+              <div>
+                <a href="/admin/electric/monthly-report">Review & print month</a>
+                <a href="/admin/system-health">Health check & backup</a>
+              </div>
+            </div>
 
             <div className="electric-billing-statuses" role="group" aria-label="Filter monthly billing checklist">
               {[

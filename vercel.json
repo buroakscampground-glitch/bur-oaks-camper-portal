@@ -35,6 +35,14 @@
     {
       "path": "/api/cron/weekly-event-reminders",
       "schedule": "45 14 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-owner-summary",
+      "schedule": "30 13 * * 1"
+    },
+    {
+      "path": "/api/cron/monthly-operations-backup",
+      "schedule": "0 14 1 * *"
     }
   ]
 }

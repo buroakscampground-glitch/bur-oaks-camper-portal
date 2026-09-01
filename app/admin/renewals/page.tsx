@@ -65,7 +65,7 @@ type Draft = {
 }
 
 type View = 'Action' | 'Openings' | 'All' | 'Setup'
-type SiteHistoryTab = 'care' | 'payments'
+type SiteHistoryTab = 'activity' | 'care' | 'payments'
 
 type SiteCareNotice = {
   id: string
@@ -95,6 +95,7 @@ type SiteHistory = {
   camper: Camper & { email?: string | null; phone?: string | null }
   notices: SiteCareNotice[]
   invoices: PaymentRecord[]
+  activity: Array<{ id: string; type: string; title: string; detail?: string | null; date?: string | null }>
   summary: {
     totalInvoices: number
     paidInvoices: number
@@ -102,6 +103,7 @@ type SiteHistory = {
     openBalance: number
     totalNotices: number
     activeNotices: number
+    activityItems: number
   }
 }
 
@@ -261,7 +263,7 @@ export default function AdminRenewalsPage() {
   async function openSiteHistory(camper: Camper) {
     setSelectedSiteId(camper.id)
     setSiteHistory(null)
-    setSiteHistoryTab('care')
+    setSiteHistoryTab('activity')
     setSiteHistoryError('')
     setSiteDecisionMessage('')
     setSiteHistoryLoading(true)
@@ -662,9 +664,20 @@ export default function AdminRenewalsPage() {
             </div>
 
             <div className="site-history-tabs" role="tablist" aria-label="Site record lists">
+              <button className={siteHistoryTab === 'activity' ? 'active' : ''} type="button" role="tab" aria-selected={siteHistoryTab === 'activity'} onClick={() => setSiteHistoryTab('activity')}><History size={15} /> All activity ({siteHistory.summary.activityItems})</button>
               <button className={siteHistoryTab === 'care' ? 'active' : ''} type="button" role="tab" aria-selected={siteHistoryTab === 'care'} onClick={() => setSiteHistoryTab('care')}><FileWarning size={15} /> Site care ({siteHistory.summary.totalNotices})</button>
               <button className={siteHistoryTab === 'payments' ? 'active' : ''} type="button" role="tab" aria-selected={siteHistoryTab === 'payments'} onClick={() => setSiteHistoryTab('payments')}><ReceiptText size={15} /> Payments ({siteHistory.summary.totalInvoices})</button>
             </div>
+
+            {siteHistoryTab === 'activity' && <section className="site-history-list">
+              <div className="site-history-list-head"><h3>Complete lot activity</h3><span>Newest first</span></div>
+              {siteHistory.activity.map((item) => <article className="site-history-item" key={item.id}>
+                <div className="site-history-item-top"><strong>{item.title}</strong><span className="site-history-badge">{item.type}</span></div>
+                {item.detail && <p>{item.detail}</p>}
+                <small>{formatDateTime(item.date)}</small>
+              </article>)}
+              {!siteHistory.activity.length && <div className="site-history-empty"><History size={28} /><strong>No site activity recorded.</strong></div>}
+            </section>}
 
             {siteHistoryTab === 'care' && <section className="site-history-list">
               <div className="site-history-list-head"><h3>Infraction & site-care history</h3><span>{siteHistory.summary.activeNotices} still active</span></div>
