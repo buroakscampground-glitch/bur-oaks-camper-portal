@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This item does not have a safe automatic site-service charge.' }, { status: 400 })
     }
     templateKey = storedSiteCareTemplateKey(requestedTemplateKey, true, enforcement.chargeAmount)
-    message = cleanText(`${message} If this is not marked ready for office review by the automatic date, Bur Oaks will create an approved grounds work order and add the ${enforcement.serviceLabel.toLowerCase()} charge of $${enforcement.chargeAmount.toFixed(2)} to your next electric bill.`, 1200)
+    message = cleanText(`${message} If this is not acknowledged or marked ready for office review by the automatic date, Bur Oaks will create an approved grounds work order and add the ${enforcement.serviceLabel.toLowerCase()} charge of $${enforcement.chargeAmount.toFixed(2)} to your next electric bill.`, 1200)
   }
 
   const { data: targetCamper, error: camperError } = await context.admin

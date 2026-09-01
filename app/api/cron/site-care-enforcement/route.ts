@@ -54,7 +54,7 @@ export async function GET(request: Request) {
   const { data: notices, error: noticeError } = await admin
     .from('site_care_notices')
     .select('*')
-    .in('status', ['Open', 'Acknowledged'])
+    .eq('status', 'Open')
     .like('template_key', 'auto:%')
     .lte('due_date', current.date)
     .order('due_date', { ascending: true })
@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     const camperName = `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
     const lotNumber = cleanLotNumber(notice.lot_number || camper.lot_number)
     const chargeNotes = `Automatic deadline charge · ${marker}`
-    const ticketDescription = `${notice.message} The camper did not mark this site-care item ready for office review before the automatic date ${notice.due_date}. Complete only the listed grounds work; do not move or handle the camper's personal property. ${marker}`
+    const ticketDescription = `${notice.message} The camper did not acknowledge this site-care item or mark it ready for office review before the automatic date ${notice.due_date}. Complete only the listed grounds work; do not move or handle the camper's personal property. ${marker}`
 
     const [{ data: existingCharge }, { data: existingTicket }] = await Promise.all([
       admin.from('site_service_charges').select('id').eq('notes', chargeNotes).limit(1).maybeSingle(),
@@ -140,7 +140,7 @@ export async function GET(request: Request) {
       status: 'Resolved',
       resolved_at: resolvedAt,
       resolved_by: 'Automatic site care enforcement',
-    }).eq('id', notice.id).in('status', ['Open', 'Acknowledged'])
+    }).eq('id', notice.id).eq('status', 'Open')
 
     results.push({
       noticeId: notice.id,

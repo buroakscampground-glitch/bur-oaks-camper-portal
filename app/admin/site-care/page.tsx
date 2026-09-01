@@ -182,7 +182,7 @@ export default function AdminSiteCarePage() {
                 <input type="checkbox" checked={autoEnforce} onChange={(event) => setAutoEnforce(event.target.checked)} />
                 <span>
                   <strong>Automatically send to maintenance and charge the site</strong>
-                  <small>Just after midnight on the selected date, if the camper has not marked this ready for review, one approved work order will be created and the saved charge will wait for the next electric bill.</small>
+                  <small>Just after midnight on the selected date, only a notice still completely Open will convert. Acknowledged or Ready for Review notices will not create a work order or charge.</small>
                 </span>
               </label>
             )}
