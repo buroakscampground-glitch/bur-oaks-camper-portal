@@ -1,6 +1,7 @@
 import { escapeHtml } from './portal-invite-email'
 import { createFinalInvoiceToken } from './final-invoice-token'
 import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
+import { isNoBillingLot } from './billing-exemptions'
 
 type InvoiceEmailKind = InvoiceNoticeKind
 
@@ -384,6 +385,9 @@ export async function sendInvoiceEmail({
   const camper = invoiceCamper(invoice)
   if (!camper) {
     return { status: 'skipped', reason: 'Camper billing record was not found.' }
+  }
+  if (isNoBillingLot(camper.lot_number)) {
+    return { status: 'skipped', reason: `Lot ${camper.lot_number} has billing disabled.` }
   }
 
   const isArchivedFinalInvoice = camper.active === false

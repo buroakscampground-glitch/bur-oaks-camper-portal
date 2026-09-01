@@ -1,3 +1,5 @@
+import { isNoBillingLot } from './billing-exemptions'
+
 export function formatCreditMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
     style: 'currency',
@@ -82,6 +84,19 @@ export async function createInvoiceBundle({
   newCredit?: Record<string, unknown> | null
   appliedBy?: string | null
 }) {
+  const camperId = String(invoice.camper_id || '').trim()
+  if (camperId) {
+    const { data: camper, error: camperError } = await client
+      .from('campers')
+      .select('lot_number')
+      .eq('id', camperId)
+      .maybeSingle()
+    if (camperError) throw camperError
+    if (isNoBillingLot(camper?.lot_number)) {
+      throw new Error(`Lot ${camper.lot_number} is a no-billing camper site. No invoice was created or sent.`)
+    }
+  }
+
   const { data, error } = await client.rpc('create_invoice_bundle_atomic', {
     p_operation_key: operationKey,
     p_invoice: invoice,

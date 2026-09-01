@@ -5,6 +5,7 @@ import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { createInvoiceBundle } from '../../../lib/account-credits'
 import { notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
+import { isNoBillingLot } from '../../../lib/billing-exemptions'
 import { isOperationalCamper } from '../../../lib/camper-records'
 
 export default function BulkInvoicesPage() {
@@ -49,6 +50,7 @@ export default function BulkInvoicesPage() {
     } = await supabase.auth.getUser()
 
     for (const camper of campers) {
+      if (isNoBillingLot(camper.lot_number)) continue
       const operationKey = `bulk-invoice:${invoiceType.trim().toLowerCase()}:${dueDate}:${camper.id}`
       const invoiceNumber = `${invoiceType.replace(/\s+/g, '-').toUpperCase()}-${camper.lot_number}-${dueDate}`
 

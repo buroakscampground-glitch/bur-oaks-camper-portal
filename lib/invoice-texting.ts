@@ -4,6 +4,7 @@ import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized
 import { consentedCamperSmsPhones, phoneAutomationKey } from './camper-sms'
 import { daysUntilDate, todayInCentral } from './invoice-reminder-schedule'
 import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
+import { isNoBillingLot } from './billing-exemptions'
 
 type InvoiceTextKind = InvoiceNoticeKind
 
@@ -114,6 +115,9 @@ export async function sendInvoiceText({
   const camper = invoiceCamper(invoice)
   if (!camper?.active) {
     return { status: 'skipped', reason: 'Camper is not active.' }
+  }
+  if (isNoBillingLot(camper.lot_number)) {
+    return { status: 'skipped', reason: `Lot ${camper.lot_number} has billing disabled.` }
   }
 
   const recipients: Array<{ camperId: string; phone: string; automationKey: string }> = []
