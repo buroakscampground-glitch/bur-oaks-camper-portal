@@ -28,6 +28,7 @@ import {
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { effectiveRenewalStatus } from '../../../lib/renewal-document-status'
+import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
 
 type Camper = {
   id: string
@@ -69,6 +70,7 @@ type RenewalDocument = {
   second_signed_name?: string | null
   requires_two_signatures?: boolean | null
   signature_record_hash?: string | null
+  second_signature_record_hash?: string | null
 }
 
 type Draft = {
@@ -126,7 +128,7 @@ const statuses: RenewalStatus[] = ['Not Started', 'Awaiting Response', 'Renewing
 const statusLabels: Record<RenewalStatus, string> = {
   'Not Started': 'Not Started',
   'Awaiting Response': 'Awaiting Camper Response',
-  'Renewing': 'Camper Renewing',
+  'Renewing': 'Camper Renewing — locked until signed',
   'Camper Leaving': 'Camper Chose Not to Renew',
   'Campground Not Renewing': 'Campground Decision — Renewal Not Offered',
 }
@@ -187,6 +189,7 @@ function renewalDocumentSummary(document?: RenewalDocument) {
   if (!document) return 'The linked renewal document could not be found.'
   const status = String(document.signature_status || '').toLowerCase()
   const signers = [document.signed_name, document.second_signed_name].filter(Boolean).join(' and ')
+  if (status === 'signed' && !hasSecureRenewalSignature(document)) return 'Signature record is incomplete. A typed legal name, consent, date, and secure signature proof are required before this renewal is accepted.'
   if (status === 'signed') return `Fully signed${signers ? ` by ${signers}` : ''} on ${formatDateTime(document.signed_at)}. No office confirmation is required.`
   if (status === 'pending_second_signature') return `Partly signed${signers ? ` by ${signers}` : ''}; waiting for the second signer.`
   if (status === 'declined') return 'The camper chose not to renew. The decision is saved with this record.'
@@ -279,7 +282,7 @@ export default function AdminRenewalsPage() {
     const [camperResult, renewalResult, documentResult] = await Promise.all([
       supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,role').eq('active', true).order('lot_number', { ascending: true }),
       supabase.from('season_renewals').select('*').order('contract_end_date', { ascending: true, nullsFirst: false }),
-      supabase.from('documents').select('id,document_name,document_type,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash'),
+      supabase.from('documents').select('id,document_name,document_type,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash'),
     ])
 
     if (camperResult.error || renewalResult.error || documentResult.error) {
@@ -469,7 +472,10 @@ export default function AdminRenewalsPage() {
     return campers.map((camper) => {
       const storedRenewal = renewals.find((record) => record.camper_id === camper.id)
       const linkedDocument = renewalDocuments.find((document) => document.id === storedRenewal?.renewal_document_id)
-      const effectiveStatus = storedRenewal ? effectiveRenewalStatus(storedRenewal.status, linkedDocument?.signature_status) as RenewalStatus : undefined
+      const linkedStatus = linkedDocument?.signature_status === 'signed' && !hasSecureRenewalSignature(linkedDocument)
+        ? 'pending'
+        : linkedDocument?.signature_status
+      const effectiveStatus = storedRenewal ? effectiveRenewalStatus(storedRenewal.status, linkedStatus) as RenewalStatus : undefined
       const renewal = storedRenewal && effectiveStatus !== storedRenewal.status
         ? { ...storedRenewal, status: effectiveStatus as RenewalStatus }
         : storedRenewal
@@ -522,7 +528,8 @@ export default function AdminRenewalsPage() {
   const needsSetup = rows.filter((row) => row.needsSetup)
   const selectedRow = rows.find((row) => row.camper.id === selectedSiteId)
   const selectedRenewalDocument = renewalDocuments.find((document) => document.id === selectedRow?.renewal?.renewal_document_id)
-  const selectedRenewing = Boolean(selectedRow?.approvedToSend || selectedRow?.renewal?.status === 'Renewing')
+  const selectedRenewing = selectedRow?.renewal?.status === 'Renewing'
+  const selectedApprovedToSend = Boolean(selectedRow?.approvedToSend)
   const selectedCamperDeclined = Boolean(selectedRow?.renewal?.status === 'Camper Leaving')
   const selectedCampgroundDeclined = Boolean(selectedRow?.renewal?.status === 'Campground Not Renewing')
 
@@ -640,7 +647,7 @@ export default function AdminRenewalsPage() {
               {isExpanded && <div className="renewal-edit">
                 <label>Annual contract month<select value={draft.annual_month} onChange={(event) => updateDraft(row.camper.id, 'annual_month', event.target.value)}><option value="">Choose month</option>{months.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}</select></label>
                 <label>Day<select value={draft.annual_day} onChange={(event) => updateDraft(row.camper.id, 'annual_day', event.target.value)}><option value="">Choose day</option>{Array.from({ length: 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}</select></label>
-                <label>Decision<select value={draft.status} onChange={(event) => updateDraft(row.camper.id, 'status', event.target.value)}>{statuses.map((status) => <option key={status} value={status}>{statusLabels[status]}</option>)}</select></label>
+                <label>Decision<select value={draft.status} onChange={(event) => updateDraft(row.camper.id, 'status', event.target.value)}>{statuses.map((status) => <option key={status} value={status} disabled={status === 'Renewing' && row.renewal?.status !== 'Renewing'}>{statusLabels[status]}</option>)}</select><small>“Camper Renewing” is assigned automatically only after the camper completes the required signature.</small></label>
                 <div className="renewal-annual-help"><strong>Enter this once.</strong><span>The year does not matter. Every renewal is for 12 months, so the system automatically moves this date forward each year.</span></div>
                 {annualPreview && <div className="renewal-edit-dates"><span>Annual date <strong>{formatAnnualDate(annualPreview)}</strong></span><span>Next automatic send <strong>{formatDate(shiftDate(annualPreview, -4))}</strong></span><span>Camper reply due <strong>{formatDate(shiftDate(annualPreview, -3))}</strong></span><span>Possible opening <strong>{formatDate(shiftDate(annualPreview, 0, 1))}</strong></span>{row.renewal?.automation_error && <span><strong>Needs attention:</strong> {row.renewal.automation_error}</span>}</div>}
                 {row.renewal?.renewal_document_id && <section className={`renewal-document-record ${String(renewalDocument?.signature_status || 'pending').toLowerCase()}`}>
@@ -697,11 +704,11 @@ export default function AdminRenewalsPage() {
             {selectedRow && <section className="site-renewal-decision" aria-label="Renewal decision">
               <div className="site-renewal-decision-head"><strong>Renew this camper’s site?</strong><small>Green approves a renewal. Red records a campground decision not to offer one. If the camper declines on their own, the record is labeled “Camper Chose Not to Renew” instead.</small></div>
               <div className="site-renewal-decision-buttons">
-                <button className={`renew${selectedRenewing ? ' selected' : ''}`} type="button" disabled={saving === selectedRow.camper.id} onClick={() => setSendDecision(selectedRow.camper, true)}><CheckCircle2 size={16} /> {saving === selectedRow.camper.id ? 'Saving…' : selectedRenewing ? 'Green · Renewing' : 'Green · Renew'}</button>
+                <button className={`renew${selectedRenewing || selectedApprovedToSend ? ' selected' : ''}`} type="button" disabled={saving === selectedRow.camper.id || selectedRenewing} onClick={() => setSendDecision(selectedRow.camper, true)}><CheckCircle2 size={16} /> {saving === selectedRow.camper.id ? 'Saving…' : selectedRenewing ? 'Green · Signed renewal complete' : selectedApprovedToSend ? 'Green · Approved to send' : 'Green · Approve renewal to send'}</button>
                 <button className={`do-not-renew${selectedCampgroundDeclined ? ' selected' : ''}`} type="button" disabled={saving === selectedRow.camper.id} onClick={() => setSendDecision(selectedRow.camper, false)}><DoorOpen size={16} /> {saving === selectedRow.camper.id ? 'Saving…' : 'Red · Campground will not renew'}</button>
               </div>
               {selectedCamperDeclined && <p className="site-decision-message">Camper chose not to renew. This is recorded separately from a campground decision.</p>}
-              {(selectedRenewing || selectedCamperDeclined || selectedCampgroundDeclined) && <button className="site-renewal-clear" type="button" disabled={saving === selectedRow.camper.id} onClick={() => clearSendDecision(selectedRow.camper)}>Undo this renewal decision</button>}
+              {(selectedRenewing || selectedApprovedToSend || selectedCamperDeclined || selectedCampgroundDeclined) && <button className="site-renewal-clear" type="button" disabled={saving === selectedRow.camper.id} onClick={() => clearSendDecision(selectedRow.camper)}>Undo this renewal decision</button>}
               {siteDecisionMessage && <p className="site-decision-message" role="status">{siteDecisionMessage}</p>}
             </section>}
 

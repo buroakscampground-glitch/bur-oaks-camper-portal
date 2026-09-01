@@ -1,5 +1,6 @@
 import { continueSignedRenewalRentSchedule } from './renewal-rent-schedule-service'
 import { effectiveRenewalStatus } from './renewal-document-status'
+import { hasSecureRenewalSignature } from './renewal-signature'
 
 function centralDate(value: string) {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -25,7 +26,7 @@ export async function reconcileRenewalsWithDocuments(client: any) {
 
   const { data: documents, error: documentError } = await client
     .from('documents')
-    .select('id,signature_status,signed_at,updated_at')
+    .select('id,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash,updated_at')
     .in('id', documentIds)
   if (documentError) throw documentError
 
@@ -35,7 +36,10 @@ export async function reconcileRenewalsWithDocuments(client: any) {
 
   for (const renewal of renewals || []) {
     const document: any = documentsById.get(renewal.renewal_document_id)
-    const nextStatus = effectiveRenewalStatus(renewal.status, document?.signature_status)
+    const signatureStatus = document?.signature_status === 'signed' && !hasSecureRenewalSignature(document)
+      ? 'pending'
+      : document?.signature_status
+    const nextStatus = effectiveRenewalStatus(renewal.status, signatureStatus)
     if (nextStatus === renewal.status) continue
 
     try {

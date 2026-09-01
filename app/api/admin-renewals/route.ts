@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { todayInCentral } from '../../../lib/invoice-texting'
 import { sendNonRenewalLetter } from '../../../lib/nonrenewal-letter'
 import { reconcileRenewalsWithDocuments } from '../../../lib/renewal-document-reconciliation'
+import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
 
 export const runtime = 'nodejs'
 
@@ -166,6 +167,23 @@ export async function POST(request: Request) {
         : status
   const finalDate = annualDate || existing?.contract_end_date || null
   const changedToCampgroundDecision = decisionStatus === 'Campground Not Renewing' && existing?.status !== 'Campground Not Renewing'
+
+  // Historical records that were already marked Renewing stay untouched, but
+  // no new record can enter that status without a secure camper signature.
+  if (decisionStatus === 'Renewing' && existing?.status !== 'Renewing') {
+    if (!existing?.renewal_document_id) {
+      return NextResponse.json({ error: 'Camper Renewing is automatic only after the assigned renewal is signed. This record has no linked renewal document.' }, { status: 409 })
+    }
+    const { data: signedDocument, error: signedDocumentError } = await context.admin
+      .from('documents')
+      .select('signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash')
+      .eq('id', existing.renewal_document_id)
+      .eq('camper_id', camper.id)
+      .maybeSingle()
+    if (signedDocumentError || !hasSecureRenewalSignature(signedDocument)) {
+      return NextResponse.json({ error: 'This camper cannot be marked renewing until they type their legal name, accept electronic-signature consent, and complete every required signature.' }, { status: 409 })
+    }
+  }
 
   const payload: Record<string, unknown> = {
     camper_id: camper.id,
