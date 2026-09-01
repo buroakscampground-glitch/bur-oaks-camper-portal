@@ -42,6 +42,7 @@ import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { type ElectricPaymentCycle, rollingElectricPaymentCycles } from '../../lib/electric-payment-cycles'
 
 type AdminStats = {
   campers: number
@@ -51,12 +52,8 @@ type AdminStats = {
   announcements: number
   rsvps: number
   electric: number
-  electricInvoiceCount: number
-  electricBilled: number
-  electricPaid: number
-  electricOutstanding: number
+  electricCycles: ElectricPaymentCycle[]
   electricSitesLeft: number
-  electricBillingLabel: string
   waitlist: number
   unpaidInvoices: number
   amountDueInvoices: number
@@ -112,12 +109,8 @@ const emptyStats: AdminStats = {
   announcements: 0,
   rsvps: 0,
   electric: 0,
-  electricInvoiceCount: 0,
-  electricBilled: 0,
-  electricPaid: 0,
-  electricOutstanding: 0,
+  electricCycles: [],
   electricSitesLeft: 0,
-  electricBillingLabel: 'Current run',
   waitlist: 0,
   unpaidInvoices: 0,
   amountDueInvoices: 0,
@@ -208,7 +201,6 @@ export default function AdminPage() {
       dinnerResult,
       supplyRequestResult,
       siteCareResult,
-      latestMeterSubmissionResult,
     ] = await Promise.all([
       supabase.from('campers').select('id,email,secondary_email,phone,mailing_address_line1,mailing_city,mailing_state,mailing_zip,lot_number,role').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
@@ -216,7 +208,7 @@ export default function AdminPage() {
       supabase.from('events').select('id,event_date'),
       supabase.from('announcements').select('id').eq('is_active', true),
       supabase.from('event_rsvps').select('id,event_id'),
-      supabase.from('electric_readings').select('id'),
+      supabase.from('electric_readings').select('id,invoice_id,reading_date'),
       supabase.from('maintenance_tickets').select('*'),
       supabase.from('waitlist').select('id'),
       supabase.from('admin_notifications').select('id,type').is('read_at', null),
@@ -228,7 +220,6 @@ export default function AdminPage() {
       supabase.from('saturday_dinner_signups').select('*'),
       supabase.from('maintenance_supply_requests').select('*').in('status', ['Requested', 'Ordered']).order('requested_at', { ascending: false }),
       supabase.from('site_care_notices').select('*').neq('status', 'Resolved').order('created_at', { ascending: false }),
-      supabase.from('meter_reading_submissions').select('captured_at').neq('status', 'cancelled').order('captured_at', { ascending: false }).limit(1).maybeSingle(),
     ])
 
     const invoices = invoicesResult.data || []
@@ -247,29 +238,10 @@ export default function AdminPage() {
     const unreadMessages = messageResult.data || []
     const activeSupplyRequests = supplyRequestResult.data || []
     const activeSiteCare = siteCareResult.data || []
-    const electricInvoices = invoices.filter((invoice) =>
-      String(invoice.invoice_type || '').toLowerCase().includes('electric') &&
-      String(invoice.status || '').toLowerCase() !== 'cancelled'
-    )
-    const latestElectricInvoiceDate = electricInvoices
-      .map((invoice) => String(invoice.created_at || ''))
-      .sort()
-      .at(-1) || ''
-    const latestMeterDate = String(latestMeterSubmissionResult.data?.captured_at || '')
-    const latestElectricActivity = [latestElectricInvoiceDate, latestMeterDate].filter(Boolean).sort().at(-1) || new Date().toISOString()
-    const electricBillingMonth = latestElectricActivity.slice(0, 7)
-    const cycleElectricInvoices = electricInvoices.filter((invoice) => String(invoice.created_at || '').startsWith(electricBillingMonth))
-    const electricBilled = cycleElectricInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-    const electricPaid = cycleElectricInvoices
-      .filter((invoice) => String(invoice.status || '').toLowerCase() === 'paid')
-      .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-    const electricOutstanding = cycleElectricInvoices
-      .filter((invoice) => String(invoice.status || '').toLowerCase() !== 'paid')
-      .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-    const electricBillingLabel = new Date(`${electricBillingMonth}-01T12:00:00`).toLocaleDateString('en-US', {
-      month: 'long',
-      year: 'numeric',
-    })
+    const centralMonthParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit' }).formatToParts(new Date())
+    const centralPart = (type: Intl.DateTimeFormatPartTypes) => centralMonthParts.find((part) => part.type === type)?.value || ''
+    const electricBillingMonth = `${centralPart('year')}-${centralPart('month')}`
+    const electricCycles = rollingElectricPaymentCycles({ invoices, readings: electricResult.data || [], currentMonth: electricBillingMonth })
     let electricSitesLeft = 0
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
@@ -409,12 +381,8 @@ export default function AdminPage() {
       announcements: announcementsResult.data?.length || 0,
       rsvps: rsvpsResult.data?.length || 0,
       electric: electricResult.data?.length || 0,
-      electricInvoiceCount: cycleElectricInvoices.length,
-      electricBilled,
-      electricPaid,
-      electricOutstanding,
+      electricCycles,
       electricSitesLeft,
-      electricBillingLabel,
       waitlist: waitlistResult.data?.length || 0,
       unpaidInvoices: openInvoices.length,
       amountDueInvoices: amountDueInvoices.length,
@@ -686,11 +654,19 @@ export default function AdminPage() {
             <strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong>
             <small>{stats.pendingMaintenance} awaiting approval</small>
           </div>
-          <a className="electric-summary" href="/admin/electric" aria-label={`Open ${stats.electricBillingLabel} electric billing`}>
-            <span>Electric invoiced · {stats.electricBillingLabel}</span>
-            <strong>${stats.electricBilled.toFixed(2)}</strong>
-            <small>${stats.electricPaid.toFixed(2)} paid · ${stats.electricOutstanding.toFixed(2)} open</small>
-            <em>{stats.electricInvoiceCount} invoice{stats.electricInvoiceCount === 1 ? '' : 's'} · {stats.electricSitesLeft} site{stats.electricSitesLeft === 1 ? '' : 's'} left</em>
+          <a className="electric-summary" href="/admin/electric" aria-label="Open the rolling electric payment progress">
+            <span>Electric payments · previous and current month</span>
+            <div className="electric-cycle-grid">
+              {stats.electricCycles.map((cycle) => (
+                <section key={cycle.month}>
+                  <strong>{cycle.label}</strong>
+                  <b>${cycle.outstanding.toFixed(2)} due</b>
+                  <small>${cycle.paid.toFixed(2)} paid of ${cycle.billed.toFixed(2)}</small>
+                  <em>{cycle.paidCount} of {cycle.invoiceCount} paid · {cycle.openCount} unpaid</em>
+                </section>
+              ))}
+            </div>
+            <small className="electric-sites-left">Current billing work: {stats.electricSitesLeft} site{stats.electricSitesLeft === 1 ? '' : 's'} left to finish</small>
           </a>
         </section>
 

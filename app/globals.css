@@ -12632,7 +12632,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 
 .admin-desk-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   margin: 14px 0;
   overflow: hidden;
   border: 1px solid #dcded6;
@@ -12693,14 +12693,51 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 }
 
 .admin-desk-summary .electric-summary {
+  grid-column: span 2;
   background: linear-gradient(135deg, #eef7f8, #f8fbf7);
   color: inherit;
   text-decoration: none;
   box-shadow: inset 3px 0 #4f9298;
 }
 
-.admin-desk-summary .electric-summary strong {
+.admin-desk-summary .electric-summary strong,
+.admin-desk-summary .electric-summary b {
   color: #246a73;
+}
+
+.electric-cycle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.electric-cycle-grid section {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid rgba(79, 146, 152, 0.22);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.admin-desk-summary .electric-cycle-grid strong {
+  margin-bottom: 5px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.electric-cycle-grid b {
+  display: block;
+  margin-bottom: 3px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.admin-desk-summary .electric-sites-left {
+  margin-top: 8px;
+  color: #37654a;
 }
 
 .admin-desk-summary .electric-summary:hover {
@@ -13013,6 +13050,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   .admin-desk-header-actions button { justify-content: center; }
   .admin-desk-summary > div, .admin-desk-summary > a { padding: 14px; }
   .admin-desk-summary strong { font-size: 21px; }
+  .electric-cycle-grid { grid-template-columns: 1fr; }
   .admin-desk-section-heading, .admin-desk-directory-head { padding: 17px; }
   .admin-desk-groups { padding: 18px 17px 4px; }
 }
