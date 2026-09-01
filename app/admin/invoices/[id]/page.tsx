@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, FileText, Pencil, Plus, Printer, ReceiptText, Save, Trash2, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, FileText, Pencil, Plus, Printer, ReceiptText, Save, Send, Trash2, X } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { deleteInvoiceWithCreditRestore, formatCreditMoney, updateInvoiceBundle } from '../../../../lib/account-credits'
 import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
@@ -49,6 +49,8 @@ export default function InvoiceDetailPage() {
   const [editDueDate, setEditDueDate] = useState('')
   const [editLateFee, setEditLateFee] = useState('0')
   const [editItems, setEditItems] = useState<EditableInvoiceItem[]>([])
+  const [finalPaymentPhone, setFinalPaymentPhone] = useState('')
+  const [sendingFinalLink, setSendingFinalLink] = useState(false)
 
   useEffect(() => {
     loadInvoice()
@@ -88,7 +90,9 @@ export default function InvoiceDetailPage() {
             id,
             first_name,
             last_name,
-            lot_number
+            lot_number,
+            phone,
+            active
           )
         `)
         .eq('id', invoiceId)
@@ -107,6 +111,9 @@ export default function InvoiceDetailPage() {
 
     setFeeSettings(paymentFeeSettings)
     setInvoice(invoiceResult.data || null)
+    if (!finalPaymentPhone && invoiceResult.data?.campers?.phone) {
+      setFinalPaymentPhone(String(invoiceResult.data.campers.phone))
+    }
     setInvoiceItems(itemResult.data || [])
     setAppliedCredit(
       (creditResult.data || []).reduce((sum, application) => sum + Number(application.amount_applied || 0), 0)
@@ -265,6 +272,41 @@ export default function InvoiceDetailPage() {
       setMessage(error.message || 'Unable to save invoice changes.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function sendFinalPaymentLink() {
+    if (!invoice || !finalPaymentPhone.trim()) {
+      setMessage('Enter the mobile number that should receive the private payment link.')
+      return
+    }
+    if (!window.confirm(`Text this private ${formatMoney(invoice.total_due)} payment link to ${finalPaymentPhone}?`)) return
+
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token || ''
+    if (!token) {
+      window.location.href = '/login'
+      return
+    }
+
+    setSendingFinalLink(true)
+    setMessage('Sending private payment link…')
+    try {
+      const response = await fetch('/api/admin-final-invoice-text', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId: invoice.id, phone: finalPaymentPhone }),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        setMessage(result.error || 'Unable to send the private payment link.')
+        return
+      }
+      setMessage(result.skipped ? result.message : `Private payment link sent to ${result.phone}.`)
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to send the private payment link.')
+    } finally {
+      setSendingFinalLink(false)
     }
   }
 
@@ -475,6 +517,26 @@ export default function InvoiceDetailPage() {
             <p><CreditCard size={15} /><span><small>Payment method</small><strong>{invoice.payment_method || (isPaid ? 'Paid' : 'Not paid yet')}</strong></span></p>
           </div>
         </section>
+
+        {invoice?.campers?.active === false && !isPaid && !isProcessing && (
+          <section className="admin-quick-text">
+            <div className="admin-quick-text-heading">
+              <span><CreditCard size={18} /></span>
+              <div>
+                <small>FINAL BILLING</small>
+                <h2>Text a private payment link</h2>
+                <p>This opens only this invoice. It does not restore camper-portal access and closes after online or manually recorded payment.</p>
+              </div>
+            </div>
+            <label>
+              <span>Mobile number</span>
+              <input type="tel" value={finalPaymentPhone} onChange={(event) => setFinalPaymentPhone(event.target.value)} placeholder="(618) 555-1234" />
+            </label>
+            <button type="button" onClick={sendFinalPaymentLink} disabled={sendingFinalLink}>
+              <Send size={16} /> {sendingFinalLink ? 'Sending…' : 'Send private payment link'}
+            </button>
+          </section>
+        )}
 
         {invoice?.campers?.id && (
           <AdminQuickText
