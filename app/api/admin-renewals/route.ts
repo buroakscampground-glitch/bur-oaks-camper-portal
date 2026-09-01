@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { todayInCentral } from '../../../lib/invoice-texting'
 import { sendNonRenewalLetter } from '../../../lib/nonrenewal-letter'
+import { reconcileRenewalsWithDocuments } from '../../../lib/renewal-document-reconciliation'
 
 export const runtime = 'nodejs'
 
@@ -42,8 +43,17 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json().catch(() => ({}))
-  const camperId = cleanText(body.camperId, 80)
   const action = cleanText(body.action, 40) || 'save'
+  if (action === 'reconcile') {
+    try {
+      const reconciliation = await reconcileRenewalsWithDocuments(context.admin)
+      return NextResponse.json({ success: true, reconciliation })
+    } catch (error: any) {
+      return NextResponse.json({ error: error?.message || 'Renewal signatures could not be reconciled.' }, { status: 500 })
+    }
+  }
+
+  const camperId = cleanText(body.camperId, 80)
   if (!camperId) return NextResponse.json({ error: 'A camper is required.' }, { status: 400 })
 
   const { data: camper } = await context.admin

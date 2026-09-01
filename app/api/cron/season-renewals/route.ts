@@ -5,6 +5,7 @@ import { formatSmsPhone, sendTwilioSms } from '../../../../lib/twilio-sms'
 import { consentedCamperSmsPhones } from '../../../../lib/camper-sms'
 import { isSystemPortalAccount } from '../../../../lib/camper-records'
 import { runPendingDocumentSignatureReminders } from '../../../../lib/document-reminders'
+import { reconcileRenewalsWithDocuments } from '../../../../lib/renewal-document-reconciliation'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,6 +47,10 @@ export async function GET(request: Request) {
   if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
 
   const today = todayInCentral()
+
+  // Keep the forecast aligned with the signed-document tracker, including
+  // renewals completed before the instant signing automation was introduced.
+  const reconciliation = await reconcileRenewalsWithDocuments(admin)
 
   // After a camper renews and the anniversary passes, prepare their next yearly cycle.
   const { data: completedCycles } = await admin
@@ -254,6 +259,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.json({
+    reconciliation,
     success: true,
     today,
     checked: (records?.length || 0) + (nonRenewals?.length || 0),

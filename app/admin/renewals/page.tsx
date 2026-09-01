@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import { effectiveRenewalStatus } from '../../../lib/renewal-document-status'
 
 type Camper = {
   id: string
@@ -266,6 +267,15 @@ export default function AdminRenewalsPage() {
 
   async function loadPage() {
     setLoading(true)
+    const session = await supabase.auth.getSession()
+    const token = session.data.session?.access_token
+    if (token) {
+      await fetch('/api/admin-renewals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'reconcile' }),
+      }).catch(() => null)
+    }
     const [camperResult, renewalResult, documentResult] = await Promise.all([
       supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,role').eq('active', true).order('lot_number', { ascending: true }),
       supabase.from('season_renewals').select('*').order('contract_end_date', { ascending: true, nullsFirst: false }),
@@ -457,7 +467,12 @@ export default function AdminRenewalsPage() {
   const rows = useMemo(() => {
     const today = todayISO()
     return campers.map((camper) => {
-      const renewal = renewals.find((record) => record.camper_id === camper.id)
+      const storedRenewal = renewals.find((record) => record.camper_id === camper.id)
+      const linkedDocument = renewalDocuments.find((document) => document.id === storedRenewal?.renewal_document_id)
+      const effectiveStatus = storedRenewal ? effectiveRenewalStatus(storedRenewal.status, linkedDocument?.signature_status) as RenewalStatus : undefined
+      const renewal = storedRenewal && effectiveStatus !== storedRenewal.status
+        ? { ...storedRenewal, status: effectiveStatus as RenewalStatus }
+        : storedRenewal
       const contractEnd = annualContractDate(renewal)
       const sendDue = shiftDate(contractEnd, -4)
       const reviewDue = shiftDate(sendDue, 0, -14)
@@ -488,7 +503,7 @@ export default function AdminRenewalsPage() {
       else if (confirmedOpening) priority = 5
       return { camper, renewal, contractEnd, sendDue, reviewDue, responseDue, openingDate, confirmedOpening, campgroundDecision, camperDeclined, approvedToSend, nonRenewalLetterDue, nonRenewalNeedsApproval, needsReview, safe, responseOverdue, sendOverdue, sendSoon, needsSetup, automationError, needsAction, priority }
     }).sort((a, b) => a.priority - b.priority || (a.contractEnd || '9999').localeCompare(b.contractEnd || '9999') || String(a.camper.lot_number || '').localeCompare(String(b.camper.lot_number || ''), undefined, { numeric: true }))
-  }, [campers, renewals])
+  }, [campers, renewals, renewalDocuments])
 
   const visibleRows = rows.filter((row) => {
     if (view === 'Action' && !row.needsAction && row.renewal?.status !== 'Awaiting Response') return false
