@@ -191,7 +191,7 @@ export default function AdminSiteCarePage() {
                 <input type="checkbox" checked={autoEnforce} onChange={(event) => setAutoEnforce(event.target.checked)} />
                 <span>
                   <strong>Automatically send to maintenance and charge the site</strong>
-                  <small>Just after midnight on the selected date, only a notice still completely Open will convert. Acknowledged or Ready for Review notices will not create a work order or charge.</small>
+                  <small>At 12:01 AM Central on the selected date, only a notice still completely Open will convert. Acknowledged or Ready for Review notices will not create a work order or charge.</small>
                 </span>
               </label>
             )}

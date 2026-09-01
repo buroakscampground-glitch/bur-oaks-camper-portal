@@ -40,11 +40,11 @@ export async function GET(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
 
   const current = centralNow()
-  // Vercel Hobby permits one daily cron expression. 06:01 UTC lands at
-  // 12:01 AM Central in winter and 1:01 AM during daylight-saving time, so an
-  // item is never enforced before its selected Central calendar date.
-  if (![0, 1].includes(current.hour)) {
-    return NextResponse.json({ success: true, skipped: true, reason: 'Not the after-midnight Central window.', current })
+  // Vercel Hobby permits each cron expression to run only once daily. Two
+  // separate daily routes cover daylight and standard time; only the route
+  // landing at 12:01 AM in Chicago is allowed to process notices.
+  if (current.hour !== 0) {
+    return NextResponse.json({ success: true, skipped: true, reason: 'Not the 12:01 AM Central window.', current })
   }
 
   const admin = adminClient()

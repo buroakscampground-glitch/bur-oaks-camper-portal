@@ -9,6 +9,10 @@
       "schedule": "1 6 * * *"
     },
     {
+      "path": "/api/cron/site-care-enforcement-daylight",
+      "schedule": "1 5 * * *"
+    },
+    {
       "path": "/api/cron/monday-pump-out-list",
       "schedule": "0 12 * * *"
     },
