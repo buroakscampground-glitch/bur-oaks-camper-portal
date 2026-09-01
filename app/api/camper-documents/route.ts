@@ -33,7 +33,13 @@ export async function GET(request: Request) {
       }
     })
 
-    return NextResponse.json({ documents })
+    const signedInEmail = String(context.user.email || '').trim().toLowerCase()
+    const secondaryEmail = String(context.camper.secondary_email || '').trim().toLowerCase()
+    const suggestedSignerName = signedInEmail && signedInEmail === secondaryEmail
+      ? `${context.camper.second_profile_first_name || ''} ${context.camper.second_profile_last_name || ''}`.trim()
+      : `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim()
+
+    return NextResponse.json({ documents, suggestedSignerName })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Unable to load camper documents.' }, { status: 500 })
   }

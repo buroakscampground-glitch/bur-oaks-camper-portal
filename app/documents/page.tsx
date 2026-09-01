@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, DoorOpen, FileSignature, LockKeyhole, ShieldCheck } from 'lucide-react'
+import { Check, CheckCircle2, DoorOpen, ExternalLink, FileSignature, LockKeyhole, ShieldCheck, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function DocumentsPage() {
@@ -15,10 +15,15 @@ export default function DocumentsPage() {
   const [decliningId, setDecliningId] = useState('')
   const [message, setMessage] = useState('')
   const [currentUserEmail, setCurrentUserEmail] = useState('')
+  const [suggestedSignerName, setSuggestedSignerName] = useState('')
   const router = useRouter()
 
   async function openDocument(documentId: string) {
     router.push(`/documents/view/${documentId}`)
+  }
+
+  function reviewBeforeSigning(documentId: string) {
+    window.open(`/documents/view/${documentId}`, '_blank', 'noopener,noreferrer')
   }
 
   useEffect(() => {
@@ -49,6 +54,7 @@ export default function DocumentsPage() {
         setMessage(result?.error || 'Unable to load your documents.')
       } else {
         setDocuments(result?.documents || [])
+        setSuggestedSignerName(String(result?.suggestedSignerName || '').trim())
       }
 
       setLoading(false)
@@ -192,6 +198,13 @@ export default function DocumentsPage() {
 
   const isRenewalDocument = (doc: any) => /renewal/i.test(`${doc.document_name || ''} ${doc.document_type || ''}`)
 
+  function beginSigning(document: any) {
+    setSigningDocument(document)
+    setTypedName(suggestedSignerName)
+    setConsentAccepted(false)
+    setMessage('')
+  }
+
   function renderDocumentCard(doc: any) {
     return (
       <section
@@ -234,8 +247,8 @@ export default function DocumentsPage() {
             </button>
           )}
           {canCurrentUserSign(doc) && (
-            <button type="button" className="primary" onClick={() => { setSigningDocument(doc); setMessage('') }}>
-              Sign Document
+            <button type="button" className="primary" onClick={() => beginSigning(doc)}>
+              Review &amp; Sign
             </button>
           )}
           {canCurrentUserSign(doc) && isRenewalDocument(doc) && !doc.access_is_delegated && (
@@ -304,18 +317,30 @@ export default function DocumentsPage() {
       {message && <div className="camper-document-message">{message}</div>}
 
       {signingDocument && (
-        <div className="signature-modal-backdrop" role="dialog" aria-modal="true">
+        <div className="signature-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title">
           <section className="signature-modal">
-            <span className="signature-modal-icon"><LockKeyhole size={22} /></span>
-            <small>ELECTRONIC SIGNATURE</small>
-            <h2>{signingDocument.document_name}</h2>
-            <p>
-              Before signing, open and review the document. By continuing, you agree to use
-              electronic records and signatures for this Bur Oaks Campground document.
-            </p>
+            <div className="signature-modal-heading">
+              <span className="signature-modal-icon"><LockKeyhole size={22} /></span>
+              <div>
+                <small>SECURE ELECTRONIC SIGNATURE</small>
+                <h2 id="signature-modal-title">Review and sign</h2>
+                <p>{signingDocument.document_name}</p>
+              </div>
+              <button type="button" className="signature-modal-close" aria-label="Close signing window" onClick={() => setSigningDocument(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="signature-simple-steps" aria-label="Three signing steps">
+              <span><b>1</b> Review</span>
+              <span><b>2</b> Confirm</span>
+              <span><b>3</b> Sign</span>
+            </div>
+            <button type="button" className="signature-review-button" onClick={() => reviewBeforeSigning(String(signingDocument.id))}>
+              <ExternalLink size={17} /> Open document to review <small>(new tab)</small>
+            </button>
             {signingDocument.requires_two_signatures && (
               <p className="signature-two-signer-note">
-                This document requires two signatures. Your signature will be saved, then the document will remain open until the second signer completes it.
+                <strong>Two signatures are required.</strong> Yours will be saved now; the other person can sign from their own login afterward.
               </p>
             )}
             <label className="signature-consent">
@@ -324,18 +349,28 @@ export default function DocumentsPage() {
                 checked={consentAccepted}
                 onChange={(event) => setConsentAccepted(event.target.checked)}
               />
-              <span>I agree that typing my full legal name and selecting Sign Document is my electronic signature and shows my intent to sign this document.</span>
+              <span><strong>I reviewed and agree to this document.</strong> I agree to use electronic records and understand that typing my full legal name and selecting “Sign Document Securely” is my electronic signature and shows my intent to sign this document.</span>
             </label>
             <label className="signature-name-field">
-              <span>Type your full legal name</span>
+              <span>Full legal name</span>
               <input
                 value={typedName}
                 onChange={(event) => setTypedName(event.target.value)}
                 placeholder="Full legal name"
+                autoComplete="name"
+                autoCapitalize="words"
               />
+              <small>{suggestedSignerName ? 'We filled this in from your profile. Check that it is correct.' : 'Type your name exactly as you want it recorded.'}</small>
             </label>
+            <p className={consentAccepted && typedName.trim().length >= 3 ? 'signature-submit-note ready' : 'signature-submit-note'}>
+              <Check size={15} />
+              {!consentAccepted
+                ? 'Check the agreement box above to enable signing.'
+                : typedName.trim().length < 3
+                  ? 'Enter your full legal name to enable signing.'
+                  : 'Ready. Nothing is submitted until you tap the green button.'}
+            </p>
             <div className="signature-modal-actions">
-              <button type="button" onClick={() => openDocument(String(signingDocument.id))}>Review Document</button>
               <button type="button" onClick={() => setSigningDocument(null)}>Cancel</button>
               <button
                 type="button"
@@ -343,7 +378,7 @@ export default function DocumentsPage() {
                 onClick={signDocument}
                 disabled={signing || !consentAccepted || typedName.trim().length < 3}
               >
-                {signing ? 'Signing…' : 'Sign Document'}
+                {signing ? 'Signing securely…' : 'Sign Document Securely'}
               </button>
             </div>
           </section>

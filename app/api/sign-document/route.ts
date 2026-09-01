@@ -6,7 +6,7 @@ import { loadAuthorizedDocumentCamper } from '../../../lib/authorized-billing'
 import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-schedule-service'
 
 const consentText =
-  'I agree to use electronic records and signatures for this Bur Oaks Campground document. I understand that typing my full legal name and selecting Sign Document is my electronic signature and shows my intent to sign this document.'
+  'I reviewed and agree to this document. I agree to use electronic records and understand that typing my full legal name and selecting Sign Document Securely is my electronic signature and shows my intent to sign this document.'
 
 function getIpAddress(request: Request) {
   const forwardedFor = request.headers.get('x-forwarded-for')
