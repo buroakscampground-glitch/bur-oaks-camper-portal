@@ -540,6 +540,9 @@ export default function AdminDocumentsPage() {
                 </div>
                 <div className="signature-tracker-row-actions">
                 <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : signatureStatusLabel(document)}</em>
+                  <a href={`/documents/view/${document.id}`} target="_blank" rel="noreferrer" aria-label={`Open ${document.document_name || 'document'}`}>
+                    <ArrowUpRight size={14} /> Open
+                  </a>
                   <button
                     className="danger"
                     type="button"
