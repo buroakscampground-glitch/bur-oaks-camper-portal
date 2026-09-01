@@ -576,7 +576,7 @@ export default function AdminCampersPage() {
 >
           <div>
   <div className="admin-camper-name-row">
-    <strong>
+    <strong className="admin-camper-name-link">
       Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
     </strong>
     {camper.email?.endsWith('@no-email.buroaks.local') ? (
@@ -630,10 +630,10 @@ export default function AdminCampersPage() {
             type="button"
             onClick={(event) => {
               event.stopPropagation()
-              editCamper(camper)
+              router.push(`/admin/campers/${camper.id}#camper-history`)
             }}
           >
-            Edit
+            View Full History & Profile
           </button>
 
           <button

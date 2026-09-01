@@ -13,20 +13,26 @@ import {
   FileText,
   FileUp,
   Gauge,
+  History,
   LoaderCircle,
   Mail,
   MapPin,
+  MessageCircle,
   Phone,
+  ReceiptText,
   Save,
   ShieldCheck,
   UserRound,
   UsersRound,
+  Wrench,
+  Zap,
 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import AddressFinder from '../../../../components/AddressFinder'
 import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
+type HistoryView = 'activity' | 'documents' | 'billing' | 'site' | 'messages' | 'electric'
 
 type Camper = {
   id: string
@@ -127,6 +133,9 @@ export default function CamperDetailPage() {
   const [savingAnnualRent, setSavingAnnualRent] = useState(false)
   const [message, setMessage] = useState('')
   const [notFound, setNotFound] = useState(false)
+  const [internalHistory, setInternalHistory] = useState<any | null>(null)
+  const [historyView, setHistoryView] = useState<HistoryView>('activity')
+  const [historyError, setHistoryError] = useState('')
 
   useEffect(() => {
     loadCamper()
@@ -172,7 +181,26 @@ export default function CamperDetailPage() {
       setAnnualLotRent('')
     }
 
+    await loadInternalHistory()
     setLoading(false)
+  }
+
+  async function loadInternalHistory() {
+    setHistoryError('')
+    try {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) throw new Error('Your admin login has expired. Please sign in again.')
+      const response = await fetch(`/api/admin-site-history?camperId=${encodeURIComponent(camperId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok || !result?.camper) throw new Error(result?.error || 'The internal history could not be loaded.')
+      setInternalHistory(result)
+    } catch (error) {
+      setHistoryError(error instanceof Error ? error.message : 'The internal history could not be loaded.')
+    }
   }
 
   function updateField<K extends keyof Camper>(field: K, value: Camper[K]) {
@@ -478,6 +506,15 @@ export default function CamperDetailPage() {
   const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
   const balanceDue = totalInvoiceBalance(invoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice)))
   const initials = `${camper.first_name?.[0] || ''}${camper.last_name?.[0] || ''}`.toUpperCase()
+  const history = internalHistory
+  const historyCounts: Record<HistoryView, number> = {
+    activity: Number(history?.summary?.activityItems || 0),
+    documents: Number(history?.summary?.totalDocuments || 0),
+    billing: Number(history?.summary?.totalInvoices || 0),
+    site: Number(history?.summary?.totalNotices || 0) + Number(history?.summary?.maintenanceItems || 0) + Number(history?.summary?.pumpOuts || 0),
+    messages: Number(history?.summary?.messages || 0),
+    electric: Number(history?.summary?.electricReadings || 0),
+  }
 
   return (
     <main className="admin-camper-profile-page">
@@ -520,6 +557,80 @@ export default function CamperDetailPage() {
           {message}
         </div>
       )}
+
+      <section className="admin-camper-heart" id="camper-history" aria-labelledby="camper-history-title">
+        <div className="admin-camper-heart-heading">
+          <div className="admin-camper-heart-icon"><History size={23} /></div>
+          <div>
+            <small>ADMIN ONLY · PERMANENT CAMPER RECORD</small>
+            <h2 id="camper-history-title">Complete camper history</h2>
+            <p>One private place for every signed document, charge, payment, message, meter reading, site-care item, work order, pump-out, and renewal decision.</p>
+          </div>
+          <span className="admin-camper-heart-lock"><ShieldCheck size={16} /> Internal information</span>
+        </div>
+
+        {historyError && <div className="admin-camper-history-error"><strong>History could not load.</strong><span>{historyError}</span><button type="button" onClick={loadInternalHistory}>Try again</button></div>}
+
+        {history && <>
+          <div className="admin-camper-heart-summary">
+            <article><small>Recorded activity</small><strong>{history.summary.activityItems}</strong><span>All saved events</span></article>
+            <article><small>Signed documents</small><strong>{history.summary.signedDocuments} of {history.summary.totalDocuments}</strong><span>Signature records kept</span></article>
+            <article><small>Paid invoices</small><strong>{history.summary.paidInvoices} of {history.summary.totalInvoices}</strong><span>{history.summary.lateInvoices} paid late / past due</span></article>
+            <article><small>Current balance</small><strong>${Number(history.summary.openBalance || 0).toFixed(2)}</strong><span>All open invoices</span></article>
+          </div>
+
+          <nav className="admin-camper-history-tabs" aria-label="Camper history sections">
+            <HistoryTab active={historyView === 'activity'} onClick={() => setHistoryView('activity')} icon={<History />} label="All activity" count={historyCounts.activity} />
+            <HistoryTab active={historyView === 'documents'} onClick={() => setHistoryView('documents')} icon={<FileText />} label="Documents" count={historyCounts.documents} />
+            <HistoryTab active={historyView === 'billing'} onClick={() => setHistoryView('billing')} icon={<ReceiptText />} label="Billing & payments" count={historyCounts.billing} />
+            <HistoryTab active={historyView === 'site'} onClick={() => setHistoryView('site')} icon={<Wrench />} label="Site & maintenance" count={historyCounts.site} />
+            <HistoryTab active={historyView === 'messages'} onClick={() => setHistoryView('messages')} icon={<MessageCircle />} label="Messages" count={historyCounts.messages} />
+            <HistoryTab active={historyView === 'electric'} onClick={() => setHistoryView('electric')} icon={<Zap />} label="Electric" count={historyCounts.electric} />
+          </nav>
+
+          <div className="admin-camper-history-content">
+            {historyView === 'activity' && <HistoryList empty="No activity has been recorded for this camper yet.">
+              {(history.activity || []).map((item: any) => <article className="admin-history-row" key={item.id}>
+                <span className={`admin-history-type ${String(item.type || '').toLowerCase()}`}>{item.type}</span>
+                <div><strong>{item.title}</strong><p>{item.detail || 'Saved to camper history'}</p></div>
+                <time>{formatHistoryDate(item.date)}</time>
+                {item.type === 'Document' && item.source_id && <button type="button" onClick={() => router.push(`/documents/view/${item.source_id}`)}>Open</button>}
+              </article>)}
+            </HistoryList>}
+
+            {historyView === 'documents' && <HistoryList empty="No documents are saved for this camper yet.">
+              {(history.documents || []).map((document: any) => <article className="admin-history-document" key={document.id}>
+                <span className={String(document.signature_status || '').toLowerCase() === 'signed' ? 'signed' : 'pending'}><FileText size={19} /></span>
+                <div><small>{document.document_type || 'DOCUMENT'}</small><strong>{document.document_name || 'Camper document'}</strong><p>{documentSignatureSummary(document)}</p>{document.signature_record_hash && <em><ShieldCheck size={13} /> Secure signature proof saved</em>}</div>
+                <button type="button" onClick={() => router.push(`/documents/view/${document.id}`)}><Eye size={15} /> Open document</button>
+              </article>)}
+            </HistoryList>}
+
+            {historyView === 'billing' && <HistoryList empty="No invoices are saved for this camper yet.">
+              {(history.invoices || []).map((invoice: any) => <article className="admin-history-invoice" key={invoice.id}>
+                <div className="admin-history-invoice-top"><div><small>{invoice.invoice_type || 'INVOICE'}</small><strong>{invoice.invoice_number || 'Invoice'}</strong></div><span className={String(invoice.status || '').toLowerCase()}>{invoice.status || 'Open'}</span><b>${Number(invoice.total_due || 0).toFixed(2)}</b></div>
+                <p>Due {formatHistoryDate(invoice.due_date)}{invoice.paid_at ? ` · Paid ${formatHistoryDate(invoice.paid_at)}` : ''}{invoice.payment_method ? ` · ${invoice.payment_method}` : ''}{invoice.is_late ? ' · Late/past due' : ''}</p>
+                {!!invoice.invoice_items?.length && <ul>{invoice.invoice_items.map((item: any) => <li key={item.id}><span>{item.description || 'Charge'}</span><strong>${Number(item.total ?? item.unit_price ?? 0).toFixed(2)}</strong></li>)}</ul>}
+                <button type="button" onClick={() => router.push(`/admin/invoices/${invoice.id}`)}>Open invoice</button>
+              </article>)}
+            </HistoryList>}
+
+            {historyView === 'site' && <HistoryList empty="No site-care, maintenance, or pump-out history is saved yet.">
+              {(history.notices || []).map((item: any) => <HistoryDetailRow key={`notice-${item.id}`} label="Site care" title={item.title || 'Site-care notice'} detail={`${item.status || 'Open'}${item.priority ? ` · ${item.priority}` : ''}${item.message ? ` · ${item.message}` : ''}`} date={item.resolved_at || item.ready_for_review_at || item.created_at} />)}
+              {(history.maintenance || []).map((item: any) => <HistoryDetailRow key={`maintenance-${item.id}`} label="Maintenance" title={item.title || 'Work order'} detail={`${item.status || 'Open'}${item.priority ? ` · ${item.priority}` : ''}${item.description ? ` · ${item.description}` : ''}`} date={item.completed_at || item.created_at} />)}
+              {(history.pumpOuts || []).map((item: any) => <HistoryDetailRow key={`pump-${item.id}`} label="Pump-out" title={`Lot ${item.lot_number || camper.lot_number || '—'} pump-out`} detail={`${item.status || 'Requested'} · $${Number(item.charge_amount || 0).toFixed(2)}${item.billed_at ? ' · Billed' : ''}${item.notes ? ` · ${item.notes}` : ''}`} date={item.completed_at || item.requested_at} />)}
+            </HistoryList>}
+
+            {historyView === 'messages' && <HistoryList empty="No office messages are saved for this camper yet.">
+              {(history.messages || []).map((item: any) => <article className="admin-history-message" key={item.id}><div><span>{item.sender_role === 'camper' ? 'Camper → Office' : 'Office → Camper'}</span><time>{formatHistoryDate(item.created_at)}</time></div><strong>{item.sender_name || (item.sender_role === 'camper' ? `${camper.first_name} ${camper.last_name}` : 'Bur Oaks Office')}</strong><p>{item.body}</p></article>)}
+            </HistoryList>}
+
+            {historyView === 'electric' && <HistoryList empty="No electric readings are saved for this camper yet.">
+              {(history.readings || []).map((item: any) => <article className="admin-history-electric" key={item.id}><div><small>READING DATE</small><strong>{formatHistoryDate(item.reading_date)}</strong></div><div><small>PREVIOUS</small><strong>{Number(item.previous_reading || 0).toLocaleString()}</strong></div><div><small>CURRENT</small><strong>{Number(item.current_reading || 0).toLocaleString()}</strong></div><div><small>USAGE</small><strong>{Number(item.kwh_used || 0).toLocaleString()} kWh</strong></div><div><small>CHARGE</small><strong>${Number(item.amount_due || 0).toFixed(2)}</strong></div><span>{item.invoice_id ? 'Invoiced' : 'Reading saved'}</span></article>)}
+            </HistoryList>}
+          </div>
+        </>}
+      </section>
 
       <div className="admin-camper-profile-grid">
         <ProfileSection icon={<UserRound />} kicker="BASIC INFORMATION" title="Camper & portal details">
@@ -799,6 +910,35 @@ export default function CamperDetailPage() {
       </div>
     </main>
   )
+}
+
+function formatHistoryDate(value?: string | null) {
+  if (!value) return 'Date not recorded'
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value)
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function documentSignatureSummary(document: any) {
+  const status = String(document.signature_status || '').toLowerCase()
+  const names = [document.signed_name, document.second_signed_name].filter(Boolean).join(' and ')
+  if (status === 'signed') return `Fully signed${names ? ` by ${names}` : ''}${document.signed_at ? ` on ${formatHistoryDate(document.signed_at)}` : ''}.`
+  if (status === 'pending_second_signature') return `Partly signed${names ? ` by ${names}` : ''}; waiting for the second signature.`
+  if (status === 'not_required') return `Saved on ${formatHistoryDate(document.created_at)}; no electronic signature required.`
+  if (status === 'declined') return 'Camper declined this document.'
+  return `Waiting for signature · Added ${formatHistoryDate(document.created_at)}`
+}
+
+function HistoryTab({ active, onClick, icon, label, count }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count: number }) {
+  return <button className={active ? 'active' : ''} type="button" onClick={onClick}>{icon}<span>{label}</span><strong>{count}</strong></button>
+}
+
+function HistoryList({ children, empty }: { children: React.ReactNode; empty: string }) {
+  const items = Array.isArray(children) ? children.flat(Infinity).filter(Boolean) : children ? [children] : []
+  return items.length ? <div className="admin-camper-history-list">{children}</div> : <div className="admin-camper-history-empty"><History size={27} /><strong>{empty}</strong></div>
+}
+
+function HistoryDetailRow({ label, title, detail, date }: { label: string; title: string; detail: string; date?: string | null }) {
+  return <article className="admin-history-row"><span className="admin-history-type">{label}</span><div><strong>{title}</strong><p>{detail}</p></div><time>{formatHistoryDate(date)}</time></article>
 }
 
 function ProfileSection({
