@@ -32,7 +32,7 @@ export async function GET(request: Request) {
     .select(`
       id, camper_id, invoice_number, invoice_type, subtotal, late_fee, total_due, due_date, status, created_at,
       campers (id, first_name, last_name, lot_number, active),
-      invoice_items (id, description, quantity, unit_price, total, created_at)
+      invoice_items (id, description, quantity, unit_price, total)
     `)
     .eq('id', payload.invoiceId)
     .single()
@@ -52,9 +52,7 @@ export async function GET(request: Request) {
 
   const feeSettings = await loadPaymentFeeSettings(admin)
   const totalDue = Number(invoice.total_due || 0)
-  const items = Array.isArray(invoice.invoice_items)
-    ? [...invoice.invoice_items].sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')))
-    : []
+  const items = Array.isArray(invoice.invoice_items) ? invoice.invoice_items : []
 
   return NextResponse.json({
     success: true,

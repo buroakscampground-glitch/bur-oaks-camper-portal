@@ -25,7 +25,7 @@ export async function GET(request: Request) {
       .select(`
         id, camper_id, invoice_number, total_due, status,
         campers (id, first_name, last_name, lot_number, active),
-        invoice_items (id, description, quantity, unit_price, total, created_at)
+        invoice_items (id, description, quantity, unit_price, total)
       `)
       .eq('id', invoiceId)
       .single(),
@@ -61,6 +61,12 @@ export async function GET(request: Request) {
       tokenValid: Boolean(payload),
       tokenInvoiceMatches: payload?.invoiceId === invoiceId,
       tokenCamperId: payload?.camperId || null,
+      linkLookupWouldOpen: Boolean(
+        payload &&
+        invoiceResult.data &&
+        String(invoiceResult.data.camper_id) === payload.camperId &&
+        String(invoiceResult.data.status || '').toLowerCase() !== 'paid'
+      ),
     } : null,
     textQueryError: textResult.error?.message || null,
   })
