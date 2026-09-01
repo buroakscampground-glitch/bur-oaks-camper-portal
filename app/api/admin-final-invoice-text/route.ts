@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { createFinalInvoiceToken } from '../../../lib/final-invoice-token'
+import { getSiteUrl } from '../../../lib/site-url'
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 
 function invoiceCamper(invoice: any) {
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
   }
 
   const token = createFinalInvoiceToken(String(invoice.id), String(camper.id))
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com'
+  const siteUrl = getSiteUrl()
   const paymentUrl = `${siteUrl}/final-invoice/${encodeURIComponent(token)}`
   const message = `Bur Oaks Campground: ${camper.first_name || 'Camper'}, final invoice #${invoice.invoice_number || invoice.id} for site ${camper.lot_number || '-'} is ${money(invoice.total_due)}, due ${dueDate(invoice.due_date)}. Pay securely by card or checking/ACH: ${paymentUrl}\nThis private link opens only this invoice and closes after payment. Reply STOP to opt out.`
   const reminderDate = new Date().toISOString().slice(0, 10)
@@ -63,13 +64,13 @@ export async function POST(request: Request) {
 
   const { data: existing } = await context.admin
     .from('text_reminders')
-    .select('id,status')
+    .select('id,status,message')
     .eq('invoice_id', invoice.id)
     .eq('automation_key', automationKey)
     .eq('reminder_date', reminderDate)
     .maybeSingle()
 
-  if (existing?.status === 'sent') {
+  if (existing?.status === 'sent' && existing.message === message) {
     return NextResponse.json({ success: true, skipped: true, message: 'This private payment link was already texted to that number today.' })
   }
 
