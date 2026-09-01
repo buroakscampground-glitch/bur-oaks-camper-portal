@@ -12606,11 +12606,8 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   flex-shrink: 0;
 }
 
-.admin-desk-header-actions > span,
+.admin-desk-date-weather,
 .admin-desk-header-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
   min-height: 42px;
   padding: 0 14px;
   border: 1px solid rgba(255, 255, 255, 0.17);
@@ -12620,11 +12617,31 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   font-weight: 800;
 }
 
-.admin-desk-header-actions > span {
+.admin-desk-date-weather {
+  display: grid;
+  gap: 3px;
+  padding-top: 7px;
+  padding-bottom: 7px;
   background: rgba(255, 255, 255, 0.07);
 }
 
+.admin-desk-date-weather > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.admin-desk-date-weather .admin-weather-nowline {
+  color: #f1d58c;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .admin-desk-header-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   background: #fff;
   color: #244633;
   cursor: pointer;
@@ -13037,7 +13054,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   .admin-desk-page { padding: 12px 12px 28px; }
   .admin-desk-header { align-items: flex-start; flex-direction: column; padding: 21px; }
   .admin-desk-header-actions { justify-content: space-between; width: 100%; }
-  .admin-desk-header-actions > span { padding: 0; border: 0; background: transparent; }
+  .admin-desk-date-weather { padding: 0; border: 0; background: transparent; }
   .admin-desk-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .admin-desk-summary > :nth-child(2), .admin-desk-summary > :nth-child(4) { border-right: 0; }
   .admin-desk-summary > :nth-child(-n + 4) { border-bottom: 1px solid #e7e8e2; }

@@ -37,7 +37,7 @@ import {
   Wrench,
   Zap,
 } from 'lucide-react'
-import AdminWeather from '../../components/AdminWeather'
+import AdminWeather, { AdminWeatherNow } from '../../components/AdminWeather'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
@@ -627,14 +627,17 @@ export default function AdminPage() {
             <p>Important work first. Every admin tool is organized once below.</p>
           </div>
           <div className="admin-desk-header-actions">
-            <span>
-              <CalendarDays size={17} />
-              {new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                month: 'long',
-                day: 'numeric',
-              })}
-            </span>
+            <div className="admin-desk-date-weather">
+              <AdminWeatherNow />
+              <span>
+                <CalendarDays size={15} />
+                {new Date().toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </span>
+            </div>
             <button type="button" onClick={handleLogout}>
               <LogOut size={17} /> Sign out
             </button>

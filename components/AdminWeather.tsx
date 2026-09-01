@@ -56,6 +56,43 @@ function condition(code: number) {
   return { label: 'Changing conditions', Icon: CloudSun }
 }
 
+export function AdminWeatherNow() {
+  const [current, setCurrent] = useState<{ temperature: number; weatherCode: number } | null>(null)
+
+  useEffect(() => {
+    let active = true
+
+    fetch('/api/weather', { cache: 'no-store' })
+      .then((response) => {
+        if (!response.ok) throw new Error('Weather unavailable')
+        return response.json()
+      })
+      .then((weather) => {
+        if (active) setCurrent(weather.current)
+      })
+      .catch(() => {
+        if (active) setCurrent(null)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  if (!current) {
+    return <span className="admin-weather-nowline"><CloudSun size={15} /> Weather loading…</span>
+  }
+
+  const currentCondition = condition(current.weatherCode)
+  const CurrentIcon = currentCondition.Icon
+
+  return (
+    <span className="admin-weather-nowline" aria-label={`Current weather: ${current.temperature} degrees and ${currentCondition.label}`}>
+      <CurrentIcon size={16} /> {current.temperature}° · {currentCondition.label}
+    </span>
+  )
+}
+
 function shortTime(value: string) {
   return new Date(value).toLocaleTimeString('en-US', { hour: 'numeric' })
 }
