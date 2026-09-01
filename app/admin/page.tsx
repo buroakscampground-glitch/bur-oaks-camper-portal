@@ -78,6 +78,7 @@ type AdminStats = {
   messageAlerts: number
   totalUnreadAlerts: number
   pastDueInvoices: number
+  pastDueAmount: number
   dueSoonInvoices: number
   almostDueAmount: number
   pendingDinnerResponses: number
@@ -135,6 +136,7 @@ const emptyStats: AdminStats = {
   messageAlerts: 0,
   totalUnreadAlerts: 0,
   pastDueInvoices: 0,
+  pastDueAmount: 0,
   dueSoonInvoices: 0,
   almostDueAmount: 0,
   pendingDinnerResponses: 0,
@@ -223,7 +225,10 @@ export default function AdminPage() {
     ])
 
     const invoices = invoicesResult.data || []
-    const currentPaidMonth = new Date().toISOString().slice(0, 7)
+    const centralMonthParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit' }).formatToParts(new Date())
+    const centralPart = (type: Intl.DateTimeFormatPartTypes) => centralMonthParts.find((part) => part.type === type)?.value || ''
+    const electricBillingMonth = `${centralPart('year')}-${centralPart('month')}`
+    const currentPaidMonth = electricBillingMonth
     const paidThisMonth = invoices.filter((invoice) =>
       String(invoice.status || '').toLowerCase() === 'paid' &&
       String(invoice.paid_at || '').slice(0, 7) === currentPaidMonth
@@ -238,9 +243,6 @@ export default function AdminPage() {
     const unreadMessages = messageResult.data || []
     const activeSupplyRequests = supplyRequestResult.data || []
     const activeSiteCare = siteCareResult.data || []
-    const centralMonthParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit' }).formatToParts(new Date())
-    const centralPart = (type: Intl.DateTimeFormatPartTypes) => centralMonthParts.find((part) => part.type === type)?.value || ''
-    const electricBillingMonth = `${centralPart('year')}-${centralPart('month')}`
     const electricCycles = rollingElectricPaymentCycles({ invoices, readings: electricResult.data || [], currentMonth: electricBillingMonth })
     let electricSitesLeft = 0
     const { data: sessionData } = await supabase.auth.getSession()
@@ -418,6 +420,7 @@ export default function AdminPage() {
       siteServices: (siteServiceResult.data || []).filter((charge) => !charge.cancelled_at && !charge.billed_at).length,
       totalUnreadAlerts: notifications.filter((notification) => notification.type !== 'event_rsvp').length,
       pastDueInvoices: pastDueInvoices.length,
+      pastDueAmount: pastDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
       dueSoonInvoices: dueSoonInvoices.length,
       almostDueAmount: dueSoonInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
       pendingDinnerResponses: nextDinner ? Math.max(0, campers.length - nextDinnerSignups.length) : 0,
@@ -607,6 +610,11 @@ export default function AdminPage() {
 
   const activeAttentionItems = toDoItems.filter((item) => item.urgent && item.count > 0)
   const attentionTotal = activeAttentionItems.reduce((total, item) => total + item.count, 0)
+  const attentionBreakdown = activeAttentionItems
+    .slice(0, 3)
+    .map((item) => `${item.count} ${item.title.replace(' notices', '').replace(' invoices', '').replace(' approvals', '').toLowerCase()}`)
+    .join(' · ')
+  const dashboardMonth = stats.electricCycles.at(-1)?.label || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const normalizedToolSearch = toolSearch.trim().toLowerCase()
 
   return (
@@ -637,17 +645,22 @@ export default function AdminPage() {
           <div className={attentionTotal ? 'needs-attention' : ''}>
             <span>Needs attention</span>
             <strong>{attentionTotal}</strong>
-            <small>{activeAttentionItems.length} areas</small>
+            <small>{attentionBreakdown || 'Everything is caught up'}</small>
           </div>
           <a className="money-summary owed" href="/admin/reports?detail=owed" aria-label="Open the campers and invoices included in the amount owed">
-            <span>Amount due this month</span>
+            <span>Amount due · {dashboardMonth}</span>
             <strong>${stats.balance.toFixed(2)}</strong>
             <small>{stats.amountDueInvoices} current/carryover invoice{stats.amountDueInvoices === 1 ? '' : 's'} · Tap for details</small>
           </a>
           <a className="money-summary paid" href="/admin/reports?detail=received" aria-label="Open who paid, what they paid, the amount, and payment date">
-            <span>Paid this month</span>
+            <span>Paid · {dashboardMonth}</span>
             <strong>${stats.totalRevenue.toFixed(2)}</strong>
             <small>{stats.paidInvoicesThisMonth} paid invoice{stats.paidInvoicesThisMonth === 1 ? '' : 's'} · Tap for details</small>
+          </a>
+          <a className="money-summary late" href="/admin/open-balance?filter=past-due" aria-label="Open the campers and invoices with late payments">
+            <span>Late payments</span>
+            <strong>${stats.pastDueAmount.toFixed(2)}</strong>
+            <small>{stats.pastDueInvoices} past-due invoice{stats.pastDueInvoices === 1 ? '' : 's'} · Tap to see who</small>
           </a>
           <div>
             <span>Maintenance active</span>
