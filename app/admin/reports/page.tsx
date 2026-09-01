@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, ChevronDown, Download, Droplets, FileSpreadsheet, Landmark, Printer, ReceiptText, Search, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
+import { isInvoiceDueThroughCurrentMonth } from '../../../lib/invoice-balance'
 
 const categoryColors: Record<string, string> = {
   Electric: '#2f6fad',
@@ -314,10 +315,12 @@ export default function AdminMonthlyReportsPage() {
   const standardPumpOuts = reportPumpOuts.filter((request) => pumpOutGallons(request) === 30).length
   const averagePayment = reportInvoices.length ? totalCollected / reportInvoices.length : 0
   const outstandingBalance = outstandingInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const amountDueInvoices = outstandingInvoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
+  const amountDueBalance = amountDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const today = new Date().toISOString().slice(0, 10)
   const pastDueInvoices = outstandingInvoices.filter((invoice) => invoice.status !== 'processing' && invoice.due_date && invoice.due_date < today)
   const pastDueBalance = pastDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-  const balanceDetailInvoices = openKpi === 'owed' ? outstandingInvoices : pastDueInvoices
+  const balanceDetailInvoices = openKpi === 'owed' ? amountDueInvoices : pastDueInvoices
   const itemizedNet = positiveLineTotal - creditsApplied
   const reconciliationDifference = totalCollected - itemizedNet
   const onlineCollected = paymentMethodTotals
@@ -537,7 +540,7 @@ export default function AdminMonthlyReportsPage() {
                   {openKpi === 'paid' && `The ${reportInvoices.length} paid invoice${reportInvoices.length === 1 ? '' : 's'}`}
                   {openKpi === 'average' && `${formatMoney(totalCollected)} ÷ ${reportInvoices.length} paid invoice${reportInvoices.length === 1 ? '' : 's'} = ${formatMoney(averagePayment)}`}
                   {openKpi === 'past-due' && `Who owes the ${formatMoney(pastDueBalance)}`}
-                  {openKpi === 'owed' && `Who owes the ${formatMoney(outstandingBalance)}`}
+                  {openKpi === 'owed' && `Who owes the ${formatMoney(amountDueBalance)}`}
                 </h2>
                 <p>
                   {openKpi === 'average'
@@ -545,7 +548,7 @@ export default function AdminMonthlyReportsPage() {
                     : openKpi === 'past-due'
                       ? 'These are unpaid invoices whose due date has already passed.'
                       : openKpi === 'owed'
-                        ? 'Every open or processing invoice included in the amount owed is listed below.'
+                        ? 'Current-month invoices and unpaid balances carried over from earlier months are listed below. Later months are not included yet.'
                       : `Every payment included in the ${reportLabel} total is listed below.`}
                 </p>
               </div>
@@ -569,7 +572,7 @@ export default function AdminMonthlyReportsPage() {
                     </article>
                   ))}
                 </div>
-              ) : <p className="admin-report-kpi-clear">{openKpi === 'owed' ? 'Everything is paid—there are no open balances.' : 'Everything is current—no campers are past due.'}</p>
+              ) : <p className="admin-report-kpi-clear">{openKpi === 'owed' ? 'Nothing is due this month and there is no unpaid carryover.' : 'Everything is current—no campers are past due.'}</p>
             ) : reportInvoices.length ? (
               <div className="admin-report-kpi-rows">
                 {reportInvoices.map((invoice) => (

@@ -41,7 +41,7 @@ import AdminWeather from '../../components/AdminWeather'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
-import { totalInvoiceBalance } from '../../lib/invoice-balance'
+import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 type AdminStats = {
   campers: number
@@ -59,6 +59,7 @@ type AdminStats = {
   electricBillingLabel: string
   waitlist: number
   unpaidInvoices: number
+  amountDueInvoices: number
   totalRevenue: number
   paidInvoicesThisMonth: number
   activeCreditBalance: number
@@ -119,6 +120,7 @@ const emptyStats: AdminStats = {
   electricBillingLabel: 'Current run',
   waitlist: 0,
   unpaidInvoices: 0,
+  amountDueInvoices: 0,
   totalRevenue: 0,
   paidInvoicesThisMonth: 0,
   activeCreditBalance: 0,
@@ -294,6 +296,7 @@ export default function AdminPage() {
       .filter((event: any) => !event.event_date || event.event_date >= todayIso)
       .map((event: any) => String(event.id)))
     const openInvoices = invoices.filter((invoice) => ['open', 'sent', 'overdue', 'processing'].includes(String(invoice.status || '').toLowerCase()))
+    const amountDueInvoices = openInvoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
     const pastDueInvoices = openInvoices.filter((invoice) => {
       if (!invoice.due_date) return false
       const dueDate = new Date(`${invoice.due_date}T12:00:00`)
@@ -401,7 +404,7 @@ export default function AdminPage() {
     setStats({
       campers: campers.length,
       archivedCampers: archivedResult.data?.length || 0,
-      balance: totalInvoiceBalance(openInvoices),
+      balance: totalInvoiceBalance(amountDueInvoices),
       events: eventsResult.data?.length || 0,
       announcements: announcementsResult.data?.length || 0,
       rsvps: rsvpsResult.data?.length || 0,
@@ -414,6 +417,7 @@ export default function AdminPage() {
       electricBillingLabel,
       waitlist: waitlistResult.data?.length || 0,
       unpaidInvoices: openInvoices.length,
+      amountDueInvoices: amountDueInvoices.length,
       totalRevenue: paidThisMonth.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
       paidInvoicesThisMonth: paidThisMonth.length,
       activeCreditBalance: activeCredits.reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
@@ -502,7 +506,7 @@ export default function AdminPage() {
       label: 'Money & billing',
       items: [
         { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} open`, icon: ReceiptText },
-        { href: '/admin/open-balance', title: 'Amounts due', detail: `$${stats.balance.toFixed(2)} due now`, icon: CircleDollarSign },
+        { href: '/admin/open-balance', title: 'Amounts due', detail: `$${stats.balance.toFixed(2)} this month + carryover`, icon: CircleDollarSign },
         { href: '/admin/electric', title: 'Electric billing', detail: `${stats.electric} readings`, icon: Zap },
         { href: '/admin/reports', title: 'Reports', detail: 'Monthly & annual', icon: FileSpreadsheet },
         { href: '/admin/income-projection', title: 'Income projection', detail: 'Strong & slim months', icon: BarChart3 },
@@ -668,9 +672,9 @@ export default function AdminPage() {
             <small>{activeAttentionItems.length} areas</small>
           </div>
           <a className="money-summary owed" href="/admin/reports?detail=owed" aria-label="Open the campers and invoices included in the amount owed">
-            <span>Amount owed</span>
+            <span>Amount due this month</span>
             <strong>${stats.balance.toFixed(2)}</strong>
-            <small>{stats.unpaidInvoices} open invoice{stats.unpaidInvoices === 1 ? '' : 's'} · Tap for details</small>
+            <small>{stats.amountDueInvoices} current/carryover invoice{stats.amountDueInvoices === 1 ? '' : 's'} · Tap for details</small>
           </a>
           <a className="money-summary paid" href="/admin/reports?detail=received" aria-label="Open who paid, what they paid, the amount, and payment date">
             <span>Paid this month</span>

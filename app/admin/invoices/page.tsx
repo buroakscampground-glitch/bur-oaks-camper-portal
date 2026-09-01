@@ -25,7 +25,7 @@ import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFe
 import AdminQuickText from '../../../components/AdminQuickText'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { nextInvoiceNumber } from '../../../lib/invoice-number'
-import { isInvoiceDueNow, totalInvoiceBalance } from '../../../lib/invoice-balance'
+import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../lib/invoice-balance'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -250,9 +250,9 @@ export default function AdminInvoicesPage() {
     }
   }
 
-  const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
+  const dueThisMonthInvoices = invoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
   const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid')
-  const openBalance = totalInvoiceBalance(dueNowInvoices)
+  const openBalance = totalInvoiceBalance(dueThisMonthInvoices)
   const collectedRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const previewInvoiceAmount = Number(amount || 0)
   const previewProcessingFee = calculateCardProcessingFee(previewInvoiceAmount, feeSettings)
@@ -286,7 +286,7 @@ export default function AdminInvoicesPage() {
         </article>
         <article>
           <span className="gold"><WalletCards size={22} /></span>
-          <div><small>Amount due</small><strong>{formatMoney(openBalance)}</strong><em>{dueNowInvoices.length} due now</em></div>
+          <div><small>Amount due</small><strong>{formatMoney(openBalance)}</strong><em>{dueThisMonthInvoices.length} this month + carryover</em></div>
         </article>
         <article>
           <span className="blue"><ReceiptText size={22} /></span>

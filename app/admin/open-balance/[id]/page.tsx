@@ -7,7 +7,7 @@ import { supabase } from "../../../../lib/supabase"
 import { deleteInvoiceWithCreditRestore } from "../../../../lib/account-credits"
 import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from "../../../../lib/payment-fees"
 import AdminQuickText from "../../../../components/AdminQuickText"
-import { isInvoiceDueNow, totalInvoiceBalance } from '../../../../lib/invoice-balance'
+import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 import { printPageWithFlag } from '../../../../lib/print-page'
 
 function formatMoney(value: unknown) {
@@ -73,7 +73,7 @@ export default function CamperBalancePage() {
       .neq("status", "paid")
       .order("due_date")
 
-    const dueInvoices = (invoiceData || []).filter((invoice) => isInvoiceDueNow(invoice))
+    const dueInvoices = (invoiceData || []).filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
     setInvoices(dueInvoices)
     setTotalDue(totalInvoiceBalance(dueInvoices))
     setFeeSettings(await loadPaymentFeeSettings(supabase))
@@ -185,8 +185,8 @@ Bur Oaks Campground
       </section>
 
       <section className="admin-open-detail-stats">
-        <article><small>Amount due</small><strong>{formatMoney(totalDue)}</strong><em>Due now</em></article>
-        <article><small>Invoices due</small><strong>{invoices.length}</strong><em>Due today or earlier</em></article>
+        <article><small>Amount due</small><strong>{formatMoney(totalDue)}</strong><em>This month + carryover</em></article>
+        <article><small>Invoices included</small><strong>{invoices.length}</strong><em>Current and earlier months</em></article>
         <article><small>Oldest due date</small><strong>{formatDate(oldestDue)}</strong><em>First unpaid due date</em></article>
         <article className={lateInvoices.length ? "attention" : ""}><small>Past due</small><strong>{lateInvoices.length}</strong><em>{lateInvoices.length ? "Needs attention" : "None past due"}</em></article>
       </section>

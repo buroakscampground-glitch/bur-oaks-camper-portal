@@ -26,6 +26,11 @@ export function isInvoiceDueNow(invoice: BalanceInvoice, today = todayInCentral(
   return isInvoiceOutstanding(invoice) && (!invoice.due_date || invoice.due_date <= today)
 }
 
+export function isInvoiceDueThroughCurrentMonth(invoice: BalanceInvoice, today = todayInCentral()) {
+  const currentMonth = today.slice(0, 7)
+  return isInvoiceOutstanding(invoice) && (!invoice.due_date || invoice.due_date.slice(0, 7) <= currentMonth)
+}
+
 export function isInvoiceUpcoming(invoice: BalanceInvoice, today = todayInCentral()) {
   return isInvoiceOutstanding(invoice) && Boolean(invoice.due_date && invoice.due_date > today)
 }
