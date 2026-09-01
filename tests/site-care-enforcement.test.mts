@@ -27,3 +27,11 @@ test('personal-property site care cannot become an automatic charged work order'
   assert.equal(storedSiteCareTemplateKey('under-camper', true, 45), 'under-camper')
   assert.equal(siteCareEnforcementFor('under-camper', defaultCampgroundBillingSettings), null)
 })
+
+test('trash pickup is a saved thirty-dollar site service billed as a misc service', () => {
+  const storedKey = storedSiteCareTemplateKey('trash-pickup', true, 30)
+  const enforcement = siteCareEnforcementFor(storedKey, defaultCampgroundBillingSettings)
+  assert.equal(enforcement?.chargeAmount, 30)
+  assert.equal(enforcement?.serviceLabel, 'Trash pickup')
+  assert.equal(enforcement?.serviceType, 'misc_service')
+})

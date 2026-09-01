@@ -114,6 +114,7 @@ export default function AdminSettingsPage() {
     if (type === 'half_weed_eat') return campgroundSettingKeys.siteServiceHalfWeedEat
     if (type === 'spray_weeds') return campgroundSettingKeys.siteServiceSprayWeeds
     if (type === 'half_spray_weeds') return campgroundSettingKeys.siteServiceHalfSprayWeeds
+    if (type === 'trash_pickup') return campgroundSettingKeys.siteServiceTrashPickup
     return campgroundSettingKeys.siteServicePressureWash
   }
 

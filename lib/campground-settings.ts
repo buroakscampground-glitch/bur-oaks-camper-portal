@@ -20,6 +20,7 @@ export const campgroundSettingKeys = {
   siteServiceSprayWeeds: 'site_service_spray_weeds',
   siteServiceHalfSprayWeeds: 'site_service_half_spray_weeds',
   siteServicePressureWash: 'site_service_pressure_wash',
+  siteServiceTrashPickup: 'site_service_trash_pickup',
 }
 
 export const defaultCampgroundBillingSettings: CampgroundBillingSettings = {
@@ -32,6 +33,7 @@ export const defaultCampgroundBillingSettings: CampgroundBillingSettings = {
     { type: 'spray_weeds', label: 'Spray weeds', amount: 45 },
     { type: 'half_spray_weeds', label: 'Half spray weeds', amount: 20 },
     { type: 'pressure_wash', label: 'Pressure wash', amount: 20 },
+    { type: 'trash_pickup', label: 'Trash pickup', amount: 30 },
   ],
 }
 
@@ -71,7 +73,9 @@ export function normalizeCampgroundBillingSettings(rows?: Array<{ key: string; v
               ? campgroundSettingKeys.siteServiceSprayWeeds
               : service.type === 'half_spray_weeds'
                 ? campgroundSettingKeys.siteServiceHalfSprayWeeds
-                : campgroundSettingKeys.siteServicePressureWash
+                : service.type === 'trash_pickup'
+                  ? campgroundSettingKeys.siteServiceTrashPickup
+                  : campgroundSettingKeys.siteServicePressureWash
 
       return { ...service, amount: amountFor(key, service.amount) }
     }),

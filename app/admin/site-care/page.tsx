@@ -9,6 +9,7 @@ import { enforceableSiteCareTemplates, isAutomaticSiteCareTemplate, storedSiteCa
 const templates = [
   { key: 'weed-eat', title: 'Weed eat around site', message: 'Please weed eat around your camper, shed, deck, and other site edges so the lot stays neat.' },
   { key: 'spray-weeds', title: 'Spray weeds', message: 'Please spray or remove the weeds around your site, including the camper, shed, deck, and gravel areas.' },
+  { key: 'trash-pickup', title: 'Pick up trash around site', message: 'Please remove loose trash from the ground around your site and place it in the proper campground trash container.' },
   { key: 'under-camper', title: 'Clear storage under camper', message: 'Please remove stored items from underneath your camper so the site stays neat and follows campground appearance rules.' },
   { key: 'mower-in-shed', title: 'No lawn mower outside', message: 'Lawn mowers cannot be stored outside. Please move your mower into the shed when it is not being used.' },
   { key: 'outside-fridge', title: 'No refrigerator outside', message: 'Refrigerators cannot be kept outside at the site. Please remove the outside refrigerator or move it into an approved enclosed area.' },

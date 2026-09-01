@@ -96,7 +96,7 @@ export default function AdminSiteServicesPage() {
       camper_id: selectedCamper.id,
       lot_number: selectedCamper.lot_number || null,
       camper_name: camperName(selectedCamper),
-      service_type: selectedService.type,
+      service_type: selectedService.type === 'trash_pickup' ? 'misc_service' : selectedService.type,
       service_label: finalServiceLabel,
       charge_amount: finalServiceAmount,
       notes: notes.trim() || null,

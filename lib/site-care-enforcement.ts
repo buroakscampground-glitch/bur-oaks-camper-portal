@@ -13,6 +13,7 @@ export type SiteCareEnforcement = {
 export const enforceableSiteCareTemplates = new Set([
   'weed-eat',
   'spray-weeds',
+  'trash-pickup',
 ])
 
 export function storedSiteCareTemplateKey(templateKey: string, autoEnforce: boolean, chargeAmount?: number) {
@@ -47,6 +48,8 @@ export function siteCareEnforcementFor(
     ? 'full_weed_eat'
     : key === 'spray-weeds'
       ? 'spray_weeds'
+      : key === 'trash-pickup'
+        ? 'trash_pickup'
       : ''
 
   if (!serviceType) return null
@@ -57,12 +60,14 @@ export function siteCareEnforcementFor(
 
   return {
     templateKey: key,
-    serviceType: service.type,
+    serviceType: service.type === 'trash_pickup' ? 'misc_service' : service.type,
     serviceLabel: service.label,
     chargeAmount: savedAmount || service.amount,
     maintenanceTitle: key === 'weed-eat'
       ? 'Site care deadline — weed eat site'
-      : 'Site care deadline — spray weeds',
+      : key === 'spray-weeds'
+        ? 'Site care deadline — spray weeds'
+        : 'Site care deadline — pick up trash',
   }
 }
 
