@@ -15,6 +15,7 @@ import {
   Hammer,
   Home,
   KeyRound,
+  Landmark,
   LayoutDashboard,
   Mail,
   Map,
@@ -69,6 +70,7 @@ const pageNames: Record<string, string> = {
   'site-services': 'Site Services',
   credits: 'Account Credits',
   reports: 'Reports & Taxes',
+  'stripe-deposits': 'Stripe Deposits',
   settings: 'Campground Settings',
   'pump-outs': 'Pump-Out Requests',
   'site-care': 'Site Care Notices',
@@ -97,6 +99,7 @@ const navGroups = [
       { href: '/admin/electric/meter-readings', label: 'Meter Reading Review', icon: ScanLine },
       { href: '/admin/credits', label: 'Credits', icon: WalletCards },
       { href: '/admin/reports', label: 'Reports', icon: ClipboardList },
+      { href: '/admin/stripe-deposits', label: 'Stripe Deposits', icon: Landmark },
     ],
   },
   {

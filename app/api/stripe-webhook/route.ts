@@ -4,8 +4,10 @@ import { createClient } from '@supabase/supabase-js'
 import { sendPaymentReceivedAlert } from '../../../lib/payment-alerts'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { getSiteUrl } from '../../../lib/site-url'
+import { reconcileAndPrintStripePayout } from '../../../lib/stripe-payout-printing'
 
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 function checkoutInvoiceIds(session: Stripe.Checkout.Session) {
   try {
@@ -436,6 +438,11 @@ export async function POST(request: Request) {
 
         if (failedAutoPayError) throw failedAutoPayError
       }
+    }
+
+    if ((event.type as string) === 'payout.reconciliation_completed') {
+      const payout = event.data.object as Stripe.Payout
+      await reconcileAndPrintStripePayout(stripe, supabaseAdmin, payout.id)
     }
 
     return NextResponse.json({ received: true })

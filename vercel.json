@@ -41,6 +41,10 @@
       "schedule": "15 14 * * *"
     },
     {
+      "path": "/api/cron/stripe-payout-reconciliation",
+      "schedule": "35 12 * * *"
+    },
+    {
       "path": "/api/cron/season-renewals",
       "schedule": "15 14 * * *"
     },
