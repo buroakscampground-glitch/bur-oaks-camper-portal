@@ -1,12 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { invoiceIdsFromMetadata, summarizePayoutRows, type StripePayoutRow } from '../lib/stripe-payout-reconciliation.ts'
+import { invoiceIdsFromMetadata, isPayoutComponentTransaction, summarizePayoutRows, type StripePayoutRow } from '../lib/stripe-payout-reconciliation.ts'
 import { buildStripePayoutPdf } from '../lib/stripe-payout-report.ts'
 import { PDFDocument } from 'pdf-lib'
 
 test('reads both single and grouped invoice metadata without duplicates', () => {
   assert.deepEqual(invoiceIdsFromMetadata({ invoice_id: 'a', invoice_ids: '["a","b"]' } as any), ['a', 'b'])
   assert.deepEqual(invoiceIdsFromMetadata({ invoice_ids: 'not-json' } as any), [])
+})
+
+test('does not count the bank-transfer ledger row as a payout component', () => {
+  assert.equal(isPayoutComponentTransaction({ type: 'payout' } as any), false)
+  assert.equal(isPayoutComponentTransaction({ type: 'charge' } as any), true)
 })
 
 test('reconciles gross payments, refunds, fees, and net payout to the penny', () => {

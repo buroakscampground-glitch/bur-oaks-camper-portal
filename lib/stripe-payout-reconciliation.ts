@@ -82,6 +82,10 @@ export function summarizePayoutRows(rows: StripePayoutRow[], payoutCents: number
   }
 }
 
+export function isPayoutComponentTransaction(transaction: Pick<Stripe.BalanceTransaction, 'type'>) {
+  return transaction.type !== 'payout'
+}
+
 function sourceObject(transaction: Stripe.BalanceTransaction) {
   return transaction.source && typeof transaction.source !== 'string' && !('deleted' in transaction.source)
     ? transaction.source as any
@@ -126,7 +130,11 @@ async function allBalanceTransactions(stripe: Stripe, payoutId: string) {
 
 export async function loadStripePayoutDetail(stripe: Stripe, admin: any, payoutId: string): Promise<StripePayoutDetail> {
   const payout = await stripe.payouts.retrieve(payoutId)
-  const transactions = await allBalanceTransactions(stripe, payoutId)
+  // Stripe's filtered ledger can include the negative payout transfer itself.
+  // The report needs the component activity that made up the payout, not the
+  // bank-transfer row again, or the deposit would be counted twice.
+  const transactions = (await allBalanceTransactions(stripe, payoutId))
+    .filter(isPayoutComponentTransaction)
   const metadataInvoiceIds = new Map<string, string[]>()
   const transactionMetadata = new Map<string, Stripe.Metadata>()
   const paymentReferences = new Set<string>()
