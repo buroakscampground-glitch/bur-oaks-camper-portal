@@ -17,6 +17,7 @@ import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import { markAdminAlertsSeen } from '../../../lib/admin-alert-actions'
 import { isCompletedTicketStatus } from '../../../lib/maintenance-status'
+import { maintenanceTaskForDisplay } from '../../../lib/maintenance-ticket-display'
 
 function isCompletedTicket(ticket: any) {
   return isCompletedTicketStatus(ticket?.status)
@@ -337,9 +338,10 @@ export default function MaintenancePage() {
               <article key={ticket.id} className={`admin-maintenance-ticket ${!ticket.admin_approved ? 'pending' : ''}`}>
                 <div className="admin-maintenance-ticket-main">
                   <div>
-                    <small>{new Date(ticket.created_at).toLocaleDateString()} · Lot {ticket.lot_number || 'N/A'} · {ticket.category || 'General'}</small>
+                    <span className="maintenance-ticket-lot">LOT {ticket.lot_number || 'N/A'}</span>
+                    <small>{new Date(ticket.created_at).toLocaleDateString()} · {ticket.category || 'General'}</small>
                     <h3>{ticket.title}</h3>
-                    <p>{ticket.description || 'No description entered.'}</p>
+                    <p>{maintenanceTaskForDisplay(ticket)}</p>
                   </div>
                   <span className={ticket.admin_approved ? 'maintenance-approval-badge approved' : 'maintenance-approval-badge pending'}>
                     {ticket.admin_approved ? 'Approved for Work' : 'Pending Approval'}

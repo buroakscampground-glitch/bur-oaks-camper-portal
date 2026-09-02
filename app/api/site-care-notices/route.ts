@@ -198,7 +198,7 @@ export async function PATCH(request: Request) {
     const chargeNotes = `Automatic deadline charge · ${marker}`
     const camperName = `${targetCamper.first_name || ''} ${targetCamper.last_name || ''}`.trim() || 'Camper'
     const lotNumber = String(existing.lot_number || targetCamper.lot_number || '').trim().replace(/^lot\s+/i, '')
-    const ticketDescription = `${existing.message} The office inspected this acknowledged/review-requested item and confirmed the listed grounds work was not completed. Complete only the listed grounds work; do not move or handle the camper's personal property. ${marker}`
+    const ticketDescription = `${enforcement.maintenanceTask} ${marker}`
 
     const [{ data: existingCharge, error: existingChargeError }, { data: existingTicket, error: existingTicketError }] = await Promise.all([
       context.admin.from('site_service_charges').select('id').eq('notes', chargeNotes).limit(1).maybeSingle(),

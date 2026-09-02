@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     const camperName = `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
     const lotNumber = cleanLotNumber(notice.lot_number || camper.lot_number)
     const chargeNotes = `Automatic deadline charge · ${marker}`
-    const ticketDescription = `${notice.message} The camper did not acknowledge this site-care item or mark it ready for office review before the automatic date ${notice.due_date}. Complete only the listed grounds work; do not move or handle the camper's personal property. ${marker}`
+    const ticketDescription = `${enforcement.maintenanceTask} ${marker}`
 
     const [{ data: existingCharge }, { data: existingTicket }] = await Promise.all([
       admin.from('site_service_charges').select('id').eq('notes', chargeNotes).limit(1).maybeSingle(),

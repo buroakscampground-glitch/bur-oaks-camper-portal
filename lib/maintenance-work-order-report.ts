@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
+import { maintenanceTaskForDisplay } from './maintenance-ticket-display.ts'
 
 export type MaintenanceWorkOrder = {
   id: string
@@ -122,7 +123,7 @@ function drawWorkOrderPage(page: PDFPage, order: MaintenanceWorkOrder, regular: 
 
   page.drawText('PROBLEM / REQUESTED WORK', { x: 36, y: 490, font: bold, size: 9, color: forest })
   page.drawRectangle({ x: 36, y: 408, width: width - 72, height: 68, color: paper, borderColor: line, borderWidth: 0.8 })
-  const descriptionLines = wrapText(order.description || 'No description was provided.', regular, 10, width - 96, 5)
+  const descriptionLines = wrapText(maintenanceTaskForDisplay(order), regular, 10, width - 96, 5)
   descriptionLines.forEach((lineText, index) => page.drawText(lineText, { x: 48, y: 458 - index * 13, font: regular, size: 10, color: ink }))
   if (Array.isArray(order.photo_urls) && order.photo_urls.length) {
     page.drawText('Reference photos are available in the maintenance portal.', { x: 48, y: 417, font: bold, size: 7.5, color: gold })

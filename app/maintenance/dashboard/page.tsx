@@ -6,6 +6,7 @@ import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, Gauge, ListChe
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import MaintenanceSupplyRequestPanel from '../../../components/MaintenanceSupplyRequestPanel'
+import { maintenanceTaskForDisplay } from '../../../lib/maintenance-ticket-display'
 
 const weeklyTasks = [
   {
@@ -302,9 +303,9 @@ export default function MaintenanceDashboard() {
               className={ticket.priority === 'Emergency' && ticket.status !== 'Completed' ? 'urgent' : ''}
             >
               <div>
-                <small>{ticket.work_order ? 'Work order' : `Lot ${ticket.lot_number || 'N/A'}`}</small>
+                <span className="maintenance-ticket-lot">LOT {ticket.lot_number || 'N/A'}</span>
                 <h3>{ticket.title}</h3>
-                <p>{ticket.description}</p>
+                <p>{maintenanceTaskForDisplay(ticket)}</p>
               </div>
 
               <div className="maintenance-staff-badges">

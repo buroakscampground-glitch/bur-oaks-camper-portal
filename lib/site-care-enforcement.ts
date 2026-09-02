@@ -8,6 +8,7 @@ export type SiteCareEnforcement = {
   serviceLabel: string
   chargeAmount: number
   maintenanceTitle: string
+  maintenanceTask: string
 }
 
 export const enforceableSiteCareTemplates = new Set([
@@ -68,6 +69,11 @@ export function siteCareEnforcementFor(
       : key === 'spray-weeds'
         ? 'Site care deadline — spray weeds'
         : 'Site care deadline — pick up trash',
+    maintenanceTask: key === 'weed-eat'
+      ? 'Weed eat around the campsite.'
+      : key === 'spray-weeds'
+        ? 'Spray weeds around the campsite.'
+        : 'Pick up loose trash around the campsite.',
   }
 }
 

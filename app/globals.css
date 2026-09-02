@@ -3698,6 +3698,9 @@ button:hover {
   background: #e9f3e7 !important;
 }
 
+.maintenance-ticket-lot{display:inline-flex;width:max-content;align-items:center;margin:0 0 7px;padding:7px 13px;border:2px solid #315f3d;border-radius:10px;background:#edf5e9;color:#173f2a!important;font-size:17px!important;font-weight:950!important;line-height:1;letter-spacing:.08em!important;text-transform:uppercase;box-shadow:0 4px 12px rgba(31,77,49,.1)}
+@media(max-width:680px){.maintenance-ticket-lot{padding:9px 15px;font-size:21px!important;border-width:3px}.maintenance-staff-ticket-list article,.admin-maintenance-ticket{border-left:5px solid #315f3d}}
+
 @media (max-width: 680px) {
   .maintenance-staff-hero-links {
     display: grid;
