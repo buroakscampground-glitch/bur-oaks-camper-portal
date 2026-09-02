@@ -193,6 +193,7 @@ function renewalDocumentSummary(document?: RenewalDocument) {
   if (status === 'signed') return `Fully signed${signers ? ` by ${signers}` : ''} on ${formatDateTime(document.signed_at)}. No office confirmation is required.`
   if (status === 'pending_second_signature') return `Partly signed${signers ? ` by ${signers}` : ''}; waiting for the second signer.`
   if (status === 'declined') return 'The camper chose not to renew. The decision is saved with this record.'
+  if (status === 'not_required') return 'Portal copy closed—the office recorded the signed renewal from the previous system.'
   return 'Unsigned—the camper has not completed or declined this renewal yet.'
 }
 
@@ -352,7 +353,7 @@ export default function AdminRenewalsPage() {
     }))
   }
 
-  async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'clear' | 'mark-sent' | 'send-nonrenewal') {
+  async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'clear' | 'mark-sent' | 'send-nonrenewal' | 'signed-previous-system') {
     const existing = renewals.find((record) => record.camper_id === camper.id)
     const draft = drafts[camper.id] || draftFrom(existing)
     const sessionResult = await Promise.race([
@@ -376,6 +377,7 @@ export default function AdminRenewalsPage() {
           renewalSentAt: draft.renewal_sent_at,
           status: draft.status,
           notes: draft.notes,
+          ...(action === 'signed-previous-system' ? { confirmed: true } : {}),
         }),
         signal: controller.signal,
       })
@@ -403,6 +405,32 @@ export default function AdminRenewalsPage() {
       setExpanded('')
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'The renewal could not be saved.')
+    } finally {
+      setSaving('')
+    }
+  }
+
+  async function recordPreviousSystemSignature(camper: Camper) {
+    const renewal = renewals.find((record) => record.camper_id === camper.id)
+    const linkedDocument = renewalDocuments.find((document) => document.id === renewal?.renewal_document_id)
+    if (!linkedDocument) {
+      setFeedback('The linked portal renewal could not be found.')
+      return
+    }
+    const confirmed = window.confirm(`Confirm that ${camperName(camper)} at Lot ${camper.lot_number || '—'} already signed in the previous system. This will close only the unsigned portal copy and stop its reminders.`)
+    if (!confirmed) return
+
+    setSaving(camper.id)
+    setFeedback('')
+    try {
+      const saved = await saveThroughAdminApi(camper, 'signed-previous-system')
+      setRenewals((current) => [...current.filter((record) => record.camper_id !== camper.id), saved])
+      setRenewalDocuments((current) => current.map((document) => document.id === linkedDocument.id ? { ...document, signature_status: 'not_required' } : document))
+      setDrafts((current) => ({ ...current, [camper.id]: draftFrom(saved) }))
+      setFeedback(`Lot ${camper.lot_number || '—'} is recorded as renewing from the previous system. The duplicate portal copy and reminders are closed.`)
+      setExpanded('')
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'The previous-system signature could not be recorded.')
     } finally {
       setSaving('')
     }
@@ -562,6 +590,7 @@ export default function AdminRenewalsPage() {
         .nonrenewal-letter{grid-column:1/-1;display:grid;gap:12px;padding:17px;border:1px solid #e2b9b2;border-radius:16px;background:#fff6f3}.nonrenewal-letter-head{display:flex;align-items:start;justify-content:space-between;gap:12px}.nonrenewal-letter-head strong{display:block;color:#873d36;font-size:13px}.nonrenewal-letter-head small{display:block;margin-top:4px;color:#756b67;font-size:10px;line-height:1.45}.nonrenewal-letter-head span{flex:0 0 auto;padding:6px 8px;border-radius:999px;background:#f3d2cc;color:#8e4038;font-size:8px;font-weight:900;text-transform:uppercase}.nonrenewal-letter-preview{padding:16px;border:1px solid #e6ddd7;border-radius:13px;background:#fff;color:#38473e}.nonrenewal-letter-preview p{margin:0 0 10px;font-family:Georgia,serif;font-size:12px;line-height:1.58}.nonrenewal-letter-preview p:last-child{margin-bottom:0;white-space:pre-line}.nonrenewal-letter-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}.nonrenewal-letter-actions small{color:#796f69;font-size:10px;line-height:1.45}.nonrenewal-letter-actions button{flex:0 0 auto;background:#9b4039!important;color:#fff!important}.nonrenewal-letter-sent{padding:10px 12px;border-radius:11px;background:#eaf3e7;color:#315f3d;font-size:11px;font-weight:800}
         @media(max-width:1050px){.renewal-board-grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:680px){.renewal-board-grid{grid-template-columns:1fr 1fr}.renewal-board{padding:15px}.renewal-board-head{align-items:start;flex-direction:column}.renewal-approval,.nonrenewal-letter-head,.nonrenewal-letter-actions{align-items:stretch;flex-direction:column}.renewal-approval div:last-child{display:grid;grid-template-columns:1fr 1fr}.nonrenewal-letter-actions button{width:100%}}
         .renewal-hero h1{color:#fff!important}
+        .renewal-edit-actions .previous-system{border:1px solid #b7ceb8!important;background:#eef5eb!important;color:#315f3d!important}
         .renewal-annual-help{grid-column:1/-1;display:flex;gap:7px;padding:12px 13px;border-radius:12px;background:#eef5ec;color:#49624f;font-size:11px}.renewal-annual-help strong{white-space:nowrap}.renewal-document-record{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px;border:1px solid #c8d9dd;border-radius:14px;background:#f1f7f8}.renewal-document-record>span{display:grid;width:38px;height:38px;place-items:center;border-radius:11px;background:#dcebee;color:#356574}.renewal-document-record small{color:#56747b;font-size:8px;font-weight:900;letter-spacing:.1em}.renewal-document-record strong{display:block;margin-top:3px;font-size:13px}.renewal-document-record p{margin:4px 0 0;color:#60726d;font-size:10px;line-height:1.4}.renewal-document-record em{display:block;margin-top:5px;color:#397047;font-size:9px;font-style:normal;font-weight:900}.renewal-document-record>a{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 11px;border-radius:999px;background:#315f3d;color:#fff;font-size:10px;font-weight:900;text-decoration:none;white-space:nowrap}.renewal-document-record.signed{border-color:#bdd4bd;background:#edf7ed}.renewal-document-record.signed>span{background:#dcebdd;color:#397047}.renewal-document-record.declined{border-color:#e7bbb4;background:#fff0ed}.renewal-board{order:-1}
         .site-history-overlay{position:fixed;inset:0;z-index:1200;display:flex;justify-content:flex-end}.site-history-backdrop{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border:0!important;border-radius:0!important;background:rgba(10,30,18,.52)!important;box-shadow:none!important;backdrop-filter:blur(4px)}.site-history-panel{position:relative;width:min(720px,calc(100vw - 40px));height:100%;overflow:auto;background:#f4f5ef;box-shadow:-24px 0 65px rgba(16,42,25,.24);animation:siteHistoryIn .2s ease-out}.site-history-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 24px;border-bottom:1px solid #dce1d8;background:rgba(248,249,245,.96);backdrop-filter:blur(16px)}.site-history-header small{display:block;color:#9a762c;font-size:9px;font-weight:900;letter-spacing:.14em}.site-history-header h2{margin:5px 0 0;font:500 29px Georgia,serif}.site-history-header p{margin:4px 0 0;color:#68736b;font-size:11px}.site-history-close{display:grid!important;place-items:center!important;flex:0 0 42px!important;width:42px!important;height:42px!important;padding:0!important;border:1px solid #d6ddd3!important;border-radius:50%!important;background:#fff!important;color:#294632!important;box-shadow:none!important}.site-history-content{display:grid;gap:15px;padding:20px 24px 30px}.site-history-loading{display:grid;place-items:center;min-height:360px;text-align:center;color:#607066}.site-history-loading svg{animation:siteHistorySpin 1s linear infinite}.site-history-loading strong{display:block;margin-top:12px}.site-history-error{padding:18px;border:1px solid #edc7bd;border-radius:16px;background:#fff1ed;color:#873e35}.site-history-error button{display:block!important;margin-top:12px!important;background:#315f3d!important;color:#fff!important}.site-history-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.site-history-stat{padding:14px;border:1px solid #dde1d8;border-radius:15px;background:#fff}.site-history-stat span{display:flex;align-items:center;gap:6px;color:#7b806f;font-size:9px;font-weight:900;text-transform:uppercase}.site-history-stat strong{display:block;margin-top:7px;color:#294632;font:600 23px Georgia,serif}.site-history-stat.warning{border-color:#edd4a1;background:#fff8e8}.site-history-stat.alert{border-color:#e9bbb4;background:#fff1ee}.site-history-actions{display:flex;flex-wrap:wrap;gap:8px}.site-history-actions button,.site-history-actions a{display:inline-flex!important;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 13px!important;border:1px solid #d4dcd1!important;border-radius:999px!important;background:#fff!important;color:#315f3d!important;font-size:11px!important;font-weight:900!important;text-decoration:none;box-shadow:none!important}.site-history-actions button:first-child{border-color:#315f3d!important;background:#315f3d!important;color:#fff!important}.site-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:5px;border:1px solid #dce1d8;border-radius:14px;background:#e9ede6}.site-history-tabs button{display:flex!important;align-items:center;justify-content:center;gap:7px;padding:10px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:#5e6d63!important;font-size:11px!important;box-shadow:none!important}.site-history-tabs button.active{background:#fff!important;color:#315f3d!important;box-shadow:0 5px 14px rgba(35,59,41,.08)!important}.site-history-list{display:grid;gap:9px}.site-history-list-head{display:flex;align-items:end;justify-content:space-between;gap:10px;padding:5px 2px}.site-history-list-head h3{margin:0;font:500 22px Georgia,serif}.site-history-list-head span{color:#7b806f;font-size:10px}.site-history-item{padding:15px;border:1px solid #dde1d8;border-radius:16px;background:#fff}.site-history-item-top{display:flex;align-items:start;justify-content:space-between;gap:12px}.site-history-item strong{font-size:12px}.site-history-item p{margin:8px 0 0;color:#647067;font-size:11px;line-height:1.45}.site-history-item small{display:block;margin-top:8px;color:#899088;font-size:9px}.site-history-badge{flex:0 0 auto;padding:5px 8px;border-radius:999px;background:#eaf2e8;color:#376143;font-size:8px;font-weight:900;text-transform:uppercase}.site-history-badge.open,.site-history-badge.late{background:#fae2dd;color:#933e35}.site-history-badge.review{background:#fff0cb;color:#835b16}.site-history-payment{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.site-history-payment-amount{text-align:right}.site-history-payment-amount strong{display:block;font:600 18px Georgia,serif}.site-history-payment-amount small{margin-top:3px}.site-history-empty{padding:34px 18px;border:1px dashed #cfd8cc;border-radius:17px;background:rgba(255,255,255,.55);color:#718078;text-align:center}.site-history-empty strong{display:block;margin-top:8px;color:#315f3d}.site-history-footnote{margin:0;color:#7e877f;font-size:9px;line-height:1.5}@keyframes siteHistoryIn{from{transform:translateX(24px);opacity:.55}to{transform:translateX(0);opacity:1}}@keyframes siteHistorySpin{to{transform:rotate(360deg)}}
         .site-renewal-decision{padding:15px;border:1px solid #d7ddd3;border-radius:17px;background:#fff}.site-renewal-decision-head strong{font-size:13px}.site-renewal-decision-head small{display:block;margin-top:4px;color:#748078;font-size:10px;line-height:1.4}.site-renewal-decision-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.site-renewal-decision-buttons button{display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;min-height:48px!important;padding:11px!important;border-radius:13px!important;font-size:11px!important;font-weight:900!important;box-shadow:none!important}.site-renewal-decision-buttons .renew{border:1px solid #315f3d!important;background:#315f3d!important;color:#fff!important}.site-renewal-decision-buttons .do-not-renew{border:1px solid #a8443e!important;background:#a8443e!important;color:#fff!important}.site-renewal-decision-buttons button.selected{box-shadow:0 0 0 3px rgba(230,191,102,.5)!important}.site-renewal-decision-buttons button:disabled{opacity:.72!important}.site-renewal-clear{display:block!important;margin:10px auto 0!important;padding:4px 7px!important;border:0!important;background:transparent!important;color:#69756d!important;font-size:9px!important;text-decoration:underline!important;box-shadow:none!important}.site-decision-message{margin:10px 0 0;padding:9px 11px;border-radius:10px;background:#eef4eb;color:#315f3d;font-size:10px;font-weight:800}
@@ -668,7 +697,11 @@ export default function AdminRenewalsPage() {
                         : <div className="nonrenewal-letter-actions"><small>Held until {formatDate(row.sendDue)}. On that date, your phone will be alerted and the camper will still receive nothing until you approve.</small></div>}
                 </section>}
                 <label className="notes">Private notes<textarea value={draft.notes} onChange={(event) => updateDraft(row.camper.id, 'notes', event.target.value)} placeholder="Calls, conversations, special circumstances…" /></label>
-                <div className="renewal-edit-actions">{!draft.renewal_sent_at && ['Not Started', 'Awaiting Response'].includes(draft.status) && <button className="mark-sent" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper, true)}><Send size={15} /> Mark renewal sent today</button>}<button className="save" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper)}>{saving === row.camper.id ? <Clock3 size={15} /> : <Save size={15} />} {saving === row.camper.id ? 'Saving…' : 'Save renewal record'}</button></div>
+                <div className="renewal-edit-actions">
+                  {row.renewal?.renewal_document_id && ['Not Started', 'Awaiting Response'].includes(row.renewal.status) && !['signed', 'not_required', 'declined'].includes(String(renewalDocument?.signature_status || '').toLowerCase()) && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => recordPreviousSystemSignature(row.camper)}><FileCheck2 size={15} /> Signed in previous system</button>}
+                  {!draft.renewal_sent_at && ['Not Started', 'Awaiting Response'].includes(draft.status) && <button className="mark-sent" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper, true)}><Send size={15} /> Mark renewal sent today</button>}
+                  <button className="save" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper)}>{saving === row.camper.id ? <Clock3 size={15} /> : <Save size={15} />} {saving === row.camper.id ? 'Saving…' : 'Save renewal record'}</button>
+                </div>
               </div>}
             </article>
           })}

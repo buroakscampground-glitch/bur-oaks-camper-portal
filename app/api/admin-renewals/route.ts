@@ -72,6 +72,79 @@ export async function POST(request: Request) {
     .eq('camper_id', camperId)
     .maybeSingle()
 
+  if (action === 'signed-previous-system') {
+    if (body.confirmed !== true) {
+      return NextResponse.json({ error: 'Confirm that the camper signed this renewal in the previous system.' }, { status: 400 })
+    }
+    if (!existing?.renewal_document_id) {
+      return NextResponse.json({ error: 'There is no linked portal renewal to close for this camper.' }, { status: 409 })
+    }
+    if (existing.status === 'Campground Not Renewing' || existing.status === 'Camper Leaving') {
+      return NextResponse.json({ error: 'This renewal has a conflicting non-renewal decision. Clear that decision before recording an older signature.' }, { status: 409 })
+    }
+
+    const { data: linkedDocument, error: documentLoadError } = await context.admin
+      .from('documents')
+      .select('id,signature_status')
+      .eq('id', existing.renewal_document_id)
+      .eq('camper_id', camper.id)
+      .maybeSingle()
+
+    if (documentLoadError || !linkedDocument) {
+      return NextResponse.json({ error: documentLoadError?.message || 'The linked portal renewal could not be found.' }, { status: 404 })
+    }
+    if (String(linkedDocument.signature_status || '').toLowerCase() === 'signed') {
+      return NextResponse.json({ error: 'This portal renewal is already signed and does not need to be closed.' }, { status: 409 })
+    }
+
+    const now = new Date().toISOString()
+    const today = todayInCentral()
+    const auditNote = `Signed in previous system; duplicate unsigned portal renewal closed by ${cleanText(context.camper.first_name, 80) || 'admin'} on ${today}.`
+    const existingNotes = cleanText(existing.notes, 2600)
+    const notes = existingNotes.includes('Signed in previous system')
+      ? existingNotes
+      : [existingNotes, auditNote].filter(Boolean).join('\n')
+
+    // "not_required" is the established closed/reference state for documents.
+    // It removes the duplicate from signing prompts and reminder jobs without
+    // deleting the file or pretending that it received a portal signature.
+    const { error: documentCloseError } = await context.admin
+      .from('documents')
+      .update({ signature_status: 'not_required' })
+      .eq('id', linkedDocument.id)
+      .eq('camper_id', camper.id)
+
+    if (documentCloseError) {
+      return NextResponse.json({ error: documentCloseError.message || 'The duplicate portal renewal could not be closed.' }, { status: 500 })
+    }
+
+    const { data: renewal, error: renewalUpdateError } = await context.admin
+      .from('season_renewals')
+      .update({
+        status: 'Renewing',
+        decision_recorded_at: today,
+        auto_send_approved: false,
+        auto_send_approved_at: null,
+        automation_error: null,
+        last_automation_at: now,
+        notes,
+      })
+      .eq('id', existing.id)
+      .select('*')
+      .single()
+
+    if (renewalUpdateError || !renewal) {
+      await context.admin
+        .from('documents')
+        .update({ signature_status: linkedDocument.signature_status })
+        .eq('id', linkedDocument.id)
+        .eq('camper_id', camper.id)
+      return NextResponse.json({ error: renewalUpdateError?.message || 'The previous-system signature could not be recorded.' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true, renewal, documentStatus: 'not_required' })
+  }
+
   const status = validStatuses.has(body.status) ? body.status : existing?.status || 'Not Started'
   const annualDate = body.annualMonth && body.annualDay
     ? nextAnnualDate(body.annualMonth, body.annualDay)
