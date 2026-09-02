@@ -45,7 +45,7 @@ export default function InvoiceSmsOptInAlert({
           <span>
             <strong>I agree to receive Bur Oaks Campground text alerts.</strong>
             <small>
-              I agree to recurring, non-marketing SMS messages at every mobile number saved on my household profile for invoices, payment reminders, private office and account notices, maintenance and pump-out updates, gate and utility notices, event reminders, and safety or weather alerts. I confirm I have permission to enroll each saved number. Message frequency varies. Message and data rates may apply. Reply STOP to opt out. Consent is optional and is not a condition of service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
+              I agree to recurring, non-marketing SMS messages at every mobile number saved on my household profile for invoices, payment reminders, private office and account notices, maintenance and pump-out updates, gate and utility notices, event reminders, and safety or weather alerts. I confirm I have permission to enroll each saved number. Message frequency varies. Message and data rates may apply. Reply STOP to turn off texts only for the number sending STOP. Consent is optional and is not a condition of service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
             </small>
           </span>
         </label>

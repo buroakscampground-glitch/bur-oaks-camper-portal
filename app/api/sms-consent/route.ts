@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   }
 
   const enabled = body.enabled
+  const preserveExistingOptOuts = Boolean(body.preserveExistingOptOuts && context.camper.sms_opt_in)
   const phones = camperSmsPhones(context.camper)
   if (enabled && !phones.length) {
     return NextResponse.json({ error: 'Add at least one valid mobile number first.' }, { status: 400 })
@@ -19,20 +20,39 @@ export async function POST(request: Request) {
 
   if (phones.length) {
     const now = new Date().toISOString()
-    const { error: consentError } = await context.admin
-      .from('sms_phone_consents')
-      .upsert(phones.map((phone) => ({
-        camper_id: context.camper.id,
-        phone_number: phone,
-        opted_in: enabled,
-        opted_in_at: enabled ? now : null,
-        opted_out_at: enabled ? null : now,
-        source: 'portal',
-        updated_at: now,
-      })), { onConflict: 'camper_id,phone_number' })
+    let phonesToUpdate = phones
 
-    if (consentError) {
-      return NextResponse.json({ error: 'The phone consent migration has not been installed.' }, { status: 503 })
+    if (enabled && preserveExistingOptOuts) {
+      const { data: existing, error: existingError } = await context.admin
+        .from('sms_phone_consents')
+        .select('phone_number')
+        .eq('camper_id', context.camper.id)
+        .in('phone_number', phones)
+
+      if (existingError) {
+        return NextResponse.json({ error: 'The phone consent migration has not been installed.' }, { status: 503 })
+      }
+
+      const existingPhones = new Set((existing || []).map((row: any) => String(row.phone_number)))
+      phonesToUpdate = phones.filter((phone) => !existingPhones.has(phone))
+    }
+
+    if (phonesToUpdate.length) {
+      const { error: consentError } = await context.admin
+        .from('sms_phone_consents')
+        .upsert(phonesToUpdate.map((phone) => ({
+          camper_id: context.camper.id,
+          phone_number: phone,
+          opted_in: enabled,
+          opted_in_at: enabled ? now : null,
+          opted_out_at: enabled ? null : now,
+          source: 'portal',
+          updated_at: now,
+        })), { onConflict: 'camper_id,phone_number' })
+
+      if (consentError) {
+        return NextResponse.json({ error: 'The phone consent migration has not been installed.' }, { status: 503 })
+      }
     }
   }
 

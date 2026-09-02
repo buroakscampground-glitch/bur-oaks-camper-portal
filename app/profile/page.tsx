@@ -154,7 +154,9 @@ export default function ProfilePage() {
       setMessage(error.message)
     } else {
       try {
-        const updatedCamper = await saveSmsConsentPreference(Boolean(camper.sms_opt_in))
+        const updatedCamper = await saveSmsConsentPreference(Boolean(camper.sms_opt_in), {
+          preserveExistingOptOuts: true,
+        })
         setCamper(updatedCamper)
         setMessage('✅ Profile Updated Successfully')
       } catch (consentError: any) {
@@ -405,13 +407,13 @@ export default function ProfilePage() {
             <span>
               <strong>I agree to receive Bur Oaks Campground text alerts</strong>
               <small>
-                By checking this box, I agree to receive recurring, non-marketing SMS messages from Bur Oaks Campground at every mobile number saved on this household profile about invoices and payment reminders for my site and any family sites I am authorized to pay, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, upcoming event reminders (including Wednesday reminders for events within the next two weeks), safety notices, weather-related operational alerts, and other campground account or operations notices. I confirm I have permission to enroll each saved household number. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to opt out. Consent is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
+                By checking this box, I agree to receive recurring, non-marketing SMS messages from Bur Oaks Campground at every mobile number saved on this household profile about invoices and payment reminders for my site and any family sites I am authorized to pay, account notices, maintenance updates, sewer pump-out updates, gate notices, utility notices, office notices, upcoming event reminders (including Wednesday reminders for events within the next two weeks), safety notices, weather-related operational alerts, and other campground account or operations notices. I confirm I have permission to enroll each saved household number. Message frequency varies. Message and data rates may apply. Reply HELP for help or STOP to turn off texts only for the number sending STOP. Consent is optional and is not a condition of campground service. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
               </small>
             </span>
           </label>
 
           <div className="directory-safety-note">
-            <ShieldCheck size={16} /> Wednesday reminders for upcoming events are included automatically when Text Alerts are on. Any saved number can reply STOP; doing so turns off texts for the household profile.
+            <ShieldCheck size={16} /> Wednesday reminders for upcoming events are included automatically when Text Alerts are on. Every saved mobile number is enrolled automatically. Any number can reply STOP to turn off only that number; the other numbers keep receiving alerts.
           </div>
 
           <div className="directory-safety-note">

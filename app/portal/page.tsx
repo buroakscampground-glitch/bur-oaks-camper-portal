@@ -1085,7 +1085,7 @@ export default function CamperPortalPage() {
                     utility notices, office notices, upcoming event reminders (including Wednesday
                     reminders for events within the next two weeks), safety and weather alerts, and other
                     campground operations notices. Message frequency varies. Message and data rates may apply. Reply
-                    HELP for help or STOP to opt out. Consent is optional and is not a condition of
+                    HELP for help or STOP to turn off texts only for the number sending STOP. Consent is optional and is not a condition of
                     campground service. I confirm I have permission to enroll each saved household number. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a>
                   </small>
                 </span>

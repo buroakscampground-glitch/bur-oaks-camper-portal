@@ -278,11 +278,33 @@ export default function CamperDetailPage() {
       return
     }
 
+    let textSyncWarning = ''
+    if (data.sms_opt_in) {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession()
+        const token = sessionData.session?.access_token
+        if (!token) throw new Error('Admin login expired')
+
+        const response = await fetch('/api/admin-sms-consent-sync', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ camperId }),
+        })
+        const result = await response.json().catch(() => null)
+        if (!response.ok) throw new Error(result?.error || 'Text-number sync failed')
+      } catch {
+        textSyncWarning = ' Text numbers could not be synchronized; please try saving again.'
+      }
+    }
+
     setCamper({ ...emptyCamper, ...data })
     setMessage(
       mailingAddressIncomplete
-        ? 'Camper profile saved successfully. Mailing address is still needed.'
-        : 'Camper profile saved successfully.',
+        ? `Camper profile saved successfully. Mailing address is still needed.${textSyncWarning}`
+        : `Camper profile saved successfully.${textSyncWarning}`,
     )
     setSaving(false)
   }
@@ -701,7 +723,7 @@ export default function CamperDetailPage() {
                   updateField('sms_opt_in_at', event.target.checked ? camper.sms_opt_in_at || new Date().toISOString() : null)
                 }}
               />
-              <span><strong>Camper agreed to receive text alerts</strong><small>Use only after they have given permission. Texts use the profile 1 phone number.</small></span>
+              <span><strong>Camper agreed to receive text alerts</strong><small>Use only after they have given permission. Every valid number saved on this profile receives alerts automatically. Each number can reply STOP separately.</small></span>
             </label>
             <div className="directory-safety-note">
               <ShieldCheck size={16} /> Personal birthday and anniversary greetings: {camper.celebration_messages_opt_in ? 'Camper opted in' : 'Not opted in'}.
