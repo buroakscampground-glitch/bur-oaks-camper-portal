@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
+  AlertTriangle,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -398,6 +399,18 @@ export default function InvoicesPage() {
           </div>
         </header>
 
+        {dueNowInvoices.length > 0 && (
+          <section className="account-payment-required-banner" aria-label="Payment required">
+            <span><AlertTriangle size={27} /></span>
+            <div>
+              <small>PAYMENT REQUIRED</small>
+              <h2>{formatMoney(amountDueNow)} is due now.</h2>
+              <p>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? ' is' : 's are'} ready for payment. Select the invoice{dueNowInvoices.length === 1 ? '' : 's'} below and tap the green payment button.</p>
+            </div>
+            <a href="#invoices-due-now">View and pay</a>
+          </section>
+        )}
+
         <section className="account-summary" aria-label="Account summary">
           <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>Amount due</small><strong>{formatMoney(amountDueNow)}</strong></span></div>
           <div><span className="account-summary-icon green"><WalletCards size={21} /></span><span><small>Account credit</small><strong>{formatMoney(creditBalance)}</strong></span></div>
@@ -509,7 +522,7 @@ export default function InvoicesPage() {
         )}
 
         <div className="account-layout">
-          <section className="account-panel account-ledger">
+          <section className="account-panel account-ledger" id="invoices-due-now">
             <div className="account-panel-heading">
               <div><span>ACCOUNT HISTORY</span><h2>Invoices</h2></div>
               <div className="account-filter" role="group" aria-label="Filter invoices">

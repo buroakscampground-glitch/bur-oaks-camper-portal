@@ -11641,6 +11641,229 @@ tbody tr:hover {
   }
 }
 
+/* CAMPER ACTION-REQUIRED ALERTS */
+.portal-critical-action,
+.camper-signature-required-banner,
+.account-payment-required-banner {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  gap: 16px;
+  width: min(1220px,calc(100% - 56px));
+  margin: 0 auto 22px;
+  padding: 22px;
+  border: 2px solid #b33f35;
+  border-radius: 22px;
+  background: linear-gradient(135deg,#fff4f1,#fff);
+  box-shadow: 0 16px 40px rgba(139,45,37,.16);
+  color: #5d201c;
+}
+
+.portal-critical-action {
+  grid-template-columns: 1fr;
+}
+
+.portal-critical-action-heading,
+.camper-signature-required-banner,
+.account-payment-required-banner {
+  align-items: center;
+}
+
+.portal-critical-action-heading {
+  display: flex;
+  gap: 13px;
+}
+
+.portal-critical-action-heading > span,
+.camper-signature-required-banner > span,
+.account-payment-required-banner > span {
+  display: grid;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 15px;
+  background: #b33f35;
+  color: #fff;
+}
+
+.portal-critical-action small,
+.camper-signature-required-banner small,
+.account-payment-required-banner small {
+  color: #a3322a;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: .15em;
+}
+
+.portal-critical-action h2,
+.camper-signature-required-banner h2,
+.account-payment-required-banner h2 {
+  margin: 4px 0 0;
+  color: #712821;
+  font: 600 clamp(24px,3vw,35px)/1.08 Georgia,serif;
+}
+
+.portal-critical-action p,
+.camper-signature-required-banner p,
+.account-payment-required-banner p {
+  margin: 6px 0 0;
+  color: #74504c;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.portal-critical-action-links {
+  display: grid;
+  grid-template-columns: repeat(2,minmax(0,1fr));
+  gap: 10px;
+}
+
+.portal-critical-action-links > a {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 92px;
+  padding: 15px;
+  border: 1px solid #e0aaa4;
+  border-radius: 17px;
+  background: #fff;
+  color: #6f2822;
+  text-decoration: none;
+}
+
+.portal-critical-action-links > a > svg:first-child {
+  display: grid;
+  width: 43px;
+  height: 43px;
+  padding: 10px;
+  border-radius: 13px;
+  background: #f7d8d4;
+  color: #a3322a;
+}
+
+.portal-critical-action-links strong,
+.portal-critical-action-links em {
+  display: block;
+}
+
+.portal-critical-action-links strong {
+  margin-top: 3px;
+  color: #67231f;
+  font-size: 16px;
+}
+
+.portal-critical-action-links em {
+  margin-top: 3px;
+  color: #80625e;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.camper-signature-required-banner,
+.account-payment-required-banner {
+  grid-template-columns: auto minmax(0,1fr) auto;
+}
+
+.camper-signature-required-banner {
+  width: min(1220px,100%);
+}
+
+.account-payment-required-banner {
+  width: calc(100% - 56px);
+  margin-top: 18px;
+}
+
+.camper-signature-required-banner > a,
+.account-payment-required-banner > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 18px;
+  border-radius: 999px;
+  background: #a7352d;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.camper-signature-renewal-rule {
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: #f8dcd8;
+  color: #762a24 !important;
+}
+
+.camper-renewal-deadline-warning {
+  display: flex;
+  gap: 9px;
+  margin: 5px 0 0;
+  padding: 12px;
+  border: 1px solid #d98b82;
+  border-radius: 13px;
+  background: #fff0ed;
+  color: #7d2e28;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.camper-renewal-deadline-warning svg {
+  flex: 0 0 17px;
+  margin-top: 2px;
+}
+
+#documents-to-sign,
+#invoices-due-now {
+  scroll-margin-top: 18px;
+}
+
+@media(max-width:720px) {
+  .portal-critical-action,
+  .camper-signature-required-banner,
+  .account-payment-required-banner {
+    width: calc(100% - 28px);
+    padding: 17px;
+    border-radius: 19px;
+  }
+
+  .camper-signature-required-banner,
+  .account-payment-required-banner {
+    grid-template-columns: auto minmax(0,1fr);
+  }
+
+  .camper-signature-required-banner > a,
+  .account-payment-required-banner > a {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 52px;
+    border-radius: 14px;
+  }
+
+  .portal-critical-action-links {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-critical-action-heading {
+    align-items: flex-start;
+  }
+
+  .portal-critical-action-heading > span,
+  .camper-signature-required-banner > span,
+  .account-payment-required-banner > span {
+    flex-basis: 42px;
+    width: 42px;
+    height: 42px;
+  }
+
+  .portal-critical-action-links > a {
+    min-height: 96px;
+  }
+}
+
 /* HOLIDAY PORTAL HEROES */
 .portal-seasonal-banner {
   position: relative;

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, CheckCircle2, DoorOpen, ExternalLink, FileSignature, LockKeyhole, ShieldCheck, X } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, DoorOpen, ExternalLink, FileSignature, LockKeyhole, ShieldCheck, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function DocumentsPage() {
@@ -197,6 +197,7 @@ export default function DocumentsPage() {
     !hasCurrentUserSigned(doc)
 
   const isRenewalDocument = (doc: any) => /renewal/i.test(`${doc.document_name || ''} ${doc.document_type || ''}`)
+  const pendingRenewalDocuments = documentsNeedingSignature.filter(isRenewalDocument)
 
   function beginSigning(document: any) {
     setSigningDocument(document)
@@ -239,6 +240,12 @@ export default function DocumentsPage() {
         {doc.signature_record_hash && (
           <p className="camper-document-proof">Secure signature record saved</p>
         )}
+        {canCurrentUserSign(doc) && isRenewalDocument(doc) && (
+          <p className="camper-renewal-deadline-warning">
+            <AlertTriangle size={17} />
+            <span><strong>Renewal signature required.</strong> Failure to sign and return this renewal by the deadline will be treated as non-renewal. When your current lease expires, the office will consider the site available to rent to another camper.</span>
+          </p>
+        )}
 
         <div className="camper-document-actions">
           {doc.file_url && (
@@ -278,6 +285,21 @@ export default function DocumentsPage() {
         </div>
       </section>
 
+        {documentsNeedingSignature.length > 0 && (
+          <section className="camper-signature-required-banner" aria-label="Signature action required">
+            <span><AlertTriangle size={26} /></span>
+            <div>
+              <small>ACTION REQUIRED</small>
+              <h2>{documentsNeedingSignature.length} document{documentsNeedingSignature.length === 1 ? '' : 's'} need your signature.</h2>
+              <p>Open each document, review it, and select <strong>Review &amp; Sign</strong> to complete it.</p>
+              {pendingRenewalDocuments.length > 0 && (
+                <p className="camper-signature-renewal-rule"><strong>Important renewal notice:</strong> Failure to sign and return a renewal by its deadline will be treated as non-renewal. When the current lease expires, the office will consider that campsite available to rent to another camper.</p>
+              )}
+            </div>
+            <a href="#documents-to-sign">Sign now</a>
+          </section>
+        )}
+
         {documents.length === 0 && (
           <section className="camper-documents-empty">
             <FileSignature size={34} />
@@ -289,7 +311,7 @@ export default function DocumentsPage() {
         )}
 
         {documentsNeedingSignature.length > 0 && (
-          <section className="camper-document-section">
+          <section className="camper-document-section" id="documents-to-sign">
             <div className="camper-document-section-heading">
               <span>ACTION NEEDED</span>
               <h2>Documents waiting for your signature</h2>

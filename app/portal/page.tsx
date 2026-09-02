@@ -1015,6 +1015,43 @@ export default function CamperPortalPage() {
 
         </section>
 
+        {(documentsNeedingSignature.length > 0 || dueNowInvoices.length > 0) && (
+          <section className="portal-critical-action" aria-labelledby="portal-critical-action-title">
+            <div className="portal-critical-action-heading">
+              <span><AlertTriangle size={26} /></span>
+              <div>
+                <small>ACTION REQUIRED</small>
+                <h2 id="portal-critical-action-title">You have something that needs to be completed.</h2>
+                <p>Please take care of the item{documentsNeedingSignature.length > 0 && dueNowInvoices.length > 0 ? 's' : ''} below as soon as possible.</p>
+              </div>
+            </div>
+            <div className="portal-critical-action-links">
+              {documentsNeedingSignature.length > 0 && (
+                <a href="/documents">
+                  <FileText size={23} />
+                  <span>
+                    <small>SIGNATURE REQUIRED</small>
+                    <strong>{documentsNeedingSignature.length} document{documentsNeedingSignature.length === 1 ? '' : 's'} must be signed</strong>
+                    <em>Open, review, and sign now</em>
+                  </span>
+                  <ArrowRight size={22} />
+                </a>
+              )}
+              {dueNowInvoices.length > 0 && (
+                <a href="/invoices">
+                  <ReceiptText size={23} />
+                  <span>
+                    <small>PAYMENT REQUIRED</small>
+                    <strong>${openBalance.toFixed(2)} is due now</strong>
+                    <em>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? '' : 's'} ready for payment</em>
+                  </span>
+                  <ArrowRight size={22} />
+                </a>
+              )}
+            </div>
+          </section>
+        )}
+
         {!smsPromptDecision && (
           <section className="portal-sms-choice" id="text-alert-choice" aria-labelledby="portal-sms-choice-title">
             <div className="portal-sms-choice-icon" aria-hidden="true">
