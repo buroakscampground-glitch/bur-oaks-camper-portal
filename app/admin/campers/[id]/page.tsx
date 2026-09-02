@@ -71,6 +71,7 @@ type Camper = {
   celebration_messages_opt_in: boolean | null
   event_reminders_opt_in: boolean | null
   office_notes: string | null
+  rent_payment_plan: 'quarterly' | 'semiannual'
 }
 
 const emptyCamper: Camper = {
@@ -110,6 +111,7 @@ const emptyCamper: Camper = {
   celebration_messages_opt_in: false,
   event_reminders_opt_in: false,
   office_notes: '',
+  rent_payment_plan: 'semiannual',
 }
 
 export default function CamperDetailPage() {
@@ -267,6 +269,7 @@ export default function CamperDetailPage() {
           : null,
         camper_since_date: camper.camper_since_date || null,
         office_notes: camper.office_notes?.trim() || null,
+        rent_payment_plan: camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual',
       })
       .eq('id', camperId)
       .select('*')
@@ -353,8 +356,19 @@ export default function CamperDetailPage() {
       return
     }
 
+    const { error: planError } = await supabase
+      .from('campers')
+      .update({ rent_payment_plan: camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual' })
+      .eq('id', camperId)
+
+    if (planError) {
+      setMessage(planError.message || 'Annual rent saved, but the payment plan could not be saved.')
+      setSavingAnnualRent(false)
+      return
+    }
+
     setAnnualLotRent(rentAmount === null ? '' : String(rentAmount))
-    setMessage('Annual lot rent saved successfully.')
+    setMessage('Annual lot rent and payment plan saved successfully.')
     setSavingAnnualRent(false)
   }
 
@@ -681,7 +695,7 @@ export default function CamperDetailPage() {
 
         <ProfileSection icon={<CircleDollarSign />} kicker="BILLING & RENT" title="Annual lot rent">
           <p className="admin-camper-panel-note">
-            Enter the full lot rent for the year for Site {camper.lot_number || 'Unassigned'}. This is saved separately from invoices and the rest of the camper profile.
+            Enter the full lot rent and renewal payment terms for Site {camper.lot_number || 'Unassigned'}. Quarterly is reserved for grandfathered campers; all other campers use two half-payments.
           </p>
           <div className="admin-camper-rent-entry">
             <label className="admin-camper-field">
@@ -699,9 +713,19 @@ export default function CamperDetailPage() {
                 />
               </div>
             </label>
+            <label className="admin-camper-field">
+              <span>Renewal payment plan</span>
+              <select
+                value={camper.rent_payment_plan || 'semiannual'}
+                onChange={(event) => updateField('rent_payment_plan', event.target.value === 'quarterly' ? 'quarterly' : 'semiannual')}
+              >
+                <option value="semiannual">Half-and-half · 2 payments</option>
+                <option value="quarterly">Grandfathered quarterly · 4 payments</option>
+              </select>
+            </label>
             <button type="button" onClick={saveAnnualLotRent} disabled={savingAnnualRent || !camper.lot_number}>
               {savingAnnualRent ? <LoaderCircle className="admin-spin" size={17} /> : <Save size={17} />}
-              {savingAnnualRent ? 'Saving…' : 'Save Annual Rent'}
+              {savingAnnualRent ? 'Saving…' : 'Save Rent & Plan'}
             </button>
           </div>
         </ProfileSection>

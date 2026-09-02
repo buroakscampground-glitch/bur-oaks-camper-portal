@@ -4,6 +4,7 @@ import { todayInCentral } from '../../../lib/invoice-texting'
 import { sendNonRenewalLetter } from '../../../lib/nonrenewal-letter'
 import { reconcileRenewalsWithDocuments } from '../../../lib/renewal-document-reconciliation'
 import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
+import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-schedule-service'
 
 export const runtime = 'nodejs'
 
@@ -59,12 +60,26 @@ export async function POST(request: Request) {
 
   const { data: camper } = await context.admin
     .from('campers')
-    .select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,email,secondary_email,active')
+    .select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,email,secondary_email,active,rent_payment_plan')
     .eq('id', camperId)
     .eq('active', true)
     .maybeSingle()
 
   if (!camper) return NextResponse.json({ error: 'The active camper record could not be found.' }, { status: 404 })
+
+  const rentPaymentPlan = body.rentPaymentPlan === 'quarterly' || body.rentPaymentPlan === 'semiannual'
+    ? body.rentPaymentPlan
+    : camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual'
+  if (camper.rent_payment_plan !== rentPaymentPlan) {
+    const { error: planError } = await context.admin
+      .from('campers')
+      .update({ rent_payment_plan: rentPaymentPlan })
+      .eq('id', camper.id)
+    if (planError) {
+      return NextResponse.json({ error: planError.message || 'The rent payment plan could not be saved.' }, { status: 500 })
+    }
+    camper.rent_payment_plan = rentPaymentPlan
+  }
 
   const { data: existing } = await context.admin
     .from('season_renewals')
@@ -142,7 +157,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: renewalUpdateError?.message || 'The previous-system signature could not be recorded.' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, renewal, documentStatus: 'not_required' })
+    let renewalRentSchedule: Awaited<ReturnType<typeof continueSignedRenewalRentSchedule>>
+    try {
+      renewalRentSchedule = await continueSignedRenewalRentSchedule({
+        client: context.admin,
+        camperId: String(camper.id),
+        documentId: String(linkedDocument.id),
+        signedAt: now,
+      })
+    } catch (scheduleError: any) {
+      const scheduleMessage = `Previous-system renewal recorded, but the lot-rent schedule could not be continued automatically: ${String(scheduleError?.message || scheduleError).slice(0, 1600)}`
+      await context.admin.from('season_renewals').update({
+        automation_error: scheduleMessage,
+        last_automation_at: new Date().toISOString(),
+      }).eq('id', existing.id)
+      await context.admin.from('admin_notifications').insert({
+        type: 'renewal_rent_schedule_error',
+        title: 'Renewal rent schedule needs office review',
+        message: scheduleMessage,
+        lot_number: camper.lot_number || null,
+        camper_id: camper.id,
+        source_table: 'season_renewals',
+        source_id: existing.id,
+      })
+      renewalRentSchedule = { status: 'failed', created: 0, skipped: 0 }
+    }
+
+    const { data: refreshedRenewal } = await context.admin
+      .from('season_renewals')
+      .select('*')
+      .eq('id', existing.id)
+      .single()
+
+    return NextResponse.json({
+      success: true,
+      renewal: refreshedRenewal || renewal,
+      documentStatus: 'not_required',
+      renewalRentSchedule,
+    })
   }
 
   const status = validStatuses.has(body.status) ? body.status : existing?.status || 'Not Started'

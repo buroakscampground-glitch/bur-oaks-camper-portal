@@ -38,6 +38,7 @@ type Camper = {
   second_profile_last_name?: string | null
   lot_number?: string | null
   role?: string | null
+  rent_payment_plan?: 'quarterly' | 'semiannual' | null
 }
 
 type RenewalStatus = 'Not Started' | 'Awaiting Response' | 'Renewing' | 'Camper Leaving' | 'Campground Not Renewing'
@@ -58,6 +59,15 @@ type Renewal = {
   review_notified_at?: string | null
   notes?: string | null
   updated_at?: string | null
+}
+
+type SavedRenewal = Renewal & {
+  renewalRentSchedule?: {
+    status?: string
+    created?: number
+    skipped?: number
+    paymentPlan?: 'quarterly' | 'semiannual'
+  } | null
 }
 
 type RenewalDocument = {
@@ -282,7 +292,7 @@ export default function AdminRenewalsPage() {
       }).catch(() => null)
     }
     const [camperResult, renewalResult, documentResult] = await Promise.all([
-      supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,role').eq('active', true).order('lot_number', { ascending: true }),
+      supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,role,rent_payment_plan').eq('active', true).order('lot_number', { ascending: true }),
       supabase.from('season_renewals').select('*').order('contract_end_date', { ascending: true, nullsFirst: false }),
       supabase.from('documents').select('id,document_name,document_type,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash'),
     ])
@@ -378,13 +388,17 @@ export default function AdminRenewalsPage() {
           renewalSentAt: draft.renewal_sent_at,
           status: draft.status,
           notes: draft.notes,
+          rentPaymentPlan: camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual',
           ...(action === 'signed-previous-system' ? { confirmed: true } : {}),
         }),
         signal: controller.signal,
       })
       const result = await response.json().catch(() => null)
       if (!response.ok || !result?.renewal) throw new Error(result?.error || 'The renewal could not be saved.')
-      return result.renewal as Renewal
+      return {
+        ...result.renewal,
+        renewalRentSchedule: result.renewalRentSchedule || null,
+      } as SavedRenewal
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         throw new Error('Saving took too long. Nothing was changed—please try again.')
@@ -431,7 +445,15 @@ export default function AdminRenewalsPage() {
       setRenewals((current) => [...current.filter((record) => record.camper_id !== camper.id), saved])
       setRenewalDocuments((current) => current.map((document) => document.id === linkedDocument.id ? { ...document, signature_status: 'not_required' } : document))
       setDrafts((current) => ({ ...current, [camper.id]: draftFrom(saved) }))
-      setFeedback(`Lot ${camper.lot_number || '—'} is recorded as renewing from the previous system. The duplicate portal copy and reminders are closed.`)
+      const schedule = saved.renewalRentSchedule
+      const scheduleMessage = schedule?.status === 'continued'
+        ? ` ${schedule.created || 0} future ${schedule.paymentPlan === 'quarterly' ? 'quarterly' : 'half-payment'} invoice${schedule.created === 1 ? '' : 's'} created; ${schedule.skipped || 0} already existed.`
+        : schedule?.status === 'no-prior-schedule'
+          ? ' The payment schedule needs office review because annual rent is missing and prior invoices were incomplete.'
+          : schedule?.status === 'failed'
+            ? ' The payment schedule needs office review; an alert was created.'
+            : ''
+      setFeedback(`Lot ${camper.lot_number || '—'} is recorded as renewing from the previous system. The duplicate portal copy and reminders are closed.${scheduleMessage}`)
       setPreviousSystemConfirmId('')
       setExpanded('')
     } catch (error) {
@@ -682,6 +704,7 @@ export default function AdminRenewalsPage() {
                 <label>Annual contract month<select value={draft.annual_month} onChange={(event) => updateDraft(row.camper.id, 'annual_month', event.target.value)}><option value="">Choose month</option>{months.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}</select></label>
                 <label>Day<select value={draft.annual_day} onChange={(event) => updateDraft(row.camper.id, 'annual_day', event.target.value)}><option value="">Choose day</option>{Array.from({ length: 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}</select></label>
                 <label>Decision<select value={draft.status} onChange={(event) => updateDraft(row.camper.id, 'status', event.target.value)}>{statuses.map((status) => <option key={status} value={status} disabled={status === 'Renewing' && row.renewal?.status !== 'Renewing'}>{statusLabels[status]}</option>)}</select><small>“Camper Renewing” is assigned automatically only after the camper completes the required signature.</small></label>
+                <label>Rent payment plan<select value={row.camper.rent_payment_plan || 'semiannual'} onChange={(event) => setCampers((current) => current.map((camper) => camper.id === row.camper.id ? { ...camper, rent_payment_plan: event.target.value === 'quarterly' ? 'quarterly' : 'semiannual' } : camper))}><option value="semiannual">Half-and-half · 2 payments</option><option value="quarterly">Grandfathered quarterly · 4 payments</option></select><small>Saved with this renewal record and used when the camper signs.</small></label>
                 <div className="renewal-annual-help"><strong>Enter this once.</strong><span>The year does not matter. Every renewal is for 12 months, so the system automatically moves this date forward each year.</span></div>
                 {annualPreview && <div className="renewal-edit-dates"><span>Annual date <strong>{formatAnnualDate(annualPreview)}</strong></span><span>Next automatic send <strong>{formatDate(shiftDate(annualPreview, -4))}</strong></span><span>Camper reply due <strong>{formatDate(shiftDate(annualPreview, -3))}</strong></span><span>Possible opening <strong>{formatDate(shiftDate(annualPreview, 0, 1))}</strong></span>{row.renewal?.automation_error && <span><strong>Needs attention:</strong> {row.renewal.automation_error}</span>}</div>}
                 {row.renewal?.renewal_document_id && <section className={`renewal-document-record ${String(renewalDocument?.signature_status || 'pending').toLowerCase()}`}>

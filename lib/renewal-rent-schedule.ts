@@ -23,6 +23,8 @@ export type ContinuedRentInstallment = {
   items: Array<{ description: string; quantity: number; unit_price: number; total: number }>
 }
 
+export type RentPaymentPlan = 'quarterly' | 'semiannual'
+
 function isDate(value: unknown): value is string {
   return /^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))
 }
@@ -32,6 +34,20 @@ export function addYearsToDate(value: string, years: number) {
   const [year, month, day] = value.split('-').map(Number)
   const lastDay = new Date(year + years, month, 0, 12).getDate()
   return `${year + years}-${String(month).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
+}
+
+export function addMonthsToDate(value: string, months: number) {
+  if (!isDate(value)) return ''
+  const [year, month, day] = value.split('-').map(Number)
+  const monthIndex = month - 1 + months
+  const targetYear = year + Math.floor(monthIndex / 12)
+  const targetMonthIndex = ((monthIndex % 12) + 12) % 12
+  const lastDay = new Date(targetYear, targetMonthIndex + 1, 0, 12).getDate()
+  return `${targetYear}-${String(targetMonthIndex + 1).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
+}
+
+export function normalizeRentPaymentPlan(value: unknown): RentPaymentPlan {
+  return String(value || '').toLowerCase() === 'quarterly' ? 'quarterly' : 'semiannual'
 }
 
 export function isLotRentInvoice(invoice: PriorLotRentInvoice) {
@@ -83,7 +99,7 @@ export function buildContinuedRentSchedule(
     const dueDate = String(invoice.due_date || '')
     if (!isLotRentInvoice(invoice) || !isDate(dueDate)) continue
     if (dueDate < priorTermStart || dueDate >= contractEndDate) continue
-    if (String(invoice.status || '').toLowerCase() === 'cancelled') continue
+    if (['cancelled', 'canceled', 'void', 'refunded'].includes(String(invoice.status || '').toLowerCase())) continue
 
     const current = latestByDueDate.get(dueDate)
     if (!current || String(invoice.created_at || '') > String(current.created_at || '')) {
@@ -105,4 +121,44 @@ export function buildContinuedRentSchedule(
         items,
       }]
     })
+}
+
+function splitMoney(total: number, installments: number) {
+  const totalCents = Math.round(total * 100)
+  const baseCents = Math.floor(totalCents / installments)
+  const remainder = totalCents - baseCents * installments
+  return Array.from({ length: installments }, (_, index) =>
+    Number(((baseCents + (index < remainder ? 1 : 0)) / 100).toFixed(2)))
+}
+
+export function buildRenewalRentSchedule(
+  invoices: PriorLotRentInvoice[],
+  contractEndDate: string,
+  paymentPlan: RentPaymentPlan,
+  annualRent: unknown,
+) {
+  if (!isDate(contractEndDate)) return [] as ContinuedRentInstallment[]
+
+  const plan = normalizeRentPaymentPlan(paymentPlan)
+  const installmentCount = plan === 'quarterly' ? 4 : 2
+  const priorSchedule = buildContinuedRentSchedule(invoices, contractEndDate)
+  const configuredAnnualRent = money(annualRent)
+
+  // Without a configured annual amount, only continue a complete prior
+  // schedule. Creating a full plan from partial dollars would underbill.
+  if (configuredAnnualRent <= 0) {
+    return priorSchedule.length === installmentCount ? priorSchedule : []
+  }
+
+  const amounts = splitMoney(configuredAnnualRent, installmentCount)
+  const monthStep = plan === 'quarterly' ? 3 : 6
+  const invoiceType = priorSchedule[0]?.invoiceType || (plan === 'quarterly' ? 'Quarterly Lot Rent' : 'Lot Rent')
+
+  return amounts.map((amount, index) => ({
+    sourceInvoiceId: priorSchedule[index]?.sourceInvoiceId || '',
+    dueDate: addMonthsToDate(contractEndDate, index * monthStep),
+    amount,
+    invoiceType,
+    items: [{ description: 'Lot Rent', quantity: 1, unit_price: amount, total: amount }],
+  }))
 }
