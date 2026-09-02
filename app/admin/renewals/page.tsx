@@ -252,6 +252,7 @@ export default function AdminRenewalsPage() {
   const [siteHistoryLoading, setSiteHistoryLoading] = useState(false)
   const [siteHistoryError, setSiteHistoryError] = useState('')
   const [siteDecisionMessage, setSiteDecisionMessage] = useState('')
+  const [previousSystemConfirmId, setPreviousSystemConfirmId] = useState('')
 
   useEffect(() => { loadPage() }, [])
 
@@ -417,8 +418,11 @@ export default function AdminRenewalsPage() {
       setFeedback('The linked portal renewal could not be found.')
       return
     }
-    const confirmed = window.confirm(`Confirm that ${camperName(camper)} at Lot ${camper.lot_number || '—'} already signed in the previous system. This will close only the unsigned portal copy and stop its reminders.`)
-    if (!confirmed) return
+    if (previousSystemConfirmId !== camper.id) {
+      setPreviousSystemConfirmId(camper.id)
+      setFeedback(`Review Lot ${camper.lot_number || '—'}, then tap “Confirm old-system signature.” Only the unsigned portal copy and its reminders will close.`)
+      return
+    }
 
     setSaving(camper.id)
     setFeedback('')
@@ -428,6 +432,7 @@ export default function AdminRenewalsPage() {
       setRenewalDocuments((current) => current.map((document) => document.id === linkedDocument.id ? { ...document, signature_status: 'not_required' } : document))
       setDrafts((current) => ({ ...current, [camper.id]: draftFrom(saved) }))
       setFeedback(`Lot ${camper.lot_number || '—'} is recorded as renewing from the previous system. The duplicate portal copy and reminders are closed.`)
+      setPreviousSystemConfirmId('')
       setExpanded('')
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'The previous-system signature could not be recorded.')
@@ -698,7 +703,8 @@ export default function AdminRenewalsPage() {
                 </section>}
                 <label className="notes">Private notes<textarea value={draft.notes} onChange={(event) => updateDraft(row.camper.id, 'notes', event.target.value)} placeholder="Calls, conversations, special circumstances…" /></label>
                 <div className="renewal-edit-actions">
-                  {row.renewal?.renewal_document_id && ['Not Started', 'Awaiting Response'].includes(row.renewal.status) && !['signed', 'not_required', 'declined'].includes(String(renewalDocument?.signature_status || '').toLowerCase()) && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => recordPreviousSystemSignature(row.camper)}><FileCheck2 size={15} /> Signed in previous system</button>}
+                  {row.renewal?.renewal_document_id && ['Not Started', 'Awaiting Response'].includes(row.renewal.status) && !['signed', 'not_required', 'declined'].includes(String(renewalDocument?.signature_status || '').toLowerCase()) && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => recordPreviousSystemSignature(row.camper)}><FileCheck2 size={15} /> {previousSystemConfirmId === row.camper.id ? 'Confirm old-system signature' : 'Signed in previous system'}</button>}
+                  {previousSystemConfirmId === row.camper.id && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => { setPreviousSystemConfirmId(''); setFeedback('') }}>Cancel</button>}
                   {!draft.renewal_sent_at && ['Not Started', 'Awaiting Response'].includes(draft.status) && <button className="mark-sent" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper, true)}><Send size={15} /> Mark renewal sent today</button>}
                   <button className="save" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper)}>{saving === row.camper.id ? <Clock3 size={15} /> : <Save size={15} />} {saving === row.camper.id ? 'Saving…' : 'Save renewal record'}</button>
                 </div>
