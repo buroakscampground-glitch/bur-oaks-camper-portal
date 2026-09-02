@@ -21,15 +21,15 @@ test('invoice previews ignore unrelated and malformed invoice numbers', () => {
   ], date), 'INV-20260825-010')
 })
 
-test('SMS recipients include only individually opted-in saved phones', () => {
+test('SMS recipients auto-enroll new saved phones while honoring individual opt-outs', () => {
   const recipients = filterOptedInPhones(
-    ['+16185550101', '+16185550102'],
+    ['+16185550101', '+16185550102', '+16185550103'],
     [
       { phone_number: '+16185550101', opted_in: true },
       { phone_number: '+16185550102', opted_in: false },
     ]
   )
-  assert.deepEqual(recipients, ['+16185550101'])
+  assert.deepEqual(recipients, ['+16185550101', '+16185550103'])
 })
 
 test('final invoice tokens are scoped, signed, and expire', () => {
