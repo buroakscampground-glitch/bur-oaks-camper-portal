@@ -152,7 +152,7 @@ export default function CamperDetailPage() {
         .from('documents')
         .select('*')
         .eq('camper_id', camperId)
-        .order('created_at', { ascending: false })
+        .order('document_name', { ascending: true })
     ])
 
     if (camperResult.error || !camperResult.data) {
