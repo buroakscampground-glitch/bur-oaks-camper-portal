@@ -2,11 +2,6 @@
 
 import { useState } from 'react'
 import { Mail, Send } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
-
-const siteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, '') ||
-  'https://www.buroakscampground.com'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -17,13 +12,16 @@ export default function ForgotPasswordPage() {
     setSending(true)
     setMessage('')
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${siteUrl}/set-password`,
+    const response = await fetch('/api/request-password-reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim() }),
     })
+    const result = await response.json().catch(() => null)
 
     setMessage(
-      error
-        ? error.message
+      !response.ok
+        ? result?.error || 'The reset email could not be sent. Please try again.'
         : 'If that email belongs to an account, a password-reset link is on its way.'
     )
     setSending(false)
