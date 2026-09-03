@@ -15,5 +15,5 @@ test('a document with no prior successful notice is due immediately', () => {
 })
 
 test('document signing texts use an unmistakable action alert', () => {
-  assert.equal(DOCUMENT_SIGNATURE_SMS_ALERT, '⚠️ DOCUMENT NEEDS SIGNED ⚠️')
+  assert.equal(DOCUMENT_SIGNATURE_SMS_ALERT, 'DOCUMENT NEEDS SIGNED')
 })

@@ -5,6 +5,7 @@ import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { todayInCentral } from './invoice-reminder-schedule'
 import { DOCUMENT_SIGNATURE_SMS_ALERT, documentReminderCentralDay, documentReminderIsDue } from './document-reminder-schedule'
 import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized-billing'
+import { singleSegmentSms } from './sms-segments'
 
 const REMINDER_TYPE = 'Document Signature Reminder'
 
@@ -69,9 +70,11 @@ function documentCopy(document: any, camper: any, isFollowUp: boolean) {
     'If you have questions, contact the campground office.',
     'Bur Oaks Campground',
   ].join('\n')
-  // SMS does not support rich-text bold. The all-caps alert line makes the
-  // required action unmistakable in every texting app.
-  const sms = `${DOCUMENT_SIGNATURE_SMS_ALERT}\nBur Oaks Campground: ${heading} ${name}${site}. Please log in and sign as soon as possible.\nTap to review and sign: ${url}\nReply STOP to opt out.`
+  const sms = singleSegmentSms({
+    message: `${DOCUMENT_SIGNATURE_SMS_ALERT} - ${name}${site}.`,
+    url,
+    action: 'Sign',
+  })
   const html = `
     <div style="font-family:Arial,sans-serif;background:#f5f1e8;padding:30px;color:#26382d">
       <div style="max-width:640px;margin:0 auto;background:#fff;border-radius:20px;overflow:hidden;border:1px solid #e2dccf">

@@ -5,6 +5,7 @@ import { consentedCamperSmsPhones, phoneAutomationKey } from './camper-sms'
 import { daysUntilDate, todayInCentral } from './invoice-reminder-schedule'
 import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
 import { isNoBillingLot } from './billing-exemptions'
+import { singleSegmentSms } from './sms-segments'
 
 type InvoiceTextKind = InvoiceNoticeKind
 
@@ -42,34 +43,40 @@ function buildInvoiceSms(invoice: any, kind: InvoiceTextKind, camper: any) {
   const invoiceNumber = invoice.invoice_number || 'new invoice'
   const total = money(invoice.total_due)
   const due = prettyDate(invoice.due_date)
-  const invoiceUrl = portalSmsUrl(`/invoices/${invoice.id}`)
-  const site = camper?.lot_number ? ` for site ${camper.lot_number}` : ''
+  const invoiceUrl = portalSmsUrl('/invoices')
+  const site = camper?.lot_number ? `, Lot ${camper.lot_number}` : ''
+
+  const compact = (message: string) => singleSegmentSms({
+    message,
+    url: invoiceUrl,
+    action: 'Pay',
+  })
 
   if (kind === 'new') {
-    return `Bur Oaks Campground: A new invoice #${invoiceNumber}${site} is ${total}, due ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return compact(`NEW BILL #${invoiceNumber}${site}: ${total}, due ${due}.`)
   }
 
   if (kind === 'upcoming') {
-    return `Bur Oaks Campground: Upcoming bill — invoice #${invoiceNumber}${site} for ${total} is due ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return compact(`UPCOMING BILL #${invoiceNumber}${site}: ${total}, due ${due}.`)
   }
 
   if (kind === 'due_3_days') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber}${site} for ${total} is due in 3 days on ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return compact(`BILL DUE IN 3 DAYS #${invoiceNumber}${site}: ${total}, due ${due}.`)
   }
 
   if (kind === 'due_1_day') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber}${site} for ${total} is due tomorrow, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return compact(`BILL DUE TOMORROW #${invoiceNumber}${site}: ${total}, due ${due}.`)
   }
 
   if (kind === 'due_today') {
-    return `Bur Oaks Campground: Reminder — invoice #${invoiceNumber}${site} for ${total} is due today, ${due}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return compact(`BILL DUE TODAY #${invoiceNumber}${site}: ${total}, due ${due}.`)
   }
 
   if (kind === 'late_fee') {
-    return `Bur Oaks Campground: A late fee of ${money(invoice.late_fee)} was added to past-due invoice #${invoiceNumber}${site}. Updated balance: ${total}.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+    return compact(`LATE FEE ${money(invoice.late_fee)} added to bill #${invoiceNumber}${site}. Balance: ${total}.`)
   }
 
-  return `Bur Oaks Campground: Past due reminder — invoice #${invoiceNumber}${site} for ${total} was due ${due}. Please pay or contact the office.\nClick here to view and pay: ${invoiceUrl}\nReply STOP to opt out.`
+  return compact(`PAST DUE BILL #${invoiceNumber}${site}: ${total}, due ${due}. Please pay or contact the office.`)
 }
 
 export async function sendInvoiceText({

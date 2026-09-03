@@ -110,7 +110,7 @@ export async function POST(request: Request) {
   }
 
   const textMessage = 'Your site has a new item that needs attention. Please sign in to your camper portal to review it.'
-  const smsBody = camperTextWithLink({ message: textMessage, path: '/portal#site-care' })
+  const smsBody = camperTextWithLink({ message: textMessage, path: '/portal#site-care', compact: true })
   const smsResults = []
   for (const phone of phones) {
     const smsResult = await sendTwilioSms({ to: phone, body: smsBody })

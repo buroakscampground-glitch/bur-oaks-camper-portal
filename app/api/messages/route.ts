@@ -41,6 +41,7 @@ async function sendCamperMessageText(admin: any, camper: any, sentBy: string, me
     message: messageBody,
     path: '/messages',
     linkLabel: 'Open the portal to reply',
+    compact: true,
   })
   let sentCount = 0
   let failedCount = 0

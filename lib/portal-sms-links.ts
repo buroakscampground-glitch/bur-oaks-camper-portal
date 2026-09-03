@@ -1,4 +1,5 @@
 import { getSiteUrl } from './site-url'
+import { normalizeGsmSms, singleSegmentSms } from './sms-segments'
 
 export function portalSmsUrl(path = '/portal') {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
@@ -24,10 +25,17 @@ export function camperTextWithLink({
   message,
   path = '/portal',
   linkLabel = 'Click here to view',
+  compact = false,
 }: {
   message: string
   path?: string
   linkLabel?: string
+  compact?: boolean
 }) {
-  return `Bur Oaks Campground: ${message.trim()}\n${linkLabel}: ${portalSmsUrl(path)}\nReply STOP to opt out.`
+  const action = linkLabel.replace(/click here to /i, '').replace(/open the portal to /i, '').trim() || 'View'
+  if (compact) {
+    return singleSegmentSms({ message, url: portalSmsUrl(path), action })
+  }
+
+  return normalizeGsmSms(`Bur Oaks Campground: ${message.trim()} ${action}: ${portalSmsUrl(path)} Reply STOP to opt out.`)
 }

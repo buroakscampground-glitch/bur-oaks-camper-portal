@@ -1,5 +1,6 @@
 import { escapeHtml } from './portal-invite-email'
 import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
+import { singleSegmentSms } from './sms-segments'
 import { portalSmsUrl } from './portal-sms-links'
 import { consentedCamperSmsPhones } from './camper-sms'
 
@@ -115,7 +116,12 @@ function reminderCopy(event: any, days: number) {
   const calendarUrl = portalSmsUrl('/calendar')
   const subject = days === 0 ? `Today at Bur Oaks: ${title}` : `Coming up at Bur Oaks: ${title}`
   const text = `${title} is ${timing} on ${date} at ${location}.${description ? ` ${description}` : ''}`
-  const sms = `Bur Oaks Campground event reminder: ${title} is ${timing} — ${date}.\nClick here for details and RSVP: ${calendarUrl}\nReply STOP to opt out.`
+  const sms = singleSegmentSms({
+    message: `EVENT REMINDER - ${title} is ${timing}, ${date}.`,
+    url: calendarUrl,
+    action: 'RSVP',
+    brand: 'Bur Oaks',
+  })
 
   return { title, date, timing, location, description, calendarUrl, subject, text, sms }
 }

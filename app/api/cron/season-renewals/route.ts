@@ -5,6 +5,7 @@ import { formatSmsPhone, sendTwilioSms } from '../../../../lib/twilio-sms'
 import { consentedCamperSmsPhones } from '../../../../lib/camper-sms'
 import { isSystemPortalAccount } from '../../../../lib/camper-records'
 import { runPendingDocumentSignatureReminders } from '../../../../lib/document-reminders'
+import { singleSegmentSms } from '../../../../lib/sms-segments'
 import { reconcileRenewalsWithDocuments } from '../../../../lib/renewal-document-reconciliation'
 
 export const dynamic = 'force-dynamic'
@@ -219,7 +220,11 @@ export async function GET(request: Request) {
     let smsStatus = 'skipped'
     const phones = await consentedCamperSmsPhones(admin, camper)
     if (phones.length) {
-      const text = `Bur Oaks Campground: Your seasonal renewal form is ready. Please review it and let the office know your decision by ${shiftMonths(record.contract_end_date, -3)}.\nClick here to review and sign: https://www.buroakscampground.com/documents\nReply STOP to opt out.`
+      const text = singleSegmentSms({
+        message: `RENEWAL READY - Lot ${camper.lot_number}. Please sign by ${shiftMonths(record.contract_end_date, -3)}.`,
+        url: 'https://www.buroakscampground.com/documents',
+        action: 'Sign',
+      })
       const smsResults = []
       for (const phone of phones) {
         const sms = await sendTwilioSms({ to: phone, body: text })
