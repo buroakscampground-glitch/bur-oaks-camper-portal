@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, LoaderCircle, MessageSquareText, Phone, Search, Send, UsersRound } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
+import { maskSmsPhone } from '../../../lib/sms-broadcast'
 
 type TargetMode = 'all_opted_in' | 'open_balance' | 'one'
 
@@ -30,6 +32,8 @@ export default function AdminTextsPage() {
   const [sending, setSending] = useState(false)
   const [twilioConfigured, setTwilioConfigured] = useState(false)
   const [sendResults, setSendResults] = useState<any[]>([])
+  const sendingRef = useRef(false)
+  const requestIdRef = useRef('')
 
   useEffect(() => {
     loadData()
@@ -65,6 +69,7 @@ export default function AdminTextsPage() {
   }
 
   async function sendAlert() {
+    if (sendingRef.current) return
     setStatus('')
     setSendResults([])
 
@@ -93,8 +98,10 @@ export default function AdminTextsPage() {
       return
     }
 
+    sendingRef.current = true
     setSending(true)
     setStatus('Sending text alert…')
+    requestIdRef.current ||= crypto.randomUUID()
 
     try {
       const response = await fetch('/api/text-alerts', {
@@ -108,6 +115,7 @@ export default function AdminTextsPage() {
           camperId: selectedCamper,
           reminderType,
           message,
+          requestId: requestIdRef.current,
         }),
       })
 
@@ -119,14 +127,20 @@ export default function AdminTextsPage() {
       }
 
       setSendResults(result.results || [])
+      if (result.duplicateRequest) {
+        setStatus('This campaign was already submitted, so no duplicate texts were sent.')
+        return
+      }
       setStatus(
-        `Twilio accepted ${result.sentCount} text(s). ${result.failedCount ? `${result.failedCount} failed.` : 'If a phone does not receive it, check Twilio message logs / carrier delivery.'}`
+        `Twilio accepted ${result.sentCount} unique phone${result.sentCount === 1 ? '' : 's'}. ${result.duplicateRecipientCount ? `${result.duplicateRecipientCount} duplicate profile entr${result.duplicateRecipientCount === 1 ? 'y was' : 'ies were'} skipped. ` : ''}${result.failedCount ? `${result.failedCount} failed.` : 'If a phone does not receive it, check Twilio message logs / carrier delivery.'}`
       )
       setMessage('')
+      requestIdRef.current = ''
       await loadData()
     } catch (error: any) {
       setStatus(error.message || 'Unable to send text alert.')
     } finally {
+      sendingRef.current = false
       setSending(false)
     }
   }
@@ -151,6 +165,11 @@ export default function AdminTextsPage() {
   }, [campers, searchText])
 
   const selectedCamperRecord = campers.find((camper) => camper.id === selectedCamper)
+  const textPreview = camperTextWithLink({
+    message: message || 'Your message will appear here.',
+    path: portalPathForTextType(reminderType),
+    compact: true,
+  })
 
   return (
     <main className="admin-texts-page">
@@ -193,7 +212,7 @@ export default function AdminTextsPage() {
 
           <label>
             <span>Who should receive it?</span>
-            <select value={targetMode} onChange={(event) => setTargetMode(event.target.value as TargetMode)}>
+          <select value={targetMode} onChange={(event) => { requestIdRef.current = ''; setTargetMode(event.target.value as TargetMode) }}>
               <option value="all_opted_in">All opted-in campers</option>
               <option value="open_balance">Only campers with open balances</option>
               <option value="one">One selected camper</option>
@@ -203,7 +222,7 @@ export default function AdminTextsPage() {
           {targetMode === 'one' && (
             <label>
               <span>Select camper</span>
-              <select value={selectedCamper} onChange={(event) => setSelectedCamper(event.target.value)}>
+              <select value={selectedCamper} onChange={(event) => { requestIdRef.current = ''; setSelectedCamper(event.target.value) }}>
                 <option value="">Choose camper…</option>
                 {campers.map((camper) => (
                   <option key={camper.id} value={camper.id}>
@@ -225,7 +244,7 @@ export default function AdminTextsPage() {
 
           <label>
             <span>Type</span>
-            <select value={reminderType} onChange={(event) => setReminderType(event.target.value)}>
+            <select value={reminderType} onChange={(event) => { requestIdRef.current = ''; setReminderType(event.target.value) }}>
               <option>General Alert</option>
               <option>Invoice Reminder</option>
               <option>Electric Reminder</option>
@@ -242,14 +261,14 @@ export default function AdminTextsPage() {
               placeholder="Example: Your electric bill is due Friday. Please log into your camper portal or contact the office with questions."
               value={message}
               maxLength={1200}
-              onChange={(event) => setMessage(event.target.value)}
+              onChange={(event) => { requestIdRef.current = ''; setMessage(event.target.value) }}
             />
           </label>
 
           <div className="admin-texts-preview">
             <small>TEXT PREVIEW</small>
-            <p>Bur Oaks Campground: {message || 'Your message will appear here.'}</p>
-            <em>Reply STOP to opt out.</em>
+            <p>{textPreview}</p>
+            <em>The delivered text is limited to one standard SMS segment. Put full details in the portal.</em>
           </div>
 
           <button type="button" onClick={sendAlert} disabled={sending || !twilioConfigured}>
@@ -320,6 +339,7 @@ export default function AdminTextsPage() {
                 <div>
                   <small>{formatDateTime(alert.sent_at)} · {alert.reminder_type}</small>
                   <h3>{alert.campers ? camperLabel(alert.campers) : 'Unknown camper'}</h3>
+                  {alert.recipient_phone && <small>Delivered to {maskSmsPhone(alert.recipient_phone)}</small>}
                   <p>{alert.message}</p>
                 </div>
                 <span className={alert.status === 'sent' ? 'ready' : alert.status === 'failed' ? 'blocked' : ''}>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { LoaderCircle, MessageSquareText, Send } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -57,6 +57,8 @@ export default function AdminQuickText({
   const [message, setMessage] = useState(defaultMessage)
   const [status, setStatus] = useState('')
   const [sending, setSending] = useState(false)
+  const sendingRef = useRef(false)
+  const requestIdRef = useRef('')
 
   async function getToken() {
     const { data } = await supabase.auth.getSession()
@@ -64,11 +66,13 @@ export default function AdminQuickText({
   }
 
   function useTemplate(template: Template) {
+    requestIdRef.current = ''
     setReminderType(template.type)
     setMessage(template.message)
   }
 
   async function sendText() {
+    if (sendingRef.current) return
     setStatus('')
 
     if (!message.trim()) {
@@ -92,8 +96,10 @@ export default function AdminQuickText({
       return
     }
 
+    sendingRef.current = true
     setSending(true)
     setStatus('Sending text…')
+    requestIdRef.current ||= crypto.randomUUID()
 
     try {
       const response = await fetch('/api/text-alerts', {
@@ -107,6 +113,7 @@ export default function AdminQuickText({
           camperId,
           reminderType,
           message,
+          requestId: requestIdRef.current,
         }),
       })
 
@@ -117,10 +124,16 @@ export default function AdminQuickText({
         return
       }
 
-      setStatus(`Sent ${result.sentCount} text(s). ${result.failedCount ? `${result.failedCount} failed.` : ''}`)
+      if (result.duplicateRequest) {
+        setStatus('This campaign was already submitted, so no duplicate texts were sent.')
+        return
+      }
+      setStatus(`Sent ${result.sentCount} unique phone${result.sentCount === 1 ? '' : 's'}. ${result.duplicateRecipientCount ? `${result.duplicateRecipientCount} duplicate profile entr${result.duplicateRecipientCount === 1 ? 'y' : 'ies'} skipped. ` : ''}${result.failedCount ? `${result.failedCount} failed.` : ''}`)
+      requestIdRef.current = ''
     } catch (error: any) {
       setStatus(error.message || 'Unable to send text.')
     } finally {
+      sendingRef.current = false
       setSending(false)
     }
   }
@@ -147,7 +160,7 @@ export default function AdminQuickText({
       {!camperId && (
         <label>
           <span>Send to</span>
-          <select value={targetMode} onChange={(event) => setTargetMode(event.target.value as TargetMode)}>
+          <select value={targetMode} onChange={(event) => { requestIdRef.current = ''; setTargetMode(event.target.value as TargetMode) }}>
             <option value="all_opted_in">All opted-in campers</option>
             <option value="open_balance">Campers with open balances</option>
           </select>
@@ -156,7 +169,7 @@ export default function AdminQuickText({
 
       <label>
         <span>Text type</span>
-        <select value={reminderType} onChange={(event) => setReminderType(event.target.value)}>
+        <select value={reminderType} onChange={(event) => { requestIdRef.current = ''; setReminderType(event.target.value) }}>
           <option>General Alert</option>
           <option>Invoice Reminder</option>
           <option>Electric Reminder</option>
@@ -169,7 +182,7 @@ export default function AdminQuickText({
 
       <label>
         <span>Message</span>
-        <textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={1200} />
+        <textarea value={message} onChange={(event) => { requestIdRef.current = ''; setMessage(event.target.value) }} maxLength={1200} />
       </label>
 
       <button type="button" onClick={sendText} disabled={sending}>
