@@ -113,7 +113,12 @@ export async function POST(request: Request) {
   const smsBody = camperTextWithLink({ message: textMessage, path: '/portal#site-care', compact: true })
   const smsResults = []
   for (const phone of phones) {
-    const smsResult = await sendTwilioSms({ to: phone, body: smsBody })
+    const smsResult = await sendTwilioSms({
+      to: phone,
+      body: smsBody,
+      client: context.admin,
+      camperId: targetCamper.id,
+    })
     smsResults.push(smsResult)
 
     await context.admin.from('text_reminders').insert({

@@ -203,7 +203,12 @@ export async function POST(request: Request) {
         return
       }
 
-      const result = await sendTwilioSms({ to: phone, body: smsBody })
+      const result = await sendTwilioSms({
+        to: phone,
+        body: smsBody,
+        client: context.admin,
+        camperId: camper.id,
+      })
       if (result.sent) smsSentCount += 1
       else smsFailedCount += 1
 

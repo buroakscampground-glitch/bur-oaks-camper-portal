@@ -198,7 +198,12 @@ export async function POST(request: Request) {
 
     if (reservation.error || !reservation.data) continue
 
-    const result = await sendTwilioSms({ to: phone, body: finalMessage })
+    const result = await sendTwilioSms({
+      to: phone,
+      body: finalMessage,
+      client: context.admin,
+      camperId: camper.id,
+    })
 
     await context.admin.from('sms_broadcast_deliveries').update({
       status: result.sent ? 'sent' : 'failed',

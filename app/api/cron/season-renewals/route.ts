@@ -227,7 +227,7 @@ export async function GET(request: Request) {
       })
       const smsResults = []
       for (const phone of phones) {
-        const sms = await sendTwilioSms({ to: phone, body: text })
+        const sms = await sendTwilioSms({ to: phone, body: text, client: admin, camperId: camper.id })
         smsResults.push(sms)
         await admin.from('text_reminders').insert({
           camper_id: camper.id,

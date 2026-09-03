@@ -322,7 +322,7 @@ export async function sendCamperCelebration({ client, camper, event, today }: Se
   if (phone) {
     const reservation = await reserveDelivery(client, camper.id, event, today.year, 'sms', phone, null, copy.sms)
     if (reservation.reserved && reservation.id) {
-      const result = await sendTwilioSms({ to: phone, body: copy.sms })
+      const result = await sendTwilioSms({ to: phone, body: copy.sms, client, camperId: camper.id })
       const deliveryResult = result.sent
         ? { sent: true, provider: 'twilio', providerMessageId: result.providerMessageId }
         : { sent: false, provider: 'twilio', error: result.error }

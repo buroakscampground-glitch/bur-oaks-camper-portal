@@ -243,7 +243,12 @@ export async function sendInvoiceText({
       continue
     }
 
-    const result = await sendTwilioSms({ to: recipient.phone, body: message })
+    const result = await sendTwilioSms({
+      to: recipient.phone,
+      body: message,
+      client,
+      camperId: recipient.camperId,
+    })
     const { error: updateError } = await client
       .from('text_reminders')
       .update({

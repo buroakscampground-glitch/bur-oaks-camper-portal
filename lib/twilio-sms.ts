@@ -1,6 +1,78 @@
 type SmsResult =
   | { sent: true; providerMessageId: string }
-  | { sent: false; error: string }
+  | { sent: false; error: string; errorCode?: number; consentUpdated?: boolean }
+
+type SmsDatabaseClient = {
+  from: (table: string) => any
+}
+
+function camperPhones(camper: any) {
+  return Array.from(new Set([
+    camper?.phone,
+    camper?.alternate_phone,
+    camper?.second_profile_phone,
+  ].map(formatSmsPhone).filter(Boolean)))
+}
+
+export function isTwilioUnsubscribeError(errorCode: unknown, message: unknown) {
+  return Number(errorCode) === 21610 || /(?:has\s+)?unsubscribed|opted\s+out/i.test(String(message || ''))
+}
+
+async function syncProviderUnsubscribe(client: SmsDatabaseClient, camperId: string, phone: string) {
+  const cleanPhone = formatSmsPhone(phone)
+  if (!cleanPhone || !camperId) return false
+
+  const { data: camper, error: camperError } = await client
+    .from('campers')
+    .select('id,phone,alternate_phone,second_profile_phone,sms_opt_in_at,event_reminders_opt_in_at')
+    .eq('id', camperId)
+    .maybeSingle()
+  if (camperError || !camper) return false
+
+  const savedPhones = camperPhones(camper)
+  if (!savedPhones.includes(cleanPhone)) return false
+
+  const now = new Date().toISOString()
+  const { error: consentError } = await client.from('sms_phone_consents').upsert({
+    camper_id: camper.id,
+    phone_number: cleanPhone,
+    opted_in: false,
+    opted_in_at: null,
+    opted_out_at: now,
+    source: 'twilio-provider-rejection',
+    updated_at: now,
+  }, { onConflict: 'camper_id,phone_number' })
+  if (consentError) return false
+
+  const { data: consentRows, error: remainingError } = await client
+    .from('sms_phone_consents')
+    .select('phone_number,opted_in')
+    .eq('camper_id', camper.id)
+    .in('phone_number', savedPhones)
+  if (remainingError) return false
+
+  const householdEnabled = (consentRows || []).some((row: any) => row.opted_in === true)
+  const { error: camperUpdateError } = await client.from('campers').update({
+    sms_opt_in: householdEnabled,
+    event_reminders_opt_in: householdEnabled,
+    sms_opt_out_at: householdEnabled ? null : now,
+    sms_last_keyword: 'PROVIDER_UNSUBSCRIBED',
+  }).eq('id', camper.id)
+  if (camperUpdateError) return false
+
+  const { error: eventError } = await client.from('sms_consent_events').insert({
+    camper_id: camper.id,
+    phone_number: cleanPhone,
+    keyword: 'PROVIDER_UNSUBSCRIBED',
+    consent_action: 'opt_out',
+    provider_message_id: null,
+  })
+  if (eventError && !['42P01', 'PGRST205'].includes(eventError.code || '')) {
+    console.error('Unable to log provider unsubscribe event:', eventError.code)
+  }
+
+  return true
+}
 
 export function isTwilioConfigured() {
   return Boolean(
@@ -23,9 +95,13 @@ export function formatSmsPhone(value: unknown) {
 export async function sendTwilioSms({
   to,
   body,
+  client,
+  camperId,
 }: {
   to: string
   body: string
+  client?: SmsDatabaseClient
+  camperId?: string
 }): Promise<SmsResult> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID
   const authToken = process.env.TWILIO_AUTH_TOKEN
@@ -59,9 +135,17 @@ export async function sendTwilioSms({
   const result = await response.json().catch(() => null)
 
   if (!response.ok) {
+    const error = result?.message || `Twilio rejected the text message (${response.status}).`
+    const errorCode = Number(result?.code || 0) || undefined
+    let consentUpdated = false
+    if (client && camperId && isTwilioUnsubscribeError(errorCode, error)) {
+      consentUpdated = await syncProviderUnsubscribe(client, camperId, cleanTo)
+    }
     return {
       sent: false,
-      error: result?.message || `Twilio rejected the text message (${response.status}).`,
+      error,
+      errorCode,
+      consentUpdated,
     }
   }
 

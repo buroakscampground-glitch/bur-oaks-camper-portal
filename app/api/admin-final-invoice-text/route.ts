@@ -74,7 +74,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, skipped: true, message: 'This private payment link was already texted to that number today.' })
   }
 
-  const result = await sendTwilioSms({ to: phone, body: message })
+  const result = await sendTwilioSms({
+    to: phone,
+    body: message,
+    client: context.admin,
+    camperId: camper.id,
+  })
   const logRow = {
     camper_id: camper.id,
     invoice_id: invoice.id,

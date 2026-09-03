@@ -48,7 +48,7 @@ async function sendCamperMessageText(admin: any, camper: any, sentBy: string, me
   const errors: string[] = []
 
   for (const phone of phones) {
-    const result = await sendTwilioSms({ to: phone, body: message })
+    const result = await sendTwilioSms({ to: phone, body: message, client: admin, camperId: camper.id })
 
     await admin.from('text_reminders').insert({
       camper_id: camper.id,

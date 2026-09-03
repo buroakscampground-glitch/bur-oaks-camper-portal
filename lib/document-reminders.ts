@@ -1,4 +1,4 @@
-import { consentedCamperSmsPhones } from './camper-sms'
+import { camperSmsPhones, consentedCamperSmsPhones } from './camper-sms'
 import { escapeHtml } from './portal-invite-email'
 import { getSiteUrl } from './site-url'
 import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
@@ -212,7 +212,13 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
       if (existingToday) continue
 
       const smsCopy = documentCopy(document, camper, Boolean(lastSms))
-      const result = await sendTwilioSms({ to: phone, body: smsCopy.sms })
+      const phoneProfile = contactProfiles.find((profile) => camperSmsPhones(profile).includes(phone))
+      const result = await sendTwilioSms({
+        to: phone,
+        body: smsCopy.sms,
+        client,
+        camperId: phoneProfile?.id,
+      })
       const logError = await logDelivery(client, {
         camper_id: camper.id,
         message: smsCopy.sms,

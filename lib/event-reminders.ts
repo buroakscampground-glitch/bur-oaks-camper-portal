@@ -262,7 +262,7 @@ export async function sendEventReminder({ client, camper, event, today, days }: 
     for (const phone of phones) {
       const reservation = await reserveDelivery(client, String(event.id), camper.id, today.iso, 'sms', phone, null, copy.sms)
       if (!reservation.reserved || !reservation.id) continue
-      const result = await sendTwilioSms({ to: phone, body: copy.sms })
+      const result = await sendTwilioSms({ to: phone, body: copy.sms, client, camperId: camper.id })
       await finalizeDelivery(client, reservation.id, {
         sent: result.sent,
         provider: 'twilio',
