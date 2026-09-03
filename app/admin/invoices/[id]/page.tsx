@@ -53,7 +53,7 @@ export default function InvoiceDetailPage() {
   const [editItems, setEditItems] = useState<EditableInvoiceItem[]>([])
   const [finalPaymentPhone, setFinalPaymentPhone] = useState('')
   const [sendingFinalLink, setSendingFinalLink] = useState(false)
-  const [manualPaymentMethod, setManualPaymentMethod] = useState('Paper check')
+  const [manualPaymentMethod, setManualPaymentMethod] = useState('Check')
   const [manualPaymentDate, setManualPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [manualPaymentReference, setManualPaymentReference] = useState('')
 
@@ -436,10 +436,10 @@ export default function InvoiceDetailPage() {
               <label>
                 <span>Payment method</span>
                 <select value={manualPaymentMethod} onChange={(event) => setManualPaymentMethod(event.target.value)}>
-                  <option>Paper check</option>
+                  <option>Check</option>
                   <option>Cash</option>
-                  <option>Money order</option>
-                  <option>Other office payment</option>
+                  <option>Credit/debit card</option>
+                  <option>Other</option>
                 </select>
               </label>
               <label>

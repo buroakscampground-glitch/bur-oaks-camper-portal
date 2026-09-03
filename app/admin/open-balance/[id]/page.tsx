@@ -37,6 +37,10 @@ export default function CamperBalancePage() {
   const [message, setMessage] = useState("")
   const [busyInvoiceId, setBusyInvoiceId] = useState("")
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
+  const [paymentInvoiceId, setPaymentInvoiceId] = useState("")
+  const [paymentMethod, setPaymentMethod] = useState("Check")
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [paymentReference, setPaymentReference] = useState("")
 
   useEffect(() => {
     loadData()
@@ -80,14 +84,29 @@ export default function CamperBalancePage() {
     setFeeSettings(await loadPaymentFeeSettings(supabase))
   }
 
-  async function markPaid(invoiceId: string) {
+  function openPaymentForm(invoiceId: string) {
+    setPaymentInvoiceId(invoiceId)
+    setPaymentMethod("Check")
+    setPaymentDate(new Date().toISOString().slice(0, 10))
+    setPaymentReference("")
+    setMessage("")
+  }
+
+  async function recordPayment(invoiceId: string) {
     const invoice = invoices.find((item) => item.id === invoiceId)
     if (invoice?.status === "processing") {
       setMessage("Wait for Stripe to finish this payment before changing its status.")
       return
     }
 
-    const confirmed = window.confirm("Mark this invoice as paid?")
+    if (!paymentDate) {
+      setMessage("Choose the date this payment was received.")
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Record ${formatMoney(invoice?.total_due)} as paid by ${paymentMethod.toLowerCase()}?`
+    )
     if (!confirmed) return
 
     setBusyInvoiceId(invoiceId)
@@ -95,9 +114,9 @@ export default function CamperBalancePage() {
       .from("invoices")
       .update({
         status: "paid",
-        paid_at: new Date().toISOString(),
-        payment_method: "Manual office payment",
-        payment_reference: "Marked paid by admin",
+        paid_at: new Date(`${paymentDate}T12:00:00`).toISOString(),
+        payment_method: paymentMethod,
+        payment_reference: paymentReference.trim() || "Recorded manually by office",
       })
       .eq("id", invoiceId)
 
@@ -108,7 +127,8 @@ export default function CamperBalancePage() {
       return
     }
 
-    setMessage("Invoice marked paid.")
+    setPaymentInvoiceId("")
+    setMessage(`Payment recorded: ${formatMoney(invoice?.total_due)} by ${paymentMethod.toLowerCase()}.`)
     await loadData()
   }
 
@@ -223,7 +243,7 @@ Bur Oaks Campground
         ) : (
           <div className="admin-open-invoice-list">
             {invoices.map((invoice) => (
-              <article key={invoice.id}>
+              <article key={invoice.id} className={paymentInvoiceId === invoice.id ? "recording-payment" : ""}>
                 <div className="admin-open-invoice-main">
                   <small>Invoice #{invoice.invoice_number}</small>
                   <h3>{invoice.invoice_type || "Campground invoice"}</h3>
@@ -245,7 +265,7 @@ Bur Oaks Campground
                     <span>Stripe payment processing — changes locked</span>
                   ) : (
                     <>
-                      <button type="button" onClick={() => markPaid(invoice.id)} disabled={busyInvoiceId === invoice.id}>
+                      <button type="button" onClick={() => openPaymentForm(invoice.id)} disabled={busyInvoiceId === invoice.id}>
                         <CheckCircle2 size={15} /> Mark paid
                       </button>
                       <button className="danger" type="button" onClick={() => deleteInvoice(invoice)} disabled={busyInvoiceId === invoice.id}>
@@ -254,6 +274,37 @@ Bur Oaks Campground
                     </>
                   )}
                 </div>
+                {paymentInvoiceId === invoice.id && (
+                  <div className="admin-open-payment-form">
+                    <div>
+                      <strong>How was this invoice paid?</strong>
+                      <small>Record the full {formatMoney(invoice.total_due)} payment. No online charge will be made.</small>
+                    </div>
+                    <label>
+                      <span>Payment method</span>
+                      <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
+                        <option>Check</option>
+                        <option>Cash</option>
+                        <option>Credit/debit card</option>
+                        <option>Other</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Date received</span>
+                      <input type="date" value={paymentDate} onChange={(event) => setPaymentDate(event.target.value)} />
+                    </label>
+                    <label>
+                      <span>Check/reference number <em>optional</em></span>
+                      <input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Example: Check 1942" />
+                    </label>
+                    <div className="admin-open-payment-form-actions">
+                      <button type="button" onClick={() => setPaymentInvoiceId("")} disabled={busyInvoiceId === invoice.id}>Cancel</button>
+                      <button type="button" onClick={() => recordPayment(invoice.id)} disabled={busyInvoiceId === invoice.id}>
+                        <CheckCircle2 size={15} /> {busyInvoiceId === invoice.id ? "Recording…" : "Record payment"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </article>
             ))}
           </div>

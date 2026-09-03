@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, Check, CheckCircle2, DoorOpen, ExternalLink, FileSignature, LockKeyhole, ShieldCheck, X } from 'lucide-react'
+import { AlertTriangle, Check, CheckCircle2, DoorOpen, FileSignature, FileText, LockKeyhole, ShieldCheck, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function DocumentsPage() {
@@ -16,14 +16,13 @@ export default function DocumentsPage() {
   const [message, setMessage] = useState('')
   const [currentUserEmail, setCurrentUserEmail] = useState('')
   const [suggestedSignerName, setSuggestedSignerName] = useState('')
+  const [signingPreviewUrl, setSigningPreviewUrl] = useState('')
+  const [signingPreviewLoading, setSigningPreviewLoading] = useState(false)
+  const [signingPreviewError, setSigningPreviewError] = useState('')
   const router = useRouter()
 
   async function openDocument(documentId: string) {
     router.push(`/documents/view/${documentId}`)
-  }
-
-  function reviewBeforeSigning(documentId: string) {
-    window.open(`/documents/view/${documentId}`, '_blank', 'noopener,noreferrer')
   }
 
   useEffect(() => {
@@ -122,6 +121,8 @@ export default function DocumentsPage() {
       )
     )
     setSigningDocument(null)
+    setSigningPreviewUrl('')
+    setSigningPreviewError('')
     setTypedName('')
     setConsentAccepted(false)
     setSigning(false)
@@ -199,11 +200,47 @@ export default function DocumentsPage() {
   const isRenewalDocument = (doc: any) => /renewal/i.test(`${doc.document_name || ''} ${doc.document_type || ''}`)
   const pendingRenewalDocuments = documentsNeedingSignature.filter(isRenewalDocument)
 
+  async function loadSigningPreview(documentId: string) {
+    setSigningPreviewLoading(true)
+    setSigningPreviewError('')
+
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) {
+      window.location.href = '/login'
+      return
+    }
+
+    const response = await fetch('/api/document-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ documentId }),
+    })
+    const result = await response.json().catch(() => null)
+    setSigningPreviewLoading(false)
+
+    if (!response.ok || !result?.url) {
+      setSigningPreviewError(result?.error || 'The document preview could not be opened. Please try again.')
+      return
+    }
+
+    setSigningPreviewUrl(result.url)
+  }
+
+  function closeSigning() {
+    setSigningDocument(null)
+    setSigningPreviewUrl('')
+    setSigningPreviewError('')
+    setSigningPreviewLoading(false)
+  }
+
   function beginSigning(document: any) {
     setSigningDocument(document)
     setTypedName(suggestedSignerName)
     setConsentAccepted(false)
     setMessage('')
+    setSigningPreviewUrl('')
+    void loadSigningPreview(String(document.id))
   }
 
   function renderDocumentCard(doc: any) {
@@ -363,7 +400,7 @@ export default function DocumentsPage() {
                 <h2 id="signature-modal-title">Review and sign</h2>
                 <p>{signingDocument.document_name}</p>
               </div>
-              <button type="button" className="signature-modal-close" aria-label="Close signing window" onClick={() => setSigningDocument(null)}>
+              <button type="button" className="signature-modal-close" aria-label="Close signing window" onClick={closeSigning}>
                 <X size={20} />
               </button>
             </div>
@@ -372,9 +409,20 @@ export default function DocumentsPage() {
               <span><b>2</b> Confirm</span>
               <span><b>3</b> Sign</span>
             </div>
-            <button type="button" className="signature-review-button" onClick={() => reviewBeforeSigning(String(signingDocument.id))}>
-              <ExternalLink size={17} /> Open document to review <small>(new tab)</small>
-            </button>
+            <div className="signature-inline-document" aria-label="Document to review before signing">
+              <div className="signature-inline-document-heading">
+                <FileText size={17} />
+                <span><strong>1. Read the document below</strong><small>No download is needed.</small></span>
+              </div>
+              {signingPreviewLoading && <p>Opening your secure document…</p>}
+              {!signingPreviewLoading && signingPreviewError && (
+                <div className="signature-inline-document-error">
+                  <p>{signingPreviewError}</p>
+                  <button type="button" onClick={() => loadSigningPreview(String(signingDocument.id))}>Try again</button>
+                </div>
+              )}
+              {signingPreviewUrl && <iframe src={signingPreviewUrl} title={signingDocument.document_name || 'Document preview'} />}
+            </div>
             {signingDocument.requires_two_signatures && (
               <p className="signature-two-signer-note">
                 <strong>Two signatures are required.</strong> Yours will be saved now; the other person can sign from their own login afterward.
@@ -408,7 +456,7 @@ export default function DocumentsPage() {
                   : 'Ready. Nothing is submitted until you tap the green button.'}
             </p>
             <div className="signature-modal-actions">
-              <button type="button" onClick={() => setSigningDocument(null)}>Cancel</button>
+              <button type="button" onClick={closeSigning}>Cancel</button>
               <button
                 type="button"
                 className="primary"
