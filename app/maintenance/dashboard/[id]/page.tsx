@@ -8,6 +8,7 @@ import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
 import MaintenanceConversation from '../../../../components/MaintenanceConversation'
 import MaintenancePartsPanel from '../../../../components/MaintenancePartsPanel'
+import { printCompletedWorkOrder } from '../../../../lib/maintenance-completion-print-client'
 
 export default function TicketDetailPage() {
   const params = useParams()
@@ -42,6 +43,7 @@ export default function TicketDetailPage() {
   }
 
   async function saveChanges() {
+    const completingNow = status === 'Completed' && ticket.status !== 'Completed'
     const updates: any = {
       status,
       assigned_to: assignedTo,
@@ -72,7 +74,13 @@ export default function TicketDetailPage() {
     setStatus(data?.status || 'Open')
     setAssignedTo(data?.assigned_to || 'Open')
     setCompletionNotes(data?.completion_notes || '')
-    setMessage('Saved. Returning to work orders…')
+    if (completingNow) {
+      setMessage('Work order completed. Sending the office copy to the first Epson printer…')
+      const printResult = await printCompletedWorkOrder(String(params.id))
+      setMessage(`${printResult.message} Returning to work orders…`)
+    } else {
+      setMessage('Saved. Returning to work orders…')
+    }
     window.setTimeout(() => router.push('/maintenance/dashboard?updated=saved'), 650)
   }
 

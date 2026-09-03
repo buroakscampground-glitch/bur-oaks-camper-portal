@@ -7,6 +7,7 @@ import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import MaintenanceSupplyRequestPanel from '../../../components/MaintenanceSupplyRequestPanel'
 import { maintenanceTaskForDisplay } from '../../../lib/maintenance-ticket-display'
+import { printCompletedWorkOrder } from '../../../lib/maintenance-completion-print-client'
 
 const weeklyTasks = [
   {
@@ -150,13 +151,14 @@ export default function MaintenanceDashboard() {
 
     setSubmitMessage(error ? error.message : successMessage)
     if (!error) loadTickets()
+    return !error
   }
 
   async function completeTicket(id: string) {
     const notes = prompt('Completion notes — what was done?')
     if (notes === null) return
 
-    await updateTicket(
+    const completed = await updateTicket(
       id,
       {
         status: 'Completed',
@@ -165,6 +167,11 @@ export default function MaintenanceDashboard() {
       },
       'Work order marked completed. The camper/admin side will update automatically.'
     )
+    if (completed) {
+      setSubmitMessage('Work order completed. Sending the office copy to the first Epson printer…')
+      const printResult = await printCompletedWorkOrder(id)
+      setSubmitMessage(printResult.message)
+    }
   }
 
   const openTickets = tickets.filter(

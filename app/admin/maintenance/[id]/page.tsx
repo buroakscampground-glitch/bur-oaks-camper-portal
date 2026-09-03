@@ -9,6 +9,7 @@ import MaintenancePhotos from '../../../../components/MaintenancePhotos'
 import MaintenanceConversation from '../../../../components/MaintenanceConversation'
 import { markAdminAlertsSeen } from '../../../../lib/admin-alert-actions'
 import MaintenancePartsPanel from '../../../../components/MaintenancePartsPanel'
+import { printCompletedWorkOrder } from '../../../../lib/maintenance-completion-print-client'
 
 function formatWorkOrderDate(value?: string | null) {
   if (!value) return '—'
@@ -56,6 +57,7 @@ export default function MaintenanceTicketPage() {
     setSaving(true)
     setMessage('Saving ticket…')
 
+    const completingNow = status === 'Completed' && ticket.status !== 'Completed'
     const updates: any = {
       status,
       assigned_to: assignedTo,
@@ -91,7 +93,13 @@ export default function MaintenanceTicketPage() {
     setStatus(data.status || 'Open')
     setAssignedTo(data.assigned_to || 'Open')
     setCompletionNotes(data.completion_notes || '')
-    setMessage('Ticket saved. Returning to all work orders…')
+    if (completingNow) {
+      setMessage('Work order completed. Sending the office copy to the first Epson printer…')
+      const printResult = await printCompletedWorkOrder(ticket.id)
+      setMessage(`${printResult.message} Returning to all work orders…`)
+    } else {
+      setMessage('Ticket saved. Returning to all work orders…')
+    }
     setSaving(false)
     window.setTimeout(() => router.push('/admin/maintenance?updated=saved'), 650)
   }
@@ -121,7 +129,9 @@ export default function MaintenanceTicketPage() {
     setTicket(data)
     setStatus(data.status || 'Completed')
     setCompletionNotes(data.completion_notes || '')
-    setMessage('Ticket closed. Returning to all work orders…')
+    setMessage('Work order completed. Sending the office copy to the first Epson printer…')
+    const printResult = await printCompletedWorkOrder(ticket.id)
+    setMessage(`${printResult.message} Returning to all work orders…`)
     setSaving(false)
     window.setTimeout(() => router.push('/admin/maintenance?updated=closed'), 650)
   }

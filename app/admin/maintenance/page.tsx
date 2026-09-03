@@ -18,6 +18,7 @@ import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import { markAdminAlertsSeen } from '../../../lib/admin-alert-actions'
 import { isCompletedTicketStatus } from '../../../lib/maintenance-status'
 import { maintenanceTaskForDisplay } from '../../../lib/maintenance-ticket-display'
+import { printCompletedWorkOrder } from '../../../lib/maintenance-completion-print-client'
 
 function isCompletedTicket(ticket: any) {
   return isCompletedTicketStatus(ticket?.status)
@@ -145,7 +146,13 @@ export default function MaintenancePage() {
       return
     }
 
-    setMessage('Ticket updated.')
+    if (status === 'Completed') {
+      setMessage('Work order completed. Sending the office copy to the first Epson printer…')
+      const printResult = await printCompletedWorkOrder(id)
+      setMessage(printResult.message)
+    } else {
+      setMessage('Ticket updated.')
+    }
     loadTickets()
   }
 

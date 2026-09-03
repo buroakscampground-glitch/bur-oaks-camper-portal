@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
 import { maintenanceTaskForDisplay } from './maintenance-ticket-display.ts'
+import { isCompletedTicketStatus } from './maintenance-status.ts'
 
 export type MaintenanceWorkOrder = {
   id: string
@@ -13,8 +14,17 @@ export type MaintenanceWorkOrder = {
   reported_by?: string | null
   created_at?: string | null
   approved_at?: string | null
+  completed_at?: string | null
+  completion_notes?: string | null
   work_order_printed_at?: string | null
   photo_urls?: string[] | null
+  parts?: Array<{
+    item_name?: string | null
+    quantity?: number | string | null
+    unit?: string | null
+    used_by?: string | null
+    notes?: string | null
+  }>
 }
 
 type DeliveryResult = {
@@ -94,13 +104,13 @@ function drawWritingLines(page: PDFPage, startY: number, count: number, x = 44, 
   }
 }
 
-function drawWorkOrderPage(page: PDFPage, order: MaintenanceWorkOrder, regular: PDFFont, bold: PDFFont, reportDate: string, pageNumber: number, total: number) {
+function drawWorkOrderPage(page: PDFPage, order: MaintenanceWorkOrder, regular: PDFFont, bold: PDFFont, reportDate: string, pageNumber: number, total: number, completedCopy = false) {
   const { width, height } = page.getSize()
   const orderNumber = `WO-${safeText(order.id).slice(0, 8).toUpperCase()}`
 
   page.drawRectangle({ x: 0, y: height - 88, width, height: 88, color: forest })
   page.drawText('BUR OAKS CAMPGROUND', { x: 36, y: height - 31, font: bold, size: 10, color: rgb(0.92, 0.79, 0.44) })
-  page.drawText('Official Maintenance Work Order', { x: 36, y: height - 59, font: bold, size: 22, color: rgb(1, 1, 1) })
+  page.drawText(completedCopy ? 'Completed Maintenance Work Order' : 'Official Maintenance Work Order', { x: 36, y: height - 59, font: bold, size: completedCopy ? 20 : 22, color: rgb(1, 1, 1) })
   page.drawText(orderNumber, { x: width - 165, y: height - 36, font: bold, size: 14, color: rgb(1, 1, 1) })
   page.drawText(fullReportDate(reportDate), { x: width - 220, y: height - 58, font: regular, size: 9, color: rgb(0.89, 0.94, 0.9) })
 
@@ -131,7 +141,12 @@ function drawWorkOrderPage(page: PDFPage, order: MaintenanceWorkOrder, regular: 
 
   page.drawText('WORK PERFORMED / TECHNICIAN NOTES', { x: 36, y: 382, font: bold, size: 9, color: forest })
   page.drawRectangle({ x: 36, y: 258, width: width - 72, height: 109, borderColor: line, borderWidth: 0.8 })
-  drawWritingLines(page, 344, 5, 48, width - 96)
+  if (completedCopy) {
+    const noteLines = wrapText(order.completion_notes || 'Completed. No completion notes were entered.', regular, 10, width - 96, 7)
+    noteLines.forEach((lineText, index) => page.drawText(lineText, { x: 48, y: 346 - index * 13, font: regular, size: 10, color: ink }))
+  } else {
+    drawWritingLines(page, 344, 5, 48, width - 96)
+  }
 
   page.drawText('MATERIALS / PARTS USED', { x: 36, y: 235, font: bold, size: 9, color: forest })
   const tableX = 36
@@ -144,18 +159,28 @@ function drawWorkOrderPage(page: PDFPage, order: MaintenanceWorkOrder, regular: 
   })
   ;[100, 346].forEach((x) => page.drawLine({ start: { x, y: tableY }, end: { x, y: 220 }, thickness: 0.7, color: line }))
   ;[178, 157].forEach((y) => page.drawLine({ start: { x: tableX, y }, end: { x: tableX + tableWidth, y }, thickness: 0.6, color: line }))
+  if (completedCopy && order.parts?.length) {
+    order.parts.slice(0, 3).forEach((part, index) => {
+      const y = 185 - index * 21
+      const quantity = [safeText(part.quantity), safeText(part.unit)].filter(Boolean).join(' ')
+      const notes = [safeText(part.used_by), safeText(part.notes)].filter(Boolean).join(' - ')
+      page.drawText(safeText(quantity) || '-', { x: 45, y, font: regular, size: 7.5, color: ink })
+      page.drawText(wrapText(part.item_name || '-', regular, 7.5, 232, 1)[0], { x: 108, y, font: regular, size: 7.5, color: ink })
+      page.drawText(wrapText(notes || '-', regular, 7.5, 218, 1)[0], { x: 354, y, font: regular, size: 7.5, color: ink })
+    })
+  }
 
   page.drawText('JOB RESULT', { x: 36, y: 112, font: bold, size: 8, color: gold })
-  page.drawText('[ ] Completed     [ ] Waiting for parts     [ ] Follow-up needed', { x: 36, y: 94, font: regular, size: 9, color: ink })
+  page.drawText(completedCopy ? '[X] Completed     [ ] Waiting for parts     [ ] Follow-up needed' : '[ ] Completed     [ ] Waiting for parts     [ ] Follow-up needed', { x: 36, y: 94, font: regular, size: 9, color: ink })
   page.drawText('Technician Signature', { x: 36, y: 69, font: bold, size: 7.5, color: gray })
   page.drawLine({ start: { x: 36, y: 58 }, end: { x: 265, y: 58 }, thickness: 0.7, color: gray })
-  page.drawText('Date', { x: 288, y: 69, font: bold, size: 7.5, color: gray })
+  page.drawText(completedCopy ? `Completed ${displayDate(order.completed_at)}` : 'Date', { x: 288, y: 69, font: bold, size: 7.5, color: gray })
   page.drawLine({ start: { x: 288, y: 58 }, end: { x: 390, y: 58 }, thickness: 0.7, color: gray })
   page.drawText('Office Review', { x: 414, y: 69, font: bold, size: 7.5, color: gray })
   page.drawLine({ start: { x: 414, y: 58 }, end: { x: 576, y: 58 }, thickness: 0.7, color: gray })
 
   page.drawText('10303 Oaks Rd. - Alhambra, IL 62001 - 618-488-7927', { x: 36, y: 24, font: regular, size: 7.5, color: gray })
-  page.drawText(`Return completed work order to the office.  Page ${pageNumber} of ${total}`, { x: 326, y: 24, font: bold, size: 7.5, color: forest })
+  page.drawText(completedCopy ? `Office file copy  -  Page ${pageNumber} of ${total}` : `Return completed work order to the office.  Page ${pageNumber} of ${total}`, { x: completedCopy ? 418 : 326, y: 24, font: bold, size: 7.5, color: forest })
 }
 
 export async function buildMaintenanceWorkOrdersPdf(orders: MaintenanceWorkOrder[], reportDate: string) {
@@ -171,6 +196,19 @@ export async function buildMaintenanceWorkOrdersPdf(orders: MaintenanceWorkOrder
     drawWorkOrderPage(page, order, regular, bold, reportDate, index + 1, orders.length)
   })
 
+  return pdf.save()
+}
+
+export async function buildCompletedMaintenanceWorkOrderPdf(order: MaintenanceWorkOrder, reportDate: string) {
+  const pdf = await PDFDocument.create()
+  const orderNumber = safeText(order.id).slice(0, 8).toUpperCase()
+  pdf.setTitle(`Bur Oaks Completed Work Order WO-${orderNumber}`)
+  pdf.setAuthor('Bur Oaks Campground')
+  pdf.setSubject('Completed maintenance work order office file copy')
+  const regular = await pdf.embedFont(StandardFonts.Helvetica)
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const page = pdf.addPage([612, 792])
+  drawWorkOrderPage(page, order, regular, bold, reportDate, 1, 1, true)
   return pdf.save()
 }
 
@@ -247,6 +285,139 @@ async function sendWorkOrderEmail(to: string, pdfBytes: Uint8Array, reportDate: 
   }
 
   return { sent: false, provider: null, error: 'SendGrid or Resend is not configured.' }
+}
+
+async function sendCompletedWorkOrderEmail(to: string, pdfBytes: Uint8Array, order: MaintenanceWorkOrder): Promise<DeliveryResult> {
+  const from = emailFrom()
+  const orderNumber = safeText(order.id).slice(0, 8).toUpperCase()
+  const filename = `bur-oaks-completed-work-order-WO-${orderNumber}.pdf`
+  const subject = `PRINT: Bur Oaks completed work order WO-${orderNumber}`
+  const text = `Print the attached completed Bur Oaks maintenance work order for the office files. Work order WO-${orderNumber}, lot ${safeText(order.lot_number) || 'N/A'}.`
+  const attachment = Buffer.from(pdfBytes).toString('base64')
+
+  if (!from) return { sent: false, provider: null, error: 'The campground email sender is not configured.' }
+
+  if (process.env.SENDGRID_API_KEY) {
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }], subject }],
+        from: parseSender(from),
+        reply_to: { email: parseSender(process.env.SENDGRID_REPLY_TO || 'buroakscampground@gmail.com').email },
+        content: [{ type: 'text/plain', value: text }],
+        attachments: [{ content: attachment, filename, type: 'application/pdf', disposition: 'attachment' }],
+      }),
+    })
+    if (!response.ok) return { sent: false, provider: 'sendgrid', error: await response.text().catch(() => `SendGrid error ${response.status}`) }
+    return { sent: true, provider: 'sendgrid', providerMessageId: response.headers.get('x-message-id') }
+  }
+
+  if (process.env.RESEND_API_KEY) {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        reply_to: process.env.SENDGRID_REPLY_TO || 'buroakscampground@gmail.com',
+        subject,
+        text,
+        attachments: [{ filename, content: attachment }],
+      }),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) return { sent: false, provider: 'resend', error: result.message || `Resend error ${response.status}` }
+    return { sent: true, provider: 'resend', providerMessageId: result.id || null }
+  }
+
+  return { sent: false, provider: null, error: 'SendGrid or Resend is not configured.' }
+}
+
+function centralDate(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(value)
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value || ''
+  return `${part('year')}-${part('month')}-${part('day')}`
+}
+
+export async function printCompletedMaintenanceWorkOrder(client: any, ticketId: string) {
+  const { data: order, error: orderError } = await client
+    .from('maintenance_tickets')
+    .select('id,title,description,category,priority,status,assigned_to,lot_number,reported_by,created_at,approved_at,completed_at,completion_notes,work_order_printed_at,photo_urls')
+    .eq('id', ticketId)
+    .maybeSingle()
+
+  if (orderError) throw new Error(orderError.message)
+  if (!order) throw new Error('The completed work order could not be found.')
+  if (!isCompletedTicketStatus(order.status)) throw new Error('The work order must be completed before it can print.')
+
+  const partsResult = await client
+    .from('maintenance_ticket_parts')
+    .select('item_name,quantity,unit,used_by,notes')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true })
+  if (partsResult.error) throw new Error(partsResult.error.message)
+  order.parts = partsResult.data || []
+
+  const reportKey = `completed-maintenance-${ticketId}`
+  const reportDate = '2000-01-01'
+  let { data: reservation, error: reserveError } = await client
+    .from('scheduled_reports')
+    .insert({ report_key: reportKey, report_date: reportDate, status: 'running', item_count: 1, office_email_status: 'skipped' })
+    .select('id,status')
+    .single()
+
+  if (reserveError?.code === '23505') {
+    const existing = await client
+      .from('scheduled_reports')
+      .select('id,status,started_at')
+      .eq('report_key', reportKey)
+      .eq('report_date', reportDate)
+      .maybeSingle()
+
+    if (existing.error) throw new Error(existing.error.message)
+    const runningRecently = existing.data?.status === 'running' && Date.now() - new Date(existing.data.started_at || 0).getTime() < 5 * 60 * 1000
+    if (existing.data?.status === 'sent' || runningRecently) {
+      return { order, skipped: true, printer: null, reason: existing.data.status === 'sent' ? 'This completed work order already printed.' : 'This completed work order is already being sent to the printer.' }
+    }
+
+    reservation = existing.data
+    reserveError = null
+    if (reservation?.id) {
+      const retry = await client.from('scheduled_reports').update({
+        status: 'running', error_message: null, started_at: new Date().toISOString(), completed_at: null, updated_at: new Date().toISOString(),
+      }).eq('id', reservation.id)
+      if (retry.error) throw new Error(retry.error.message)
+    }
+  }
+
+  if (reserveError || !reservation) throw new Error(reserveError?.message || 'Unable to reserve the completed work-order print.')
+
+  try {
+    const completedDate = centralDate(order.completed_at ? new Date(order.completed_at) : new Date())
+    const pdfBytes = await buildCompletedMaintenanceWorkOrderPdf(order, completedDate)
+    const printerEmail = process.env.MAINTENANCE_PRINTER_EMAIL || process.env.PUMP_OUT_PRINTER_EMAIL || 'una63106xie2gt@print.epsonconnect.com'
+    const printer = await sendCompletedWorkOrderEmail(printerEmail, pdfBytes, order)
+
+    await client.from('scheduled_reports').update({
+      status: printer.sent ? 'sent' : 'failed',
+      printer_email_status: printer.sent ? 'sent' : 'failed',
+      error_message: printer.error || null,
+      completed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', reservation.id)
+
+    if (!printer.sent) throw new Error(printer.error || 'The completed work order did not reach the Epson printer.')
+    return { order, skipped: false, printer, printerEmail }
+  } catch (error: any) {
+    await client.from('scheduled_reports').update({
+      status: 'failed', error_message: String(error?.message || error).slice(0, 2000),
+      completed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    }).eq('id', reservation.id)
+    throw error
+  }
 }
 
 export async function sendMaintenanceWorkOrderReport(client: any, reportDate: string) {
