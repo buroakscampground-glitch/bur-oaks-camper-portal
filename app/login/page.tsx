@@ -105,7 +105,7 @@ export default function LoginPage() {
           <h2>Sign in to continue</h2>
           <p>Use the email and password connected to your camper account.</p>
           <p className="signin-maintenance-note">
-            Maintenance team: sign in with your assigned maintenance email and you will go straight to approved work orders.
+            Staff: sign in with your assigned email to open your maintenance or community workspace.
           </p>
 
           <label htmlFor="signin-email">Email address</label>

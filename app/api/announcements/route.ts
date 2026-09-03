@@ -6,6 +6,7 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { campgroundUpdateSms } from '../../../lib/sms-segments'
 import { uniqueSmsBroadcastRecipients, validSmsBroadcastRequestId } from '../../../lib/sms-broadcast'
+import { canManageCommunity } from '../../../lib/staff-roles'
 import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 
 export const runtime = 'nodejs'
@@ -15,6 +16,41 @@ async function inBatches<T>(items: T[], batchSize: number, work: (item: T) => Pr
   for (let index = 0; index < items.length; index += batchSize) {
     await Promise.all(items.slice(index, index + batchSize).map(work))
   }
+}
+
+export async function GET(request: Request) {
+  const context = await getAuthenticatedContext(request)
+  if (!context || !canManageCommunity(context.camper.role)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+
+  const { data, error } = await context.admin
+    .from('announcements')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ announcements: data || [] })
+}
+
+export async function PATCH(request: Request) {
+  const context = await getAuthenticatedContext(request)
+  if (!context || !canManageCommunity(context.camper.role)) {
+    return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  }
+
+  const body = await request.json().catch(() => ({}))
+  const id = String(body.id || '')
+  if (!id || typeof body.isActive !== 'boolean') {
+    return NextResponse.json({ error: 'Choose an announcement and status.' }, { status: 400 })
+  }
+
+  const { error } = await context.admin
+    .from('announcements')
+    .update({ is_active: body.isActive })
+    .eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json({ success: true })
 }
 
 export async function POST(request: Request) {
@@ -27,7 +63,7 @@ export async function POST(request: Request) {
   }
 
   const context = await getAuthenticatedContext(request)
-  if (!context || String(context.camper.role || '').toLowerCase() !== 'admin') {
+  if (!context || !canManageCommunity(context.camper.role)) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 

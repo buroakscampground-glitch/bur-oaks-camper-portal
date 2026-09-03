@@ -6,5 +6,5 @@ export function isSystemPortalAccount(camper: { lot_number?: unknown }) {
 
 export function isOperationalCamper(camper: { lot_number?: unknown; role?: unknown }) {
   const role = String(camper.role || 'camper').trim().toLowerCase()
-  return !isSystemPortalAccount(camper) && !['admin', 'maintenance'].includes(role)
+  return !isSystemPortalAccount(camper) && !['admin', 'maintenance', 'event_coordinator'].includes(role)
 }
