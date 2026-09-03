@@ -4,7 +4,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
 import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
-import { billingDelegateEmailsForLot, normalizeBillingEmail } from '../../../lib/authorized-billing'
+import { loadAuthorizedContactProfiles } from '../../../lib/authorized-billing'
 import {
   maskSmsPhone,
   uniqueSmsBroadcastRecipients,
@@ -118,26 +118,18 @@ export async function POST(request: Request) {
     candidates.push({ camper, phones })
 
     if (isDirectBillingReminder) {
-      const delegateEmails = new Set(billingDelegateEmailsForLot(camper.lot_number).map(normalizeBillingEmail))
-      if (delegateEmails.size) {
-        const { data: possibleDelegates, error: delegateError } = await context.admin
-          .from('campers')
-          .select('id,lot_number,first_name,last_name,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
-          .eq('active', true)
+      let contactProfiles: any[]
+      try {
+        contactProfiles = await loadAuthorizedContactProfiles(context.admin, camper)
+      } catch (error: any) {
+        return NextResponse.json({ error: error?.message || 'Authorized billing contacts could not be loaded.' }, { status: 500 })
+      }
 
-        if (delegateError) return NextResponse.json({ error: delegateError.message }, { status: 500 })
-
-        for (const delegate of possibleDelegates || []) {
-          const matchesDelegate = [delegate.email, delegate.secondary_email]
-            .map(normalizeBillingEmail)
-            .some((email) => delegateEmails.has(email))
-          if (!matchesDelegate || !isOperationalCamper(delegate)) continue
-
-          candidates.push({
-            camper: delegate,
-            phones: await consentedCamperSmsPhones(context.admin, delegate),
-          })
-        }
+      for (const delegate of contactProfiles.filter((profile) => String(profile.id) !== String(camper.id))) {
+        candidates.push({
+          camper: delegate,
+          phones: await consentedCamperSmsPhones(context.admin, delegate),
+        })
       }
     }
   }

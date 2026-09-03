@@ -34,6 +34,52 @@ export function billingDelegateEmailsForLot(lotNumber: unknown) {
     .map((link) => link.delegateEmail)
 }
 
+function realEmail(value: unknown) {
+  const email = normalizeBillingEmail(value)
+  return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') ? email : ''
+}
+
+export function authorizedDelegateProfilesForLot(lotNumber: unknown, campers: any[]) {
+  const allowedEmails = new Set(billingDelegateEmailsForLot(lotNumber).map(normalizeBillingEmail))
+  if (!allowedEmails.size) return []
+
+  return (campers || []).filter((camper: any) => {
+    if (camper?.active === false || ['admin', 'maintenance'].includes(String(camper?.role || '').toLowerCase())) {
+      return false
+    }
+
+    return [camper?.email, camper?.secondary_email]
+      .map(normalizeBillingEmail)
+      .some((email) => allowedEmails.has(email))
+  })
+}
+
+export function authorizedContactEmails(profiles: any[]) {
+  return Array.from(new Set(
+    (profiles || [])
+      .flatMap((profile: any) => [profile?.email, profile?.secondary_email])
+      .map(realEmail)
+      .filter(Boolean)
+  ))
+}
+
+export async function loadAuthorizedContactProfiles(client: any, owner: any) {
+  const delegateEmails = billingDelegateEmailsForLot(owner?.lot_number)
+  if (!delegateEmails.length) return owner ? [owner] : []
+
+  const { data, error } = await client
+    .from('campers')
+    .select('id,lot_number,first_name,last_name,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
+    .eq('active', true)
+
+  if (error) throw error
+
+  const delegates = authorizedDelegateProfilesForLot(owner?.lot_number, data || [])
+  return [owner, ...delegates]
+    .filter(Boolean)
+    .filter((profile, index, all) => all.findIndex((candidate) => String(candidate.id) === String(profile.id)) === index)
+}
+
 export async function loadAuthorizedBillingCampers(client: any, email: unknown) {
   const lots = billingOwnerLotsForEmail(email)
   if (!lots.length) return []

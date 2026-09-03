@@ -26,13 +26,30 @@ export function daysUntilDate(dateValue: string, todayValue = todayInCentral()) 
   return Math.round((toUtc(dateValue) - toUtc(todayValue)) / 86_400_000)
 }
 
-export function creationInvoiceNoticeKind(dueDate: string | null | undefined, today = todayInCentral()): 'new' | 'upcoming' | null {
+export function creationInvoiceNoticeKind(dueDate: string | null | undefined, today = todayInCentral()): 'new' | 'upcoming' | 'past_due' | null {
   if (!dueDate) return 'new'
   const daysUntilDue = daysUntilDate(dueDate, today)
   if (daysUntilDue > FIRST_INVOICE_NOTICE_DAYS) return null
-  return daysUntilDue >= 0 ? 'upcoming' : 'new'
+  return daysUntilDue >= 0 ? 'upcoming' : 'past_due'
 }
 
 export function shouldSendUpcomingInvoiceNotice(daysUntilDue: number, alreadySent: boolean) {
   return !alreadySent && daysUntilDue <= FIRST_INVOICE_NOTICE_DAYS && daysUntilDue > 3
+}
+
+export function scheduledInvoiceNoticeKind(daysUntilDue: number): Exclude<InvoiceNoticeKind, 'new' | 'late_fee'> | null {
+  if (daysUntilDue > FIRST_INVOICE_NOTICE_DAYS) return null
+  if (daysUntilDue > 3) return 'upcoming'
+  if (daysUntilDue > 1) return 'due_3_days'
+  if (daysUntilDue === 1) return 'due_1_day'
+  if (daysUntilDue === 0) return 'due_today'
+  return 'past_due'
+}
+
+export function pastDueReminderMilestone(daysPastDue: number) {
+  if (daysPastDue < 1) return 0
+  if (daysPastDue < 7) return 1
+  if (daysPastDue < 14) return 7
+  if (daysPastDue < 30) return 14
+  return Math.floor(daysPastDue / 30) * 30
 }

@@ -2,6 +2,7 @@ import { escapeHtml } from './portal-invite-email'
 import { createFinalInvoiceToken } from './final-invoice-token'
 import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
 import { isNoBillingLot } from './billing-exemptions'
+import { authorizedContactEmails, loadAuthorizedContactProfiles } from './authorized-billing'
 
 type InvoiceEmailKind = InvoiceNoticeKind
 
@@ -50,19 +51,6 @@ function cleanEmail(value: unknown) {
 
 function isRealEmail(email: string) {
   return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local')
-}
-
-function camperRecipients(camper: any) {
-  const seen = new Set<string>()
-  const emails = [cleanEmail(camper?.email), cleanEmail(camper?.secondary_email)]
-    .filter(isRealEmail)
-    .filter((email) => {
-      if (seen.has(email)) return false
-      seen.add(email)
-      return true
-    })
-
-  return emails
 }
 
 function isResendTestSender(from: string) {
@@ -395,21 +383,39 @@ export async function sendInvoiceEmail({
     return { status: 'skipped', reason: 'Archived campers only receive their newly issued final invoice email.' }
   }
 
-  const recipients = camperRecipients(camper)
-  if (recipients.length === 0) {
-    return { status: 'skipped', reason: 'No camper email address is on file.' }
+  let contactProfiles: any[]
+  try {
+    contactProfiles = await loadAuthorizedContactProfiles(client, camper)
+  } catch (error: any) {
+    return { status: 'failed', error: error?.message || 'Authorized billing contacts could not be loaded.' }
   }
 
-  const { data: existing } = await client
+  const recipients = authorizedContactEmails(contactProfiles)
+  if (recipients.length === 0) {
+    return { status: 'skipped', reason: 'No account owner or authorized billing email address is on file.' }
+  }
+
+  const { data: existing, error: existingError } = await client
     .from('text_reminders')
-    .select('id,status')
+    .select('recipient_email')
     .eq('invoice_id', invoice.id)
     .eq('automation_key', automationKey)
-    .eq('reminder_date', reminderDate)
-    .maybeSingle()
+    .eq('status', 'sent')
 
-  if (existing) {
-    return { status: 'skipped', reason: 'This invoice email was already handled today.' }
+  if (existingError) {
+    return { status: 'failed', error: existingError.message }
+  }
+
+  const deliveredEmails = new Set(
+    (existing || [])
+      .flatMap((row: any) => String(row.recipient_email || '').split(','))
+      .map(cleanEmail)
+      .filter(isRealEmail)
+  )
+  const pendingRecipients = recipients.filter((email) => !deliveredEmails.has(email))
+
+  if (pendingRecipients.length === 0) {
+    return { status: 'skipped', reason: 'Every account owner and authorized billing email already received this invoice reminder stage.' }
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com'
@@ -485,7 +491,7 @@ export async function sendInvoiceEmail({
 
   const result = await sendInvoiceEmailPayload({
     from,
-    to: recipients,
+    to: pendingRecipients,
     replyTo,
     subject: copy.subject,
     html,
@@ -503,7 +509,7 @@ export async function sendInvoiceEmail({
     sent_at: new Date().toISOString(),
     status: sent ? 'sent' : 'failed',
     recipient_phone: null,
-    recipient_email: recipients.join(', '),
+    recipient_email: pendingRecipients.join(', '),
     provider: result.provider || providerStatus.provider,
     provider_message_id: sent ? providerMessageId || null : null,
     error_message: sent ? null : result.error || 'Invoice email could not be sent.',
@@ -531,7 +537,7 @@ export async function sendInvoiceEmail({
     return { status: 'failed', error: result.error || 'Invoice email could not be sent.' }
   }
 
-  return { status: 'sent', provider: result.provider, providerMessageId, recipients: recipients.length }
+  return { status: 'sent', provider: result.provider, providerMessageId, recipients: pendingRecipients.length }
 }
 
 export async function sendInvoiceEmailTest(to: string, origin = 'https://www.buroakscampground.com') {

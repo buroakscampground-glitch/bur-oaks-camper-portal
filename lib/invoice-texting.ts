@@ -1,6 +1,6 @@
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
-import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized-billing'
+import { billingDelegateEmailsForLot, loadAuthorizedContactProfiles, normalizeBillingEmail } from './authorized-billing'
 import { consentedCamperSmsPhones, phoneAutomationKey } from './camper-sms'
 import { daysUntilDate, todayInCentral } from './invoice-reminder-schedule'
 import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
@@ -128,45 +128,32 @@ export async function sendInvoiceText({
   }
 
   const recipients: Array<{ camperId: string; phone: string; automationKey: string }> = []
-  const ownerPhones = await consentedCamperSmsPhones(client, camper)
-  const primaryOwnerPhone = formatSmsPhone(camper.phone)
-  for (const phone of ownerPhones) {
-    recipients.push({
-      camperId: camper.id,
-      phone,
-      automationKey: phone === primaryOwnerPhone ? automationKey : phoneAutomationKey(automationKey, phone),
-    })
+  const delegateEmails = new Set(billingDelegateEmailsForLot(camper.lot_number).map(normalizeBillingEmail))
+  let contactProfiles: any[]
+  try {
+    contactProfiles = await loadAuthorizedContactProfiles(client, camper)
+  } catch (error: any) {
+    return { status: 'failed', error: error?.message || 'Authorized billing contacts could not be loaded.' }
   }
 
-  const delegateEmails = billingDelegateEmailsForLot(camper.lot_number)
-  if (delegateEmails.length) {
-    const { data: possibleDelegates, error: delegateError } = await client
-      .from('campers')
-      .select('id,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active')
-      .eq('active', true)
+  for (const profile of contactProfiles) {
+    const phones = await consentedCamperSmsPhones(client, profile)
+    const primaryPhone = formatSmsPhone(profile.phone)
+    const isOwner = String(profile.id) === String(camper.id)
+    const matchedDelegateEmail = isOwner
+      ? ''
+      : [profile.email, profile.secondary_email]
+          .map(normalizeBillingEmail)
+          .find((email) => delegateEmails.has(email)) || String(profile.id)
+    const safeDelegateKey = matchedDelegateEmail.replace(/[^a-z0-9]+/g, '-').slice(0, 40)
 
-    if (delegateError) {
-      return { status: 'failed', error: delegateError.message }
-    }
-
-    const allowedEmails = new Set(delegateEmails.map(normalizeBillingEmail))
-    for (const delegate of possibleDelegates || []) {
-      const matchedEmail = [delegate.email, delegate.secondary_email]
-        .map(normalizeBillingEmail)
-        .find((email) => allowedEmails.has(email))
-      const delegatePhones = await consentedCamperSmsPhones(client, delegate)
-      if (!matchedEmail || !delegatePhones.length) continue
-
-      const safeEmailKey = matchedEmail.replace(/[^a-z0-9]+/g, '-').slice(0, 40)
-      const primaryDelegatePhone = formatSmsPhone(delegate.phone)
-      for (const phone of delegatePhones) {
-        const delegateKey = `${automationKey}-family-${safeEmailKey}`
-        recipients.push({
-          camperId: delegate.id,
-          phone,
-          automationKey: phone === primaryDelegatePhone ? delegateKey : phoneAutomationKey(delegateKey, phone),
-        })
-      }
+    for (const phone of phones) {
+      const baseKey = isOwner ? automationKey : `${automationKey}-family-${safeDelegateKey}`
+      recipients.push({
+        camperId: profile.id,
+        phone,
+        automationKey: phone === primaryPhone ? baseKey : phoneAutomationKey(baseKey, phone),
+      })
     }
   }
 
@@ -200,6 +187,27 @@ export async function sendInvoiceText({
   const errors: string[] = []
 
   for (const recipient of uniqueRecipients) {
+    const { data: delivered, error: deliveredError } = await client
+      .from('text_reminders')
+      .select('id')
+      .eq('invoice_id', invoice.id)
+      .eq('automation_key', recipient.automationKey)
+      .eq('recipient_phone', recipient.phone)
+      .eq('status', 'sent')
+      .limit(1)
+      .maybeSingle()
+
+    if (deliveredError) {
+      failedCount += 1
+      errors.push(deliveredError.message)
+      continue
+    }
+
+    if (delivered) {
+      skippedCount += 1
+      continue
+    }
+
     const reservationRow = {
       camper_id: recipient.camperId,
       invoice_id: invoice.id,
@@ -271,7 +279,7 @@ export async function sendInvoiceText({
   return {
     status: 'skipped',
     reason: skippedCount
-      ? 'This invoice text was already handled today.'
+      ? 'Every eligible phone already received this invoice reminder stage.'
       : 'No invoice texts were sent.',
   }
 }

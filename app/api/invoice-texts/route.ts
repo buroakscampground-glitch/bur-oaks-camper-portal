@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { sendInvoiceEmail } from '../../../lib/invoice-emailing'
 import { sendInvoiceText, todayInCentral } from '../../../lib/invoice-texting'
-import { creationInvoiceNoticeKind, daysUntilDate } from '../../../lib/invoice-reminder-schedule'
+import { creationInvoiceNoticeKind, daysUntilDate, pastDueReminderMilestone } from '../../../lib/invoice-reminder-schedule'
 
 async function requireAdmin(request: Request) {
   const context = await getAuthenticatedContext(request)
@@ -56,7 +56,12 @@ export async function POST(request: Request) {
     })
   }
 
-  const automationKey = noticeKind === 'upcoming' ? 'invoice-upcoming' : 'invoice-new'
+  const daysUntilDue = invoice.due_date ? daysUntilDate(String(invoice.due_date), today) : 0
+  const automationKey = noticeKind === 'upcoming'
+    ? 'invoice-upcoming'
+    : noticeKind === 'past_due'
+      ? `invoice-past-due-${pastDueReminderMilestone(Math.abs(daysUntilDue)) || 1}`
+      : 'invoice-new'
   const [textResult, emailResult] = await Promise.all([
     sendInvoiceText({
       client: context.admin,

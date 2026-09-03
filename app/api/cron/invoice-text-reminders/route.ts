@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { sendInvoiceEmail } from '../../../../lib/invoice-emailing'
 import { daysUntilDate, sendInvoiceText, todayInCentral } from '../../../../lib/invoice-texting'
-import { shouldSendUpcomingInvoiceNotice } from '../../../../lib/invoice-reminder-schedule'
+import { pastDueReminderMilestone, scheduledInvoiceNoticeKind } from '../../../../lib/invoice-reminder-schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,51 +46,6 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const invoiceIds = (invoices || []).map((invoice) => invoice.id)
-  const { data: lateFeeNotices, error: lateFeeNoticeError } = invoiceIds.length
-    ? await admin
-        .from('text_reminders')
-        .select('invoice_id,automation_key,status')
-        .in('invoice_id', invoiceIds)
-        .in('automation_key', ['invoice-late-fee', 'invoice-late-fee-email'])
-        .eq('status', 'sent')
-    : { data: [], error: null }
-
-  if (lateFeeNoticeError) {
-    return NextResponse.json({ error: lateFeeNoticeError.message }, { status: 500 })
-  }
-
-  const lateFeeEmailSent = new Set(
-    (lateFeeNotices || [])
-      .filter((notice) => notice.automation_key === 'invoice-late-fee-email')
-      .map((notice) => notice.invoice_id)
-  )
-  const lateFeeTextSent = new Set(
-    (lateFeeNotices || [])
-      .filter((notice) => notice.automation_key === 'invoice-late-fee')
-      .map((notice) => notice.invoice_id)
-  )
-
-  const { data: upcomingNotices, error: upcomingNoticeError } = invoiceIds.length
-    ? await admin
-        .from('text_reminders')
-        .select('invoice_id,automation_key,status')
-        .in('invoice_id', invoiceIds)
-        .in('automation_key', ['invoice-upcoming', 'invoice-upcoming-email'])
-        .eq('status', 'sent')
-    : { data: [], error: null }
-
-  if (upcomingNoticeError) {
-    return NextResponse.json({ error: upcomingNoticeError.message }, { status: 500 })
-  }
-
-  const upcomingTextSent = new Set(
-    (upcomingNotices || []).filter((notice) => notice.automation_key === 'invoice-upcoming').map((notice) => notice.invoice_id)
-  )
-  const upcomingEmailSent = new Set(
-    (upcomingNotices || []).filter((notice) => notice.automation_key === 'invoice-upcoming-email').map((notice) => notice.invoice_id)
-  )
-
   const summary = {
     checked: invoices?.length || 0,
     textSent: 0,
@@ -104,9 +59,10 @@ export async function GET(request: Request) {
   for (const invoice of invoices || []) {
     const daysUntilDue = daysUntilDate(String(invoice.due_date), today)
 
-    if (daysUntilDue <= -6 && !lateFeeEmailSent.has(invoice.id)) {
+    if (daysUntilDue <= -6) {
       let lateFee = Number(invoice.late_fee || 0)
       let updatedTotal = Number(invoice.total_due || 0)
+      let lateFeeAppliedNow = false
 
       if (lateFee <= 0) {
         const unpaidBalance = Math.round(updatedTotal * 100) / 100
@@ -143,19 +99,18 @@ export async function GET(request: Request) {
         lateFee = Number(updatedInvoice.late_fee || lateFee)
         updatedTotal = Number(updatedInvoice.total_due || updatedTotal)
         summary.lateFeesApplied += 1
+        lateFeeAppliedNow = true
       }
 
       const [textResult, emailResult] = await Promise.all([
-        lateFeeTextSent.has(invoice.id)
-          ? Promise.resolve({ status: 'skipped', reason: 'The late-fee text was already sent.' })
-          : sendInvoiceText({
-              client: admin,
-              invoiceId: invoice.id,
-              kind: 'late_fee',
-              automationKey: 'invoice-late-fee',
-              reminderDate: today,
-              sentBy: 'invoice-reminder-cron',
-            }),
+        sendInvoiceText({
+          client: admin,
+          invoiceId: invoice.id,
+          kind: 'late_fee',
+          automationKey: 'invoice-late-fee',
+          reminderDate: today,
+          sentBy: 'invoice-reminder-cron',
+        }),
         sendInvoiceEmail({
           client: admin,
           invoiceId: invoice.id,
@@ -183,71 +138,22 @@ export async function GET(request: Request) {
         text: textResult,
         email: emailResult,
       })
-      continue
+      const lateFeeStageNeededWork = lateFeeAppliedNow || textResult.status !== 'skipped' || emailResult.status !== 'skipped'
+      if (lateFeeStageNeededWork) continue
     }
 
-    const needsUpcomingText = shouldSendUpcomingInvoiceNotice(daysUntilDue, upcomingTextSent.has(invoice.id))
-    const needsUpcomingEmail = shouldSendUpcomingInvoiceNotice(daysUntilDue, upcomingEmailSent.has(invoice.id))
-    if (needsUpcomingText || needsUpcomingEmail) {
-      const [textResult, emailResult] = await Promise.all([
-        needsUpcomingText
-          ? sendInvoiceText({
-              client: admin,
-              invoiceId: invoice.id,
-              kind: 'upcoming',
-              automationKey: 'invoice-upcoming',
-              reminderDate: today,
-              sentBy: 'invoice-reminder-cron',
-            })
-          : Promise.resolve({ status: 'skipped', reason: 'The 30-day text notice was already sent.' }),
-        needsUpcomingEmail
-          ? sendInvoiceEmail({
-              client: admin,
-              invoiceId: invoice.id,
-              kind: 'upcoming',
-              automationKey: 'invoice-upcoming-email',
-              reminderDate: today,
-              sentBy: 'invoice-reminder-cron',
-            })
-          : Promise.resolve({ status: 'skipped', reason: 'The 30-day email notice was already sent.' }),
-      ])
-
-      if (textResult.status === 'sent') summary.textSent += 1
-      else if (textResult.status === 'failed') summary.failed += 1
-      else summary.skipped += 1
-      if (emailResult.status === 'sent') summary.emailSent += 1
-      else if (emailResult.status === 'failed') summary.failed += 1
-      else summary.skipped += 1
-      summary.results.push({ invoiceId: invoice.id, dueDate: invoice.due_date, kind: 'upcoming', text: textResult, email: emailResult })
-      continue
-    }
-
-    let kind: 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | null = null
-    let automationKey = ''
-    let emailAutomationKey = ''
-
-    if (daysUntilDue === 3) {
-      kind = 'due_3_days'
-      automationKey = 'invoice-due-3'
-      emailAutomationKey = 'invoice-due-3-email'
-    } else if (daysUntilDue === 1) {
-      kind = 'due_1_day'
-      automationKey = 'invoice-due-1'
-      emailAutomationKey = 'invoice-due-1-email'
-    } else if (daysUntilDue === 0) {
-      kind = 'due_today'
-      automationKey = 'invoice-due-today'
-      emailAutomationKey = 'invoice-due-today-email'
-    } else if (
-      daysUntilDue < 0 &&
-      ([1, 7, 14, 30].includes(Math.abs(daysUntilDue)) || (Math.abs(daysUntilDue) > 30 && Math.abs(daysUntilDue) % 30 === 0))
-    ) {
-      kind = 'past_due'
-      automationKey = 'invoice-past-due'
-      emailAutomationKey = 'invoice-past-due-email'
-    }
-
+    const kind = scheduledInvoiceNoticeKind(daysUntilDue)
     if (!kind) continue
+    const automationKey = kind === 'upcoming'
+      ? 'invoice-upcoming'
+      : kind === 'due_3_days'
+        ? 'invoice-due-3'
+        : kind === 'due_1_day'
+          ? 'invoice-due-1'
+          : kind === 'due_today'
+            ? 'invoice-due-today'
+            : `invoice-past-due-${pastDueReminderMilestone(Math.abs(daysUntilDue)) || 1}`
+    const emailAutomationKey = `${automationKey}-email`
 
     const [textResult, emailResult] = await Promise.all([
       sendInvoiceText({

@@ -4,7 +4,7 @@ import { getSiteUrl } from './site-url'
 import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { todayInCentral } from './invoice-reminder-schedule'
 import { DOCUMENT_SIGNATURE_SMS_ALERT, documentReminderCentralDay, documentReminderIsDue } from './document-reminder-schedule'
-import { billingDelegateEmailsForLot, normalizeBillingEmail } from './authorized-billing'
+import { authorizedContactEmails, loadAuthorizedContactProfiles } from './authorized-billing'
 import { singleSegmentSms } from './sms-segments'
 
 const REMINDER_TYPE = 'Document Signature Reminder'
@@ -95,27 +95,10 @@ function documentCopy(document: any, camper: any, isFollowUp: boolean) {
   return { subject, text, sms, html }
 }
 
-async function documentSmsPhones(client: any, camper: any) {
-  const recipients: string[] = await consentedCamperSmsPhones(client, camper)
-  const delegateEmails = billingDelegateEmailsForLot(camper.lot_number)
-
-  if (delegateEmails.length) {
-    const { data: possibleDelegates, error: delegateError } = await client
-      .from('campers')
-      .select('id,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active')
-      .eq('active', true)
-
-    if (delegateError) throw delegateError
-
-    const allowedEmails = new Set(delegateEmails.map(normalizeBillingEmail))
-    for (const delegate of possibleDelegates || []) {
-      const isAuthorized = [delegate.email, delegate.secondary_email]
-        .map(normalizeBillingEmail)
-        .some((email) => allowedEmails.has(email))
-      if (!isAuthorized) continue
-
-      recipients.push(...await consentedCamperSmsPhones(client, delegate))
-    }
+async function documentSmsPhones(client: any, profiles: any[]) {
+  const recipients: string[] = []
+  for (const profile of profiles) {
+    recipients.push(...await consentedCamperSmsPhones(client, profile))
   }
 
   return Array.from(new Set(recipients))
@@ -176,11 +159,14 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
     .limit(300)
   if (priorError) return { email: 'failed', sms: 'failed', emailSent: 0, smsSent: 0, errors: [priorError.message] }
 
-  const emails = uniqueEmails([
-    camper.email,
-    camper.secondary_email,
-    ...billingDelegateEmailsForLot(camper.lot_number),
-  ])
+  let contactProfiles: any[]
+  try {
+    contactProfiles = await loadAuthorizedContactProfiles(client, camper)
+  } catch (error: any) {
+    return { email: 'failed', sms: 'failed', emailSent: 0, smsSent: 0, errors: [error?.message || 'Authorized document contacts could not be loaded.'] }
+  }
+
+  const emails = uniqueEmails(authorizedContactEmails(contactProfiles))
   const emailKey = `document-reminder-${document.id}-email`
   const lastEmail = (prior || []).find((row: any) => row.automation_key === emailKey)
   const copy = documentCopy(document, camper, Boolean(lastEmail))
@@ -209,7 +195,7 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
   }
 
   const phones = isTwilioConfigured()
-    ? await documentSmsPhones(client, camper)
+    ? await documentSmsPhones(client, contactProfiles)
     : []
   if (phones.length) {
     let sent = 0
