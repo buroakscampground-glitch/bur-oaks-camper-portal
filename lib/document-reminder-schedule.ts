@@ -1,4 +1,5 @@
 export const DOCUMENT_SIGNATURE_REMINDER_DAYS = 3
+export const DOCUMENT_SIGNATURE_SMS_ALERT = '⚠️ DOCUMENT NEEDS SIGNED ⚠️'
 
 function todayInCentral() {
   const parts = new Intl.DateTimeFormat('en-US', {

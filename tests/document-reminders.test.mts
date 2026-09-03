@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { documentReminderIsDue } from '../lib/document-reminder-schedule.ts'
+import {
+  DOCUMENT_SIGNATURE_SMS_ALERT,
+  documentReminderIsDue,
+} from '../lib/document-reminder-schedule.ts'
 
 test('document reminders wait three full Central calendar days', () => {
   assert.equal(documentReminderIsDue('2026-08-30T18:00:00Z', '2026-09-01'), false)
@@ -9,4 +12,8 @@ test('document reminders wait three full Central calendar days', () => {
 
 test('a document with no prior successful notice is due immediately', () => {
   assert.equal(documentReminderIsDue(null, '2026-08-30'), true)
+})
+
+test('document signing texts use an unmistakable action alert', () => {
+  assert.equal(DOCUMENT_SIGNATURE_SMS_ALERT, '⚠️ DOCUMENT NEEDS SIGNED ⚠️')
 })

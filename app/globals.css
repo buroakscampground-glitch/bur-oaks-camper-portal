@@ -10376,8 +10376,33 @@ tbody tr:hover {
 }
 
 .camper-documents-grid.urgent .camper-document-card {
-  border-color: #e1c989;
-  background: linear-gradient(180deg,#fff,#fff8e9);
+  border-color: #b33f35;
+  background: linear-gradient(180deg,#fff,#fff2ef);
+}
+
+.camper-document-card.needs-signature {
+  border-width: 3px;
+  border-color: #b33f35;
+  box-shadow: 0 16px 42px rgba(139,45,37,.16);
+}
+
+.camper-document-card.needs-signature h2 {
+  color: #67231f;
+  font-weight: 700;
+}
+
+.camper-document-needs-signature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0;
+  padding: 10px 12px;
+  border-radius: 11px;
+  background: #b33f35;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 950;
+  letter-spacing: .05em;
 }
 
 .camper-document-icon {

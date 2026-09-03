@@ -26,7 +26,7 @@ export default function SmsTermsPage() {
         </p>
         <h2>Message frequency</h2>
         <p>
-          Message frequency varies based on account activity, invoice and payment activity, maintenance requests, utility notices, gate notices, office notices, and safety or weather-related operational alerts. Personal greetings are limited to one camper-anniversary greeting and one birthday greeting per saved profile each year. Event reminders may be sent once each Wednesday for each event occurring within the next 14 days, plus once on event day.
+          Message frequency varies based on account activity, invoice and payment activity, documents awaiting signature, maintenance requests, utility notices, gate notices, office notices, and safety or weather-related operational alerts. Document-signature reminders may be sent when a document first requires a signature and every three days while it remains unsigned. Personal greetings are limited to one camper-anniversary greeting and one birthday greeting per saved profile each year. Event reminders may be sent once each Wednesday for each event occurring within the next 14 days, plus once on event day.
         </p>
 
         <h2>Cost</h2>

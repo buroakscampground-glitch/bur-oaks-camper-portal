@@ -207,16 +207,31 @@ export default function DocumentsPage() {
   }
 
   function renderDocumentCard(doc: any) {
+    const needsSignature = doc.signature_status !== 'signed' &&
+      doc.signature_status !== 'not_required' &&
+      doc.signature_status !== 'declined'
+
     return (
       <section
         key={doc.id}
-        className={doc.signature_status === 'signed' ? 'camper-document-card signed' : doc.signature_status === 'declined' ? 'camper-document-card declined' : 'camper-document-card'}
+        className={doc.signature_status === 'signed'
+          ? 'camper-document-card signed'
+          : doc.signature_status === 'declined'
+            ? 'camper-document-card declined'
+            : needsSignature
+              ? 'camper-document-card needs-signature'
+              : 'camper-document-card'}
       >
         <div className="camper-document-icon">
           {doc.signature_status === 'signed' ? <CheckCircle2 size={22} /> : doc.signature_status === 'declined' ? <DoorOpen size={22} /> : <FileSignature size={22} />}
         </div>
         <small>{doc.document_type || 'General'}</small>
         <h2>{doc.document_name}</h2>
+        {needsSignature && (
+          <p className="camper-document-needs-signature">
+            <AlertTriangle size={17} /> <strong>DOCUMENT NEEDS SIGNED</strong>
+          </p>
+        )}
         {doc.access_is_delegated && (
           <p className="camper-document-shared-account">
             Authorized family account · Lot {doc.access_lot_number || '—'} · {doc.access_camper_name || 'Camper'}

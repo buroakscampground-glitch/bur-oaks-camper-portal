@@ -1031,7 +1031,7 @@ export default function CamperPortalPage() {
                   <FileText size={23} />
                   <span>
                     <small>SIGNATURE REQUIRED</small>
-                    <strong>{documentsNeedingSignature.length} document{documentsNeedingSignature.length === 1 ? '' : 's'} must be signed</strong>
+                    <strong>DOCUMENT NEEDS SIGNED · {documentsNeedingSignature.length} document{documentsNeedingSignature.length === 1 ? '' : 's'}</strong>
                     <em>Open, review, and sign now</em>
                   </span>
                   <ArrowRight size={22} />
@@ -1081,7 +1081,7 @@ export default function CamperPortalPage() {
                   <small>
                     By checking this box, I agree to receive recurring, non-marketing SMS messages from
                     Bur Oaks Campground at all mobile phone numbers saved on my household profile about invoices and
-                    payment reminders for my site and any family sites I am authorized to pay, account notices, maintenance and sewer pump-out updates, gate and
+                    payment reminders for my site and any family sites I am authorized to pay, documents requiring my signature or that I am authorized to sign, account notices, maintenance and sewer pump-out updates, gate and
                     utility notices, office notices, upcoming event reminders (including Wednesday
                     reminders for events within the next two weeks), safety and weather alerts, and other
                     campground operations notices. Message frequency varies. Message and data rates may apply. Reply
