@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Bell,
   BookOpen,
+  CakeSlice,
   CalendarDays,
   CalendarClock,
   CircleDollarSign,
@@ -56,6 +57,7 @@ const pageNames: Record<string, string> = {
   dinners: 'Saturday Dinners',
   rsvps: 'RSVP Tracking',
   announcements: 'Announcements',
+  birthdays: 'Birthday Office',
   texts: 'Text Alerts',
   notifications: 'Notifications',
   messages: 'Camper Messages',
@@ -132,6 +134,7 @@ const navGroups = [
     links: [
       { href: '/admin/dinners', label: 'Saturday Dinners', icon: Utensils },
       { href: '/admin/events', label: 'Events', icon: CalendarDays },
+      { href: '/admin/birthdays', label: 'Birthday Office', icon: CakeSlice },
       { href: '/admin/announcements', label: 'Announcements', icon: Megaphone },
       { href: '/admin/rsvps', label: 'RSVPs', icon: ClipboardList },
     ],
