@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Bell, Check, CheckCheck, Clock3, Inbox, Megaphone, MessageCircle, Send, ShieldCheck } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 
@@ -24,10 +24,17 @@ export default function CamperUpdatesPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
+  const messageRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     loadCenter()
   }, [])
+
+  useEffect(() => {
+    if (!messageRef.current) return
+    messageRef.current.style.height = 'auto'
+    messageRef.current.style.height = `${Math.max(180, messageRef.current.scrollHeight)}px`
+  }, [draft])
 
   async function authHeaders(): Promise<Record<string, string>> {
     const { data: { session } } = await supabase.auth.getSession()
@@ -179,7 +186,7 @@ export default function CamperUpdatesPage() {
             </div>
           )}
 
-          <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={5} placeholder="Type a private message to the office…" />
+          <textarea ref={messageRef} value={draft} onChange={(event) => setDraft(event.target.value)} rows={7} placeholder="Type a private message to the office…" />
           <button className="updates-send-button" type="button" onClick={sendMessage} disabled={sending || !draft.trim()}>
             <Send size={16} /> {sending ? 'Sending…' : 'Send to the office'}
           </button>

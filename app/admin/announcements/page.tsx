@@ -41,10 +41,17 @@ export default function AdminAnnouncementsPage() {
   const [status, setStatus] = useState('')
   const postingRef = useRef(false)
   const requestIdRef = useRef('')
+  const messageRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     loadAnnouncements()
   }, [])
+
+  useEffect(() => {
+    if (!messageRef.current) return
+    messageRef.current.style.height = 'auto'
+    messageRef.current.style.height = `${Math.max(300, messageRef.current.scrollHeight)}px`
+  }, [message])
 
   async function loadAnnouncements() {
     const { data } = await supabase
@@ -161,9 +168,11 @@ export default function AdminAnnouncementsPage() {
           />
 
           <textarea
+            ref={messageRef}
             placeholder="Announcement Message"
             value={message}
             onChange={(e) => { requestIdRef.current = ''; setMessage(e.target.value) }}
+            rows={12}
           />
 
           <label className="admin-urgent-toggle">
