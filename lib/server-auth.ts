@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { effectivePortalRole } from './staff-roles'
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -65,5 +66,9 @@ export async function getAuthenticatedContext(request: Request) {
     return null
   }
 
-  return { user: data.user, camper, admin }
+  return {
+    user: data.user,
+    camper: { ...camper, role: effectivePortalRole(camper) },
+    admin,
+  }
 }

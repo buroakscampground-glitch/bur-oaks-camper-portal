@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { canManageCommunity, portalDestinationForRole } from '../lib/staff-roles.ts'
+import { canManageCommunity, effectivePortalRole, portalDestinationForRole } from '../lib/staff-roles.ts'
 import { isOperationalCamper } from '../lib/camper-records.ts'
 
 test('event coordinators land in the limited community workspace', () => {
@@ -13,4 +13,6 @@ test('community access does not grant owner or maintenance roles', () => {
   assert.equal(canManageCommunity('maintenance'), false)
   assert.equal(canManageCommunity('camper'), false)
   assert.equal(isOperationalCamper({ role: 'event_coordinator', lot_number: 'STAFF' }), false)
+  assert.equal(isOperationalCamper({ role: 'camper', lot_number: 'STAFF-EVENTS' }), false)
+  assert.equal(effectivePortalRole({ role: 'camper', lot_number: 'STAFF-EVENTS' }), 'event_coordinator')
 })
