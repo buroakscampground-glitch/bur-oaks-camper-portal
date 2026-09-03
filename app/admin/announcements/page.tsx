@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, Archive, BellRing, Megaphone, RotateCcw, Send, WandSparkles } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
@@ -39,6 +39,8 @@ export default function AdminAnnouncementsPage() {
   const [sendText, setSendText] = useState(false)
   const [posting, setPosting] = useState(false)
   const [status, setStatus] = useState('')
+  const postingRef = useRef(false)
+  const requestIdRef = useRef('')
 
   useEffect(() => {
     loadAnnouncements()
@@ -54,6 +56,7 @@ export default function AdminAnnouncementsPage() {
   }
 
   async function addAnnouncement() {
+    if (postingRef.current) return
     if (!title || !message) {
       setStatus('Please add a title and message.')
       return
@@ -61,8 +64,10 @@ export default function AdminAnnouncementsPage() {
 
     if (sendText && !confirm('Post this update and text the short link to every opted-in camper?')) return
 
+    postingRef.current = true
     setPosting(true)
     setStatus('Posting update…')
+    requestIdRef.current ||= crypto.randomUUID()
     const { data: { session } } = await supabase.auth.getSession()
     const response = await fetch('/api/announcements', {
       method: 'POST',
@@ -70,13 +75,22 @@ export default function AdminAnnouncementsPage() {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${session?.access_token || ''}`,
       },
-      body: JSON.stringify({ title, message, isUrgent, sendText }),
+      body: JSON.stringify({ title, message, isUrgent, sendText, requestId: requestIdRef.current }),
     })
     const result = await response.json().catch(() => ({}))
 
     if (!response.ok) {
       setStatus(result.error || 'Unable to post this announcement.')
+      postingRef.current = false
       setPosting(false)
+      return
+    }
+
+    if (result.duplicateRequest) {
+      setStatus('This update was already submitted, so it was not posted or texted again.')
+      postingRef.current = false
+      setPosting(false)
+      loadAnnouncements()
       return
     }
 
@@ -84,10 +98,12 @@ export default function AdminAnnouncementsPage() {
     setMessage('')
     setIsUrgent(false)
     setSendText(false)
+    requestIdRef.current = ''
     setStatus(sendText
       ? `Update posted. Short texts: ${result.smsSentCount || 0} sent, ${result.smsSkippedCount || 0} skipped, ${result.smsFailedCount || 0} failed.`
       : 'Update posted to the communication center without sending a text.')
     setPosting(false)
+    postingRef.current = false
     loadAnnouncements()
   }
 
@@ -105,6 +121,7 @@ export default function AdminAnnouncementsPage() {
   }
 
   function useTemplate(template: any) {
+    requestIdRef.current = ''
     setTitle(template.title)
     setMessage(template.message)
     setIsUrgent(template.urgent)
@@ -140,17 +157,17 @@ export default function AdminAnnouncementsPage() {
           <input
             placeholder="Announcement Title"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => { requestIdRef.current = ''; setTitle(e.target.value) }}
           />
 
           <textarea
             placeholder="Announcement Message"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => { requestIdRef.current = ''; setMessage(e.target.value) }}
           />
 
           <label className="admin-urgent-toggle">
-            <input type="checkbox" checked={isUrgent} onChange={(event) => setIsUrgent(event.target.checked)} />
+            <input type="checkbox" checked={isUrgent} onChange={(event) => { requestIdRef.current = ''; setIsUrgent(event.target.checked) }} />
             <span>
               <strong>Mark as urgent</strong>
               <small>Shows with a red urgent badge at the top of the camper portal announcements.</small>
@@ -158,7 +175,7 @@ export default function AdminAnnouncementsPage() {
           </label>
 
           <label className="admin-text-toggle">
-            <input type="checkbox" checked={sendText} onChange={(event) => setSendText(event.target.checked)} />
+            <input type="checkbox" checked={sendText} onChange={(event) => { requestIdRef.current = ''; setSendText(event.target.checked) }} />
             <span>
               <strong>Send a short text with the link</strong>
               <small>Texts only the title and a link to the complete update. It stays within one standard SMS segment and only goes to opted-in camper numbers.</small>

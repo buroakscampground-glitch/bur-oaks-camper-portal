@@ -17,6 +17,13 @@ CREATE TABLE IF NOT EXISTS public.sms_broadcasts (
   completed_at timestamptz
 );
 
+ALTER TABLE public.announcements
+  ADD COLUMN IF NOT EXISTS request_id uuid;
+
+CREATE UNIQUE INDEX IF NOT EXISTS announcements_request_id_unique
+  ON public.announcements (request_id)
+  WHERE request_id IS NOT NULL;
+
 CREATE TABLE IF NOT EXISTS public.sms_broadcast_deliveries (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   broadcast_id uuid NOT NULL REFERENCES public.sms_broadcasts(id) ON DELETE CASCADE,
