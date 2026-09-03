@@ -10,6 +10,7 @@ import {
 export const runtime = 'nodejs'
 
 const genericSuccess = () => NextResponse.json({ success: true })
+const RESET_COOLDOWN_MS = 5 * 60_000
 
 export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(request, 'password-reset-request', 5, 15 * 60_000)
@@ -44,6 +45,23 @@ export async function POST(request: Request) {
     // Keep the response identical for unknown or ambiguous addresses.
     if (!matches || matches.length !== 1) return genericSuccess()
 
+    // A new Supabase recovery token invalidates an older one. Keep delayed or
+    // repeatedly-clicked requests from canceling the usable email already sent.
+    const cooldownStartedAt = new Date(Date.now() - RESET_COOLDOWN_MS).toISOString()
+    const { data: recentReset } = await admin
+      .from('portal_invite_log')
+      .select('created_at')
+      .eq('camper_id', matches[0].id)
+      .like('delivery_provider', 'password-reset-%')
+      .eq('delivery_status', 'sent')
+      .gte('created_at', cooldownStartedAt)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (recentReset?.length) {
+      return NextResponse.json({ success: true, cooldown: true })
+    }
+
     const { data, error } = await admin.auth.admin.generateLink({
       type: 'recovery',
       email,
@@ -58,10 +76,19 @@ export async function POST(request: Request) {
     }
 
     const setupUrl = `${getSiteUrl()}/set-password?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(verificationType)}`
-    await sendPortalInviteEmail({
+    const emailResult = await sendPortalInviteEmail({
       to: email,
       camperName: `${matches[0].first_name || ''} ${matches[0].last_name || ''}`.trim() || 'Camper',
       setupUrl,
+      purpose: 'password_reset',
+    })
+
+    await admin.from('portal_invite_log').insert({
+      camper_id: matches[0].id,
+      email,
+      delivery_status: 'sent',
+      delivery_provider: `password-reset-${emailResult.provider || 'email'}`,
+      sent_by: 'self-service-password-reset',
     })
 
     return genericSuccess()

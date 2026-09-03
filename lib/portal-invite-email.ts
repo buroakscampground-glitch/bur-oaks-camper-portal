@@ -2,6 +2,7 @@ type InviteEmailInput = {
   to: string
   camperName: string
   setupUrl: string
+  purpose?: 'portal_setup' | 'password_reset'
 }
 
 export function portalInviteEmailConfigured() {
@@ -91,6 +92,7 @@ export async function sendPortalInviteEmail({
   to,
   camperName,
   setupUrl,
+  purpose = 'portal_setup',
 }: InviteEmailInput) {
   const providerStatus = portalInviteEmailProviderStatus()
   const from = providerStatus.from
@@ -101,12 +103,25 @@ export async function sendPortalInviteEmail({
   }
 
   const firstName = camperName.trim().split(/\s+/)[0] || 'there'
-  const subject = 'Action needed: Set up your Bur Oaks Camper Portal within 24 hours'
-  const text = [
+  const isPasswordReset = purpose === 'password_reset'
+  const subject = isPasswordReset
+    ? 'NEWEST LINK: Reset your Bur Oaks password'
+    : 'Action needed: Set up your Bur Oaks Camper Portal within 24 hours'
+  const actionDescription = isPasswordReset
+    ? 'You requested a password reset for your Bur Oaks Camper Portal.'
+    : 'Bur Oaks Campground has created or refreshed your camper portal setup link.'
+  const actionInstruction = isPasswordReset
+    ? 'Use this newest secure link to choose a new password:'
+    : 'Please use the newest secure link below and complete your portal setup within 24 hours:'
+  const actionWarning = isPasswordReset
+    ? 'Use only this newest email. If you requested more than one reset, older links will no longer work.'
+    : 'This one-time setup link expires after 24 hours. Please set up your portal today.'
+  const buttonLabel = isPasswordReset ? 'Reset My Password' : 'Set Up My Camper Portal Now'
+  const portalSetupText = [
     `Hi ${firstName},`,
     '',
-    'Bur Oaks Campground has created or refreshed your camper portal setup link.',
-    'Please use the newest secure link below and complete your portal setup within 24 hours:',
+    actionDescription,
+    actionInstruction,
     '',
     setupUrl,
     '',
@@ -118,7 +133,25 @@ export async function sendPortalInviteEmail({
     'Bur Oaks Campground',
   ].join('\n')
 
-  const html = `
+  const text = isPasswordReset
+    ? [
+        `Hi ${firstName},`,
+        '',
+        actionDescription,
+        actionInstruction,
+        '',
+        setupUrl,
+        '',
+        `IMPORTANT: ${actionWarning}`,
+        'For your privacy, do not reply to or forward this email because a quoted reply can include your private link.',
+        'Questions or setup help: Contact Anthony at 618-882-8063.',
+        'If you did not request this, please contact the campground office.',
+        '',
+        'Bur Oaks Campground',
+      ].join('\n')
+    : portalSetupText
+
+  const portalSetupHtml = `
     <div style="font-family:Arial,sans-serif;background:#f5f1e8;padding:28px;color:#26382d">
       <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2dccf">
         <div style="background:#214b31;color:#fff;padding:24px 28px">
@@ -139,6 +172,28 @@ export async function sendPortalInviteEmail({
       </div>
     </div>
   `
+
+  const html = isPasswordReset
+    ? `
+      <div style="font-family:Arial,sans-serif;background:#f5f1e8;padding:28px;color:#26382d">
+        <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2dccf">
+          <div style="background:#214b31;color:#fff;padding:24px 28px">
+            <div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#d8c18b;font-weight:700">Bur Oaks Campground</div>
+            <h1 style="margin:8px 0 0;font-family:Georgia,serif;font-weight:500">Reset your camper portal password.</h1>
+          </div>
+          <div style="padding:28px">
+            <p style="font-size:16px;line-height:1.55">Hi ${escapeHtml(firstName)},</p>
+            <p style="font-size:16px;line-height:1.55">${actionDescription}</p>
+            <div style="margin:18px 0;padding:16px;border-radius:12px;background:#fff3d6;border:1px solid #ead298;color:#6d5018;font-size:15px;line-height:1.55"><strong>Use the newest email:</strong> ${actionWarning}</div>
+            <a href="${setupUrl}" style="display:inline-block;margin:4px 0 18px;background:#2f5b3b;color:#fff;text-decoration:none;padding:14px 18px;border-radius:12px;font-weight:700">${buttonLabel}</a>
+            <p style="font-size:13px;line-height:1.5;color:#69766d">If the button does not work, copy and paste this link into your browser:<br><span style="word-break:break-all">${setupUrl}</span></p>
+            <p style="font-size:13px;line-height:1.5;color:#8a2d20"><strong>Keep this link private:</strong> Do not reply to or forward this email because a quoted reply can include your private link.</p>
+            <p style="font-size:14px;line-height:1.5;color:#26382d"><strong>Questions or setup help?</strong><br>Contact Anthony at <a href="tel:+16188828063" style="color:#2f5b3b;font-weight:700">618-882-8063</a>.</p>
+          </div>
+        </div>
+      </div>
+    `
+    : portalSetupHtml
 
   if (providerStatus.provider === 'sendgrid') {
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {

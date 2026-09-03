@@ -7,6 +7,7 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
+  const [cooldown, setCooldown] = useState(false)
 
   async function sendResetLink() {
     setSending(true)
@@ -19,11 +20,14 @@ export default function ForgotPasswordPage() {
     })
     const result = await response.json().catch(() => null)
 
-    setMessage(
-      !response.ok
-        ? result?.error || 'The reset email could not be sent. Please try again.'
-        : 'If that email belongs to an account, a password-reset link is on its way.'
-    )
+    if (!response.ok) {
+      setMessage(result?.error || 'The reset email could not be sent. Please try again.')
+    } else {
+      setCooldown(true)
+      setMessage(result?.cooldown
+        ? 'A reset email was already sent recently. Wait up to five minutes and use the newest email—requesting repeatedly cancels older links.'
+        : 'Your newest reset request is active. Wait up to five minutes for the email and do not request another link; a newer request would cancel this one.')
+    }
     setSending(false)
   }
 
@@ -48,8 +52,8 @@ export default function ForgotPasswordPage() {
           />
         </div>
 
-        <button onClick={sendResetLink} disabled={sending || !email.trim()}>
-          <Send size={17} /> {sending ? 'Sending…' : 'Send reset link'}
+        <button onClick={sendResetLink} disabled={sending || cooldown || !email.trim()}>
+          <Send size={17} /> {sending ? 'Sending…' : cooldown ? 'Reset email requested' : 'Send reset link'}
         </button>
 
         {message && <p className="account-recovery-message">{message}</p>}
