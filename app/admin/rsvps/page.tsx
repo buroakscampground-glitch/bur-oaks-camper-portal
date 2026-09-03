@@ -53,26 +53,14 @@ export default function AdminRsvpsPage() {
 
   async function loadData() {
     setLoading(true)
-    const [eventResult, rsvpResult, camperResult] = await Promise.all([
-      supabase.from('events').select('id,title,event_date,description').order('event_date', { ascending: true }),
-      supabase.from('event_rsvps').select('id,event_id,camper_id,response'),
-      supabase.from('campers').select('id,lot_number,first_name,last_name'),
-    ])
-
-    if (eventResult.error || rsvpResult.error || camperResult.error) {
-      setMessage(eventResult.error?.message || rsvpResult.error?.message || camperResult.error?.message || 'Unable to load event responses.')
-    }
-
-    setEvents((eventResult.data || []) as EventRecord[])
-    setRsvps((rsvpResult.data || []) as RsvpRecord[])
-    setCampers((camperResult.data || []) as CamperRecord[])
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/community-rsvps', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) setMessage(result.error || 'Unable to load event responses.')
+    setEvents((result.events || []) as EventRecord[])
+    setRsvps((result.rsvps || []) as RsvpRecord[])
+    setCampers((result.campers || []) as CamperRecord[])
     setLoading(false)
-
-    await supabase
-      .from('admin_notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('type', 'event_rsvp')
-      .is('read_at', null)
   }
 
   function camperLabel(camperId: string) {

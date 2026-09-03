@@ -20,3 +20,9 @@ test('camper and maintenance links return only to their own areas', () => {
   assert.equal(safeLoginReturnPath('/invoices/abc', 'camper'), '/invoices/abc')
   assert.equal(safeLoginReturnPath('/maintenance/dashboard/ticket-1', 'maintenance'), '/maintenance/dashboard/ticket-1')
 })
+
+test('event coordinator links stay inside the community workspace', () => {
+  assert.equal(safeLoginReturnPath('/community/announcements', 'event_coordinator'), '/community/announcements')
+  assert.equal(safeLoginReturnPath('/admin/invoices', 'event_coordinator'), '')
+  assert.equal(safeLoginReturnPath('/maintenance/dashboard', 'event_coordinator'), '')
+})

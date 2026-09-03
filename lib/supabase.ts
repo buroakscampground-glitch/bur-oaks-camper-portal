@@ -13,7 +13,7 @@ export const supabase = createClient(
   supabaseAnonKey
 )
 
-export type UserRole = 'admin' | 'camper'
+export type UserRole = 'admin' | 'event_coordinator' | 'maintenance' | 'camper'
 
 const DEFAULT_ROLE: UserRole = 'camper'
 
@@ -67,8 +67,8 @@ export async function getCurrentUserRole(): Promise<UserRole> {
 
   const role = String((camper as any).role).toLowerCase()
 
-  return role === 'admin'
-    ? 'admin'
+  return ['admin', 'event_coordinator', 'maintenance'].includes(role)
+    ? role as UserRole
     : DEFAULT_ROLE
 }
 

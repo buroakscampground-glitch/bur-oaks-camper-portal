@@ -680,6 +680,7 @@ export default function CamperDetailPage() {
               <select value={camper.role || 'camper'} onChange={(event) => updateField('role', event.target.value)}>
                 <option value="camper">Camper</option>
                 <option value="admin">Administrator</option>
+                <option value="event_coordinator">Event Coordinator</option>
                 <option value="maintenance">Maintenance</option>
               </select>
             </label>

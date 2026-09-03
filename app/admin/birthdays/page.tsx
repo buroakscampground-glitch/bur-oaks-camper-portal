@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { ArrowRight, CakeSlice, CalendarDays, CheckCircle2, Clock3, Gift, Heart, PartyPopper, Send, Sparkles, Users } from 'lucide-react'
+import { usePathname } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 type Birthday = {
@@ -43,7 +44,7 @@ function formatBirthday(value: string) {
     .format(new Date(Date.UTC(year, month - 1, day)))
 }
 
-function BirthdayCard({ birthday, sending, onSend }: { birthday: Birthday; sending: boolean; onSend: (birthday: Birthday) => void }) {
+function BirthdayCard({ birthday, sending, onSend, showCamperRecord }: { birthday: Birthday; sending: boolean; onSend: (birthday: Birthday) => void; showCamperRecord: boolean }) {
   const channelLabel = birthday.sentChannels
     .filter((channel) => channel !== 'portal')
     .map((channel) => channel === 'sms' ? 'text' : channel)
@@ -72,7 +73,7 @@ function BirthdayCard({ birthday, sending, onSend }: { birthday: Birthday; sendi
         )}
       </div>
       <div className="admin-birthday-actions">
-        <a href={`/admin/campers/${birthday.camperId}`}>Camper record <ArrowRight size={14} /></a>
+        {showCamperRecord && <a href={`/admin/campers/${birthday.camperId}`}>Camper record <ArrowRight size={14} /></a>}
         {birthday.portalPosted ? (
           <span><CheckCircle2 size={16} /> Celebrated</span>
         ) : birthday.canSend ? (
@@ -90,6 +91,8 @@ function BirthdayCard({ birthday, sending, onSend }: { birthday: Birthday; sendi
 }
 
 export default function AdminBirthdaysPage() {
+  const pathname = usePathname()
+  const showCamperRecord = !pathname.startsWith('/community')
   const [office, setOffice] = useState<BirthdayOffice>(emptyOffice)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState('')
@@ -183,6 +186,7 @@ export default function AdminBirthdaysPage() {
                       birthday={birthday}
                       sending={sending === `${birthday.camperId}:${birthday.profile}`}
                       onSend={sendGreeting}
+                      showCamperRecord={showCamperRecord}
                       key={`${birthday.camperId}:${birthday.profile}:${birthday.eventYear}`}
                     />
                   ))}

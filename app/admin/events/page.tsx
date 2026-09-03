@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
 export default function AdminEventsPage() {
@@ -17,18 +17,22 @@ export default function AdminEventsPage() {
   const [goingCounts, setGoingCounts] = useState<any>({})
   const [message, setMessage] = useState('')
   const router = useRouter()
+  const pathname = usePathname()
+  const homePath = pathname.startsWith('/community') ? '/community' : '/admin'
 
   useEffect(() => {
     loadEvents()
   }, [])
 
   async function loadEvents() {
-    const { data } = await supabase
-      .from('events')
-      .select('*')
-      .order('event_date', { ascending: true })
-
-    const eventList = data || []
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/community-events', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setMessage(result.error || 'Unable to load events.')
+      return
+    }
+    const eventList = result.events || []
 
     setEvents(eventList)
 
@@ -38,30 +42,23 @@ export default function AdminEventsPage() {
 
     setUpcomingEvents(
       eventList.filter(
-        (event) => event.event_date >= today
+        (event: any) => event.event_date >= today
       ).length
     )
 
     setPastEvents(
       eventList.filter(
-        (event) => event.event_date < today
+        (event: any) => event.event_date < today
       ).length
     )
 
-    const { count } = await supabase
-      .from('event_rsvps')
-      .select('*', { count: 'exact', head: true })
-
-    setTotalRsvps(count || 0)
-
-    const { data: rsvps } = await supabase
-      .from('event_rsvps')
-      .select('event_id,response')
+    const rsvps = result.rsvps || []
+    setTotalRsvps(rsvps.length)
 
     const counts: any = {}
     const going: any = {}
 
-    rsvps?.forEach((rsvp: any) => {
+    rsvps.forEach((rsvp: any) => {
       counts[rsvp.event_id] =
         (counts[rsvp.event_id] || 0) + 1
 
@@ -81,16 +78,15 @@ export default function AdminEventsPage() {
       return
     }
 
-    const { error } = await supabase
-      .from('events')
-      .insert({
-        title,
-        event_date: eventDate,
-        description,
-      })
-
-    if (error) {
-      setMessage(error.message)
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/community-events', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ title, eventDate, description }),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) {
+      setMessage(result.error || 'Unable to create this event.')
       return
     }
 
@@ -106,10 +102,17 @@ export default function AdminEventsPage() {
     const ok = confirm('Delete this event?')
     if (!ok) return
 
-    await supabase
-      .from('events')
-      .delete()
-      .eq('id', id)
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/community-events', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+      body: JSON.stringify({ id }),
+    })
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}))
+      setMessage(result.error || 'Unable to delete this event.')
+      return
+    }
 
     loadEvents()
   }
@@ -119,7 +122,7 @@ export default function AdminEventsPage() {
       <div className="container">
 
         <a
-          href="/admin"
+          href={homePath}
           style={{
             display: 'inline-block',
             marginBottom: '20px',
@@ -138,7 +141,7 @@ export default function AdminEventsPage() {
             BUR OAKS CAMPGROUND
           </p>
 <button
-  onClick={() => router.push('/admin')}
+  onClick={() => router.push(homePath)}
   style={{
     marginBottom: '20px',
     background: '#6b7280',

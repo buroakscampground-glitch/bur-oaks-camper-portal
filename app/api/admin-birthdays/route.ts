@@ -4,14 +4,11 @@ import { centralDate, sendCamperCelebration, type CelebrationProfile } from '../
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { canManageCommunity } from '../../../lib/staff-roles'
 
 export const runtime = 'nodejs'
 
 type BirthdayProfile = Exclude<CelebrationProfile, 'household'>
-
-function isAdmin(context: NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>) {
-  return String(context.camper.role || '').trim().toLowerCase() === 'admin'
-}
 
 function profileName(camper: any, profile: BirthdayProfile) {
   if (profile === 'secondary') {
@@ -124,7 +121,7 @@ async function loadBirthdayOffice(context: NonNullable<Awaited<ReturnType<typeof
 
 export async function GET(request: Request) {
   const context = await getAuthenticatedContext(request)
-  if (!context || !isAdmin(context)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  if (!context || !canManageCommunity(context.camper.role)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
 
   try {
     return NextResponse.json({ success: true, ...(await loadBirthdayOffice(context)) })
@@ -139,7 +136,7 @@ export async function POST(request: Request) {
   if (!rateLimit.allowed) return NextResponse.json({ error: 'Too many greeting requests. Please wait and try again.' }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } })
 
   const context = await getAuthenticatedContext(request)
-  if (!context || !isAdmin(context)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  if (!context || !canManageCommunity(context.camper.role)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
   const camperId = String(body.camperId || '')

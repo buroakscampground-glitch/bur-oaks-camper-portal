@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { portalDestinationForRole } from '../../../lib/staff-roles'
 
 export const runtime = 'nodejs'
 
@@ -14,14 +15,7 @@ export async function GET(request: Request) {
   }
 
   const role = String(context.camper.role || 'camper').toLowerCase()
-  const destination =
-    role === 'admin'
-      ? '/admin'
-      : role === 'maintenance'
-        ? '/maintenance/dashboard'
-        : role === 'camper'
-          ? '/portal'
-          : ''
+  const destination = portalDestinationForRole(role)
 
   if (!destination) {
     return NextResponse.json(

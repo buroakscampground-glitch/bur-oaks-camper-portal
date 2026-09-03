@@ -54,7 +54,16 @@ export default function RoleGuard({
         }
 
         if (response.ok && role) {
-          window.location.replace(role === 'camper' ? '/portal' : '/login')
+          const destination = role === 'admin'
+            ? '/admin'
+            : role === 'event_coordinator'
+              ? '/community'
+              : role === 'maintenance'
+                ? '/maintenance/dashboard'
+                : role === 'camper'
+                  ? '/portal'
+                  : '/login'
+          window.location.replace(destination)
           return
         }
 

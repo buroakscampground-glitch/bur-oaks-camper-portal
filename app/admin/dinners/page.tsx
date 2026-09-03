@@ -16,14 +16,11 @@ export default function AdminDinnersPage() {
   }, [])
 
   async function loadSignups() {
-    const { data, error } = await supabase
-      .from('saturday_dinner_signups')
-      .select('*')
-      .order('dinner_date', { ascending: true })
-      .order('created_at', { ascending: false })
-
-    if (error) setMessage(error.message)
-    setSignups(data || [])
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/community-dinners', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) setMessage(result.error || 'Unable to load dinner responses.')
+    setSignups(result.signups || [])
   }
 
   const nextDinner = useMemo(() => {

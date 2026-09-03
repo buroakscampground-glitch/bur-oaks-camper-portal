@@ -57,13 +57,16 @@ export default function AdminAnnouncementsPage() {
     messageRef.current.style.height = `${Math.max(300, messageRef.current.scrollHeight)}px`
   }, [message])
 
-  async function loadAnnouncements() {
-    const { data } = await supabase
-      .from('announcements')
-      .select('*')
-      .order('created_at', { ascending: false })
+  async function authHeaders(): Promise<Record<string, string>> {
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
+  }
 
-    setAnnouncements(data || [])
+  async function loadAnnouncements() {
+    const response = await fetch('/api/announcements', { headers: await authHeaders() })
+    const result = await response.json().catch(() => ({}))
+    if (response.ok) setAnnouncements(result.announcements || [])
+    else setStatus(result.error || 'Unable to load announcements.')
   }
 
   async function addAnnouncement() {
@@ -79,12 +82,11 @@ export default function AdminAnnouncementsPage() {
     setPosting(true)
     setStatus('Posting update…')
     requestIdRef.current ||= crypto.randomUUID()
-    const { data: { session } } = await supabase.auth.getSession()
     const response = await fetch('/api/announcements', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session?.access_token || ''}`,
+        ...(await authHeaders()),
       },
       body: JSON.stringify({ title, message, isUrgent, sendText, requestId: requestIdRef.current }),
     })
@@ -122,12 +124,28 @@ export default function AdminAnnouncementsPage() {
     const ok = confirm('Move this announcement off the live camper board and into the archive?')
     if (!ok) return
 
-    await supabase.from('announcements').update({ is_active: false }).eq('id', id)
+    const response = await fetch('/api/announcements', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      body: JSON.stringify({ id, isActive: false }),
+    })
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}))
+      setStatus(result.error || 'Unable to archive this announcement.')
+    }
     loadAnnouncements()
   }
 
   async function restoreAnnouncement(id: string) {
-    await supabase.from('announcements').update({ is_active: true }).eq('id', id)
+    const response = await fetch('/api/announcements', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+      body: JSON.stringify({ id, isActive: true }),
+    })
+    if (!response.ok) {
+      const result = await response.json().catch(() => ({}))
+      setStatus(result.error || 'Unable to restore this announcement.')
+    }
     loadAnnouncements()
   }
 
