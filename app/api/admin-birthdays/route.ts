@@ -93,6 +93,7 @@ async function loadBirthdayOffice(context: NonNullable<Awaited<ReturnType<typeof
     const birthdayDeliveries = deliveryMap.get(deliveryKey(birthday.camperId, birthday.profile, birthday.eventYear)) || []
     const sentChannels = birthdayDeliveries.filter((delivery) => delivery.status === 'sent').map((delivery) => delivery.channel)
     const failedChannels = birthdayDeliveries.filter((delivery) => delivery.status === 'failed').map((delivery) => delivery.channel)
+    const portalPosted = sentChannels.includes('portal')
     return {
       ...birthday,
       sentChannels,
@@ -103,8 +104,9 @@ async function loadBirthdayOffice(context: NonNullable<Awaited<ReturnType<typeof
         .sort()
         .at(-1) || null,
       celebrated: sentChannels.length > 0,
-      needsGreeting: birthday.offsetDays <= 0 && sentChannels.length === 0,
-      canSend: birthday.offsetDays <= 0 && birthday.greetingOptIn,
+      portalPosted,
+      needsGreeting: birthday.offsetDays <= 0 && !portalPosted,
+      canSend: birthday.offsetDays <= 0,
     }
   }).sort((a: any, b: any) => a.offsetDays - b.offsetDays || a.name.localeCompare(b.name))
 
@@ -156,10 +158,6 @@ export async function POST(request: Request) {
 
     if (error) throw error
     if (!camper || !isOperationalCamper(camper)) return NextResponse.json({ error: 'Camper not found.' }, { status: 404 })
-    if (!camper.celebration_messages_opt_in) {
-      return NextResponse.json({ error: 'This camper has not opted into private birthday greetings. Please wish them well in person.' }, { status: 400 })
-    }
-
     const today = centralDate()
     const birthdayValue = profile === 'secondary' ? camper.second_profile_birthday : camper.birthday
     const occurrence = birthdayOccurrence(birthdayValue, today, { pastDays: 30, futureDays: 0 })

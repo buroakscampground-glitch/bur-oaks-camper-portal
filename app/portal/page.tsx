@@ -179,6 +179,14 @@ type BirthdayBoard = {
   setupRequired: boolean
 }
 
+type OfficeBirthdayGreeting = {
+  id: string
+  profile: 'primary' | 'secondary'
+  message: string
+  sentAt: string
+  celebrationYear: number
+}
+
 const emptyBirthdayBoard: BirthdayBoard = {
   monthName: new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date()),
   birthdays: [],
@@ -205,6 +213,7 @@ export default function CamperPortalPage() {
   const [showPumpConfirm, setShowPumpConfirm] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [birthdayBoard, setBirthdayBoard] = useState<BirthdayBoard>(emptyBirthdayBoard)
+  const [officeBirthdayGreetings, setOfficeBirthdayGreetings] = useState<OfficeBirthdayGreeting[]>([])
   const [birthdaySending, setBirthdaySending] = useState('')
   const [birthdayMessage, setBirthdayMessage] = useState('')
   const [siteCareNotices, setSiteCareNotices] = useState<any[]>([])
@@ -365,6 +374,7 @@ export default function CamperPortalPage() {
             birthdays: birthdayResult.birthdays || [],
             setupRequired: Boolean(birthdayResult.setupRequired),
           })
+          setOfficeBirthdayGreetings(birthdayResult.officeGreetings || [])
         }
       } catch (error) {
         console.error('Unable to load camper portal:', error)
@@ -1038,6 +1048,20 @@ export default function CamperPortalPage() {
             </span>
           </a>
         )}
+
+        {officeBirthdayGreetings.map((greeting) => (
+          <section className="portal-office-birthday" aria-labelledby={`portal-office-birthday-${greeting.id}`} key={greeting.id}>
+            <div className="portal-office-birthday-confetti" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
+            <span className="portal-office-birthday-icon" aria-hidden="true"><CakeSlice size={30} /></span>
+            <div>
+              <small>A BIRTHDAY SURPRISE FROM THE OFFICE</small>
+              <h2 id={`portal-office-birthday-${greeting.id}`}>Happy Birthday!</h2>
+              <p>{greeting.message}</p>
+              <strong>With warm wishes from Anthony, Dawn, and the Bur Oaks team.</strong>
+            </div>
+            <PartyPopper size={38} aria-hidden="true" />
+          </section>
+        ))}
 
         {(documentsNeedingSignature.length > 0 || dueNowInvoices.length > 0) && (
           <section className="portal-critical-action" aria-labelledby="portal-critical-action-title">

@@ -143,12 +143,44 @@ async function getBirthdayBoard(
   }
 }
 
+async function getOfficeGreetings(
+  context: NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>
+) {
+  const cutoff = new Date(Date.now() - 8 * 24 * 60 * 60_000).toISOString()
+  const { data, error } = await context.admin
+    .from('camper_celebration_deliveries')
+    .select('id,recipient_profile,message,sent_at,celebration_year')
+    .eq('camper_id', context.camper.id)
+    .eq('celebration_type', 'birthday')
+    .eq('channel', 'portal')
+    .eq('status', 'sent')
+    .gte('sent_at', cutoff)
+    .order('sent_at', { ascending: false })
+
+  if (error) {
+    if (/camper_celebration_deliveries|schema cache|relation|channel/i.test(error.message)) return []
+    throw error
+  }
+
+  return (data || []).map((greeting: any) => ({
+    id: String(greeting.id),
+    profile: greeting.recipient_profile,
+    message: String(greeting.message || ''),
+    sentAt: greeting.sent_at,
+    celebrationYear: greeting.celebration_year,
+  }))
+}
+
 export async function GET(request: Request) {
   const context = await getAuthenticatedContext(request)
   if (!context) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
 
   try {
-    return NextResponse.json({ success: true, ...(await getBirthdayBoard(context)) })
+    const [board, officeGreetings] = await Promise.all([
+      getBirthdayBoard(context),
+      getOfficeGreetings(context),
+    ])
+    return NextResponse.json({ success: true, ...board, officeGreetings })
   } catch (error) {
     console.error('Birthday board load failed:', error)
     return NextResponse.json({ error: 'Unable to load campground birthdays.' }, { status: 500 })

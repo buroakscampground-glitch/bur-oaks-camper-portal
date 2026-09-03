@@ -40,8 +40,7 @@ export async function GET(request: Request) {
     admin
       .from('campers')
       .select('id,lot_number,first_name,last_name,email,secondary_email,phone,alternate_phone,second_profile_first_name,second_profile_last_name,second_profile_phone,birthday,second_profile_birthday,camper_since_date,sms_opt_in,celebration_messages_opt_in,active,role')
-      .eq('active', true)
-      .eq('celebration_messages_opt_in', true),
+      .eq('active', true),
     admin
       .from('season_renewals')
       .select('camper_id,status')
@@ -60,6 +59,7 @@ export async function GET(request: Request) {
     events: 0,
     emailSent: 0,
     smsSent: 0,
+    portalPosted: 0,
     failed: 0,
     results: [] as Array<Record<string, unknown>>,
   }
@@ -88,6 +88,7 @@ export async function GET(request: Request) {
       summary.events += 1
       if (delivery.email === 'sent') summary.emailSent += 1
       if (delivery.sms === 'sent') summary.smsSent += 1
+      if (delivery.portal === 'sent') summary.portalPosted += 1
       if (delivery.email === 'failed' || delivery.sms === 'failed') summary.failed += 1
       summary.results.push({
         camperId: camper.id,
@@ -97,6 +98,7 @@ export async function GET(request: Request) {
         years: event.years || null,
         email: delivery.email,
         sms: delivery.sms,
+        portal: delivery.portal,
         errors: delivery.errors,
       })
     }

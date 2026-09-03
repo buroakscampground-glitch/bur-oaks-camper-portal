@@ -20,6 +20,7 @@ type Birthday = {
   failedChannels: string[]
   lastSentAt: string | null
   celebrated: boolean
+  portalPosted: boolean
   needsGreeting: boolean
   canSend: boolean
 }
@@ -43,7 +44,10 @@ function formatBirthday(value: string) {
 }
 
 function BirthdayCard({ birthday, sending, onSend }: { birthday: Birthday; sending: boolean; onSend: (birthday: Birthday) => void }) {
-  const channelLabel = birthday.sentChannels.map((channel) => channel === 'sms' ? 'text' : channel).join(' + ')
+  const channelLabel = birthday.sentChannels
+    .filter((channel) => channel !== 'portal')
+    .map((channel) => channel === 'sms' ? 'text' : channel)
+    .join(' + ')
 
   return (
     <article className={`admin-birthday-card ${birthday.window} ${birthday.needsGreeting ? 'needs-greeting' : ''}`}>
@@ -55,8 +59,10 @@ function BirthdayCard({ birthday, sending, onSend }: { birthday: Birthday; sendi
         <span>{birthday.timingLabel}</span>
         <h3>{birthday.name}</h3>
         <p>Lot {birthday.lotNumber || '—'} · {formatBirthday(birthday.birthdayDate)}</p>
-        {birthday.celebrated ? (
-          <em className="celebrated"><CheckCircle2 size={14} /> Office greeting sent by {channelLabel}</em>
+        {birthday.portalPosted ? (
+          <em className="celebrated"><CheckCircle2 size={14} /> Portal surprise posted{channelLabel ? ` · digital greeting by ${channelLabel}` : ''}</em>
+        ) : birthday.celebrated ? (
+          <em className="celebrated"><CheckCircle2 size={14} /> Digital greeting sent by {channelLabel} · portal surprise still available</em>
         ) : birthday.failedChannels.length ? (
           <em className="failed"><Clock3 size={14} /> Delivery needs another try</em>
         ) : birthday.greetingOptIn ? (
@@ -67,14 +73,14 @@ function BirthdayCard({ birthday, sending, onSend }: { birthday: Birthday; sendi
       </div>
       <div className="admin-birthday-actions">
         <a href={`/admin/campers/${birthday.camperId}`}>Camper record <ArrowRight size={14} /></a>
-        {birthday.celebrated ? (
+        {birthday.portalPosted ? (
           <span><CheckCircle2 size={16} /> Celebrated</span>
         ) : birthday.canSend ? (
           <button type="button" disabled={sending} onClick={() => onSend(birthday)}>
-            <Send size={16} /> {sending ? 'Sending…' : birthday.failedChannels.length ? 'Retry greeting' : 'Send birthday greeting'}
+            <Send size={16} /> {sending ? 'Sending…' : birthday.celebrated || !birthday.greetingOptIn ? 'Post portal surprise' : birthday.failedChannels.length ? 'Retry greeting' : 'Send birthday greeting'}
           </button>
-        ) : birthday.window === 'upcoming' && birthday.greetingOptIn ? (
-          <span className="scheduled"><CalendarDays size={16} /> Scheduled for birthday</span>
+        ) : birthday.window === 'upcoming' ? (
+          <span className="scheduled"><CalendarDays size={16} /> {birthday.greetingOptIn ? 'Greeting scheduled' : 'Portal surprise scheduled'}</span>
         ) : (
           <span className="in-person"><PartyPopper size={16} /> Wish them well in person</span>
         )}
@@ -106,7 +112,7 @@ export default function AdminBirthdaysPage() {
   }
 
   async function sendGreeting(birthday: Birthday) {
-    if (!confirm(`Send the standard Bur Oaks birthday email/text to ${birthday.name}? The system will use only the channels they opted into and will not send the same greeting twice.`)) return
+    if (!confirm(`${birthday.greetingOptIn ? 'Send the standard Bur Oaks birthday greeting' : 'Post a private birthday surprise in the portal'} for ${birthday.name}? The system will use only approved channels and will not post or send the same greeting twice.`)) return
     const key = `${birthday.camperId}:${birthday.profile}`
     setSending(key)
     setMessage(`Sending birthday cheer to ${birthday.name}…`)
@@ -120,7 +126,7 @@ export default function AdminBirthdaysPage() {
       setMessage(result.error || 'Unable to send the birthday greeting.')
     } else {
       const delivery = result.delivery || {}
-      const sent = [delivery.email === 'sent' ? 'email' : '', delivery.sms === 'sent' ? 'text' : ''].filter(Boolean)
+      const sent = [delivery.portal === 'sent' ? 'portal' : '', delivery.email === 'sent' ? 'email' : '', delivery.sms === 'sent' ? 'text' : ''].filter(Boolean)
       setMessage(sent.length
         ? `🎉 Birthday greeting sent to ${birthday.name} by ${sent.join(' and ')}.`
         : `${birthday.name} had already received the available greeting, or no deliverable opted-in channel is available.`)

@@ -229,7 +229,7 @@ async function sendEmail(payload: EmailPayload) {
   return { sent: true, provider: status.provider, providerMessageId: result?.id || null }
 }
 
-async function reserveDelivery(client: any, camperId: string, event: CelebrationEvent, year: number, channel: 'email' | 'sms', recipient: string, subject: string | null, message: string) {
+async function reserveDelivery(client: any, camperId: string, event: CelebrationEvent, year: number, channel: 'email' | 'sms' | 'portal', recipient: string, subject: string | null, message: string) {
   const key = {
     camper_id: camperId,
     celebration_type: event.type,
@@ -285,7 +285,19 @@ async function finalizeDelivery(client: any, id: string, result: { sent: boolean
 
 export async function sendCamperCelebration({ client, camper, event, today }: SendCelebrationOptions) {
   const copy = messageCopy(event)
-  const summary = { email: 'skipped', sms: 'skipped', errors: [] as string[] }
+  const summary = { portal: 'skipped', email: 'skipped', sms: 'skipped', errors: [] as string[] }
+  const portalReservation = await reserveDelivery(client, camper.id, event, today.year, 'portal', String(camper.id), null, copy.text)
+  if (portalReservation.reserved && portalReservation.id) {
+    await finalizeDelivery(client, portalReservation.id, { sent: true, provider: 'portal' })
+    summary.portal = 'sent'
+  } else if (portalReservation.error) {
+    summary.errors.push(`Portal greeting: ${portalReservation.error}`)
+  }
+
+  // Email and SMS are optional personal messages. The private card inside the
+  // camper's own portal above does not depend on this separate consent.
+  if (!camper.celebration_messages_opt_in) return summary
+
   const emailStatus = celebrationEmailStatus()
   const recipients = emailRecipients(camper, event.profile)
 
