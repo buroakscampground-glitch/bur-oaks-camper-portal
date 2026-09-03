@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Bell, Check, CheckCheck, Clock3, Inbox, Megaphone, MessageCircle, Send, ShieldCheck } from 'lucide-react'
+import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 
 function formatUpdateDate(value?: string) {
@@ -68,7 +69,7 @@ export default function CamperUpdatesPage() {
 
     const messageResult = await messageResponse.json().catch(() => ({}))
     if (announcementResult.error) setNotice(announcementResult.error.message)
-    else setAnnouncements(announcementResult.data || [])
+    else setAnnouncements((announcementResult.data || []).filter((item) => !isAnnouncementExpired(item)))
     if (messageResponse.ok) setMessages((messageResult.messages || []).slice(-3))
     setLoading(false)
   }

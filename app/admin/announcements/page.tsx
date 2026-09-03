@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Archive, BellRing, Megaphone, RotateCcw, Send, WandSparkles } from 'lucide-react'
+import { AlertTriangle, Archive, BellRing, Clock3, Megaphone, RotateCcw, Send, WandSparkles } from 'lucide-react'
+import { announcementRemoveOnDate, formatAnnouncementRemoveDate, isAnnouncementExpired } from '../../../lib/announcement-expiration'
 import { supabase } from '../../../lib/supabase'
 
 const quickAnnouncements = [
@@ -42,6 +43,9 @@ export default function AdminAnnouncementsPage() {
   const postingRef = useRef(false)
   const requestIdRef = useRef('')
   const messageRef = useRef<HTMLTextAreaElement>(null)
+  const draftRemoveOn = announcementRemoveOnDate({ title, message, created_at: new Date().toISOString() })
+  const currentAnnouncements = announcements.filter((item) => item.is_active !== false && !isAnnouncementExpired(item))
+  const pastAnnouncements = announcements.filter((item) => item.is_active === false || isAnnouncementExpired(item))
 
   useEffect(() => {
     loadAnnouncements()
@@ -175,6 +179,14 @@ export default function AdminAnnouncementsPage() {
             rows={12}
           />
 
+          <div className={`admin-expiration-preview ${draftRemoveOn ? 'scheduled' : ''}`}>
+            <Clock3 size={17} />
+            <span>
+              <strong>{draftRemoveOn ? `Removes automatically ${formatAnnouncementRemoveDate(draftRemoveOn)}` : 'Stays posted until you archive it'}</strong>
+              <small>Dated schedules and short-lived notices come down after their final day. Regular information stays posted.</small>
+            </span>
+          </div>
+
           <label className="admin-urgent-toggle">
             <input type="checkbox" checked={isUrgent} onChange={(event) => { requestIdRef.current = ''; setIsUrgent(event.target.checked) }} />
             <span>
@@ -210,15 +222,16 @@ export default function AdminAnnouncementsPage() {
           <h2>Current announcements</h2>
         </div>
 
-        {announcements.filter((item) => item.is_active !== false).length === 0 && <p className="admin-announcement-empty">No live announcements yet.</p>}
+        {currentAnnouncements.length === 0 && <p className="admin-announcement-empty">No live announcements yet.</p>}
 
         <div className="admin-announcement-list">
-          {announcements.filter((item) => item.is_active !== false).map((item) => (
+          {currentAnnouncements.map((item) => (
             <article className={item.is_urgent ? 'urgent' : ''} key={item.id}>
               <div>
                 <small>{item.is_urgent ? <><AlertTriangle size={13} /> Urgent</> : 'Regular update'}</small>
                 <h3>{item.title}</h3>
                 <p>{item.message}</p>
+                {announcementRemoveOnDate(item) && <em className="admin-announcement-expiry"><Clock3 size={13} /> Removes {formatAnnouncementRemoveDate(announcementRemoveOnDate(item))}</em>}
               </div>
               <button onClick={() => archiveAnnouncement(item.id)}><Archive size={16} /> Archive</button>
             </article>
@@ -226,17 +239,17 @@ export default function AdminAnnouncementsPage() {
         </div>
       </section>
 
-      {announcements.some((item) => item.is_active === false) && (
+      {pastAnnouncements.length > 0 && (
         <section className="admin-announcement-card list archived">
           <div className="admin-announcement-heading">
             <small>ARCHIVE</small>
             <h2>Past announcements</h2>
           </div>
           <div className="admin-announcement-list">
-            {announcements.filter((item) => item.is_active === false).map((item) => (
+            {pastAnnouncements.map((item) => (
               <article key={item.id}>
-                <div><small>Archived update</small><h3>{item.title}</h3><p>{item.message}</p></div>
-                <button onClick={() => restoreAnnouncement(item.id)}><RotateCcw size={16} /> Restore</button>
+                <div><small>{isAnnouncementExpired(item) ? 'Expired automatically' : 'Archived update'}</small><h3>{item.title}</h3><p>{item.message}</p></div>
+                {!isAnnouncementExpired(item) && <button onClick={() => restoreAnnouncement(item.id)}><RotateCcw size={16} /> Restore</button>}
               </article>
             ))}
           </div>

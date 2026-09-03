@@ -39,6 +39,7 @@ import {
   Zap,
 } from 'lucide-react'
 import AdminWeather, { AdminWeatherNow } from '../../components/AdminWeather'
+import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
@@ -209,7 +210,7 @@ export default function AdminPage() {
       supabase.from('campers').select('id').eq('active', false),
       supabase.from('invoices').select('*'),
       supabase.from('events').select('id,event_date'),
-      supabase.from('announcements').select('id').eq('is_active', true),
+      supabase.from('announcements').select('id,title,message,created_at').eq('is_active', true),
       supabase.from('event_rsvps').select('id,event_id'),
       supabase.from('electric_readings').select('id,invoice_id,reading_date'),
       supabase.from('maintenance_tickets').select('*'),
@@ -381,7 +382,7 @@ export default function AdminPage() {
       archivedCampers: archivedResult.data?.length || 0,
       balance: totalInvoiceBalance(amountDueInvoices),
       events: eventsResult.data?.length || 0,
-      announcements: announcementsResult.data?.length || 0,
+      announcements: (announcementsResult.data || []).filter((item) => !isAnnouncementExpired(item)).length,
       rsvps: rsvpsResult.data?.length || 0,
       electric: electricResult.data?.length || 0,
       electricCycles,

@@ -34,6 +34,7 @@ import {
   X,
   Zap,
 } from 'lucide-react'
+import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
 import PortalWeather, { PortalWeatherMini } from '../../components/PortalWeather'
@@ -343,7 +344,7 @@ export default function CamperPortalPage() {
         setLatestElectric(electricResult.data || null)
         setDocuments(documentResult?.documents || [])
         setEvents(eventResult.data || [])
-        setAnnouncements(announcementResult.data || [])
+        setAnnouncements((announcementResult.data || []).filter((item) => !isAnnouncementExpired(item)))
         let dismissedAlertIds = new Set<string>()
         try {
           const saved = window.localStorage.getItem(`bur-oaks-dismissed-alerts-${camperData.id}`)
