@@ -79,3 +79,11 @@ export function singleSegmentSms({
   const body = truncateGsmSms(cleanMessage, Math.max(0, SMS_SINGLE_SEGMENT_LIMIT - reservedUnits))
   return `${prefix}${body}${link}${optOut}`.trim()
 }
+
+export function campgroundUpdateSms(title: unknown, url: string) {
+  return singleSegmentSms({
+    message: `CAMPGROUND UPDATE - ${String(title || 'New information').trim()}`,
+    url,
+    action: 'Details',
+  })
+}

@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  campgroundUpdateSms,
   gsm7Units,
   normalizeGsmSms,
+  SMS_SINGLE_SEGMENT_LIMIT,
   singleSegmentSms,
 } from '../lib/sms-segments.ts'
 
@@ -30,4 +32,16 @@ test('Unicode punctuation and emoji cannot silently multiply SMS segments', () =
   assert.ok(gsm7Units(message) <= 160)
   assert.match(message, /Reminder - "please sign"/)
   assert.match(message, /Reply STOP to opt out\.$/)
+})
+
+test('campground bulletin alerts are relevant one-segment links, not solicitation copy', () => {
+  const text = campgroundUpdateSms(
+    'Labor Day weekend schedule and clubhouse activities',
+    'https://www.buroakscampground.com/updates'
+  )
+
+  assert.ok(gsm7Units(text) <= SMS_SINGLE_SEGMENT_LIMIT)
+  assert.match(text, /^Bur Oaks account: CAMPGROUND UPDATE - Labor Day weekend schedule/)
+  assert.match(text, /Details: https:\/\/www\.buroakscampground\.com\/updates/)
+  assert.match(text, /Reply STOP to opt out\.$/)
 })

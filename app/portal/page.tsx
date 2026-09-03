@@ -101,6 +101,13 @@ const serviceLinks = [
     accent: 'slate',
   },
   {
+    href: '/updates',
+    title: 'Updates & Notices',
+    description: 'Read full campground announcements and contact the office.',
+    icon: Megaphone,
+    accent: 'orange',
+  },
+  {
     href: '/messages',
     title: 'Chat with the Office',
     description: 'Chat privately with Bur Oaks and see your replies.',
@@ -750,7 +757,7 @@ export default function CamperPortalPage() {
       label: 'Office notes',
       value: announcements.length ? announcements.length : 'Clear',
       detail: urgentAnnouncement ? 'Urgent notice posted' : latestAnnouncement?.title || 'No new announcements',
-      href: '/portal',
+      href: '/updates',
       icon: Megaphone,
     },
     {
@@ -792,7 +799,7 @@ export default function CamperPortalPage() {
       : []),
     ...(urgentAnnouncement
       ? [{
-          href: '/portal',
+          href: '/updates',
           label: 'Urgent notice',
           title: urgentAnnouncement.title,
           tone: 'urgent',
@@ -1737,6 +1744,7 @@ export default function CamperPortalPage() {
                 ))}
               </div>
             )}
+            <a className="portal-announcements-center-link" href="/updates">Open all updates and contact the office <ArrowRight size={15} /></a>
           </aside>
         </div>
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertTriangle, BellRing, Megaphone, Send, Trash2, WandSparkles } from 'lucide-react'
+import { AlertTriangle, Archive, BellRing, Megaphone, RotateCcw, Send, WandSparkles } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 const quickAnnouncements = [
@@ -36,6 +36,8 @@ export default function AdminAnnouncementsPage() {
   const [title, setTitle] = useState('')
   const [message, setMessage] = useState('')
   const [isUrgent, setIsUrgent] = useState(false)
+  const [sendText, setSendText] = useState(false)
+  const [posting, setPosting] = useState(false)
   const [status, setStatus] = useState('')
 
   useEffect(() => {
@@ -57,41 +59,48 @@ export default function AdminAnnouncementsPage() {
       return
     }
 
-    const announcementRow = {
-      title,
-      message,
-      is_active: true,
-      is_urgent: isUrgent,
-    }
+    if (sendText && !confirm('Post this update and text the short link to every opted-in camper?')) return
 
-    let { error } = await supabase.from('announcements').insert(announcementRow)
+    setPosting(true)
+    setStatus('Posting update…')
+    const { data: { session } } = await supabase.auth.getSession()
+    const response = await fetch('/api/announcements', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session?.access_token || ''}`,
+      },
+      body: JSON.stringify({ title, message, isUrgent, sendText }),
+    })
+    const result = await response.json().catch(() => ({}))
 
-    if (error && /is_urgent/i.test(error.message)) {
-      const retry = await supabase.from('announcements').insert({
-        title,
-        message,
-        is_active: true,
-      })
-      error = retry.error
-    }
-
-    if (error) {
-      setStatus(error.message)
+    if (!response.ok) {
+      setStatus(result.error || 'Unable to post this announcement.')
+      setPosting(false)
       return
     }
 
     setTitle('')
     setMessage('')
     setIsUrgent(false)
-    setStatus(isUrgent ? 'Urgent announcement posted!' : 'Announcement posted!')
+    setSendText(false)
+    setStatus(sendText
+      ? `Update posted. Short texts: ${result.smsSentCount || 0} sent, ${result.smsSkippedCount || 0} skipped, ${result.smsFailedCount || 0} failed.`
+      : 'Update posted to the communication center without sending a text.')
+    setPosting(false)
     loadAnnouncements()
   }
 
-  async function deleteAnnouncement(id: string) {
-    const ok = confirm('Delete this announcement?')
+  async function archiveAnnouncement(id: string) {
+    const ok = confirm('Move this announcement off the live camper board and into the archive?')
     if (!ok) return
 
-    await supabase.from('announcements').delete().eq('id', id)
+    await supabase.from('announcements').update({ is_active: false }).eq('id', id)
+    loadAnnouncements()
+  }
+
+  async function restoreAnnouncement(id: string) {
+    await supabase.from('announcements').update({ is_active: true }).eq('id', id)
     loadAnnouncements()
   }
 
@@ -148,16 +157,24 @@ export default function AdminAnnouncementsPage() {
             </span>
           </label>
 
-          <button onClick={addAnnouncement}><Send size={17} /> Post Announcement</button>
+          <label className="admin-text-toggle">
+            <input type="checkbox" checked={sendText} onChange={(event) => setSendText(event.target.checked)} />
+            <span>
+              <strong>Send a short text with the link</strong>
+              <small>Texts only the title and a link to the complete update. It stays within one standard SMS segment and only goes to opted-in camper numbers.</small>
+            </span>
+          </label>
+
+          <button onClick={addAnnouncement} disabled={posting}><Send size={17} /> {posting ? 'Posting…' : sendText ? 'Post & Send Short Text' : 'Post Update'}</button>
 
           {status && <p>{status}</p>}
         </article>
 
         <article className="admin-announcement-card guidance">
           <span><BellRing size={24} /></span>
-          <h2>Need everyone quickly?</h2>
-          <p>Urgent announcements show in the portal. For time-sensitive updates like storms, breakfast ready, gate issues, or water shutoffs, also send a text alert to opted-in campers.</p>
-          <a href="/admin/texts">Open text alerts</a>
+          <h2>Write it once.</h2>
+          <p>Put the full schedule or notice here. If you select the text option, campers receive only a short, clearly branded link to the Updates Center—not a long multi-part solicitation-style text.</p>
+          <a href="/updates">Preview camper Updates Center</a>
         </article>
       </section>
 
@@ -167,21 +184,38 @@ export default function AdminAnnouncementsPage() {
           <h2>Current announcements</h2>
         </div>
 
-        {announcements.length === 0 && <p className="admin-announcement-empty">No announcements yet.</p>}
+        {announcements.filter((item) => item.is_active !== false).length === 0 && <p className="admin-announcement-empty">No live announcements yet.</p>}
 
         <div className="admin-announcement-list">
-          {announcements.map((item) => (
+          {announcements.filter((item) => item.is_active !== false).map((item) => (
             <article className={item.is_urgent ? 'urgent' : ''} key={item.id}>
               <div>
                 <small>{item.is_urgent ? <><AlertTriangle size={13} /> Urgent</> : 'Regular update'}</small>
                 <h3>{item.title}</h3>
                 <p>{item.message}</p>
               </div>
-              <button onClick={() => deleteAnnouncement(item.id)}><Trash2 size={16} /> Delete</button>
+              <button onClick={() => archiveAnnouncement(item.id)}><Archive size={16} /> Archive</button>
             </article>
           ))}
         </div>
       </section>
+
+      {announcements.some((item) => item.is_active === false) && (
+        <section className="admin-announcement-card list archived">
+          <div className="admin-announcement-heading">
+            <small>ARCHIVE</small>
+            <h2>Past announcements</h2>
+          </div>
+          <div className="admin-announcement-list">
+            {announcements.filter((item) => item.is_active === false).map((item) => (
+              <article key={item.id}>
+                <div><small>Archived update</small><h3>{item.title}</h3><p>{item.message}</p></div>
+                <button onClick={() => restoreAnnouncement(item.id)}><RotateCcw size={16} /> Restore</button>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
     </main>
   )
 }
