@@ -420,6 +420,15 @@ export default function AdminInvoicesPage() {
             </div>
           </div>
 
+          <div className="admin-manual-payment-guide">
+            <CheckCircle2 size={22} />
+            <div>
+              <strong>Received a check, cash, or money order?</strong>
+              <span>Find the open invoice below and tap <b>Record payment</b>.</span>
+            </div>
+            <button type="button" onClick={() => setFilter('open')}>Show open invoices</button>
+          </div>
+
           <label className="admin-invoice-search">
             <Search size={18} />
             <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search camper, lot, invoice, or type…" />
@@ -465,7 +474,9 @@ export default function AdminInvoicesPage() {
                       )}
                     </span>
                     <span className="admin-invoice-record-actions">
-                      <a href={`/admin/invoices/${invoice.id}`}>View <ArrowRight size={14} /></a>
+                      <a href={`/admin/invoices/${invoice.id}${isPaid || isProcessing ? '' : '#record-office-payment'}`}>
+                        {isPaid || isProcessing ? 'View' : 'Record payment'} <ArrowRight size={14} />
+                      </a>
                       <button type="button" onClick={() => deleteInvoice(invoice)} disabled={isProcessing || deletingInvoiceId === invoice.id}>
                         <Trash2 size={14} /> {isProcessing ? 'Payment locked' : deletingInvoiceId === invoice.id ? 'Deleting…' : 'Delete'}
                       </button>

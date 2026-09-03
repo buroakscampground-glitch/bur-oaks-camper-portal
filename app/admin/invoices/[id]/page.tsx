@@ -53,6 +53,9 @@ export default function InvoiceDetailPage() {
   const [editItems, setEditItems] = useState<EditableInvoiceItem[]>([])
   const [finalPaymentPhone, setFinalPaymentPhone] = useState('')
   const [sendingFinalLink, setSendingFinalLink] = useState(false)
+  const [manualPaymentMethod, setManualPaymentMethod] = useState('Paper check')
+  const [manualPaymentDate, setManualPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [manualPaymentReference, setManualPaymentReference] = useState('')
 
   useEffect(() => {
     loadInvoice()
@@ -154,13 +157,22 @@ export default function InvoiceDetailPage() {
     router.push('/admin/invoices')
   }
 
-  async function markPaid() {
+  async function recordManualPayment() {
     if (invoice?.status === 'processing') {
       setMessage('Wait for Stripe to finish this payment before changing its status.')
       return
     }
 
-    if (!invoice || !confirm('Mark this invoice as paid?')) return
+    if (!invoice) return
+    if (!manualPaymentDate) {
+      setMessage('Choose the date the office received this payment.')
+      return
+    }
+
+    const confirmed = confirm(
+      `Record ${formatMoney(invoice.total_due)} as paid by ${manualPaymentMethod.toLowerCase()}?`
+    )
+    if (!confirmed) return
 
     setBusy(true)
     setMessage('')
@@ -169,9 +181,9 @@ export default function InvoiceDetailPage() {
       .from('invoices')
       .update({
         status: 'paid',
-        paid_at: new Date().toISOString(),
-        payment_method: 'Manual office payment',
-        payment_reference: 'Marked paid by admin',
+        paid_at: new Date(`${manualPaymentDate}T12:00:00`).toISOString(),
+        payment_method: manualPaymentMethod,
+        payment_reference: manualPaymentReference.trim() || 'Recorded manually by office',
       })
       .eq('id', invoice.id)
 
@@ -182,7 +194,7 @@ export default function InvoiceDetailPage() {
       return
     }
 
-    setMessage('Invoice marked paid.')
+    setMessage(`Payment recorded: ${formatMoney(invoice.total_due)} by ${manualPaymentMethod.toLowerCase()}.`)
     loadInvoice()
   }
 
@@ -380,8 +392,8 @@ export default function InvoiceDetailPage() {
               </button>
             )}
             {!isPaid && !isProcessing && !editing && (
-              <button type="button" onClick={markPaid} disabled={busy}>
-                <CheckCircle2 size={16} /> Mark paid
+              <button type="button" onClick={() => document.getElementById('record-office-payment')?.scrollIntoView({ behavior: 'smooth' })} disabled={busy}>
+                <CheckCircle2 size={16} /> Record office payment
               </button>
             )}
             <button type="button" onClick={() => printPageWithFlag('data-print-camper-invoice')} aria-label="Print this invoice">
@@ -409,6 +421,44 @@ export default function InvoiceDetailPage() {
             <strong>{formatDate(invoice.due_date)}</strong>
           </article>
         </div>
+
+        {!isPaid && !isProcessing && (
+          <section className="admin-manual-payment-card" id="record-office-payment">
+            <div className="admin-manual-payment-heading">
+              <span><CheckCircle2 size={21} /></span>
+              <div>
+                <small>CHECK · CASH · MONEY ORDER</small>
+                <h2>Record an office payment</h2>
+                <p>This closes this invoice as paid without charging the camper online.</p>
+              </div>
+            </div>
+            <div className="admin-manual-payment-fields">
+              <label>
+                <span>Payment method</span>
+                <select value={manualPaymentMethod} onChange={(event) => setManualPaymentMethod(event.target.value)}>
+                  <option>Paper check</option>
+                  <option>Cash</option>
+                  <option>Money order</option>
+                  <option>Other office payment</option>
+                </select>
+              </label>
+              <label>
+                <span>Date received</span>
+                <input type="date" value={manualPaymentDate} onChange={(event) => setManualPaymentDate(event.target.value)} />
+              </label>
+              <label>
+                <span>Check or reference number <em>optional</em></span>
+                <input value={manualPaymentReference} onChange={(event) => setManualPaymentReference(event.target.value)} placeholder="Example: Check 1942" />
+              </label>
+            </div>
+            <div className="admin-manual-payment-submit">
+              <span><small>Payment amount</small><strong>{formatMoney(invoice.total_due)}</strong></span>
+              <button type="button" onClick={recordManualPayment} disabled={busy}>
+                <CheckCircle2 size={17} /> {busy ? 'Recording…' : 'Record payment and close invoice'}
+              </button>
+            </div>
+          </section>
+        )}
 
         {editing && (
           <section className="admin-invoice-editor">
