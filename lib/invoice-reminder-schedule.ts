@@ -1,6 +1,8 @@
-export type InvoiceNoticeKind = 'new' | 'upcoming' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee'
+export type InvoiceNoticeKind = 'new' | 'upcoming' | 'due_3_days' | 'due_1_day' | 'due_today' | 'past_due' | 'late_fee_warning' | 'late_fee'
 
 export const FIRST_INVOICE_NOTICE_DAYS = 30
+export const LATE_FEE_WARNING_DAY = 5
+export const LATE_FEE_ASSESSMENT_DAY = 6
 
 export function todayInCentral() {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -37,7 +39,7 @@ export function shouldSendUpcomingInvoiceNotice(daysUntilDue: number, alreadySen
   return !alreadySent && daysUntilDue <= FIRST_INVOICE_NOTICE_DAYS && daysUntilDue > 3
 }
 
-export function scheduledInvoiceNoticeKind(daysUntilDue: number): Exclude<InvoiceNoticeKind, 'new' | 'late_fee'> | null {
+export function scheduledInvoiceNoticeKind(daysUntilDue: number): Exclude<InvoiceNoticeKind, 'new' | 'late_fee_warning' | 'late_fee'> | null {
   if (daysUntilDue > FIRST_INVOICE_NOTICE_DAYS) return null
   if (daysUntilDue > 3) return 'upcoming'
   if (daysUntilDue > 1) return 'due_3_days'
@@ -52,4 +54,8 @@ export function pastDueReminderMilestone(daysPastDue: number) {
   if (daysPastDue < 14) return 7
   if (daysPastDue < 30) return 14
   return Math.floor(daysPastDue / 30) * 30
+}
+
+export function shouldAssessLateFee(daysPastDue: number, warningCompletedBeforeToday: boolean) {
+  return daysPastDue >= LATE_FEE_ASSESSMENT_DAY && warningCompletedBeforeToday
 }

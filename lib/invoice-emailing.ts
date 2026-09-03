@@ -282,6 +282,16 @@ function emailCopy(invoice: any, kind: InvoiceEmailKind) {
     }
   }
 
+  if (kind === 'late_fee_warning') {
+    return {
+      subject: `Final late-fee warning for Bur Oaks invoice ${invoiceNumber}`,
+      heading: 'This is your final late-fee warning.',
+      intro: `Invoice ${invoiceNumber} is past due. Please pay today to avoid a late fee tomorrow.`,
+      statusLine: `Past due amount: ${total}`,
+      reminderType: 'Final Late Fee Warning',
+    }
+  }
+
   if (kind === 'late_fee') {
     return {
       subject: `Late fee added to Bur Oaks invoice ${invoiceNumber}`,

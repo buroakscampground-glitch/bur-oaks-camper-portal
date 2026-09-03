@@ -2,7 +2,13 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { sendInvoiceEmail } from '../../../../lib/invoice-emailing'
 import { daysUntilDate, sendInvoiceText, todayInCentral } from '../../../../lib/invoice-texting'
-import { pastDueReminderMilestone, scheduledInvoiceNoticeKind } from '../../../../lib/invoice-reminder-schedule'
+import {
+  LATE_FEE_ASSESSMENT_DAY,
+  LATE_FEE_WARNING_DAY,
+  pastDueReminderMilestone,
+  scheduledInvoiceNoticeKind,
+  shouldAssessLateFee,
+} from '../../../../lib/invoice-reminder-schedule'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,6 +26,12 @@ function isAuthorized(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret) return false
   return request.headers.get('authorization') === `Bearer ${secret}`
+}
+
+function warningWasAlreadyDeliveredOrHasNoRecipient(result: any) {
+  if (result?.status !== 'skipped') return false
+  const reason = String(result?.reason || '')
+  return reason.startsWith('Every eligible phone already received') || reason.startsWith('No opted-in phone numbers')
 }
 
 export async function GET(request: Request) {
@@ -58,8 +70,56 @@ export async function GET(request: Request) {
 
   for (const invoice of invoices || []) {
     const daysUntilDue = daysUntilDate(String(invoice.due_date), today)
+    const daysPastDue = Math.max(0, -daysUntilDue)
+    let lateFeeWarningCompletedBeforeToday = Number(invoice.late_fee || 0) > 0
 
-    if (daysUntilDue <= -6) {
+    if (daysPastDue >= LATE_FEE_WARNING_DAY && Number(invoice.late_fee || 0) <= 0) {
+      const [warningText, warningEmail] = await Promise.all([
+        sendInvoiceText({
+          client: admin,
+          invoiceId: invoice.id,
+          kind: 'late_fee_warning',
+          automationKey: 'invoice-late-fee-warning',
+          reminderDate: today,
+          sentBy: 'invoice-reminder-cron',
+        }),
+        sendInvoiceEmail({
+          client: admin,
+          invoiceId: invoice.id,
+          kind: 'late_fee_warning',
+          automationKey: 'invoice-late-fee-warning-email',
+          reminderDate: today,
+          sentBy: 'invoice-reminder-cron',
+        }),
+      ])
+
+      if (warningText.status === 'sent') summary.textSent += 1
+      else if (warningText.status === 'failed') summary.failed += 1
+      else summary.skipped += 1
+      if (warningEmail.status === 'sent') summary.emailSent += 1
+      else if (warningEmail.status === 'failed') summary.failed += 1
+      else summary.skipped += 1
+
+      summary.results.push({
+        invoiceId: invoice.id,
+        dueDate: invoice.due_date,
+        kind: 'late_fee_warning',
+        daysPastDue,
+        text: warningText,
+        email: warningEmail,
+      })
+
+      const warningCompletedBeforeToday = warningWasAlreadyDeliveredOrHasNoRecipient(warningText)
+      lateFeeWarningCompletedBeforeToday = warningCompletedBeforeToday
+      if (daysPastDue === LATE_FEE_WARNING_DAY || !warningCompletedBeforeToday) {
+        continue
+      }
+    }
+
+    if (
+      daysPastDue >= LATE_FEE_ASSESSMENT_DAY &&
+      (Number(invoice.late_fee || 0) > 0 || shouldAssessLateFee(daysPastDue, lateFeeWarningCompletedBeforeToday))
+    ) {
       let lateFee = Number(invoice.late_fee || 0)
       let updatedTotal = Number(invoice.total_due || 0)
       let lateFeeAppliedNow = false

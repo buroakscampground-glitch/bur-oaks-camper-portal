@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  LATE_FEE_ASSESSMENT_DAY,
+  LATE_FEE_WARNING_DAY,
   creationInvoiceNoticeKind,
   daysUntilDate,
   pastDueReminderMilestone,
   scheduledInvoiceNoticeKind,
+  shouldAssessLateFee,
   shouldSendUpcomingInvoiceNotice,
 } from '../lib/invoice-reminder-schedule.ts'
 
@@ -14,6 +17,16 @@ test('advance invoices stay quiet until the 30-day window', () => {
   assert.equal(creationInvoiceNoticeKind('2026-01-31', '2026-01-01'), 'upcoming')
   assert.equal(creationInvoiceNoticeKind('2026-01-20', '2026-01-01'), 'upcoming')
   assert.equal(creationInvoiceNoticeKind('2025-12-31', '2026-01-01'), 'past_due')
+})
+
+test('late fee waits until the day after a completed final warning', () => {
+  assert.equal(LATE_FEE_WARNING_DAY, 5)
+  assert.equal(LATE_FEE_ASSESSMENT_DAY, 6)
+  assert.equal(shouldAssessLateFee(5, true), false)
+  assert.equal(shouldAssessLateFee(6, false), false)
+  assert.equal(shouldAssessLateFee(6, true), true)
+  assert.equal(shouldAssessLateFee(9, false), false)
+  assert.equal(shouldAssessLateFee(9, true), true)
 })
 
 test('daily invoice sequence uses catch-up windows and repeatable past-due milestones', () => {

@@ -72,6 +72,10 @@ function buildInvoiceSms(invoice: any, kind: InvoiceTextKind, camper: any) {
     return compact(`BILL DUE TODAY #${invoiceNumber}${site}: ${total}, due ${due}.`)
   }
 
+  if (kind === 'late_fee_warning') {
+    return compact(`FINAL LATE-FEE WARNING #${invoiceNumber}${site}: ${total} is past due. Pay today to avoid a late fee tomorrow.`)
+  }
+
   if (kind === 'late_fee') {
     return compact(`LATE FEE ${money(invoice.late_fee)} added to bill #${invoiceNumber}${site}. Balance: ${total}.`)
   }
@@ -176,6 +180,8 @@ export async function sendInvoiceText({
           ? 'Invoice Due Tomorrow'
           : kind === 'due_today'
             ? 'Invoice Due Today'
+            : kind === 'late_fee_warning'
+              ? 'Final Late Fee Warning'
             : kind === 'late_fee'
               ? 'Late Fee Added'
             : 'Past Due Invoice'
