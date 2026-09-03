@@ -544,7 +544,7 @@ export default function InvoiceDetailPage() {
           <AdminQuickText
             camperId={invoice.campers.id}
             title="Text invoice reminder"
-            description={`Send a payment reminder to Lot ${invoice.campers?.lot_number || '—'}.`}
+            description={`Send a payment reminder for Lot ${invoice.campers?.lot_number || '—'}. Authorized billing contacts are included.`}
             defaultType="Invoice Reminder"
             defaultMessage={buildBillingReminderMessage([invoice])}
             billDueMessage={buildBillingReminderMessage([invoice])}

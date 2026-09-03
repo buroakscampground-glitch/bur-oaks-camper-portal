@@ -197,7 +197,7 @@ Bur Oaks Campground
         <AdminQuickText
           camperId={camper.id}
           title="Text bill reminder"
-          description={`Send a direct billing reminder to ${camperName} at Lot ${camper?.lot_number || "—"}.`}
+          description={`Send a direct billing reminder for ${camperName}'s account at Lot ${camper?.lot_number || "—"}. Authorized billing contacts are included.`}
           defaultType="Invoice Reminder"
           defaultMessage={billingReminderMessage}
           billDueMessage={billingReminderMessage}
