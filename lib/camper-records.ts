@@ -1,7 +1,8 @@
 const SYSTEM_PORTAL_LOTS = new Set(['1001', '1002', '1003'])
 
 export function isSystemPortalAccount(camper: { lot_number?: unknown }) {
-  return SYSTEM_PORTAL_LOTS.has(String(camper.lot_number || '').trim().toUpperCase())
+  const lot = String(camper.lot_number || '').trim().toUpperCase()
+  return SYSTEM_PORTAL_LOTS.has(lot) || lot === 'STAFF' || lot.startsWith('STAFF-')
 }
 
 export function isOperationalCamper(camper: { lot_number?: unknown; role?: unknown }) {

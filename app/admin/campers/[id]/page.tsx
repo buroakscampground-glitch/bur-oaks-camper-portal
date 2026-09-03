@@ -30,6 +30,7 @@ import {
 import { supabase } from '../../../../lib/supabase'
 import AddressFinder from '../../../../components/AddressFinder'
 import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../../lib/invoice-balance'
+import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/staff-roles'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 type HistoryView = 'activity' | 'documents' | 'billing' | 'site' | 'messages' | 'electric'
@@ -163,7 +164,7 @@ export default function CamperDetailPage() {
       return
     }
 
-    setCamper({ ...emptyCamper, ...camperResult.data })
+    setCamper({ ...emptyCamper, ...camperResult.data, role: effectivePortalRole(camperResult.data) })
     setInvoices(invoiceResult.data || [])
     const documents = documentResult.data || []
     setCamperDocuments(documents)
@@ -249,7 +250,7 @@ export default function CamperDetailPage() {
         mailing_city: camper.mailing_city?.trim() || null,
         mailing_state: camper.mailing_state?.trim() || null,
         mailing_zip: camper.mailing_zip?.trim() || null,
-        role: camper.role || 'camper',
+        role: camper.role === EVENT_COORDINATOR_ROLE ? 'camper' : (camper.role || 'camper'),
         active: camper.active !== false,
         emergency_contact_name: camper.emergency_contact_name?.trim() || null,
         emergency_contact_phone: camper.emergency_contact_phone?.trim() || null,
@@ -303,7 +304,7 @@ export default function CamperDetailPage() {
       }
     }
 
-    setCamper({ ...emptyCamper, ...data })
+    setCamper({ ...emptyCamper, ...data, role: effectivePortalRole(data) })
     setMessage(
       mailingAddressIncomplete
         ? `Camper profile saved successfully. Mailing address is still needed.${textSyncWarning}`

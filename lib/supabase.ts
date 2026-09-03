@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { effectivePortalRole } from './staff-roles'
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -40,7 +41,8 @@ export async function getCurrentCamper() {
     .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
     .limit(10)
 
-  return pickBestCamperMatch(camperMatches || [])
+  const camper = pickBestCamperMatch(camperMatches || [])
+  return camper ? { ...camper, role: effectivePortalRole(camper) } : null
 }
 
 export async function getCurrentUserRole(): Promise<UserRole> {
@@ -55,7 +57,7 @@ export async function getCurrentUserRole(): Promise<UserRole> {
   const userEmail = user.email.trim().toLowerCase()
   const { data: camperMatches, error } = await supabase
     .from('campers')
-    .select('role')
+    .select('role,lot_number')
     .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
     .limit(10)
 
@@ -65,7 +67,7 @@ export async function getCurrentUserRole(): Promise<UserRole> {
     return DEFAULT_ROLE
   }
 
-  const role = String((camper as any).role).toLowerCase()
+  const role = effectivePortalRole(camper as any)
 
   return ['admin', 'event_coordinator', 'maintenance'].includes(role)
     ? role as UserRole
