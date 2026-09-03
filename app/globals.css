@@ -12083,6 +12083,44 @@ tbody tr:hover {
   background:rgba(255,255,255,.96);
   box-shadow:0 12px 32px rgba(38,51,41,.07)
 }
+.portal-urgent-announcement{
+  position:relative;
+  z-index:6;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  gap:15px;
+  align-items:center;
+  margin:-18px 28px 24px;
+  padding:18px 20px;
+  border:1px solid #c95142;
+  border-radius:22px;
+  background:linear-gradient(135deg,#a9342a,#c84a3d 62%,#9f2d25);
+  color:#fff;
+  text-decoration:none;
+  box-shadow:0 18px 42px rgba(140,45,36,.28)
+}
+.portal-urgent-announcement-icon{
+  display:grid;
+  width:48px;
+  height:48px;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.22);
+  border-radius:16px;
+  background:rgba(255,255,255,.14)
+}
+.portal-urgent-announcement-copy{display:grid;min-width:0;gap:3px}
+.portal-urgent-announcement-copy small{color:#ffe3dc;font-size:9px;font-weight:950;letter-spacing:.13em}
+.portal-urgent-announcement-copy strong{color:#fff;font-size:17px;line-height:1.25}
+.portal-urgent-announcement-copy>span{
+  display:-webkit-box;
+  overflow:hidden;
+  color:rgba(255,255,255,.88);
+  font-size:12px;
+  line-height:1.4;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2
+}
+.portal-urgent-announcement-action{display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font-size:11px;font-weight:950}
 .admin-dashboard-drawer{margin:0 0 24px}
 .portal-dashboard-drawer>summary,
 .admin-dashboard-drawer>summary{
@@ -12148,6 +12186,14 @@ tbody tr:hover {
   .portal-quick-actions-top{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:0}
   .portal-quick-actions-top a:last-child{grid-column:1/-1}
   .portal-dashboard-drawer{margin:0 14px 18px;border-radius:18px}
+  .portal-urgent-announcement{
+    grid-template-columns:auto minmax(0,1fr);
+    margin:-16px 14px 18px;
+    padding:15px;
+    border-radius:18px
+  }
+  .portal-urgent-announcement-icon{width:42px;height:42px;border-radius:14px}
+  .portal-urgent-announcement-action{grid-column:2}
   .portal-dashboard-drawer>summary,
   .admin-dashboard-drawer>summary{grid-template-columns:minmax(0,1fr) auto;min-height:58px;padding:0 15px}
   .portal-dashboard-drawer>summary small,

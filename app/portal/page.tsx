@@ -1023,6 +1023,22 @@ export default function CamperPortalPage() {
 
         </section>
 
+        {urgentAnnouncement && (
+          <a className="portal-urgent-announcement" href="/updates" aria-label={`Urgent campground announcement: ${urgentAnnouncement.title}`}>
+            <span className="portal-urgent-announcement-icon" aria-hidden="true">
+              <Megaphone size={24} />
+            </span>
+            <span className="portal-urgent-announcement-copy">
+              <small>URGENT CAMPGROUND ANNOUNCEMENT</small>
+              <strong>{urgentAnnouncement.title}</strong>
+              <span>{urgentAnnouncement.message}</span>
+            </span>
+            <span className="portal-urgent-announcement-action">
+              Read full update <ArrowRight size={18} />
+            </span>
+          </a>
+        )}
+
         {(documentsNeedingSignature.length > 0 || dueNowInvoices.length > 0) && (
           <section className="portal-critical-action" aria-labelledby="portal-critical-action-title">
             <div className="portal-critical-action-heading">
