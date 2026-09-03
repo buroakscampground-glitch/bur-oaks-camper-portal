@@ -4,6 +4,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
 import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
+import { billingDelegateEmailsForLot, normalizeBillingEmail } from '../../../lib/authorized-billing'
 import {
   maskSmsPhone,
   uniqueSmsBroadcastRecipients,
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
   const reminderType = String(body.reminderType || 'General Alert').slice(0, 80)
   const message = String(body.message || '').trim().slice(0, 1200)
   const requestId = String(body.requestId || '')
+  const isDirectBillingReminder = targetMode === 'one' && reminderType === 'Invoice Reminder'
 
   if (!message) {
     return NextResponse.json({ error: 'Type a text message first.' }, { status: 400 })
@@ -70,10 +72,13 @@ export async function POST(request: Request) {
 
   let camperQuery = context.admin
     .from('campers')
-    .select('id,lot_number,first_name,last_name,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
+    .select('id,lot_number,first_name,last_name,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
     .eq('active', true)
-    .eq('sms_opt_in', true)
     .order('lot_number', { ascending: true })
+
+  if (!isDirectBillingReminder) {
+    camperQuery = camperQuery.eq('sms_opt_in', true)
+  }
 
   if (targetMode === 'one') {
     if (!camperId) {
@@ -111,6 +116,30 @@ export async function POST(request: Request) {
   for (const camper of targetCampers) {
     const phones = await consentedCamperSmsPhones(context.admin, camper)
     candidates.push({ camper, phones })
+
+    if (isDirectBillingReminder) {
+      const delegateEmails = new Set(billingDelegateEmailsForLot(camper.lot_number).map(normalizeBillingEmail))
+      if (delegateEmails.size) {
+        const { data: possibleDelegates, error: delegateError } = await context.admin
+          .from('campers')
+          .select('id,lot_number,first_name,last_name,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
+          .eq('active', true)
+
+        if (delegateError) return NextResponse.json({ error: delegateError.message }, { status: 500 })
+
+        for (const delegate of possibleDelegates || []) {
+          const matchesDelegate = [delegate.email, delegate.secondary_email]
+            .map(normalizeBillingEmail)
+            .some((email) => delegateEmails.has(email))
+          if (!matchesDelegate || !isOperationalCamper(delegate)) continue
+
+          candidates.push({
+            camper: delegate,
+            phones: await consentedCamperSmsPhones(context.admin, delegate),
+          })
+        }
+      }
+    }
   }
 
   const recipientPlan = uniqueSmsBroadcastRecipients(candidates)

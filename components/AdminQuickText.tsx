@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { LoaderCircle, MessageSquareText, Send } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
@@ -41,6 +41,7 @@ export default function AdminQuickText({
   defaultTarget = 'all_opted_in',
   camperId = '',
   defaultMessage = '',
+  billDueMessage = '',
   defaultType = 'General Alert',
   compact = false,
 }: {
@@ -49,6 +50,7 @@ export default function AdminQuickText({
   defaultTarget?: TargetMode
   camperId?: string
   defaultMessage?: string
+  billDueMessage?: string
   defaultType?: string
   compact?: boolean
 }) {
@@ -60,6 +62,16 @@ export default function AdminQuickText({
   const sendingRef = useRef(false)
   const requestIdRef = useRef('')
 
+  useEffect(() => {
+    setMessage(defaultMessage)
+    requestIdRef.current = ''
+  }, [camperId, defaultMessage])
+
+  useEffect(() => {
+    setReminderType(defaultType)
+    requestIdRef.current = ''
+  }, [camperId, defaultType])
+
   async function getToken() {
     const { data } = await supabase.auth.getSession()
     return data.session?.access_token || ''
@@ -68,7 +80,7 @@ export default function AdminQuickText({
   function useTemplate(template: Template) {
     requestIdRef.current = ''
     setReminderType(template.type)
-    setMessage(template.message)
+    setMessage(template.label === 'Bill due' && billDueMessage.trim() ? billDueMessage : template.message)
   }
 
   async function sendText() {
@@ -86,7 +98,9 @@ export default function AdminQuickText({
         ? 'Send this text to every saved phone number for opted-in campers with open balances?'
         : finalTarget === 'all_opted_in'
           ? 'Send this text to every valid phone number saved on each opted-in camper profile?'
-          : 'Send this text to every saved phone number on this camper profile?'
+          : reminderType === 'Invoice Reminder'
+            ? 'Send this billing text to every opted-in phone for this account and its authorized billing contacts?'
+            : 'Send this text to every saved phone number on this camper profile?'
 
     if (!window.confirm(warning)) return
 

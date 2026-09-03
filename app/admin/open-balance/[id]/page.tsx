@@ -9,6 +9,7 @@ import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFe
 import AdminQuickText from "../../../../components/AdminQuickText"
 import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 import { printPageWithFlag } from '../../../../lib/print-page'
+import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-message'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString("en-US", {
@@ -168,6 +169,7 @@ Bur Oaks Campground
     const due = new Date(`${invoice.due_date}T12:00:00`)
     return due < new Date()
   })
+  const billingReminderMessage = buildBillingReminderMessage(invoices)
 
   return (
     <main className="admin-open-balance-page admin-open-detail-page">
@@ -191,13 +193,14 @@ Bur Oaks Campground
         <article className={lateInvoices.length ? "attention" : ""}><small>Past due</small><strong>{lateInvoices.length}</strong><em>{lateInvoices.length ? "Needs attention" : "None past due"}</em></article>
       </section>
 
-      {camper?.id && (
+      {camper?.id && invoices.length > 0 && (
         <AdminQuickText
           camperId={camper.id}
           title="Text bill reminder"
           description={`Send a direct billing reminder to ${camperName} at Lot ${camper?.lot_number || "—"}.`}
           defaultType="Invoice Reminder"
-          defaultMessage={`Your Bur Oaks account currently has an outstanding balance of ${formatMoney(totalDue)}. Please check your camper portal or contact the office with questions.`}
+          defaultMessage={billingReminderMessage}
+          billDueMessage={billingReminderMessage}
         />
       )}
 

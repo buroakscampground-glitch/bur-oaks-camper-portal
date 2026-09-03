@@ -26,6 +26,7 @@ import AdminQuickText from '../../../components/AdminQuickText'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { nextInvoiceNumber } from '../../../lib/invoice-number'
 import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../lib/invoice-balance'
+import { buildBillingReminderMessage } from '../../../lib/billing-reminder-message'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -276,6 +277,10 @@ export default function AdminInvoicesPage() {
     return matchesStatus && matchesSearch
   })
   const selectedCamper = campers.find((camper) => camper.id === camperId)
+  const selectedCamperDueInvoices = selectedCamper
+    ? dueThisMonthInvoices.filter((invoice) => String(invoice.camper_id) === String(selectedCamper.id))
+    : []
+  const selectedCamperReminder = buildBillingReminderMessage(selectedCamperDueInvoices)
 
   return (
     <main className="admin-billing-page">
@@ -397,7 +402,8 @@ export default function AdminInvoicesPage() {
               title="Text this camper"
               description={`Send a quick billing note to Lot ${selectedCamper.lot_number}.`}
               defaultType="Invoice Reminder"
-              defaultMessage={`You have a balance due on your Bur Oaks account. Please check your camper portal or contact the office with questions.`}
+              defaultMessage={selectedCamperReminder}
+              billDueMessage={selectedCamperReminder}
             />
           )}
         </aside>

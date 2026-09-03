@@ -9,6 +9,7 @@ import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFe
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../../lib/invoice-display'
 import AdminQuickText from '../../../../components/AdminQuickText'
 import { printPageWithFlag } from '../../../../lib/print-page'
+import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-message'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -545,7 +546,8 @@ export default function InvoiceDetailPage() {
             title="Text invoice reminder"
             description={`Send a payment reminder to Lot ${invoice.campers?.lot_number || '—'}.`}
             defaultType="Invoice Reminder"
-            defaultMessage={`You have invoice #${invoice.invoice_number} due for ${formatMoney(invoice.total_due)}. Please check your Bur Oaks camper portal or contact the office with questions.`}
+            defaultMessage={buildBillingReminderMessage([invoice])}
+            billDueMessage={buildBillingReminderMessage([invoice])}
           />
         )}
 
