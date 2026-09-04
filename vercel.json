@@ -75,6 +75,10 @@
     {
       "path": "/api/cron/monthly-operations-backup",
       "schedule": "0 14 1 * *"
+    },
+    {
+      "path": "/api/cron/breakfast-reminders-september-5",
+      "schedule": "0 1,13 5 9 *"
     }
   ]
 }
