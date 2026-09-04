@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { normalizeBillingEmail, normalizeBillingLot } from '../../../lib/authorized-billing'
 import { camperSmsPhones } from '../../../lib/camper-sms'
+import { reconcileRenewalsWithDocuments } from '../../../lib/renewal-document-reconciliation'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -129,7 +130,6 @@ export async function GET(request: Request) {
     const document = documents.find((item) => String(item.id) === String(renewal.renewal_document_id))
     const problems: string[] = []
     if (renewal.renewal_document_id && !document) problems.push('linked renewal document missing')
-    if (String(renewal.status) === 'Renewing' && (!document || String(document.signature_status).toLowerCase() !== 'signed')) problems.push('marked renewing without signed linked document')
     if (document && String(document.signature_status).toLowerCase() === 'signed' && String(renewal.status) !== 'Renewing') problems.push('signed document but renewal status not Renewing')
     if (!renewal.contract_end_date) problems.push('missing contract end date')
     return problems.length ? [{
@@ -254,6 +254,11 @@ export async function POST(request: Request) {
       if (deleted.error) return NextResponse.json({ error: deleted.error.message }, { status: 500 })
     }
     return NextResponse.json({ success: true, deletedUsers: users.length, archivedRecordsPreserved: matching.length })
+  }
+
+  if (body.action === 'reconcile-secure-renewals') {
+    const reconciliation = await reconcileRenewalsWithDocuments(admin)
+    return NextResponse.json({ success: reconciliation.errors.length === 0, reconciliation }, { status: reconciliation.errors.length ? 500 : 200 })
   }
 
   return NextResponse.json({ error: 'Unknown audit repair.' }, { status: 400 })

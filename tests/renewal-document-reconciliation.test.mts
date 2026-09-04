@@ -6,6 +6,10 @@ test('a fully signed renewal cannot remain awaiting camper response', () => {
   assert.equal(effectiveRenewalStatus('Awaiting Response', 'signed'), 'Renewing')
 })
 
+test('a securely signed rollout renewal cannot remain not started', () => {
+  assert.equal(effectiveRenewalStatus('Not Started', 'signed'), 'Renewing')
+})
+
 test('a declined renewal cannot remain awaiting camper response', () => {
   assert.equal(effectiveRenewalStatus('Awaiting Response', 'declined'), 'Camper Leaving')
 })

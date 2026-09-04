@@ -17,7 +17,7 @@ export async function reconcileRenewalsWithDocuments(client: any) {
   const { data: renewals, error: renewalError } = await client
     .from('season_renewals')
     .select('id,camper_id,status,renewal_document_id')
-    .eq('status', 'Awaiting Response')
+    .in('status', ['Not Started', 'Awaiting Response'])
     .not('renewal_document_id', 'is', null)
   if (renewalError) throw renewalError
 
