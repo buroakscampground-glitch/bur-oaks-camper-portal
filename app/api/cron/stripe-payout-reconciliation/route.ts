@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { loadStripePayoutDetail } from '../../../../lib/stripe-payout-reconciliation'
 import { reconcileAndPrintStripePayout } from '../../../../lib/stripe-payout-printing'
+import { alertStripePayoutProblem } from '../../../../lib/stripe-payout-alerts'
+import { getSiteUrl } from '../../../../lib/site-url'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -21,9 +23,18 @@ export async function GET(request: Request) {
 
   const stripe = new Stripe(key)
   const admin = createClient(supabaseUrl, serviceRoleKey)
-  const payouts = await stripe.payouts.list({ limit: 25, status: 'paid' })
-  const candidates = payouts.data.filter((payout) => payout.automatic && payout.created >= AUTOMATIC_PRINT_START)
+  const payouts = await stripe.payouts.list({ limit: 25 })
+  const candidates = payouts.data.filter((payout) => payout.status === 'paid' && payout.automatic && payout.created >= AUTOMATIC_PRINT_START)
   const results: any[] = []
+
+  for (const payout of payouts.data.filter((item) => item.status === 'failed' || (item.status === 'canceled' && item.automatic))) {
+    try {
+      const alert = await alertStripePayoutProblem({ admin, payout, origin: getSiteUrl() })
+      results.push({ id: payout.id, amount: payout.amount, status: alert.skipped ? 'already-alerted' : 'alerted' })
+    } catch (error: any) {
+      results.push({ id: payout.id, amount: payout.amount, status: 'failed', error: String(error?.message || error).slice(0, 500) })
+    }
+  }
 
   for (const payout of candidates) {
     try {

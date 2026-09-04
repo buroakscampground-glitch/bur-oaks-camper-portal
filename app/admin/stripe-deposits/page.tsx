@@ -22,6 +22,7 @@ async function api(path: string, init?: RequestInit) {
 
 export default function StripeDepositsPage() {
   const [payouts, setPayouts] = useState<any[]>([])
+  const [health, setHealth] = useState<any>(null)
   const [selected, setSelected] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState('')
@@ -33,6 +34,7 @@ export default function StripeDepositsPage() {
     try {
       const result = await api('/api/admin-stripe-payouts')
       setPayouts(result.payouts || [])
+      setHealth(result.health || null)
       if (!selected && result.payouts?.[0]) await openPayout(result.payouts[0].id)
     } catch (error: any) {
       setMessage(error.message)
@@ -83,13 +85,29 @@ export default function StripeDepositsPage() {
         </header>
         {message && <div className={`stripe-deposit-message ${message.startsWith('The detailed') ? 'success' : ''}`}>{message}</div>}
 
+        {health && <>
+          <div className={`stripe-deposit-check stripe-deposit-health ${health.payoutsEnabled && health.automaticPayouts && health.failedPayouts === 0 ? 'balanced' : 'warning'}`}>
+            {health.payoutsEnabled && health.automaticPayouts && health.failedPayouts === 0 ? <CheckCircle2 size={24} /> : <TriangleAlert size={24} />}
+            <span>
+              <strong>{health.payoutsEnabled && health.automaticPayouts ? 'Automatic bank deposits are on' : 'Bank deposit action required'}</strong>
+              <small>{health.payoutsEnabled ? `${String(health.schedule).replace(/^./, (letter: string) => letter.toUpperCase())} payout schedule` : 'Stripe payouts are disabled'}{health.failedPayouts ? ` · ${health.failedPayouts} failed payout${health.failedPayouts === 1 ? '' : 's'}` : ''}</small>
+            </span>
+          </div>
+          <div className="stripe-deposit-summary stripe-deposit-balance-summary">
+            <article><small>Available for bank</small><strong>{money(health.availableCents)}</strong></article>
+            <article><small>Still clearing</small><strong>{money(health.pendingCents)}</strong></article>
+            <article><small>Deposits in transit</small><strong>{health.activePayouts}</strong></article>
+            <article><small>Settlement hold</small><strong>{health.settlementDelayDays} day{health.settlementDelayDays === 1 ? '' : 's'}</strong></article>
+          </div>
+        </>}
+
         <section className="stripe-deposit-layout">
           <aside className="stripe-deposit-list">
             <h2>Bank deposits</h2>
             <p>Newest first. Tap any deposit to see exactly what made up the total.</p>
             {payouts.map((payout) => (
               <button className={selected?.id === payout.id ? 'active' : ''} type="button" key={payout.id} onClick={() => openPayout(payout.id)}>
-                <span><strong>{money(payout.amountCents)}</strong><small>{date(payout.arrivalDate)} · {payout.status}</small></span>
+                <span><strong>{money(payout.amountCents)}</strong><small>{date(payout.arrivalDate)} · {payout.status} · {payout.automatic ? 'automatic' : 'manual'}</small></span>
                 {payout.printRecord?.status === 'sent' ? <CheckCircle2 size={20} /> : <Landmark size={20} />}
               </button>
             ))}

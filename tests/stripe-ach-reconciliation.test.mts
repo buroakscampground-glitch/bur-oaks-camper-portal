@@ -10,7 +10,7 @@ test('ACH settlement statuses only change invoices after Stripe reaches a final 
   assert.equal(stripePaymentResolution('canceled'), 'reopen')
 })
 
-test('the Stripe webhook includes every event needed to finish or reopen ACH payments', () => {
+test('the Stripe webhook includes every event needed to settle ACH payments and bank payouts', () => {
   assert.deepEqual(requiredStripePaymentEvents, [
     'checkout.session.completed',
     'checkout.session.async_payment_succeeded',
@@ -19,5 +19,11 @@ test('the Stripe webhook includes every event needed to finish or reopen ACH pay
     'payment_intent.succeeded',
     'payment_intent.payment_failed',
     'payment_intent.canceled',
+    'payout.created',
+    'payout.updated',
+    'payout.paid',
+    'payout.failed',
+    'payout.canceled',
+    'payout.reconciliation_completed',
   ])
 })

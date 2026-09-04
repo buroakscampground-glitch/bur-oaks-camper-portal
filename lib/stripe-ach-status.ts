@@ -6,6 +6,12 @@ export const requiredStripePaymentEvents = [
   'payment_intent.succeeded',
   'payment_intent.payment_failed',
   'payment_intent.canceled',
+  'payout.created',
+  'payout.updated',
+  'payout.paid',
+  'payout.failed',
+  'payout.canceled',
+  'payout.reconciliation_completed',
 ] as const
 
 export function stripePaymentResolution(status: string) {

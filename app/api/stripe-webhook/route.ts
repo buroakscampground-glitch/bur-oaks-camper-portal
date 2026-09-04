@@ -5,6 +5,7 @@ import { sendPaymentReceivedAlert } from '../../../lib/payment-alerts'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { getSiteUrl } from '../../../lib/site-url'
 import { reconcileAndPrintStripePayout } from '../../../lib/stripe-payout-printing'
+import { alertStripePayoutProblem } from '../../../lib/stripe-payout-alerts'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -443,6 +444,11 @@ export async function POST(request: Request) {
     if ((event.type as string) === 'payout.reconciliation_completed') {
       const payout = event.data.object as Stripe.Payout
       await reconcileAndPrintStripePayout(stripe, supabaseAdmin, payout.id)
+    }
+
+    if ((event.type as string) === 'payout.failed' || ((event.type as string) === 'payout.canceled' && (event.data.object as Stripe.Payout).automatic)) {
+      const payout = event.data.object as Stripe.Payout
+      await alertStripePayoutProblem({ admin: supabaseAdmin, payout, origin: getSiteUrl() })
     }
 
     return NextResponse.json({ received: true })

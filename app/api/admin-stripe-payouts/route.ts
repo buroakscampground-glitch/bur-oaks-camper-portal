@@ -31,14 +31,31 @@ export async function GET(request: Request) {
       return NextResponse.json({ detail, printRecord }, { headers: { 'Cache-Control': 'no-store' } })
     }
 
-    const payoutPage = await stripe.payouts.list({ limit: 50 })
-    const payouts = payoutPage.data.filter((payout) => payout.automatic).slice(0, 30)
+    const [payoutPage, balance, balanceSettings] = await Promise.all([
+      stripe.payouts.list({ limit: 50 }),
+      stripe.balance.retrieve(),
+      stripe.balanceSettings.retrieve(),
+    ])
+    const payouts = payoutPage.data.slice(0, 30)
     const payoutIds = payouts.map((payout) => `stripe-payout-${payout.id}`)
     const { data: records } = payoutIds.length
       ? await context.admin.from('scheduled_reports').select('report_key,status,completed_at,error_message').in('report_key', payoutIds)
       : { data: [] }
     const recordMap = new Map((records || []).map((record: any) => [record.report_key, record]))
+    const usdAvailable = balance.available.find((item) => item.currency === 'usd')?.amount || 0
+    const usdPending = balance.pending.find((item) => item.currency === 'usd')?.amount || 0
+    const payoutSettings = balanceSettings.payments.payouts
     return NextResponse.json({
+      health: {
+        payoutsEnabled: payoutSettings?.status === 'enabled',
+        schedule: payoutSettings?.schedule?.interval || 'unknown',
+        automaticPayouts: ['daily', 'weekly', 'monthly'].includes(payoutSettings?.schedule?.interval || ''),
+        settlementDelayDays: balanceSettings.payments.settlement_timing.delay_days,
+        availableCents: usdAvailable,
+        pendingCents: usdPending,
+        failedPayouts: payouts.filter((payout) => payout.status === 'failed').length,
+        activePayouts: payouts.filter((payout) => payout.status === 'pending' || payout.status === 'in_transit').length,
+      },
       payouts: payouts.map((payout) => ({
         id: payout.id,
         amountCents: payout.amount,
