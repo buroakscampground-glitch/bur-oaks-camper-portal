@@ -13186,7 +13186,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 
 .admin-desk-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr)) minmax(320px, 2.55fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr)) minmax(320px, 2.55fr);
   margin: 14px 0;
   overflow: hidden;
   border: 1px solid #dcded6;
@@ -13298,7 +13298,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   background: linear-gradient(135deg, #e4f3f4, #f5faf5);
 }
 
-.admin-desk-summary .money-summary{position:relative;color:inherit;text-decoration:none;transition:background .18s ease}.admin-desk-summary .money-summary:after{content:'Open →';position:absolute;right:12px;top:10px;color:#8d7138;font-size:8px;font-weight:950;letter-spacing:.07em;text-transform:uppercase}.admin-desk-summary .money-summary:hover{background:#fffaf0}.admin-desk-summary .money-summary.paid{background:linear-gradient(135deg,#eff8f0,#fff)}.admin-desk-summary .money-summary.paid strong{color:#347044}.admin-desk-summary .money-summary.owed strong{color:#8d5d22}.admin-desk-summary .money-summary.late{background:linear-gradient(135deg,#fff1ed,#fff)}.admin-desk-summary .money-summary.late strong{color:#a44337}.admin-desk-summary .money-summary.late:after{color:#a44337}
+.admin-desk-summary .money-summary{position:relative;color:inherit;text-decoration:none;transition:background .18s ease}.admin-desk-summary .money-summary:after{content:'Open →';position:absolute;right:12px;top:10px;color:#8d7138;font-size:8px;font-weight:950;letter-spacing:.07em;text-transform:uppercase}.admin-desk-summary .money-summary:hover{background:#fffaf0}.admin-desk-summary .money-summary.paid{background:linear-gradient(135deg,#eff8f0,#fff)}.admin-desk-summary .money-summary.paid strong{color:#347044}.admin-desk-summary .money-summary.owed strong{color:#8d5d22}.admin-desk-summary .money-summary.upcoming{background:linear-gradient(135deg,#f0f6ff,#fff)}.admin-desk-summary .money-summary.upcoming strong,.admin-desk-summary .money-summary.upcoming:after{color:#386c9b}.admin-desk-summary .money-summary.late{background:linear-gradient(135deg,#fff1ed,#fff)}.admin-desk-summary .money-summary.late strong{color:#a44337}.admin-desk-summary .money-summary.late:after{color:#a44337}
 
 .admin-desk-workspace {
   display: grid;

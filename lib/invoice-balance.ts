@@ -35,6 +35,14 @@ export function isInvoiceUpcoming(invoice: BalanceInvoice, today = todayInCentra
   return isInvoiceOutstanding(invoice) && Boolean(invoice.due_date && invoice.due_date > today)
 }
 
+export function isInvoiceDueWithinDays(invoice: BalanceInvoice, days: number, today = todayInCentral()) {
+  if (!isInvoiceUpcoming(invoice, today) || !invoice.due_date || days < 1) return false
+
+  const [year, month, day] = today.split('-').map(Number)
+  const cutoff = new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10)
+  return invoice.due_date <= cutoff
+}
+
 export function totalInvoiceBalance(invoices: BalanceInvoice[]) {
   return invoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
 }

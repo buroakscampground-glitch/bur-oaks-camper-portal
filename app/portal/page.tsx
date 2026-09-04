@@ -42,7 +42,7 @@ import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 import { getSeasonalTheme } from '../../lib/seasonal-theme'
-import { isInvoiceDueNow, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { isInvoiceDueNow, isInvoiceDueWithinDays, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 const serviceLinks = [
   {
@@ -196,6 +196,7 @@ const emptyBirthdayBoard: BirthdayBoard = {
 export default function CamperPortalPage() {
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
+  const [authorizedBillingAccounts, setAuthorizedBillingAccounts] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
   const [announcements, setAnnouncements] = useState<any[]>([])
@@ -268,7 +269,7 @@ export default function CamperPortalPage() {
         const {
           data: { session },
         } = await supabase.auth.getSession()
-        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult, birthdayResult, siteCareResult] =
+        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult, birthdayResult, siteCareResult, authorizedBillingResult] =
           await Promise.all([
             supabase
               .from('invoices')
@@ -347,9 +348,17 @@ export default function CamperPortalPage() {
               .eq('camper_id', camperData.id)
               .neq('status', 'Resolved')
               .order('created_at', { ascending: false }),
+            session?.access_token
+              ? fetch('/api/authorized-billing', {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                })
+                  .then((response) => response.ok ? response.json() : null)
+                  .catch(() => null)
+              : Promise.resolve(null),
           ])
 
         setInvoices(invoiceResult.data || [])
+        setAuthorizedBillingAccounts(authorizedBillingResult?.accounts || [])
         setLatestElectric(electricResult.data || null)
         setDocuments(documentResult?.documents || [])
         setEvents(eventResult.data || [])
@@ -610,6 +619,15 @@ export default function CamperPortalPage() {
 
   const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
   const openBalance = totalInvoiceBalance(dueNowInvoices)
+  const accessibleInvoices = Array.from(new Map<string, any>([
+    ...invoices,
+    ...authorizedBillingAccounts.flatMap((account) => account.invoices || []),
+  ].map((invoice): [string, any] => [String(invoice.id), invoice])).values())
+  const upcoming30Invoices = accessibleInvoices
+    .filter((invoice) => isInvoiceDueWithinDays(invoice, 30))
+    .sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))
+  const upcoming30Balance = totalInvoiceBalance(upcoming30Invoices)
+  const nextUpcomingBill = upcoming30Invoices[0]
   const nextEvent = events[0]
   const documentsNeedingSignature = documents.filter(
     (document) =>
@@ -1193,6 +1211,11 @@ export default function CamperPortalPage() {
               <small>Balance</small>
               <strong>{dueNowInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00'}</strong>
               <em>{dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due` : 'Nothing due'}</em>
+            </a>
+            <a href="/invoices" className={upcoming30Invoices.length ? 'attention' : 'good'}>
+              <small>Next 30 days</small>
+              <strong>{upcoming30Invoices.length ? `$${upcoming30Balance.toFixed(2)}` : '$0.00'}</strong>
+              <em>{nextUpcomingBill ? `${upcoming30Invoices.length} upcoming · next ${formatDate(nextUpcomingBill.due_date)}` : 'No upcoming bills'}</em>
             </a>
             <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'good'}>
               <small>Documents</small>

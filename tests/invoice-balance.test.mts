@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
+import { isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
 
 test('amount due excludes future invoices while keeping them upcoming', () => {
   const today = '2026-08-28'
@@ -33,4 +33,14 @@ test('monthly amount due includes the current month and unpaid carryover but exc
 
   const amountDueThisMonth = invoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice, today))
   assert.equal(totalInvoiceBalance(amountDueThisMonth), 300)
+})
+
+test('the upcoming window includes future open invoices through day 30 only', () => {
+  const today = '2026-09-04'
+
+  assert.equal(isInvoiceDueWithinDays({ status: 'open', due_date: '2026-09-05' }, 30, today), true)
+  assert.equal(isInvoiceDueWithinDays({ status: 'open', due_date: '2026-10-04' }, 30, today), true)
+  assert.equal(isInvoiceDueWithinDays({ status: 'open', due_date: '2026-10-05' }, 30, today), false)
+  assert.equal(isInvoiceDueWithinDays({ status: 'open', due_date: today }, 30, today), false)
+  assert.equal(isInvoiceDueWithinDays({ status: 'paid', due_date: '2026-09-10' }, 30, today), false)
 })
