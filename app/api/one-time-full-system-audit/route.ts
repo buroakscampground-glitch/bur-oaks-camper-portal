@@ -177,6 +177,23 @@ export async function GET(request: Request) {
     if (submission.invoice_id && !rows('electric_readings').some((reading) => String(reading.invoice_id) === String(submission.invoice_id))) problems.push('invoice has no electric reading')
     return problems.length ? [{ id: submission.id, lot: submission.lot_number, status: submission.status, problems }] : []
   })
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+  const overdueSiteCare = rows('site_care_notices')
+    .filter((notice) => String(notice.status) === 'Open' && String(notice.template_key || '').startsWith('auto:') && notice.due_date && String(notice.due_date) <= today)
+    .map((notice) => ({ id: notice.id, camper: label(camperById.get(String(notice.camper_id))), title: notice.title, dueDate: notice.due_date, template: notice.template_key }))
+  const deliveryRows = rows('text_reminders')
+  const laterTextSuccess = (failed: any) => deliveryRows.some((item) => (
+    String(item.status).toLowerCase() === 'sent'
+    && String(item.reminder_type) === String(failed.reminder_type)
+    && String(item.recipient_phone || item.recipient_email || '') === String(failed.recipient_phone || failed.recipient_email || '')
+    && new Date(item.sent_at || item.created_at || 0).getTime() > new Date(failed.sent_at || failed.created_at || 0).getTime()
+  ))
+  const inviteRows = rows('portal_invite_log')
+  const laterInviteSuccess = (failed: any) => inviteRows.some((item) => (
+    String(item.delivery_status).toLowerCase() === 'sent'
+    && normalizeBillingEmail(item.email) === normalizeBillingEmail(failed.email)
+    && new Date(item.created_at || 0).getTime() > new Date(failed.created_at || 0).getTime()
+  ))
 
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
@@ -190,10 +207,10 @@ export async function GET(request: Request) {
       openBalance: invoices.filter((invoice) => openStatus(invoice.status)).reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
     },
     queryErrors: [...queryErrors, ...(authError ? [{ table: 'auth.users', error: authError }] : [])],
-    issues: { duplicateLots, duplicateEmails, authProblems, invoiceMath, duplicateInvoiceNumbers, staleProcessing, paidMissingEvidence, invalidOpenAmounts, pumpProblems, maintenanceProblems, documentProblems, renewalProblems, consentProblems, meterProblems },
+    issues: { duplicateLots, duplicateEmails, authProblems, invoiceMath, duplicateInvoiceNumbers, staleProcessing, paidMissingEvidence, invalidOpenAmounts, pumpProblems, maintenanceProblems, documentProblems, renewalProblems, consentProblems, meterProblems, overdueSiteCare },
     delivery: {
-      failedTexts: failedTexts.map((item) => ({ id: item.id, recipient: item.recipient_phone || item.recipient_email, type: item.reminder_type, error: item.error_message, at: item.sent_at })),
-      failedInvites: failedInvites.map((item) => ({ id: item.id, email: item.email, error: item.error_message, at: item.created_at })),
+      failedTexts: failedTexts.map((item) => ({ id: item.id, recipient: item.recipient_phone || item.recipient_email, type: item.reminder_type, error: item.error_message, at: item.sent_at, laterSuccess: laterTextSuccess(item) })),
+      failedInvites: failedInvites.map((item) => ({ id: item.id, email: item.email, error: item.error_message, at: item.created_at, laterSuccess: laterInviteSuccess(item) })),
       failedReports: failedReports.map((item) => ({ key: item.report_key, date: item.report_date, status: item.status, office: item.office_email_status, printer: item.printer_email_status, error: item.error_message })),
     },
   }, { headers: { 'Cache-Control': 'no-store' } })
