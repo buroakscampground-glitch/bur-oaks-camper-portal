@@ -35,9 +35,8 @@ export async function GET(request: Request) {
       : Promise.resolve({ data: [], error: null }),
     admin
       .from('invoice_items')
-      .select('id,invoice_id,description,quantity,unit_price,total,created_at,invoices(id,camper_id,invoice_number,status,total_due,created_at,due_date)')
+      .select('id,invoice_id,description,quantity,unit_price,total,invoices(id,camper_id,invoice_number,status,total_due,created_at,due_date)')
       .or('description.ilike.%pump%,description.ilike.%sewer%')
-      .order('created_at', { ascending: false })
       .limit(150),
   ])
   if (notificationError || invoiceItemError) {
