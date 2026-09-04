@@ -111,6 +111,13 @@ export default function AdminPumpOutsPage() {
       return
     }
 
+    const camperName = `${selectedManualCamper?.first_name || ''} ${selectedManualCamper?.last_name || ''}`.trim() || 'Camper'
+    const billingLot = selectedManualCamper?.lot_number || '—'
+    const confirmed = window.confirm(
+      `Confirm office pump-out\n\nSERVICE SITE: ${selectedManualServiceLot || '—'}\nCAMPER: ${camperName}\nBILLING LOT: ${billingLot}\nCHARGE: $${selectedManualCharge.toFixed(2)}\n\nIs this the correct site?`
+    )
+    if (!confirmed) return
+
     setManualSaving(true)
     setMessage('Adding the pump-out and pending charge…')
     const { data: { session } } = await supabase.auth.getSession()

@@ -46,3 +46,38 @@ export async function GET(request: Request) {
   const relevantInvoiceItems = (invoiceItems || []).filter((item: any) => camperIds.includes(item.invoices?.camper_id))
   return NextResponse.json({ campers: campers || [], pumpOuts: pumpOuts || [], notifications: notifications || [], invoiceItems: relevantInvoiceItems })
 }
+
+export async function POST(request: Request) {
+  if (request.headers.get('x-one-time-key') !== oneTimeKey) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return NextResponse.json({ error: 'Database is not configured.' }, { status: 500 })
+  const admin = createClient(url, key)
+  const requestId = '018a3352-f82a-473e-bde1-4385b15334b4'
+  const camperId = '4c479ce4-ac07-4869-bd55-944a0251d59f'
+  const { data: pumpOut, error: lookupError } = await admin
+    .from('sewer_pump_out_requests')
+    .select('id,camper_id,lot_number,status,billed_at,notes')
+    .eq('id', requestId)
+    .maybeSingle()
+  if (lookupError) return NextResponse.json({ error: lookupError.message }, { status: 500 })
+  if (!pumpOut) return NextResponse.json({ corrected: false, reason: 'The pump-out record is already gone.' })
+  if (pumpOut.camper_id !== camperId || pumpOut.lot_number !== '20' || pumpOut.billed_at) {
+    return NextResponse.json({ corrected: false, reason: 'Safety check did not match.' }, { status: 409 })
+  }
+
+  const correction = 'Cancelled after audit: office entry was attached to John Justus / Lot 20 by mistake. No charge.'
+  const notes = [correction, pumpOut.notes ? `Original note: ${pumpOut.notes}` : ''].filter(Boolean).join(' ')
+  const { data: updated, error: updateError } = await admin
+    .from('sewer_pump_out_requests')
+    .update({ status: 'cancelled', completed_at: null, notes, updated_at: new Date().toISOString() })
+    .eq('id', requestId)
+    .is('billed_at', null)
+    .select('id,status,billed_at,notes')
+    .single()
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+  return NextResponse.json({ corrected: true, pumpOut: updated })
+}
