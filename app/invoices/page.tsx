@@ -41,7 +41,7 @@ import {
   type AutoPayPreference,
 } from '../../lib/autopay'
 import InvoiceSmsOptInAlert from '../components/invoice-sms-opt-in-alert'
-import { isInvoiceDueNow, isInvoiceUpcoming, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { isInvoiceDueNow, isInvoiceOutstanding, isInvoiceUpcoming, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -147,18 +147,27 @@ export default function InvoicesPage() {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData.session?.access_token
 
-      const [invoiceResult, creditResult, paymentFeeSettings, familyBillingResponse] = await Promise.all([
-        supabase
-          .from('invoices')
-          .select('*, invoice_items(*)')
-          .eq('camper_id', camperData.id)
-          .order('due_date', { ascending: false }),
-        supabase
-          .from('account_credits')
-          .select('remaining_amount,status')
-          .eq('camper_id', camperData.id)
-          .eq('status', 'active')
-          .gt('remaining_amount', 0),
+      const [invoiceAccount, paymentFeeSettings, familyBillingResponse] = await Promise.all([
+        token
+          ? fetch('/api/camper-invoices', {
+              headers: { Authorization: `Bearer ${token}` },
+            })
+              .then(async (response) => {
+                const result = await response.json()
+                if (!response.ok) throw new Error(result.error || 'Unable to load your invoices.')
+                return result
+              })
+              .catch(async () => {
+                const [invoiceFallback, creditFallback] = await Promise.all([
+                  supabase.from('invoices').select('*, invoice_items(*)').eq('camper_id', camperData.id).order('due_date', { ascending: false }),
+                  supabase.from('account_credits').select('remaining_amount,status').eq('camper_id', camperData.id).eq('status', 'active').gt('remaining_amount', 0),
+                ])
+                return {
+                  invoices: invoiceFallback.data || [],
+                  accountCredit: (creditFallback.data || []).reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+                }
+              })
+          : Promise.resolve({ invoices: [], accountCredit: 0 }),
         loadPaymentFeeSettings(supabase),
         token
           ? fetch('/api/authorized-billing', {
@@ -167,11 +176,9 @@ export default function InvoicesPage() {
           : Promise.resolve(null),
       ])
 
-      setInvoices(invoiceResult.data || [])
+      setInvoices(invoiceAccount.invoices || [])
       setFeeSettings(paymentFeeSettings)
-      setCreditBalance(
-        (creditResult.data || []).reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0)
-      )
+      setCreditBalance(Number(invoiceAccount.accountCredit || 0))
       if (familyBillingResponse?.ok) {
         const familyBilling = await familyBillingResponse.json()
         setFamilyBillingAccounts(familyBilling.accounts || [])
@@ -279,10 +286,12 @@ export default function InvoicesPage() {
     setSmsSaving(false)
   }
 
-  const payableInvoices = invoices.filter((invoice) => invoice.status !== 'paid' && invoice.status !== 'processing')
+  const payableInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice) && invoice.status !== 'processing')
   const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid')
+  const openInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice))
   const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
   const upcomingInvoices = invoices.filter((invoice) => isInvoiceUpcoming(invoice))
+  const totalOpenBalance = totalInvoiceBalance(openInvoices)
   const amountDueNow = totalInvoiceBalance(dueNowInvoices)
   const upcomingTotal = totalInvoiceBalance(upcomingInvoices)
   const selectedTotal = payableInvoices
@@ -393,7 +402,9 @@ export default function InvoicesPage() {
                   ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due now${upcomingInvoices.length ? ` · ${formatMoney(upcomingTotal)} upcoming` : ''}`
                   : upcomingInvoices.length > 0
                     ? `${formatMoney(upcomingTotal)} in future invoices—not due yet`
-                    : 'You are all caught up'}
+                    : openInvoices.length > 0
+                      ? `${formatMoney(totalOpenBalance)} scheduled on ${openInvoices.length} future invoice${openInvoices.length === 1 ? '' : 's'}`
+                      : 'You are all caught up'}
               </small>
             </div>
           </div>
@@ -412,7 +423,7 @@ export default function InvoicesPage() {
         )}
 
         <section className="account-summary" aria-label="Account summary">
-          <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>Amount due</small><strong>{formatMoney(amountDueNow)}</strong></span></div>
+          <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>Open balance</small><strong>{formatMoney(totalOpenBalance)}</strong></span></div>
           <div><span className="account-summary-icon green"><WalletCards size={21} /></span><span><small>Account credit</small><strong>{formatMoney(creditBalance)}</strong></span></div>
           <div><span className="account-summary-icon green"><CheckCircle2 size={21} /></span><span><small>Paid invoices</small><strong>{paidInvoices.length}</strong></span></div>
           <div><span className="account-summary-icon blue"><FileText size={21} /></span><span><small>Total history</small><strong>{invoices.length}</strong></span></div>

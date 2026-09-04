@@ -19,7 +19,7 @@ function todayInCentral() {
 }
 
 export function isInvoiceOutstanding(invoice: BalanceInvoice) {
-  return !['paid', 'cancelled'].includes(String(invoice.status || '').toLowerCase())
+  return !['paid', 'void', 'cancelled', 'canceled'].includes(String(invoice.status || '').toLowerCase())
 }
 
 export function isInvoiceDueNow(invoice: BalanceInvoice, today = todayInCentral()) {

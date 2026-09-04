@@ -42,7 +42,7 @@ import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 import { getSeasonalTheme } from '../../lib/seasonal-theme'
-import { isInvoiceDueNow, isInvoiceDueWithinDays, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { isInvoiceDueNow, isInvoiceDueWithinDays, isInvoiceOutstanding, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 const serviceLinks = [
   {
@@ -271,10 +271,23 @@ export default function CamperPortalPage() {
         } = await supabase.auth.getSession()
         const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult, birthdayResult, siteCareResult, authorizedBillingResult] =
           await Promise.all([
-            supabase
-              .from('invoices')
-              .select('*')
-              .eq('camper_id', camperData.id),
+            session?.access_token
+              ? fetch('/api/camper-invoices', {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                })
+                  .then(async (response) => {
+                    const result = await response.json()
+                    if (!response.ok) throw new Error(result.error || 'Unable to load camper invoices.')
+                    return result
+                  })
+                  .catch(async () => {
+                    const { data } = await supabase
+                      .from('invoices')
+                      .select('*')
+                      .eq('camper_id', camperData.id)
+                    return { invoices: data || [] }
+                  })
+              : Promise.resolve({ invoices: [] }),
             supabase
               .from('electric_readings')
               .select('*')
@@ -357,7 +370,7 @@ export default function CamperPortalPage() {
               : Promise.resolve(null),
           ])
 
-        setInvoices(invoiceResult.data || [])
+        setInvoices(invoiceResult?.invoices || [])
         setAuthorizedBillingAccounts(authorizedBillingResult?.accounts || [])
         setLatestElectric(electricResult.data || null)
         setDocuments(documentResult?.documents || [])
@@ -619,6 +632,11 @@ export default function CamperPortalPage() {
 
   const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
   const openBalance = totalInvoiceBalance(dueNowInvoices)
+  const ownedOpenInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice))
+  const totalOpenBalance = totalInvoiceBalance(ownedOpenInvoices)
+  const nextOwnedOpenInvoice = [...ownedOpenInvoices]
+    .filter((invoice) => invoice.due_date)
+    .sort((left, right) => String(left.due_date).localeCompare(String(right.due_date)))[0]
   const accessibleInvoices = Array.from(new Map<string, any>([
     ...invoices,
     ...authorizedBillingAccounts.flatMap((account) => account.invoices || []),
@@ -750,7 +768,7 @@ export default function CamperPortalPage() {
   const siteReadiness = [
     { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
     { label: 'Documents', value: documentsNeedingSignature.length ? `${documentsNeedingSignature.length} open` : 'Clear', complete: documentsNeedingSignature.length === 0 },
-    { label: 'Balance', value: dueNowInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00', complete: dueNowInvoices.length === 0 },
+    { label: 'Open balance', value: `$${totalOpenBalance.toFixed(2)}`, complete: dueNowInvoices.length === 0 },
     { label: 'Maintenance', value: activeMaintenance.length ? latestMaintenanceStatus : latestMaintenance?.status === 'Completed' ? 'Completed' : 'None', complete: activeMaintenance.length === 0 },
   ]
   const urgentCount =
@@ -1208,9 +1226,9 @@ export default function CamperPortalPage() {
 
           <div className="portal-arrival-status">
             <a href="/invoices" className={dueNowInvoices.length ? 'attention' : 'good'}>
-              <small>Balance</small>
-              <strong>{dueNowInvoices.length ? `$${openBalance.toFixed(2)}` : '$0.00'}</strong>
-              <em>{dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due` : 'Nothing due'}</em>
+              <small>Open balance</small>
+              <strong>${totalOpenBalance.toFixed(2)}</strong>
+              <em>{dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due now` : nextOwnedOpenInvoice ? `Nothing due now · next ${formatDate(nextOwnedOpenInvoice.due_date)}` : 'Nothing due'}</em>
             </a>
             <a href="/invoices" className={upcoming30Invoices.length ? 'attention' : 'good'}>
               <small>Next 30 days</small>
@@ -1710,8 +1728,8 @@ export default function CamperPortalPage() {
               <CircleDollarSign size={22} />
             </span>
             <span>
-              <small>Amount due</small>
-              <strong>${openBalance.toFixed(2)}</strong>
+              <small>Open balance</small>
+              <strong>${totalOpenBalance.toFixed(2)}</strong>
               <em>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? '' : 's'} due now</em>
             </span>
           </a>
@@ -1903,7 +1921,7 @@ export default function CamperPortalPage() {
           <div className="portal-site-command-grid">
             <article><small>Camper</small><strong>{camper?.first_name || ''} {camper?.last_name || ''}</strong></article>
             <article><small>Latest electric</small><strong>{latestElectric ? `${latestElectric.kwh_used || 0} kWh` : 'No reading'}</strong></article>
-            <article><small>Amount due</small><strong>${openBalance.toFixed(2)}</strong></article>
+            <article><small>Open balance</small><strong>${totalOpenBalance.toFixed(2)}</strong></article>
             <article><small>Insurance</small><strong>{insuranceOnFile ? 'On file' : 'Optional'}</strong></article>
             <article><small>Text alerts</small><strong>{camper?.sms_opt_in ? 'On' : 'Off'}</strong></article>
             <article><small>Office messages</small><strong>{unreadOfficeMessages ? `${unreadOfficeMessages} unread` : 'Clear'}</strong></article>

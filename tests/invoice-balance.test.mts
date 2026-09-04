@@ -18,6 +18,17 @@ test('amount due excludes future invoices while keeping them upcoming', () => {
   assert.equal(totalInvoiceBalance(upcoming), 250)
 })
 
+test('void and canceled invoices never appear in camper balances', () => {
+  const invoices = [
+    { status: 'void', total_due: 100, due_date: '2026-09-01' },
+    { status: 'canceled', total_due: 200, due_date: '2026-09-01' },
+    { status: 'cancelled', total_due: 300, due_date: '2026-09-01' },
+    { status: 'sent', total_due: 50, due_date: '2026-09-01' },
+  ]
+
+  assert.equal(totalInvoiceBalance(invoices.filter((invoice) => isInvoiceDueNow(invoice, '2026-09-04'))), 50)
+})
+
 test('an open invoice without a due date is due now', () => {
   assert.equal(isInvoiceDueNow({ status: 'open', due_date: null, total_due: 25 }, '2026-08-28'), true)
 })

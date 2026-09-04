@@ -80,18 +80,41 @@ export default function CamperInvoiceDetailPage() {
 
       let visibleCamper = camperData
       setSmsOptIn(Boolean(camperData.sms_opt_in))
-      let { data, error } = await supabase
-        .from('invoices')
-        .select('*, invoice_items(*)')
-        .eq('id', invoiceId)
-        .eq('camper_id', camperData.id)
-        .maybeSingle()
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      let data: any = null
 
-      if (error) setMessage(error.message)
+      if (token) {
+        const response = await fetch(`/api/camper-invoices?invoiceId=${encodeURIComponent(invoiceId)}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => null)
+
+        if (response?.ok) {
+          const result = await response.json()
+          data = result.invoice || null
+          visibleCamper = result.camper || camperData
+        } else if (response) {
+          const result = await response.json().catch(() => null)
+          if (response.status !== 404) setMessage(result?.error || 'Unable to load this invoice.')
+        }
+      }
 
       if (!data) {
-        const { data: sessionData } = await supabase.auth.getSession()
-        const token = sessionData.session?.access_token
+        const directResult = await supabase
+          .from('invoices')
+          .select('*, invoice_items(*)')
+          .eq('id', invoiceId)
+          .eq('camper_id', camperData.id)
+          .maybeSingle()
+        if (directResult.data) {
+          data = directResult.data
+          setMessage('')
+        } else if (directResult.error) {
+          setMessage(directResult.error.message)
+        }
+      }
+
+      if (!data) {
         if (token) {
           const response = await fetch(`/api/authorized-billing?invoiceId=${encodeURIComponent(invoiceId)}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -113,8 +136,6 @@ export default function CamperInvoiceDetailPage() {
       setInvoice(data || null)
       setItems(Array.isArray(data?.invoice_items) ? data.invoice_items : [])
 
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData.session?.access_token
       if (data && token) {
         const response = await fetch(`/api/camper-meter-photos?invoiceId=${encodeURIComponent(invoiceId)}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -151,16 +172,18 @@ export default function CamperInvoiceDetailPage() {
         return
       }
 
-      const { data } = await supabase
-        .from('invoices')
-        .select('*, invoice_items(*)')
-        .eq('id', invoiceId)
-        .eq('camper_id', camper.id)
-        .maybeSingle()
-
-      if (data) {
-        setInvoice(data)
-        setItems(Array.isArray(data.invoice_items) ? data.invoice_items : [])
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) return
+      const response = await fetch(`/api/camper-invoices?invoiceId=${encodeURIComponent(invoiceId)}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      }).catch(() => null)
+      if (response?.ok) {
+        const result = await response.json()
+        if (result.invoice) {
+          setInvoice(result.invoice)
+          setItems(Array.isArray(result.invoice.invoice_items) ? result.invoice.invoice_items : [])
+        }
       }
     }
 
