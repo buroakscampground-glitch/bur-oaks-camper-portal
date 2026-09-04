@@ -6,6 +6,8 @@ import { supabase } from '../../../lib/supabase'
 import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 import { isOperationalCamper, isSystemPortalAccount } from '../../../lib/camper-records'
+import { pumpOutServiceLotsForAccount } from '../../../lib/multi-site-pump-outs'
+import { pumpOutBillingLot, pumpOutDisplayNotes, pumpOutOrigin } from '../../../lib/pump-out-audit'
 
 const statusLabels: Record<string, string> = {
   requested: 'Needs Pumped',
@@ -22,6 +24,7 @@ export default function AdminPumpOutsPage() {
   const [sendingReport, setSendingReport] = useState(false)
   const [campers, setCampers] = useState<any[]>([])
   const [manualCamperId, setManualCamperId] = useState('')
+  const [manualServiceLot, setManualServiceLot] = useState('')
   const [manualNotes, setManualNotes] = useState('')
   const [manualSaving, setManualSaving] = useState(false)
   const [defaultPumpOutFee, setDefaultPumpOutFee] = useState(defaultCampgroundBillingSettings.sewerPumpOutFee)
@@ -35,7 +38,7 @@ export default function AdminPumpOutsPage() {
     const [{ data, error }, settings] = await Promise.all([
       supabase
         .from('campers')
-        .select('id,first_name,last_name,lot_number,role,active')
+        .select('id,first_name,last_name,email,lot_number,role,active')
         .order('lot_number', { ascending: true }),
       loadCampgroundBillingSettings(supabase),
     ])
@@ -117,7 +120,7 @@ export default function AdminPumpOutsPage() {
         Authorization: `Bearer ${session?.access_token || ''}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ camperId: manualCamperId, notes: manualNotes }),
+      body: JSON.stringify({ camperId: manualCamperId, serviceLot: manualServiceLot, notes: manualNotes }),
     })
     const result = await response.json().catch(() => null)
 
@@ -126,6 +129,7 @@ export default function AdminPumpOutsPage() {
 
     if (response.ok && !result?.duplicate) {
       setManualCamperId('')
+      setManualServiceLot('')
       setManualNotes('')
       await loadRequests()
       setFilter('requested')
@@ -158,7 +162,11 @@ export default function AdminPumpOutsPage() {
     0
   )
   const selectedManualCamper = campers.find((camper) => camper.id === manualCamperId)
-  const selectedManualCharge = getSewerPumpOutFeeForLot(selectedManualCamper?.lot_number, defaultPumpOutFee)
+  const manualServiceLots = selectedManualCamper
+    ? pumpOutServiceLotsForAccount(selectedManualCamper.email, selectedManualCamper.lot_number)
+    : []
+  const selectedManualServiceLot = manualServiceLot || manualServiceLots[0] || selectedManualCamper?.lot_number
+  const selectedManualCharge = getSewerPumpOutFeeForLot(selectedManualServiceLot, defaultPumpOutFee)
 
   return (
     <main className="admin-pump-page">
@@ -185,7 +193,7 @@ export default function AdminPumpOutsPage() {
         <div className="admin-pump-manual-fields">
           <label>
             <span>Camper site</span>
-            <select value={manualCamperId} onChange={(event) => setManualCamperId(event.target.value)}>
+            <select value={manualCamperId} onChange={(event) => { setManualCamperId(event.target.value); setManualServiceLot('') }}>
               <option value="">Choose a lot…</option>
               {campers.map((camper) => (
                 <option value={camper.id} key={camper.id}>
@@ -194,6 +202,14 @@ export default function AdminPumpOutsPage() {
               ))}
             </select>
           </label>
+          {manualServiceLots.length > 1 && (
+            <label>
+              <span>Site that needs pumped</span>
+              <select value={selectedManualServiceLot} onChange={(event) => setManualServiceLot(event.target.value)}>
+                {manualServiceLots.map((lot) => <option value={lot} key={lot}>Lot {lot}</option>)}
+              </select>
+            </label>
+          )}
           <label>
             <span>Office note (optional)</span>
             <input value={manualNotes} onChange={(event) => setManualNotes(event.target.value)} maxLength={500} placeholder="Called the office, requested before Friday…" />
@@ -212,7 +228,7 @@ export default function AdminPumpOutsPage() {
           <option value="completed">Pumped</option>
           <option value="active">All current / unbilled</option>
           <option value="cancelled">Cancelled</option>
-          <option value="all">All</option>
+          <option value="all">Complete pump-out history</option>
         </select>
         <button type="button" onClick={sendPumpOutReportNow} disabled={sendingReport}>
           <Printer size={16} /> {sendingReport ? 'Sending…' : 'Send / Print List Now'}
@@ -222,14 +238,18 @@ export default function AdminPumpOutsPage() {
       <section className="admin-pump-list">
         {visibleRequests.map((request) => {
           const isBilled = Boolean(request.billed_at)
+          const origin = pumpOutOrigin(request.notes)
+          const billingLot = pumpOutBillingLot(request.notes, request.lot_number)
+          const displayNotes = pumpOutDisplayNotes(request.notes)
 
           return (
             <article className={`${request.status} ${isBilled ? 'billed' : ''}`} key={request.id}>
               <span>{statusLabels[request.status] || request.status}</span>
               <div className="admin-pump-details">
-                <small>Lot {request.lot_number || 'N/A'} · {new Date(request.requested_at).toLocaleString()}</small>
+                <small>Service site {request.lot_number || 'N/A'} · requested {new Date(request.requested_at).toLocaleString()}</small>
                 <h2>{request.camper_name}</h2>
-                <p>{request.notes || 'No notes. Camper requested sewer pump-out from the portal.'}</p>
+                <p><strong>{origin.label}</strong> · {origin.initiatedBy}{billingLot && billingLot !== request.lot_number ? ` · billed to Lot ${billingLot}` : ''}</p>
+                <p>{displayNotes || 'No additional notes.'}</p>
                 <em>
                   {Number(request.gallons_used || getSewerPumpOutGallonsForCharge(request.charge_amount)).toLocaleString()} gallons · ${Number(request.charge_amount || 10).toFixed(2)}
                   {isBilled ? ` · billed on ${new Date(request.billed_at).toLocaleDateString()}` : ' · pending next electric bill'}

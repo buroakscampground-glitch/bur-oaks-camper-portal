@@ -63,6 +63,7 @@ export async function POST(request: Request) {
   }
 
   const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'Camper'
+  const initiatedBy = `Initiated from camper portal by ${context.user.email}.`
   const billingSettings = await loadCampgroundBillingSettings(context.admin)
   const pumpCharge = getSewerPumpOutFeeForLot(requestedServiceLot, billingSettings.sewerPumpOutFee)
   const gallonsUsed = getSewerPumpOutGallonsForCharge(pumpCharge)
@@ -88,7 +89,7 @@ export async function POST(request: Request) {
       requestResults = [{ request_row: existing[0], duplicate: true }]
     } else {
       const billingNote = `Service site ${requestedServiceLot}; bill to Lot ${context.camper.lot_number}.`
-      const combinedNotes = [billingNote, notes].filter(Boolean).join(' ').slice(0, 500)
+      const combinedNotes = [billingNote, initiatedBy, notes].filter(Boolean).join(' ').slice(0, 500)
       const { data: created, error: insertError } = await context.admin
         .from('sewer_pump_out_requests')
         .insert({
@@ -111,7 +112,7 @@ export async function POST(request: Request) {
       p_lot_number: requestedServiceLot,
       p_camper_name: camperName,
       p_charge_amount: pumpCharge,
-      p_notes: notes,
+      p_notes: [initiatedBy, notes].filter(Boolean).join(' ').slice(0, 500),
     })
     requestResults = result.data
     error = result.error

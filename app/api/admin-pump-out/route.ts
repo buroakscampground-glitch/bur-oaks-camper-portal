@@ -3,6 +3,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
+import { allowedPumpOutServiceLot, pumpOutServiceLotsForAccount } from '../../../lib/multi-site-pump-outs'
 
 export const runtime = 'nodejs'
 
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const camperId = String(body.camperId || '').trim()
+  const requestedServiceLot = String(body.serviceLot || '').trim()
   const notes = String(body.notes || '').trim().slice(0, 500)
 
   if (!camperId) {
@@ -23,7 +25,7 @@ export async function POST(request: Request) {
 
   const { data: targetCamper, error: camperError } = await context.admin
     .from('campers')
-    .select('id,first_name,last_name,lot_number,role,active')
+    .select('id,first_name,last_name,email,lot_number,role,active')
     .eq('id', camperId)
     .maybeSingle()
 
@@ -31,19 +33,73 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'That camper site could not be found.' }, { status: 404 })
   }
 
+  const serviceLots = pumpOutServiceLotsForAccount(targetCamper.email, targetCamper.lot_number)
+  const serviceLot = allowedPumpOutServiceLot(
+    targetCamper.email,
+    targetCamper.lot_number,
+    requestedServiceLot || targetCamper.lot_number
+  )
+  if (!serviceLot) {
+    return NextResponse.json({ error: 'That service site is not connected to this camper account.' }, { status: 400 })
+  }
+
   const billingSettings = await loadCampgroundBillingSettings(context.admin)
-  const chargeAmount = getSewerPumpOutFeeForLot(targetCamper.lot_number, billingSettings.sewerPumpOutFee)
+  const chargeAmount = getSewerPumpOutFeeForLot(serviceLot, billingSettings.sewerPumpOutFee)
   const gallonsUsed = getSewerPumpOutGallonsForCharge(chargeAmount)
   const camperName = `${targetCamper.first_name || ''} ${targetCamper.last_name || ''}`.trim() || 'Camper'
-  const officeNotes = notes ? `Office entry: ${notes}` : 'Added manually by the office.'
+  const billingNote = serviceLot !== targetCamper.lot_number
+    ? `Service site ${serviceLot}; bill to Lot ${targetCamper.lot_number}.`
+    : ''
+  const officeNotes = [
+    billingNote,
+    `Initiated by office admin ${context.user.email}.`,
+    notes,
+  ].filter(Boolean).join(' ').slice(0, 500)
 
-  const { data: requestResults, error } = await context.admin.rpc('request_sewer_pump_out_atomic', {
-    p_camper_id: targetCamper.id,
-    p_lot_number: targetCamper.lot_number,
-    p_camper_name: camperName,
-    p_charge_amount: chargeAmount,
-    p_notes: officeNotes,
-  })
+  let requestResults: any = null
+  let error: any = null
+  if (serviceLots.length > 1) {
+    const { data: existing, error: existingError } = await context.admin
+      .from('sewer_pump_out_requests')
+      .select('*')
+      .eq('lot_number', serviceLot)
+      .is('billed_at', null)
+      .neq('status', 'cancelled')
+      .order('requested_at', { ascending: false })
+      .limit(1)
+
+    if (existingError) {
+      error = existingError
+    } else if (existing?.length) {
+      requestResults = [{ request_row: existing[0], duplicate: true }]
+    } else {
+      const { data: created, error: insertError } = await context.admin
+        .from('sewer_pump_out_requests')
+        .insert({
+          camper_id: targetCamper.id,
+          lot_number: serviceLot,
+          camper_name: camperName,
+          status: 'requested',
+          charge_amount: chargeAmount,
+          gallons_used: gallonsUsed,
+          notes: officeNotes,
+        })
+        .select('*')
+        .single()
+      error = insertError
+      requestResults = created ? [{ request_row: created, duplicate: false }] : null
+    }
+  } else {
+    const result = await context.admin.rpc('request_sewer_pump_out_atomic', {
+      p_camper_id: targetCamper.id,
+      p_lot_number: serviceLot,
+      p_camper_name: camperName,
+      p_charge_amount: chargeAmount,
+      p_notes: officeNotes,
+    })
+    requestResults = result.data
+    error = result.error
+  }
 
   if (error) {
     return NextResponse.json({ error: 'Unable to add the pump-out request.' }, { status: 500 })
@@ -55,14 +111,14 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       duplicate: true,
-      message: `Lot ${targetCamper.lot_number || '—'} already has an open pump-out request and was not charged twice.`,
+      message: `Lot ${serviceLot || '—'} already has an open pump-out request and was not charged twice.`,
     })
   }
 
   return NextResponse.json({
     success: true,
     duplicate: false,
-    message: `Pump-out added for Lot ${targetCamper.lot_number || '—'}. The $${chargeAmount.toFixed(2)} charge will be added to the next electric invoice.${targetCamper.active === false ? ' The camper remains archived.' : ''}`,
+    message: `Pump-out added for service site ${serviceLot || '—'}${serviceLot !== targetCamper.lot_number ? ` and billed to Lot ${targetCamper.lot_number}` : ''}. The $${chargeAmount.toFixed(2)} charge will be added to the next electric invoice.${targetCamper.active === false ? ' The camper remains archived.' : ''}`,
     request: result?.request_row,
     chargeAmount,
     gallonsUsed,
