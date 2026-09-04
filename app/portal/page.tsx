@@ -1089,6 +1089,24 @@ export default function CamperPortalPage() {
           </a>
         )}
 
+        {nextDinner && (
+          <section className="portal-dinner-spotlight" aria-labelledby="portal-dinner-spotlight-title">
+            <span className="portal-dinner-spotlight-icon" aria-hidden="true"><Soup size={31} /></span>
+            <div className="portal-dinner-spotlight-copy">
+              <small>THIS SATURDAY AT 6:00 PM</small>
+              <h2 id="portal-dinner-spotlight-title">{nextDinner.menu}</h2>
+              <p>
+                Saturday dinner is coming up. Tell us how many are coming and
+                <strong> choose the side, dessert, or supply you’re bringing.</strong>
+              </p>
+              {nextDinner.theme && <em>{nextDinner.theme}</em>}
+            </div>
+            <a href={`/dinners?date=${nextDinner.date}`}>
+              RSVP + choose what you’re bringing <ArrowRight size={19} />
+            </a>
+          </section>
+        )}
+
         {officeBirthdayGreetings.map((greeting) => (
           <section className="portal-office-birthday" aria-labelledby={`portal-office-birthday-${greeting.id}`} key={greeting.id}>
             <div className="portal-office-birthday-confetti" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
@@ -1331,11 +1349,11 @@ export default function CamperPortalPage() {
               <strong>{unreadOfficeMessages > 0 ? `${unreadOfficeMessages} unread` : 'Contact office'}</strong>
             </span>
           </a>
-          <a href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>
+          <a className="portal-dinner-action" href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>
             <Soup size={20} />
             <span>
-              <small>Saturday dinner</small>
-              <strong>{upcomingDinners[0] ? `${upcomingDinners[0].month} ${upcomingDinners[0].day}` : 'View menu'}</strong>
+              <small>Saturday dinner + sides</small>
+              <strong>{upcomingDinners[0] ? `${upcomingDinners[0].month} ${upcomingDinners[0].day} · RSVP now` : 'View menu'}</strong>
             </span>
           </a>
         </section>

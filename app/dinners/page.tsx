@@ -247,9 +247,12 @@ export default function SaturdayDinnersPage() {
               <button type="button" onClick={() => updateGuestCount(guestCount + 1)}>+</button>
             </div>
           </label>
-          <label className="bring-field">
-            <span>What are you bringing?</span>
-            <select value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
+          <label className="bring-field bring-field-featured">
+            <span className="bring-field-callout">
+              <strong>What side are you bringing?</strong>
+              <small>Choose a side, dessert, or helpful supply so everyone can see what is covered.</small>
+            </span>
+            <select aria-label="Side, dessert, or supply you are bringing" value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
               <option value="">Nothing / not sure yet</option>
               {availableBringSuggestions.map((item) => (
                 <option value={item} key={item}>{item}</option>
@@ -263,17 +266,17 @@ export default function SaturdayDinnersPage() {
               <input value={customBringing} onChange={(event) => setCustomBringing(event.target.value)} placeholder="Example: brownies, fruit salad, lemonade" />
             </label>
           )}
-          <button type="button" onClick={saveDinnerSignup} disabled={saving || selectedDinner?.closed}>
-            <Send size={16} /> {saving ? 'Saving…' : 'Save dinner response'}
+          <button className="saturday-dinner-save" type="button" onClick={saveDinnerSignup} disabled={saving || selectedDinner?.closed}>
+            <Send size={18} /> {saving ? 'Saving…' : 'Save RSVP + what I’m bringing'}
           </button>
         </div>
         {message && <p className="saturday-dinner-message">{message}</p>}
 
         <div className="saturday-dinner-bringing-board">
           <div>
-            <small>WHO IS BRINGING WHAT</small>
+            <small>SIDES & DISHES CAMPERS ARE BRINGING</small>
             <h3>{selectedDinner?.month} {selectedDinner?.day} potluck list</h3>
-            <p>Claimed suggested items disappear from the dropdown so everyone can spread things out.</p>
+            <p>Check what is already covered, then claim something above. Claimed suggestions disappear from the dropdown.</p>
           </div>
           {visibleDinnerSignups.length > 0 ? (
             <div className="saturday-dinner-bringing-list">

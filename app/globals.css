@@ -12225,6 +12225,61 @@ tbody tr:hover {
   .admin-priority-tools .admin-operation-grid{grid-template-columns:1fr}
 }
 
+/* CAMPER DINNER SPOTLIGHT */
+.portal-dinner-spotlight{
+  position:relative;
+  z-index:5;
+  display:grid;
+  grid-template-columns:auto minmax(0,1fr) auto;
+  align-items:center;
+  gap:18px;
+  margin:-8px 28px 24px;
+  padding:22px 24px;
+  overflow:hidden;
+  border:3px solid #efbf54;
+  border-radius:24px;
+  background:radial-gradient(circle at 92% 10%,rgba(255,224,128,.36),transparent 30%),linear-gradient(135deg,#8f371f,#c65c2d 58%,#e1943f);
+  color:#fff;
+  box-shadow:0 18px 42px rgba(120,52,27,.27)
+}
+.portal-dinner-spotlight:before{content:"";position:absolute;inset:7px;border:1px dashed rgba(255,255,255,.3);border-radius:17px;pointer-events:none}
+.portal-dinner-spotlight-icon{position:relative;display:grid;width:62px;height:62px;place-items:center;border-radius:19px;background:#fff4d1;color:#9c3f24;box-shadow:0 9px 22px rgba(78,26,11,.2)}
+.portal-dinner-spotlight-copy{position:relative;min-width:0}
+.portal-dinner-spotlight-copy>small{color:#ffe49b;font-size:10px;font-weight:950;letter-spacing:.16em}
+.portal-dinner-spotlight-copy h2{margin:4px 0 5px;color:#fff;font:600 clamp(27px,3vw,39px)/1 Georgia,serif}
+.portal-dinner-spotlight-copy p{max-width:720px;margin:0;color:rgba(255,255,255,.9);font-size:13px;line-height:1.5}
+.portal-dinner-spotlight-copy p strong{color:#fff7d6}
+.portal-dinner-spotlight-copy em{display:inline-flex;margin-top:8px;padding:5px 9px;border-radius:999px;background:#fff1bd;color:#7d321e;font-size:10px;font-style:normal;font-weight:950;text-transform:uppercase}
+.portal-dinner-spotlight>a{position:relative;display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:52px;max-width:285px;padding:10px 18px;border:2px solid #fff;border-radius:15px;background:#fff;color:#82331f;font-size:13px;font-weight:950;line-height:1.2;text-align:center;text-decoration:none;box-shadow:0 10px 25px rgba(78,26,11,.2)}
+.portal-quick-actions a.portal-dinner-action{border:2px solid #d86e36;background:linear-gradient(135deg,#fff7df,#ffe7bd);box-shadow:0 12px 30px rgba(168,73,33,.14)}
+.portal-quick-actions a.portal-dinner-action>svg{background:#b94f2a;color:#fff}
+.portal-quick-actions a.portal-dinner-action small{color:#a34224}
+
+.saturday-dinner-signup{border:3px solid #df9b34;box-shadow:0 18px 44px rgba(132,72,22,.14)}
+.saturday-dinner-form .bring-field-featured{grid-column:1/-1;padding:18px;border:2px solid #dc7d35;border-radius:17px;background:linear-gradient(135deg,#fff8df,#ffead0);box-shadow:0 10px 24px rgba(140,70,24,.09)}
+.saturday-dinner-form .bring-field-callout{display:grid;grid-template-columns:1fr;gap:3px;letter-spacing:normal;text-transform:none}
+.saturday-dinner-form .bring-field-callout strong{color:#8e351f;font:600 25px/1.05 Georgia,serif}
+.saturday-dinner-form .bring-field-callout small{color:#6f5545;font-size:12px;font-weight:750;letter-spacing:0;text-transform:none}
+.saturday-dinner-form .bring-field-featured select{min-height:54px!important;border:2px solid #c86532!important;background:#fff!important;color:#442f26!important;font-size:16px!important;font-weight:850}
+.saturday-dinner-form button.saturday-dinner-save{grid-column:1/-1;min-height:54px!important;background:linear-gradient(135deg,#8f371f,#c85e2e)!important;font-size:15px!important;font-weight:950!important;box-shadow:0 10px 24px rgba(126,51,25,.2)}
+.saturday-dinner-bringing-board{border:2px solid #d8a447;background:linear-gradient(135deg,#fff9e7,#f4e4bd)}
+
+@media(max-width:760px){
+  .portal-dinner-spotlight{grid-template-columns:auto minmax(0,1fr);gap:13px;margin:-8px 14px 18px;padding:18px;border-radius:20px}
+  .portal-dinner-spotlight-icon{width:50px;height:50px;border-radius:15px}
+  .portal-dinner-spotlight-copy h2{font-size:28px}
+  .portal-dinner-spotlight-copy p{font-size:12px}
+  .portal-dinner-spotlight>a{grid-column:1/-1;width:100%;max-width:none;min-height:55px;font-size:14px}
+}
+
+@media(max-width:430px){
+  .portal-dinner-spotlight{grid-template-columns:1fr}
+  .portal-dinner-spotlight-icon{display:none}
+  .portal-dinner-spotlight-copy>small{font-size:9px}
+  .saturday-dinner-form .bring-field-featured{padding:15px}
+  .saturday-dinner-form .bring-field-callout strong{font-size:23px}
+}
+
 /* ADMIN DASHBOARD: LIVE WORK FIRST, SHORTCUTS COMPACT */
 .admin-command-hero{
   min-height:315px;
