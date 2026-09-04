@@ -55,6 +55,20 @@ export function isLotRentInvoice(invoice: PriorLotRentInvoice) {
   return type.includes('rent') && (type.includes('lot') || type.includes('site'))
 }
 
+export function hasExistingLotRentForTargetMonth(
+  invoices: PriorLotRentInvoice[],
+  targetDate: string,
+) {
+  const targetMonth = String(targetDate || '').slice(0, 7)
+  if (!/^\d{4}-\d{2}$/.test(targetMonth)) return false
+
+  return invoices.some((invoice) => {
+    const status = String(invoice.status || '').toLowerCase()
+    if (['cancelled', 'canceled', 'void', 'refunded'].includes(status)) return false
+    return isLotRentInvoice(invoice) && String(invoice.due_date || '').slice(0, 7) === targetMonth
+  })
+}
+
 function money(value: unknown) {
   const amount = Number(value || 0)
   return Number.isFinite(amount) ? Number(amount.toFixed(2)) : 0

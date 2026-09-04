@@ -1,9 +1,8 @@
 import { isNoBillingLot } from './billing-exemptions'
 import {
   buildRenewalRentSchedule,
-  isLotRentInvoice,
+  hasExistingLotRentForTargetMonth,
   normalizeRentPaymentPlan,
-  type PriorLotRentInvoice,
 } from './renewal-rent-schedule'
 
 function invoiceNumber(lotNumber: unknown, dueDate: string) {
@@ -85,26 +84,15 @@ export async function continueSignedRenewalRentSchedule({
     paymentPlan,
     annualRent,
   )
-  const targetDates = schedule.map((installment) => installment.dueDate)
-  const existingTargets = targetDates.length
-    ? await client
-        .from('invoices')
-        .select('id,due_date,invoice_type')
-        .eq('camper_id', camperId)
-        .in('due_date', targetDates)
-    : { data: [], error: null }
-  if (existingTargets.error) throw existingTargets.error
-
-  const existingDates = new Set(
-    (existingTargets.data || [])
-      .filter((invoice: PriorLotRentInvoice) => isLotRentInvoice(invoice))
-      .map((invoice: PriorLotRentInvoice) => String(invoice.due_date)),
-  )
   let created = 0
   let skipped = 0
 
   for (const installment of schedule) {
-    if (existingDates.has(installment.dueDate)) {
+    // Some legacy schedules used the first of the month while the renewal
+    // anniversary used a later day. Treat an existing rent installment in the
+    // same month as the scheduled installment so reconciliation cannot create
+    // a second charge merely because those day numbers differ.
+    if (hasExistingLotRentForTargetMonth(invoices || [], installment.dueDate)) {
       skipped += 1
       continue
     }
@@ -137,7 +125,14 @@ export async function continueSignedRenewalRentSchedule({
       throw itemError
     }
 
-    existingDates.add(installment.dueDate)
+    ;(invoices || []).push({
+      id: newInvoice.id,
+      invoice_number: number,
+      invoice_type: installment.invoiceType,
+      due_date: installment.dueDate,
+      status: 'sent',
+      total_due: installment.amount,
+    })
     created += 1
   }
 

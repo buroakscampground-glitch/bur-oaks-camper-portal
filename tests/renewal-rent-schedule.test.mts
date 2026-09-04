@@ -5,6 +5,7 @@ import {
   addYearsToDate,
   buildContinuedRentSchedule,
   buildRenewalRentSchedule,
+  hasExistingLotRentForTargetMonth,
 } from '../lib/renewal-rent-schedule.ts'
 
 test('signed renewal carries the prior lot-rent schedule forward one year', () => {
@@ -98,4 +99,22 @@ test('void and canceled rent invoices are never carried into a renewal', () => {
 
 test('month shifting clamps contract dates to the final valid day', () => {
   assert.equal(addMonthsToDate('2027-08-31', 6), '2028-02-29')
+})
+
+test('an existing rent installment in the target month prevents a duplicate renewal charge', () => {
+  const invoices = [
+    { invoice_type: 'Lot Rent', due_date: '2026-10-01', status: 'sent' },
+    { invoice_type: 'Lot Rent', due_date: '2027-04-01', status: 'paid' },
+    { invoice_type: 'Electric', due_date: '2026-10-10', status: 'sent' },
+  ]
+
+  assert.equal(hasExistingLotRentForTargetMonth(invoices, '2026-10-10'), true)
+  assert.equal(hasExistingLotRentForTargetMonth(invoices, '2027-04-10'), true)
+  assert.equal(hasExistingLotRentForTargetMonth(invoices, '2027-10-10'), false)
+})
+
+test('void rent does not block a replacement installment in the same month', () => {
+  assert.equal(hasExistingLotRentForTargetMonth([
+    { invoice_type: 'Lot Rent', due_date: '2027-10-01', status: 'void' },
+  ], '2027-10-10'), false)
 })
