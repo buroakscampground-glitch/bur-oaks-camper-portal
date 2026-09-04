@@ -10,6 +10,7 @@ import { fallbackInvoiceLine, invoiceLineDetails } from '../../../../lib/invoice
 import AdminQuickText from '../../../../components/AdminQuickText'
 import { printPageWithFlag } from '../../../../lib/print-page'
 import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-message'
+import { buildPaymentAllocationPreview, submitManualPayment } from '../../../../lib/manual-payment'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -56,6 +57,8 @@ export default function InvoiceDetailPage() {
   const [manualPaymentMethod, setManualPaymentMethod] = useState('Check')
   const [manualPaymentDate, setManualPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [manualPaymentReference, setManualPaymentReference] = useState('')
+  const [manualPaymentAmount, setManualPaymentAmount] = useState('')
+  const [paymentInvoices, setPaymentInvoices] = useState<any[]>([])
 
   useEffect(() => {
     loadInvoice()
@@ -116,6 +119,9 @@ export default function InvoiceDetailPage() {
 
     setFeeSettings(paymentFeeSettings)
     setInvoice(invoiceResult.data || null)
+    if (invoiceResult.data?.id && !manualPaymentAmount) {
+      setManualPaymentAmount(String(Number(invoiceResult.data.total_due || 0).toFixed(2)))
+    }
     if (!finalPaymentPhone && invoiceResult.data?.campers?.phone) {
       setFinalPaymentPhone(String(invoiceResult.data.campers.phone))
     }
@@ -123,6 +129,14 @@ export default function InvoiceDetailPage() {
     setAppliedCredit(
       (creditResult.data || []).reduce((sum, application) => sum + Number(application.amount_applied || 0), 0)
     )
+    if (invoiceResult.data?.camper_id) {
+      const { data: openInvoices } = await supabase
+        .from('invoices')
+        .select('id,invoice_number,invoice_type,due_date,created_at,status,total_due')
+        .eq('camper_id', invoiceResult.data.camper_id)
+        .order('due_date', { ascending: true })
+      setPaymentInvoices(openInvoices || [])
+    }
     if (showLoading) setLoading(false)
   }
 
@@ -164,38 +178,44 @@ export default function InvoiceDetailPage() {
     }
 
     if (!invoice) return
+    const paymentAmount = Number(manualPaymentAmount)
+    if (!Number.isFinite(paymentAmount) || paymentAmount <= 0) {
+      setMessage('Enter a valid payment amount.')
+      return
+    }
     if (!manualPaymentDate) {
       setMessage('Choose the date the office received this payment.')
       return
     }
 
     const confirmed = confirm(
-      `Record ${formatMoney(invoice.total_due)} as paid by ${manualPaymentMethod.toLowerCase()}?`
+      `Record ${formatMoney(paymentAmount)} by ${manualPaymentMethod.toLowerCase()} and apply it to the listed bills?`
     )
     if (!confirmed) return
 
     setBusy(true)
     setMessage('')
 
-    const { error } = await supabase
-      .from('invoices')
-      .update({
-        status: 'paid',
-        paid_at: new Date(`${manualPaymentDate}T12:00:00`).toISOString(),
-        payment_method: manualPaymentMethod,
-        payment_reference: manualPaymentReference.trim() || 'Recorded manually by office',
+    try {
+      const result = await submitManualPayment({
+        client: supabase,
+        invoiceId: invoice.id,
+        amount: paymentAmount,
+        method: manualPaymentMethod,
+        receivedOn: manualPaymentDate,
+        reference: manualPaymentReference,
       })
-      .eq('id', invoice.id)
-
-    setBusy(false)
-
-    if (error) {
-      setMessage(error.message)
-      return
+      const creditNote = Number(result.creditAmount || 0) > 0
+        ? ` ${formatMoney(result.creditAmount)} remains as account credit.`
+        : ''
+      setMessage(`Payment recorded. ${formatMoney(result.appliedTotal)} applied to ${result.allocations?.length || 0} bill(s).${creditNote}`)
+      setManualPaymentAmount('')
+      await loadInvoice(false)
+    } catch (error: any) {
+      setMessage(error.message || 'The payment could not be recorded.')
+    } finally {
+      setBusy(false)
     }
-
-    setMessage(`Payment recorded: ${formatMoney(invoice.total_due)} by ${manualPaymentMethod.toLowerCase()}.`)
-    loadInvoice()
   }
 
   function beginEditing() {
@@ -344,6 +364,7 @@ export default function InvoiceDetailPage() {
   const calculatedTotal = Number((itemSubtotal + lateFee).toFixed(2))
   const invoiceTotal = Number(invoice?.total_due || 0)
   const totalDifference = Number((invoiceTotal - calculatedTotal).toFixed(2))
+  const paymentPreview = buildPaymentAllocationPreview(paymentInvoices, String(invoice?.id || ''), manualPaymentAmount)
   const editSubtotal = editItems.reduce(
     (sum, item) => sum + Number(item.quantity || 0) * Number(item.unitPrice || 0),
     0
@@ -429,10 +450,14 @@ export default function InvoiceDetailPage() {
               <div>
                 <small>CHECK · CASH · MONEY ORDER</small>
                 <h2>Record an office payment</h2>
-                <p>This closes this invoice as paid without charging the camper online.</p>
+                <p>Enter the amount received. It applies here first, then to the camper’s other bills by due date.</p>
               </div>
             </div>
             <div className="admin-manual-payment-fields">
+              <label>
+                <span>Amount received</span>
+                <input type="number" min="0.01" step="0.01" inputMode="decimal" value={manualPaymentAmount} onChange={(event) => setManualPaymentAmount(event.target.value)} />
+              </label>
               <label>
                 <span>Payment method</span>
                 <select value={manualPaymentMethod} onChange={(event) => setManualPaymentMethod(event.target.value)}>
@@ -451,10 +476,22 @@ export default function InvoiceDetailPage() {
                 <input value={manualPaymentReference} onChange={(event) => setManualPaymentReference(event.target.value)} placeholder="Example: Check 1942" />
               </label>
             </div>
+            <div className="admin-payment-allocation-preview">
+              <strong>Automatic allocation</strong>
+              {paymentPreview.allocations.length ? paymentPreview.allocations.map((allocation) => (
+                <span key={allocation.invoiceId}>
+                  <em>#{allocation.invoiceNumber} · {allocation.invoiceType}</em>
+                  <b>{formatMoney(allocation.amount)}</b>
+                </span>
+              )) : <small>Enter an amount to preview where it will go.</small>}
+              {paymentPreview.creditAmount > 0 && (
+                <span className="credit"><em>Remaining account credit</em><b>{formatMoney(paymentPreview.creditAmount)}</b></span>
+              )}
+            </div>
             <div className="admin-manual-payment-submit">
-              <span><small>Payment amount</small><strong>{formatMoney(invoice.total_due)}</strong></span>
+              <span><small>Total received</small><strong>{formatMoney(manualPaymentAmount)}</strong></span>
               <button type="button" onClick={recordManualPayment} disabled={busy}>
-                <CheckCircle2 size={17} /> {busy ? 'Recording…' : 'Record payment and close invoice'}
+                <CheckCircle2 size={17} /> {busy ? 'Recording…' : 'Record and apply payment'}
               </button>
             </div>
           </section>

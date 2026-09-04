@@ -10,6 +10,7 @@ import AdminQuickText from "../../../../components/AdminQuickText"
 import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 import { printPageWithFlag } from '../../../../lib/print-page'
 import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-message'
+import { buildPaymentAllocationPreview, submitManualPayment } from '../../../../lib/manual-payment'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString("en-US", {
@@ -33,6 +34,7 @@ export default function CamperBalancePage() {
   const params = useParams()
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
+  const [allOpenInvoices, setAllOpenInvoices] = useState<any[]>([])
   const [totalDue, setTotalDue] = useState(0)
   const [message, setMessage] = useState("")
   const [busyInvoiceId, setBusyInvoiceId] = useState("")
@@ -41,6 +43,7 @@ export default function CamperBalancePage() {
   const [paymentMethod, setPaymentMethod] = useState("Check")
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [paymentReference, setPaymentReference] = useState("")
+  const [paymentAmount, setPaymentAmount] = useState("")
 
   useEffect(() => {
     loadData()
@@ -78,6 +81,7 @@ export default function CamperBalancePage() {
       .neq("status", "paid")
       .order("due_date")
 
+    setAllOpenInvoices(invoiceData || [])
     const dueInvoices = (invoiceData || []).filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
     setInvoices(dueInvoices)
     setTotalDue(totalInvoiceBalance(dueInvoices))
@@ -89,6 +93,8 @@ export default function CamperBalancePage() {
     setPaymentMethod("Check")
     setPaymentDate(new Date().toISOString().slice(0, 10))
     setPaymentReference("")
+    const invoice = allOpenInvoices.find((item) => item.id === invoiceId) || invoices.find((item) => item.id === invoiceId)
+    setPaymentAmount(String(Number(invoice?.total_due || 0).toFixed(2)))
     setMessage("")
   }
 
@@ -104,32 +110,38 @@ export default function CamperBalancePage() {
       return
     }
 
+    const amount = Number(paymentAmount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setMessage("Enter a valid payment amount.")
+      return
+    }
+
     const confirmed = window.confirm(
-      `Record ${formatMoney(invoice?.total_due)} as paid by ${paymentMethod.toLowerCase()}?`
+      `Record ${formatMoney(amount)} by ${paymentMethod.toLowerCase()} and apply it to the listed bills?`
     )
     if (!confirmed) return
 
     setBusyInvoiceId(invoiceId)
-    const { error } = await supabase
-      .from("invoices")
-      .update({
-        status: "paid",
-        paid_at: new Date(`${paymentDate}T12:00:00`).toISOString(),
-        payment_method: paymentMethod,
-        payment_reference: paymentReference.trim() || "Recorded manually by office",
+    try {
+      const result = await submitManualPayment({
+        client: supabase,
+        invoiceId,
+        amount,
+        method: paymentMethod,
+        receivedOn: paymentDate,
+        reference: paymentReference,
       })
-      .eq("id", invoiceId)
-
-    setBusyInvoiceId("")
-
-    if (error) {
-      setMessage(error.message)
-      return
+      const creditNote = Number(result.creditAmount || 0) > 0
+        ? ` ${formatMoney(result.creditAmount)} remains as account credit.`
+        : ""
+      setPaymentInvoiceId("")
+      setMessage(`Payment recorded. ${formatMoney(result.appliedTotal)} applied to ${result.allocations?.length || 0} bill(s).${creditNote}`)
+      await loadData()
+    } catch (error: any) {
+      setMessage(error.message || "The payment could not be recorded.")
+    } finally {
+      setBusyInvoiceId("")
     }
-
-    setPaymentInvoiceId("")
-    setMessage(`Payment recorded: ${formatMoney(invoice?.total_due)} by ${paymentMethod.toLowerCase()}.`)
-    await loadData()
   }
 
   async function deleteInvoice(invoice: any) {
@@ -278,8 +290,12 @@ Bur Oaks Campground
                   <div className="admin-open-payment-form">
                     <div>
                       <strong>How was this invoice paid?</strong>
-                      <small>Record the full {formatMoney(invoice.total_due)} payment. No online charge will be made.</small>
+                      <small>Enter any amount. Extra automatically moves to later bills; true excess becomes account credit.</small>
                     </div>
+                    <label>
+                      <span>Amount received</span>
+                      <input type="number" min="0.01" step="0.01" inputMode="decimal" value={paymentAmount} onChange={(event) => setPaymentAmount(event.target.value)} />
+                    </label>
                     <label>
                       <span>Payment method</span>
                       <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)}>
@@ -297,6 +313,15 @@ Bur Oaks Campground
                       <span>Check/reference number <em>optional</em></span>
                       <input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Example: Check 1942" />
                     </label>
+                    <div className="admin-payment-allocation-preview">
+                      <strong>Automatic allocation</strong>
+                      {buildPaymentAllocationPreview(allOpenInvoices, invoice.id, paymentAmount).allocations.map((allocation) => (
+                        <span key={allocation.invoiceId}><em>#{allocation.invoiceNumber} · {allocation.invoiceType}</em><b>{formatMoney(allocation.amount)}</b></span>
+                      ))}
+                      {buildPaymentAllocationPreview(allOpenInvoices, invoice.id, paymentAmount).creditAmount > 0 && (
+                        <span className="credit"><em>Remaining account credit</em><b>{formatMoney(buildPaymentAllocationPreview(allOpenInvoices, invoice.id, paymentAmount).creditAmount)}</b></span>
+                      )}
+                    </div>
                     <div className="admin-open-payment-form-actions">
                       <button type="button" onClick={() => setPaymentInvoiceId("")} disabled={busyInvoiceId === invoice.id}>Cancel</button>
                       <button type="button" onClick={() => recordPayment(invoice.id)} disabled={busyInvoiceId === invoice.id}>
