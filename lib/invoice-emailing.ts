@@ -50,7 +50,7 @@ function cleanEmail(value: unknown) {
 }
 
 function isRealEmail(email: string) {
-  return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local')
+  return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') && !email.endsWith('@phone-login.buroakscampground.com')
 }
 
 function isResendTestSender(from: string) {

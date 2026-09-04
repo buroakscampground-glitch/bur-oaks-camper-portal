@@ -21,12 +21,12 @@ export default function ForgotPasswordPage() {
     const result = await response.json().catch(() => null)
 
     if (!response.ok) {
-      setMessage(result?.error || 'The reset email could not be sent. Please try again.')
+      setMessage(result?.error || 'The reset link could not be sent. Please try again.')
     } else {
       setCooldown(true)
       setMessage(result?.cooldown
-        ? 'A reset email was already sent recently. Wait up to five minutes and use the newest email—requesting repeatedly cancels older links.'
-        : 'Your newest reset request is active. Wait up to five minutes for the email and do not request another link; a newer request would cancel this one.')
+        ? 'A reset link was already sent recently. Wait up to five minutes and use the newest message—requesting repeatedly cancels older links.'
+        : 'Your newest reset request is active. Wait up to five minutes for the email or text and do not request another link; a newer request would cancel this one.')
     }
     setSending(false)
   }
@@ -37,23 +37,23 @@ export default function ForgotPasswordPage() {
         <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
         <span>ACCOUNT RECOVERY</span>
         <h1>Reset your password</h1>
-        <p>Enter the email connected to your camper account.</p>
+        <p>Enter the email or mobile number connected to your camper account.</p>
 
-        <label htmlFor="reset-email">Email address</label>
+        <label htmlFor="reset-email">Email address or mobile number</label>
         <div className="signin-input-wrap">
           <Mail size={18} />
           <input
             id="reset-email"
-            type="email"
+            type="text"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@example.com"
-            autoComplete="email"
+            placeholder="Email or mobile number"
+            autoComplete="username"
           />
         </div>
 
         <button onClick={sendResetLink} disabled={sending || cooldown || !email.trim()}>
-          <Send size={17} /> {sending ? 'Sending…' : cooldown ? 'Reset email requested' : 'Send reset link'}
+          <Send size={17} /> {sending ? 'Sending…' : cooldown ? 'Reset requested' : 'Send reset link'}
         </button>
 
         {message && <p className="account-recovery-message">{message}</p>}

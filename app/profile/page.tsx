@@ -6,6 +6,7 @@ import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { CakeSlice, CheckCircle2, ClipboardCheck, Eye, FileUp, PartyPopper, ShieldCheck, UsersRound } from 'lucide-react'
 import AddressFinder from '../../components/AddressFinder'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
+import { isPhonePortalLoginEmail } from '../../lib/phone-portal-login'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -712,17 +713,21 @@ export default function ProfilePage() {
             style={{ width: '100%', marginBottom: '12px' }}
           />
 
-          <input
-            placeholder="Profile 2 email"
-            value={camper.secondary_email || ''}
-            onChange={(e) =>
-              setCamper({
-                ...camper,
-                secondary_email: e.target.value,
-              })
-            }
-            style={{ width: '100%', marginBottom: '12px' }}
-          />
+          {isPhonePortalLoginEmail(camper.secondary_email) ? (
+            <p className="directory-safety-note"><ShieldCheck size={16} /> Profile 2 signs in with their mobile number and does not need an email.</p>
+          ) : (
+            <input
+              placeholder="Profile 2 email"
+              value={camper.secondary_email || ''}
+              onChange={(e) =>
+                setCamper({
+                  ...camper,
+                  secondary_email: e.target.value,
+                })
+              }
+              style={{ width: '100%', marginBottom: '12px' }}
+            />
+          )}
 
         </section>
 

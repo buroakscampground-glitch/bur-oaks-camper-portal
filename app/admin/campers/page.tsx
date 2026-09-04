@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { isSystemPortalAccount } from '../../../lib/camper-records'
+import { isPhonePortalLoginEmail } from '../../../lib/phone-portal-login'
 
 export default function AdminCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -254,6 +255,43 @@ export default function AdminCampersPage() {
       loadPortalStatuses()
     } catch {
       setMessage('The fresh password reset link could not be sent. Please try again.')
+    } finally {
+      setInvitingEmail(null)
+    }
+  }
+
+  async function createPhonePortalAccount(camper: any) {
+    const phone = String(camper.second_profile_phone || '').trim()
+    if (!phone) {
+      setMessage('Add the Profile 2 phone number first.')
+      return
+    }
+
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) {
+      setMessage('Please sign in again before sending the setup text.')
+      return
+    }
+
+    setInvitingEmail(phone)
+    setMessage(`Sending a secure portal setup text to ${phone}…`)
+    try {
+      const response = await fetch('/api/create-camper-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ camperId: camper.id, phone }),
+      })
+      const result = await response.json().catch(() => ({}))
+      setMessage(response.ok
+        ? `Portal setup text sent to ${phone}. The link is valid for 24 hours, and Profile 2 can sign in with this mobile number.`
+        : result.error || 'The setup text could not be sent.')
+      if (response.ok) {
+        loadCampers()
+        loadPortalStatuses()
+      }
+    } catch {
+      setMessage('The setup text could not be sent. Please try again.')
     } finally {
       setInvitingEmail(null)
     }
@@ -597,7 +635,7 @@ export default function AdminCampersPage() {
   </div>
 
   {camper.secondary_email && (
-    <div>Second email: {camper.secondary_email}</div>
+    <div>{isPhonePortalLoginEmail(camper.secondary_email) ? 'Profile 2 login: mobile number' : `Second email: ${camper.secondary_email}`}</div>
   )}
 
   <div>{camper.phone || 'No phone on file'}</div>
@@ -658,7 +696,7 @@ export default function AdminCampersPage() {
               {invitingEmail === camper.email ? 'Sending Reset Link…' : 'Reset Password / Send Fresh Link'}
             </button>
           )}
-          {camper.secondary_email && (
+          {camper.secondary_email && !isPhonePortalLoginEmail(camper.secondary_email) && (
             <button
               type="button"
               disabled={invitingEmail === camper.secondary_email}
@@ -668,6 +706,18 @@ export default function AdminCampersPage() {
               }}
             >
               {invitingEmail === camper.secondary_email ? 'Sending Reset Link…' : 'Reset Password for Second Email'}
+            </button>
+          )}
+          {camper.second_profile_phone && (!camper.secondary_email || isPhonePortalLoginEmail(camper.secondary_email)) && (
+            <button
+              type="button"
+              disabled={invitingEmail === camper.second_profile_phone}
+              onClick={(event) => {
+                event.stopPropagation()
+                createPhonePortalAccount(camper)
+              }}
+            >
+              {invitingEmail === camper.second_profile_phone ? 'Sending Setup Text…' : 'Text Phone-Only Portal Setup'}
             </button>
           )}
         </div>

@@ -7,6 +7,7 @@ import {
   sendPortalInviteEmail,
 } from '../../../lib/portal-invite-email'
 import { getSiteUrl } from '../../../lib/site-url'
+import { isPhonePortalLoginEmail } from '../../../lib/phone-portal-login'
 
 type Recipient = {
   camperId: string
@@ -20,7 +21,7 @@ function cleanEmail(value: unknown) {
 }
 
 function isRealEmail(email: string) {
-  return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local')
+  return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') && !isPhonePortalLoginEmail(email)
 }
 
 async function generateSetupUrl(context: any, email: string, origin: string) {

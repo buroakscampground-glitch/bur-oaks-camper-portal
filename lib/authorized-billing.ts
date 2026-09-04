@@ -3,6 +3,7 @@ export type AuthorizedBillingLink = {
   ownerLot: string
 }
 
+
 // Authorized family-account access. These links grant access only to billing
 // and assigned campground documents. They never grant access to profiles,
 // messages, maintenance records, or other camper data.
@@ -36,7 +37,7 @@ export function billingDelegateEmailsForLot(lotNumber: unknown) {
 
 function realEmail(value: unknown) {
   const email = normalizeBillingEmail(value)
-  return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') ? email : ''
+  return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') && !email.endsWith('@phone-login.buroakscampground.com') ? email : ''
 }
 
 export function authorizedDelegateProfilesForLot(lotNumber: unknown, campers: any[]) {

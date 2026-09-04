@@ -6,6 +6,8 @@ import {
   portalInviteEmailConfigured,
   sendPortalInviteEmail,
 } from '../../../lib/portal-invite-email'
+import { phonePortalLoginEmail } from '../../../lib/phone-portal-login'
+import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 
 export const runtime = 'nodejs'
 
@@ -23,22 +25,26 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json().catch(() => ({}))
-    const email = String(body?.email || '').trim().toLowerCase()
-    if (!/^\S+@\S+\.\S+$/.test(email)) {
-      return NextResponse.json({ error: 'Enter a valid email address.' }, { status: 400 })
+    const entered = String(body?.email || '').trim().toLowerCase()
+    const phone = entered.includes('@') ? '' : formatSmsPhone(entered)
+    const email = phone ? phonePortalLoginEmail(phone) : entered
+    if (!phone && !/^\S+@\S+\.\S+$/.test(email)) {
+      return NextResponse.json({ error: 'Enter a valid email address or mobile number.' }, { status: 400 })
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!supabaseUrl || !serviceRoleKey || !portalInviteEmailConfigured()) {
-      return NextResponse.json({ error: 'Password reset email is temporarily unavailable.' }, { status: 503 })
+    if (!supabaseUrl || !serviceRoleKey || (phone ? !isTwilioConfigured() : !portalInviteEmailConfigured())) {
+      return NextResponse.json({ error: 'Password reset service is temporarily unavailable.' }, { status: 503 })
     }
 
     const admin = createClient(supabaseUrl, serviceRoleKey)
     const { data: matches } = await admin
       .from('campers')
-      .select('id,first_name,last_name,email,secondary_email,active')
-      .or(`email.ilike.${email},secondary_email.ilike.${email}`)
+      .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,email,secondary_email,second_profile_phone,active')
+      .or(phone
+        ? `secondary_email.ilike.${email}`
+        : `email.ilike.${email},secondary_email.ilike.${email}`)
       .eq('active', true)
       .limit(2)
 
@@ -76,18 +82,32 @@ export async function POST(request: Request) {
     }
 
     const setupUrl = `${getSiteUrl()}/set-password?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(verificationType)}`
-    const emailResult = await sendPortalInviteEmail({
-      to: email,
-      camperName: `${matches[0].first_name || ''} ${matches[0].last_name || ''}`.trim() || 'Camper',
-      setupUrl,
-      purpose: 'password_reset',
-    })
+    let provider = 'email'
+    if (phone) {
+      const name = `${matches[0].second_profile_first_name || ''} ${matches[0].second_profile_last_name || ''}`.trim() || 'Camper'
+      const smsResult = await sendTwilioSms({
+        to: phone,
+        body: `${name}, reset your Bur Oaks Camper Portal password here: ${setupUrl}`,
+        client: admin,
+        camperId: matches[0].id,
+      })
+      if (!smsResult.sent) throw new Error(smsResult.error)
+      provider = 'twilio'
+    } else {
+      const emailResult = await sendPortalInviteEmail({
+        to: email,
+        camperName: `${matches[0].first_name || ''} ${matches[0].last_name || ''}`.trim() || 'Camper',
+        setupUrl,
+        purpose: 'password_reset',
+      })
+      provider = emailResult.provider || 'email'
+    }
 
     await admin.from('portal_invite_log').insert({
       camper_id: matches[0].id,
       email,
       delivery_status: 'sent',
-      delivery_provider: `password-reset-${emailResult.provider || 'email'}`,
+      delivery_provider: `password-reset-${provider}`,
       sent_by: 'self-service-password-reset',
     })
 

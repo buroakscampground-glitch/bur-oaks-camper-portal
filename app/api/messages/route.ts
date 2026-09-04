@@ -9,6 +9,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { camperTextWithLink } from '../../../lib/portal-sms-links'
 import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
+import { isPhonePortalLoginEmail } from '../../../lib/phone-portal-login'
 
 export const runtime = 'nodejs'
 
@@ -19,7 +20,7 @@ function camperName(camper: any) {
 function camperEmails(camper: any) {
   return [camper?.email, camper?.secondary_email]
     .map((email) => String(email || '').trim())
-    .filter(Boolean)
+    .filter((email) => Boolean(email) && !isPhonePortalLoginEmail(email))
     .filter((email, index, all) => all.findIndex((item) => item.toLowerCase() === email.toLowerCase()) === index)
 }
 

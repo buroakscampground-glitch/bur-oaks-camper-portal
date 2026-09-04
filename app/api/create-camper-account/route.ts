@@ -6,6 +6,8 @@ import {
   sendPortalInviteEmail,
 } from '../../../lib/portal-invite-email'
 import { getSiteUrl } from '../../../lib/site-url'
+import { phonePortalLoginEmail } from '../../../lib/phone-portal-login'
+import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
 
 async function generateSetupUrl(context: any, email: string, origin: string) {
   let linkResult = await context.admin.auth.admin.generateLink({
@@ -52,22 +54,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { email: rawEmail, camperId } = await request.json()
+    const { email: rawEmail, phone: rawPhone, camperId } = await request.json()
     let email = typeof rawEmail === 'string' ? rawEmail.trim().toLowerCase() : ''
+    const phone = formatSmsPhone(rawPhone)
+    const phoneOnly = Boolean(phone && !email)
 
     let camper = null
 
     if (typeof camperId === 'string' && camperId) {
       const { data } = await context.admin
         .from('campers')
-        .select('id,first_name,last_name,email,secondary_email,active')
+        .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,email,secondary_email,second_profile_phone,active')
         .eq('id', camperId)
         .single()
 
       camper = data
       const primaryEmail = String(data?.email || '').trim().toLowerCase()
       const secondaryEmail = String(data?.secondary_email || '').trim().toLowerCase()
-      email = email === secondaryEmail ? secondaryEmail : primaryEmail
+      if (phoneOnly) {
+        if (formatSmsPhone(data?.second_profile_phone) !== phone) {
+          return NextResponse.json({ error: 'Save this number as Profile 2 phone before sending its setup text.' }, { status: 400 })
+        }
+        email = phonePortalLoginEmail(phone)
+      } else {
+        email = email === secondaryEmail ? secondaryEmail : primaryEmail
+      }
     }
 
     if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
@@ -77,7 +88,7 @@ export async function POST(request: Request) {
     if (!camper) {
       const { data } = await context.admin
         .from('campers')
-        .select('id,first_name,last_name,email,secondary_email,active')
+        .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,email,secondary_email,second_profile_phone,active')
         .or(`email.ilike.${email},secondary_email.ilike.${email}`)
         .single()
 
@@ -99,6 +110,34 @@ export async function POST(request: Request) {
     }
 
     const origin = getSiteUrl()
+
+    if (phoneOnly) {
+      const { error: saveError } = await context.admin
+        .from('campers')
+        .update({ secondary_email: email })
+        .eq('id', camper.id)
+      if (saveError) throw saveError
+
+      const setupUrl = await generateSetupUrl(context, email, origin)
+      const profileName = `${camper.second_profile_first_name || ''} ${camper.second_profile_last_name || ''}`.trim() || 'Camper'
+      const smsResult = await sendTwilioSms({
+        to: phone,
+        body: `${profileName}, set up your private Bur Oaks Camper Portal here within 24 hours: ${setupUrl}`,
+        client: context.admin,
+        camperId: camper.id,
+      })
+      if (!smsResult.sent) throw new Error(smsResult.error)
+
+      await context.admin.from('portal_invite_log').insert({
+        camper_id: camper.id,
+        email,
+        delivery_status: 'sent',
+        delivery_provider: 'twilio-phone-setup',
+        sent_by: context.user.email,
+      })
+
+      return NextResponse.json({ success: true, delivery: 'text', phone })
+    }
 
     if (portalInviteEmailConfigured()) {
       const setupUrl = await generateSetupUrl(context, email, origin)

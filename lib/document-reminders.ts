@@ -17,7 +17,7 @@ function uniqueEmails(values: unknown[]) {
   return Array.from(new Set(
     values
       .map(cleanEmail)
-      .filter((email) => /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local'))
+      .filter((email) => /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') && !email.endsWith('@phone-login.buroakscampground.com'))
   ))
 }
 

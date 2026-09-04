@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ArrowRight, CalendarDays, CloudSun, FileText, LockKeyhole, Mail, MessageCircle, ReceiptText, ShieldCheck, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { safeLoginReturnPath } from '../../lib/login-return-path'
+import { portalLoginEmail } from '../../lib/phone-portal-login'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -16,7 +17,7 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const normalizedEmail = email.trim().toLowerCase()
+      const normalizedEmail = portalLoginEmail(email)
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: normalizedEmail,
         password,
@@ -103,21 +104,22 @@ export default function LoginPage() {
           </div>
           <span className="signin-form-kicker">BUR OAKS CAMPER PORTAL</span>
           <h2>Sign in to continue</h2>
-          <p>Use the email and password connected to your camper account.</p>
+          <p>Use the email or mobile number and password connected to your camper account.</p>
           <p className="signin-maintenance-note">
             Staff: sign in with your assigned email to open your maintenance or community workspace.
           </p>
 
-          <label htmlFor="signin-email">Email address</label>
+          <label htmlFor="signin-email">Email address or mobile number</label>
           <div className="signin-input-wrap">
             <Mail size={18} />
             <input
               id="signin-email"
-              type="email"
-              placeholder="you@example.com"
+              type="text"
+              inputMode="email"
+              placeholder="Email or mobile number"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
+              autoComplete="username"
             />
           </div>
 

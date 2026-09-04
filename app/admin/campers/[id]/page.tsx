@@ -30,6 +30,7 @@ import {
 import { supabase } from '../../../../lib/supabase'
 import AddressFinder from '../../../../components/AddressFinder'
 import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../../lib/invoice-balance'
+import { isPhonePortalLoginEmail } from '../../../../lib/phone-portal-login'
 import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/staff-roles'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
@@ -735,7 +736,9 @@ export default function CamperDetailPage() {
         <ProfileSection icon={<ContactRound />} kicker="CONTACT" title="Profile 1 & portal emails">
           <div className="admin-camper-form-grid">
             <Field label="Primary email address" type="email" value={camper.email} onChange={(value) => updateField('email', value)} icon={<Mail />} />
-            <Field label="Second email address" type="email" value={camper.secondary_email} onChange={(value) => updateField('secondary_email', value)} icon={<Mail />} />
+            {isPhonePortalLoginEmail(camper.secondary_email)
+              ? <div className="directory-safety-note"><Phone size={16} /> Profile 2 uses a mobile-number login and does not have an email.</div>
+              : <Field label="Second email address" type="email" value={camper.secondary_email} onChange={(value) => updateField('secondary_email', value)} icon={<Mail />} />}
             <Field label="Profile 1 phone number" type="tel" value={camper.phone} onChange={(value) => updateField('phone', value)} icon={<Phone />} />
             <Field label="Second phone number" type="tel" value={camper.alternate_phone} onChange={(value) => updateField('alternate_phone', value)} icon={<Phone />} />
           </div>
