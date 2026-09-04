@@ -6,6 +6,7 @@ import { createAdminNotification } from '../../../lib/admin-notifications'
 import { getSiteUrl } from '../../../lib/site-url'
 import { reconcileAndPrintStripePayout } from '../../../lib/stripe-payout-printing'
 import { alertStripePayoutProblem } from '../../../lib/stripe-payout-alerts'
+import { priorPaymentReview } from '../../../lib/stripe-payment-review'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -119,6 +120,9 @@ export async function POST(request: Request) {
     const firstInvoice = invoices[0]
     const invoiceNumbers = invoices.map((invoice) => invoice.invoice_number).join(', ')
     const amount = Number(amountCents || 0) / 100
+    const review = priorPaymentReview(invoices, paymentReference)
+    if (!review.needsReview) return
+    const earlierReference = review.distinctReferences.join(', ') || 'not recorded'
     const { data: existingAlerts, error: existingAlertError } = await supabaseAdmin
       .from('admin_notifications')
       .select('id')
@@ -133,12 +137,21 @@ export async function POST(request: Request) {
 
     await createAdminNotification(supabaseAdmin, {
       type: 'payment_received',
-      title: 'Duplicate Stripe payment — refund needed',
-      message: `Stripe received another ${amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} payment for invoice ${invoiceNumbers}. Review and refund the duplicate payment ${paymentReference}.`,
+      title: 'Payment review needed — possible duplicate',
+      message: `Stripe reported ${amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} for invoice ${invoiceNumbers}, which was already marked paid. Earlier reference: ${earlierReference}. New reference: ${paymentReference}. Verify two successful payments in Stripe before issuing any refund.`,
       camper_id: firstInvoice?.camper_id || null,
       source_table: 'stripe_payment_intents',
       source_id: paymentReference,
     })
+  }
+
+  async function notifyIfDistinctPayment(paymentReference: string, amountCents: number, invoiceIds: string[]) {
+    const { data: currentInvoices, error } = await supabaseAdmin
+      .from('invoices')
+      .select('*')
+      .in('id', invoiceIds)
+    if (error) throw error
+    await notifyDuplicatePayment(paymentReference, amountCents, currentInvoices || [])
   }
 
   async function markCheckoutPaid(session: Stripe.Checkout.Session) {
@@ -150,8 +163,8 @@ export async function POST(request: Request) {
     const alreadyPaid = invoices.some((invoice) => invoice.status === 'paid')
 
     if (alreadyPaid) {
-      const samePayment = invoices.every((invoice) => invoice.payment_reference === paymentReference)
-      if (!samePayment) await notifyDuplicatePayment(paymentReference, Number(session.amount_total || 0), invoices)
+      const review = priorPaymentReview(invoices, paymentReference)
+      if (review.needsReview) await notifyDuplicatePayment(paymentReference, Number(session.amount_total || 0), invoices)
       return
     }
 
@@ -169,7 +182,7 @@ export async function POST(request: Request) {
 
     if (updateError) throw updateError
     if (!updatedInvoices || updatedInvoices.length !== invoiceIds.length) {
-      await notifyDuplicatePayment(paymentReference, Number(session.amount_total || 0), invoices)
+      await notifyIfDistinctPayment(paymentReference, Number(session.amount_total || 0), invoiceIds)
       return
     }
 
@@ -319,8 +332,8 @@ export async function POST(request: Request) {
           const alreadyPaid = invoices.some((invoice) => invoice.status === 'paid')
 
           if (alreadyPaid) {
-            const samePayment = invoices.every((invoice) => invoice.payment_reference === intent.id)
-            if (!samePayment) await notifyDuplicatePayment(intent.id, receivedAmount, invoices)
+            const review = priorPaymentReview(invoices, intent.id)
+            if (review.needsReview) await notifyDuplicatePayment(intent.id, receivedAmount, invoices)
           } else {
             const isAch = intent.payment_method_types.includes('us_bank_account')
             const { data: updatedInvoices, error: invoiceUpdateError } = await supabaseAdmin
@@ -338,7 +351,7 @@ export async function POST(request: Request) {
             if (invoiceUpdateError) throw invoiceUpdateError
 
             if (!updatedInvoices || updatedInvoices.length !== invoiceIds.length) {
-              await notifyDuplicatePayment(intent.id, receivedAmount, invoices)
+              await notifyIfDistinctPayment(intent.id, receivedAmount, invoiceIds)
             } else {
               await sendPaymentReceivedAlert({
                 admin: supabaseAdmin,
@@ -363,7 +376,7 @@ export async function POST(request: Request) {
         if (invoiceLookupError) throw invoiceLookupError
 
         if (invoice.status === 'paid') {
-          if (invoice.payment_reference !== intent.id) {
+          if (priorPaymentReview([invoice], intent.id).needsReview) {
             await notifyDuplicatePayment(intent.id, intent.amount_received || intent.amount, [invoice])
           }
           return NextResponse.json({ received: true, alreadyPaid: true })
@@ -387,7 +400,7 @@ export async function POST(request: Request) {
 
         if (error) throw error
         if (!updatedInvoices?.length) {
-          await notifyDuplicatePayment(intent.id, intent.amount_received || intent.amount, [invoice])
+          await notifyIfDistinctPayment(intent.id, intent.amount_received || intent.amount, [String(invoiceId)])
           return NextResponse.json({ received: true, duplicatePayment: true })
         }
 
