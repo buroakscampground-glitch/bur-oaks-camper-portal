@@ -22,7 +22,6 @@ function pickBestCamperMatch(matches: any[] = []) {
   return (
     matches.find((match) => match.active !== false && match.role) ||
     matches.find((match) => match.active !== false) ||
-    matches[0] ||
     null
   )
 }

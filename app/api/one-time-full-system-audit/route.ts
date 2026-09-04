@@ -144,7 +144,7 @@ export async function GET(request: Request) {
   })
 
   const consentRows = rows('sms_phone_consents')
-  const consentProblems = active.flatMap((camper) => {
+  const consentProblems = active.filter((camper) => camper.sms_opt_in === true).flatMap((camper) => {
     const phoneValues = [camper.phone, camper.alternate_phone, camper.second_profile_phone].map((value) => String(value || '').replace(/\D/g, '')).filter((value) => value.length === 10 || (value.length === 11 && value.startsWith('1')))
     const consents = consentRows.filter((item) => String(item.camper_id) === String(camper.id))
     const missing = phoneValues.filter((phone) => !consents.some((item) => String(item.phone_number || '').replace(/\D/g, '').endsWith(phone.slice(-10))))
@@ -181,6 +181,17 @@ export async function GET(request: Request) {
   const overdueSiteCare = rows('site_care_notices')
     .filter((notice) => String(notice.status) === 'Open' && String(notice.template_key || '').startsWith('auto:') && notice.due_date && String(notice.due_date) <= today)
     .map((notice) => ({ id: notice.id, camper: label(camperById.get(String(notice.camper_id))), title: notice.title, dueDate: notice.due_date, template: notice.template_key }))
+  const renewalScheduleNotifications = rows('admin_notifications')
+    .filter((notification) => String(notification.type) === 'renewal_rent_schedule')
+    .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+    .slice(0, 12)
+    .map((notification) => ({
+      at: notification.created_at,
+      lot: notification.lot_number,
+      title: notification.title,
+      message: notification.message,
+      camper: label(camperById.get(String(notification.camper_id))),
+    }))
   const deliveryRows = rows('text_reminders')
   const laterTextSuccess = (failed: any) => deliveryRows.some((item) => (
     String(item.status).toLowerCase() === 'sent'
@@ -205,6 +216,7 @@ export async function GET(request: Request) {
       authUsers: authUsers.length,
       openInvoices: invoices.filter((invoice) => openStatus(invoice.status)).length,
       openBalance: invoices.filter((invoice) => openStatus(invoice.status)).reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+      renewalScheduleNotifications,
     },
     queryErrors: [...queryErrors, ...(authError ? [{ table: 'auth.users', error: authError }] : [])],
     issues: { duplicateLots, duplicateEmails, authProblems, invoiceMath, duplicateInvoiceNumbers, staleProcessing, paidMissingEvidence, invalidOpenAmounts, pumpProblems, maintenanceProblems, documentProblems, renewalProblems, consentProblems, meterProblems, overdueSiteCare },

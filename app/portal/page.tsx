@@ -261,7 +261,11 @@ export default function CamperPortalPage() {
           return
         }
 
-        if (!camperData) return
+        if (!camperData) {
+          await supabase.auth.signOut()
+          window.location.replace('/login?account=inactive')
+          return
+        }
 
         setCamper(camperData)
 

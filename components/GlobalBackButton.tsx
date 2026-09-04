@@ -51,6 +51,10 @@ function fallbackFor(pathname: string) {
     return '/'
   }
 
+  if (pathname === '/forgot-password' || pathname === '/set-password') {
+    return '/login'
+  }
+
   return '/portal'
 }
 
