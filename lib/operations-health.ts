@@ -23,6 +23,12 @@ function monthStart(today: string) {
   return `${today.slice(0, 7)}-01T00:00:00.000Z`
 }
 
+function shiftDate(value: string, days: number) {
+  const date = new Date(`${value}T12:00:00Z`)
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
 export async function loadOperationsSnapshot(client: any) {
   const today = todayInCentral()
   const thirtyDaysAgo = new Date(`${today}T12:00:00Z`)
@@ -67,8 +73,13 @@ export async function loadOperationsSnapshot(client: any) {
   const pendingMaintenance = openMaintenance.filter((ticket: any) => ticket.admin_approved !== true)
   const openPumpOuts = pumpResult.rows.filter((request: any) => request.status === 'requested' && !request.billed_at)
   const unreadMessages = messageResult.rows.filter((message: any) => message.sender_role === 'camper' && !message.read_by_admin_at)
-  const failedTexts = textResult.rows.filter((delivery: any) => String(delivery.status || '').toLowerCase() === 'failed')
-  const failedInvites = inviteResult.rows.filter((delivery: any) => String(delivery.delivery_status || '').toLowerCase() === 'failed')
+  const failedTextAttempts = textResult.rows.filter((delivery: any) => String(delivery.status || '').toLowerCase() === 'failed')
+  const failedInviteAttempts = inviteResult.rows.filter((delivery: any) => String(delivery.delivery_status || '').toLowerCase() === 'failed')
+  const failedInvites = failedInviteAttempts.filter((failed: any) => !inviteResult.rows.some((delivery: any) => (
+    String(delivery.delivery_status || '').toLowerCase() === 'sent'
+    && normalizeBillingEmail(delivery.email) === normalizeBillingEmail(failed.email)
+    && new Date(delivery.created_at || 0).getTime() > new Date(failed.created_at || 0).getTime()
+  )))
   const failedReports = reportResult.rows.filter((report: any) => ['failed', 'partial'].includes(String(report.status || '').toLowerCase()))
   const openSiteCare = siteCareResult.rows.filter((notice: any) => String(notice.status || '') !== 'Resolved')
   const missingContact = campers.filter((camper: any) => !camper.email || !camper.phone)
@@ -77,6 +88,34 @@ export async function loadOperationsSnapshot(client: any) {
     String(invoice.invoice_type || '').toLowerCase().includes('electric') &&
     String(invoice.created_at || '') >= currentMonthStart
   )
+  const invoiceById = new Map(invoices.map((invoice: any) => [String(invoice.id), invoice]))
+  const thirtyDaysAhead = shiftDate(today, 30)
+  const failedTexts = failedTextAttempts.filter((failed: any) => {
+    const recipient = String(failed.recipient_phone || failed.recipient_email || '')
+    const failedAt = new Date(failed.sent_at || 0).getTime()
+    const succeededLater = textResult.rows.some((delivery: any) => (
+      String(delivery.status || '').toLowerCase() === 'sent'
+      && String(delivery.reminder_type || '') === String(failed.reminder_type || '')
+      && String(delivery.recipient_phone || delivery.recipient_email || '') === recipient
+      && new Date(delivery.sent_at || 0).getTime() > failedAt
+    ))
+    if (succeededLater) return false
+
+    const error = String(failed.error_message || '').toLowerCase()
+    if (error.includes('unsubscribed recipient') || error.includes('recipient has opted out')) return false
+
+    if (String(failed.reminder_type || '').toLowerCase().includes('document')) {
+      const stillNeedsSignature = unsignedDocuments.some((document: any) => String(document.camper_id) === String(failed.camper_id))
+      if (!stillNeedsSignature) return false
+    }
+
+    if (failed.invoice_id) {
+      const invoice: any = invoiceById.get(String(failed.invoice_id))
+      if (!invoice || !isOpenStatus(invoice.status) || (invoice.due_date && invoice.due_date > thirtyDaysAhead)) return false
+    }
+
+    return true
+  })
   const completedSubmissionLots = new Set(submissionResult.rows
     .filter((row: any) => String(row.status || '').toLowerCase() === 'used')
     .map((row: any) => normalizeBillingLot(row.lot_number))

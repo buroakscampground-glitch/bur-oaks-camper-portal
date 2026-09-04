@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { AlertTriangle, Camera, CheckCircle2, ChevronRight, ClipboardCheck, Gauge, ListChecks, LoaderCircle, MapPin, RotateCcw, SkipForward, Trash2 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { displayLotNumber, normalizeLotKey } from '../../../../lib/meter-reading'
@@ -66,7 +67,9 @@ async function prepareMeterPhoto(file: File) {
   }
 }
 
-export function MeterReadingCapture({ adminMode = false }: { adminMode?: boolean }) {
+function MeterReadingCapture() {
+  const pathname = usePathname()
+  const adminMode = pathname.startsWith('/admin/')
   const routeMode = !adminMode
   const [sites, setSites] = useState<Site[]>([])
   const [lotNumber, setLotNumber] = useState('')
