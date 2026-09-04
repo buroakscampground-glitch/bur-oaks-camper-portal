@@ -49,6 +49,10 @@
       "schedule": "35 12 * * *"
     },
     {
+      "path": "/api/cron/ach-payment-reconciliation",
+      "schedule": "0 15 * * *"
+    },
+    {
       "path": "/api/cron/season-renewals",
       "schedule": "15 14 * * *"
     },

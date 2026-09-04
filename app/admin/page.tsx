@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   Archive,
   ArrowRight,
@@ -156,6 +156,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats>(emptyStats)
   const [cockpitItems, setCockpitItems] = useState<CockpitItem[]>([])
   const [toolSearch, setToolSearch] = useState('')
+  const achReconciliationAttempted = useRef(false)
 
   useEffect(() => {
     checkAdmin()
@@ -250,6 +251,21 @@ export default function AdminPage() {
     let electricSitesLeft = 0
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
+    if (token && !achReconciliationAttempted.current) {
+      achReconciliationAttempted.current = true
+      fetch('/api/admin-ach-reconciliation', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(async (response) => response.ok ? response.json() : null)
+        .then((result) => {
+          const reconciliation = result?.reconciliation
+          if (Number(reconciliation?.paidInvoices || 0) + Number(reconciliation?.reopenedInvoices || 0) > 0) {
+            window.setTimeout(loadStats, 750)
+          }
+        })
+        .catch(() => null)
+    }
     if (token) {
       const checklistResponse = await fetch(`/api/meter-readings?checklist=1&month=${encodeURIComponent(electricBillingMonth)}`, {
         headers: { Authorization: `Bearer ${token}` },
