@@ -22,18 +22,18 @@ async function syncProviderUnsubscribe(client: SmsDatabaseClient, camperId: stri
   const cleanPhone = formatSmsPhone(phone)
   if (!cleanPhone || !camperId) return false
 
-  const { data: camper, error: camperError } = await client
+  // A Twilio STOP is tied to the telephone number, not to one camper row. The
+  // same household number can legitimately appear on more than one linked
+  // profile, so suppress it everywhere after the first provider rejection.
+  const { data: campers, error: camperError } = await client
     .from('campers')
     .select('id,phone,alternate_phone,second_profile_phone,sms_opt_in_at,event_reminders_opt_in_at')
-    .eq('id', camperId)
-    .maybeSingle()
-  if (camperError || !camper) return false
-
-  const savedPhones = camperPhones(camper)
-  if (!savedPhones.includes(cleanPhone)) return false
+  if (camperError) return false
+  const matchingCampers = (campers || []).filter((camper: any) => camperPhones(camper).includes(cleanPhone))
+  if (!matchingCampers.some((camper: any) => String(camper.id) === String(camperId))) return false
 
   const now = new Date().toISOString()
-  const { error: consentError } = await client.from('sms_phone_consents').upsert({
+  const { error: consentError } = await client.from('sms_phone_consents').upsert(matchingCampers.map((camper: any) => ({
     camper_id: camper.id,
     phone_number: cleanPhone,
     opted_in: false,
@@ -41,34 +41,37 @@ async function syncProviderUnsubscribe(client: SmsDatabaseClient, camperId: stri
     opted_out_at: now,
     source: 'twilio-provider-rejection',
     updated_at: now,
-  }, { onConflict: 'camper_id,phone_number' })
+  })), { onConflict: 'camper_id,phone_number' })
   if (consentError) return false
 
-  const { data: consentRows, error: remainingError } = await client
-    .from('sms_phone_consents')
-    .select('phone_number,opted_in')
-    .eq('camper_id', camper.id)
-    .in('phone_number', savedPhones)
-  if (remainingError) return false
+  for (const camper of matchingCampers) {
+    const savedPhones = camperPhones(camper)
+    const { data: consentRows, error: remainingError } = await client
+      .from('sms_phone_consents')
+      .select('phone_number,opted_in')
+      .eq('camper_id', camper.id)
+      .in('phone_number', savedPhones)
+    if (remainingError) return false
 
-  const householdEnabled = (consentRows || []).some((row: any) => row.opted_in === true)
-  const { error: camperUpdateError } = await client.from('campers').update({
-    sms_opt_in: householdEnabled,
-    event_reminders_opt_in: householdEnabled,
-    sms_opt_out_at: householdEnabled ? null : now,
-    sms_last_keyword: 'PROVIDER_UNSUBSCRIBED',
-  }).eq('id', camper.id)
-  if (camperUpdateError) return false
+    const householdEnabled = (consentRows || []).some((row: any) => row.opted_in === true)
+    const { error: camperUpdateError } = await client.from('campers').update({
+      sms_opt_in: householdEnabled,
+      event_reminders_opt_in: householdEnabled,
+      sms_opt_out_at: householdEnabled ? null : now,
+      sms_last_keyword: 'PROVIDER_UNSUBSCRIBED',
+    }).eq('id', camper.id)
+    if (camperUpdateError) return false
 
-  const { error: eventError } = await client.from('sms_consent_events').insert({
-    camper_id: camper.id,
-    phone_number: cleanPhone,
-    keyword: 'PROVIDER_UNSUBSCRIBED',
-    consent_action: 'opt_out',
-    provider_message_id: null,
-  })
-  if (eventError && !['42P01', 'PGRST205'].includes(eventError.code || '')) {
-    console.error('Unable to log provider unsubscribe event:', eventError.code)
+    const { error: eventError } = await client.from('sms_consent_events').insert({
+      camper_id: camper.id,
+      phone_number: cleanPhone,
+      keyword: 'PROVIDER_UNSUBSCRIBED',
+      consent_action: 'opt_out',
+      provider_message_id: null,
+    })
+    if (eventError && !['42P01', 'PGRST205'].includes(eventError.code || '')) {
+      console.error('Unable to log provider unsubscribe event:', eventError.code)
+    }
   }
 
   return true

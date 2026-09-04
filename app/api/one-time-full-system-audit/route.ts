@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { normalizeBillingEmail, normalizeBillingLot } from '../../../lib/authorized-billing'
+import { camperSmsPhones } from '../../../lib/camper-sms'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -131,7 +132,15 @@ export async function GET(request: Request) {
     if (String(renewal.status) === 'Renewing' && (!document || String(document.signature_status).toLowerCase() !== 'signed')) problems.push('marked renewing without signed linked document')
     if (document && String(document.signature_status).toLowerCase() === 'signed' && String(renewal.status) !== 'Renewing') problems.push('signed document but renewal status not Renewing')
     if (!renewal.contract_end_date) problems.push('missing contract end date')
-    return problems.length ? [{ camper: label(camperById.get(String(renewal.camper_id))), status: renewal.status, problems }] : []
+    return problems.length ? [{
+      renewalId: renewal.id,
+      documentId: renewal.renewal_document_id,
+      camper: label(camperById.get(String(renewal.camper_id))),
+      status: renewal.status,
+      contractEnd: renewal.contract_end_date,
+      document: document ? { name: document.document_name, status: document.signature_status, signedAt: document.signed_at } : null,
+      problems,
+    }] : []
   })
 
   const consentRows = rows('sms_phone_consents')
@@ -151,7 +160,7 @@ export async function GET(request: Request) {
   } catch (error: any) { authError = String(error?.message || error) }
   const authProblems = authUsers.flatMap((user) => {
     const email = normalizeBillingEmail(user.email)
-    const matches = active.filter((camper) => [camper.email, camper.secondary_email].some((value) => normalizeBillingEmail(value) === email))
+    const matches = campers.filter((camper) => camper.active !== false && [camper.email, camper.secondary_email].some((value) => normalizeBillingEmail(value) === email))
     const archivedMatches = campers.filter((camper) => camper.active === false && [camper.email, camper.secondary_email].some((value) => normalizeBillingEmail(value) === email))
     if (matches.length === 1) return []
     return [{ email, activeMatches: matches.map(label), archivedMatches: archivedMatches.map(label) }]
@@ -172,7 +181,14 @@ export async function GET(request: Request) {
   return NextResponse.json({
     generatedAt: new Date().toISOString(),
     counts: Object.fromEntries(tables.map((table) => [table, rows(table).length])),
-    operational: { activeSites: active.length, authUsers: authUsers.length, openInvoices: invoices.filter((invoice) => openStatus(invoice.status)).length, openBalance: invoices.filter((invoice) => openStatus(invoice.status)).reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0) },
+    operational: {
+      activeSites: active.length,
+      lotRegistryRows: rows('lots').length,
+      activeSitesMissingLotRegistry: active.filter((camper) => !rows('lots').some((lot) => normalizeBillingLot(lot.lot_number) === normalizeBillingLot(camper.lot_number))).map(label),
+      authUsers: authUsers.length,
+      openInvoices: invoices.filter((invoice) => openStatus(invoice.status)).length,
+      openBalance: invoices.filter((invoice) => openStatus(invoice.status)).reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+    },
     queryErrors: [...queryErrors, ...(authError ? [{ table: 'auth.users', error: authError }] : [])],
     issues: { duplicateLots, duplicateEmails, authProblems, invoiceMath, duplicateInvoiceNumbers, staleProcessing, paidMissingEvidence, invalidOpenAmounts, pumpProblems, maintenanceProblems, documentProblems, renewalProblems, consentProblems, meterProblems },
     delivery: {
@@ -181,4 +197,64 @@ export async function GET(request: Request) {
       failedReports: failedReports.map((item) => ({ key: item.report_key, date: item.report_date, status: item.status, office: item.office_email_status, printer: item.printer_email_status, error: item.error_message })),
     },
   }, { headers: { 'Cache-Control': 'no-store' } })
+}
+
+export async function POST(request: Request) {
+  if (request.headers.get('x-one-time-key') !== oneTimeKey) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  }
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return NextResponse.json({ error: 'Database is not configured.' }, { status: 500 })
+  const admin = createClient(url, key)
+  const body = await request.json().catch(() => ({}))
+
+  if (body.action === 'sync-missing-phone-consents') {
+    const [{ data: campers, error }, { data: allConsents, error: consentError }] = await Promise.all([
+      admin.from('campers').select('id,phone,alternate_phone,second_profile_phone,sms_opt_in,active').eq('active', true).eq('sms_opt_in', true),
+      admin.from('sms_phone_consents').select('camper_id,phone_number,opted_in'),
+    ])
+    if (error || consentError) return NextResponse.json({ error: error?.message || consentError?.message }, { status: 500 })
+    const globallyStopped = new Set((allConsents || []).filter((row: any) => row.opted_in === false).map((row: any) => row.phone_number))
+    const inserts: any[] = []
+    for (const camper of campers || []) {
+      const phones = camperSmsPhones(camper)
+      if (!phones.length) continue
+      const saved = new Set((allConsents || []).filter((row: any) => String(row.camper_id) === String(camper.id)).map((row: any) => row.phone_number))
+      for (const phone of phones) if (!saved.has(phone)) inserts.push({
+        camper_id: camper.id,
+        phone_number: phone,
+        opted_in: !globallyStopped.has(phone),
+        opted_in_at: globallyStopped.has(phone) ? null : new Date().toISOString(),
+        opted_out_at: globallyStopped.has(phone) ? new Date().toISOString() : null,
+        source: 'full-system-audit-repair',
+        updated_at: new Date().toISOString(),
+      })
+    }
+    if (inserts.length) {
+      const inserted = await admin.from('sms_phone_consents').insert(inserts)
+      if (inserted.error) return NextResponse.json({ error: inserted.error.message }, { status: 500 })
+    }
+    return NextResponse.json({ success: true, inserted: inserts.length })
+  }
+
+  if (body.action === 'revoke-melissa-hasson-auth') {
+    const targetEmail = 'theriversvedge@yahoo.com'
+    const { data: campers, error: camperError } = await admin.from('campers').select('id,active,email,secondary_email,first_name,last_name,lot_number')
+    if (camperError) return NextResponse.json({ error: camperError.message }, { status: 500 })
+    const matching = (campers || []).filter((camper) => [camper.email, camper.secondary_email].some((value) => normalizeBillingEmail(value) === targetEmail))
+    if (matching.some((camper) => camper.active !== false) || !matching.some((camper) => camper.active === false)) {
+      return NextResponse.json({ error: 'The archived-only Melissa Hasson identity could not be verified.' }, { status: 409 })
+    }
+    const auth = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 })
+    if (auth.error) return NextResponse.json({ error: auth.error.message }, { status: 500 })
+    const users = (auth.data.users || []).filter((user) => normalizeBillingEmail(user.email) === targetEmail)
+    for (const user of users) {
+      const deleted = await admin.auth.admin.deleteUser(user.id)
+      if (deleted.error) return NextResponse.json({ error: deleted.error.message }, { status: 500 })
+    }
+    return NextResponse.json({ success: true, deletedUsers: users.length, archivedRecordsPreserved: matching.length })
+  }
+
+  return NextResponse.json({ error: 'Unknown audit repair.' }, { status: 400 })
 }
