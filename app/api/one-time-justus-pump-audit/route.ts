@@ -16,14 +16,14 @@ export async function GET(request: Request) {
   const { data: campers, error: camperError } = await admin
     .from('campers')
     .select('id,first_name,last_name,email,lot_number,active')
-    .or('last_name.ilike.%Justus%,first_name.ilike.%John%,lot_number.eq.20,lot_number.ilike.%TEMP%')
+    .or('last_name.ilike.%Justus%,first_name.ilike.%John%,first_name.ilike.%Clairice%,email.eq.neter85@gmail.com,lot_number.eq.18,lot_number.eq.20,lot_number.ilike.%TEMP%')
   if (camperError) return NextResponse.json({ error: camperError.message }, { status: 500 })
 
   const camperIds = (campers || []).map((camper) => camper.id)
   const { data: pumpOuts, error: pumpError } = await admin
     .from('sewer_pump_out_requests')
     .select('*')
-    .or(`camper_id.in.(${camperIds.join(',')}),lot_number.eq.20,lot_number.ilike.%TEMP%`)
+    .or(`camper_id.in.(${camperIds.join(',')}),lot_number.eq.18,lot_number.eq.20,lot_number.ilike.%TEMP%`)
     .order('requested_at', { ascending: false })
     .limit(100)
   if (pumpError) return NextResponse.json({ error: pumpError.message }, { status: 500 })
