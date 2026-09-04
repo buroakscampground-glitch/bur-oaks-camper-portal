@@ -26,7 +26,7 @@ export async function reconcileRenewalsWithDocuments(client: any) {
 
   const { data: documents, error: documentError } = await client
     .from('documents')
-    .select('id,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash,updated_at')
+    .select('id,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash,uploaded_at')
     .in('id', documentIds)
   if (documentError) throw documentError
 
@@ -43,7 +43,7 @@ export async function reconcileRenewalsWithDocuments(client: any) {
     if (nextStatus === renewal.status) continue
 
     try {
-      const recordedAt = document?.signed_at || document?.updated_at || new Date().toISOString()
+      const recordedAt = document?.signed_at || document?.uploaded_at || new Date().toISOString()
       if (nextStatus === 'Renewing') {
         await continueSignedRenewalRentSchedule({
           client,
