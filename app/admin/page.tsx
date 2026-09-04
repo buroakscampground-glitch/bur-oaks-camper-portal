@@ -44,7 +44,7 @@ import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
-import { isInvoiceDueThroughCurrentMonth, isInvoiceDueWithinDays, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../lib/invoice-balance'
 import { type ElectricPaymentCycle, rollingElectricPaymentCycles } from '../../lib/electric-payment-cycles'
 
 type AdminStats = {
@@ -277,7 +277,7 @@ export default function AdminPage() {
       const dueDate = new Date(`${invoice.due_date}T12:00:00`)
       return !Number.isNaN(dueDate.getTime()) && dueDate < today
     })
-    const dueSoonInvoices = openInvoices.filter((invoice) => isInvoiceDueWithinDays(invoice, 30))
+    const dueSoonInvoices = openInvoices.filter((invoice) => isInvoiceDueAfterCurrentMonthWithinDays(invoice, 30))
     const activeCredits = (creditResult.data || []).filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)
     const pumpOutsNeedingService = pumpOuts.filter((request) => request.status === 'requested' && !request.billed_at)
     const insuredCamperIds = new Set(
@@ -548,7 +548,7 @@ export default function AdminPage() {
       urgent: stats.emergencyMaintenance > 0 || stats.pendingMaintenance > 0,
     },
     {
-      href: '/admin/invoices?filter=upcoming-30',
+      href: '/admin/open-balance?filter=past-due',
       title: 'Past due invoices',
       count: stats.pastDueInvoices,
       detail: stats.pastDueInvoices ? 'Needs follow-up now' : 'No past-due invoices',
@@ -556,12 +556,12 @@ export default function AdminPage() {
       urgent: stats.pastDueInvoices > 0,
     },
     {
-      href: '/admin/open-balance',
-      title: 'Due in next 30 days',
+      href: '/admin/invoices?filter=upcoming-30',
+      title: 'Later bills in next 30 days',
       count: stats.dueSoonInvoices,
       detail: stats.dueSoonInvoices ? `$${stats.almostDueAmount.toFixed(2)} coming due` : 'Nothing almost due',
       icon: CalendarDays,
-      urgent: stats.dueSoonInvoices > 0,
+      urgent: false,
     },
     {
       href: '/admin/pump-outs',
@@ -665,7 +665,7 @@ export default function AdminPage() {
             <small>{stats.pastDueInvoices} past-due invoice{stats.pastDueInvoices === 1 ? '' : 's'} · Tap to see who</small>
           </a>
           <a className="money-summary upcoming" href="/admin/invoices?filter=upcoming-30" aria-label="Open invoices due in the next 30 days">
-            <span>Upcoming · next 30 days</span>
+            <span>Later bills · next 30 days</span>
             <strong>${stats.almostDueAmount.toFixed(2)}</strong>
             <small>{stats.dueSoonInvoices} upcoming invoice{stats.dueSoonInvoices === 1 ? '' : 's'} · Tap for details</small>
           </a>

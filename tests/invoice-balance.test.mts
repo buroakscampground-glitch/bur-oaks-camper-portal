@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
+import { isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
 
 test('amount due excludes future invoices while keeping them upcoming', () => {
   const today = '2026-08-28'
@@ -43,4 +43,12 @@ test('the upcoming window includes future open invoices through day 30 only', ()
   assert.equal(isInvoiceDueWithinDays({ status: 'open', due_date: '2026-10-05' }, 30, today), false)
   assert.equal(isInvoiceDueWithinDays({ status: 'open', due_date: today }, 30, today), false)
   assert.equal(isInvoiceDueWithinDays({ status: 'paid', due_date: '2026-09-10' }, 30, today), false)
+})
+
+test('the admin later-bills window does not repeat bills already shown in the current-month amount due', () => {
+  const today = '2026-09-04'
+
+  assert.equal(isInvoiceDueAfterCurrentMonthWithinDays({ status: 'sent', due_date: '2026-09-12' }, 30, today), false)
+  assert.equal(isInvoiceDueAfterCurrentMonthWithinDays({ status: 'sent', due_date: '2026-10-01' }, 30, today), true)
+  assert.equal(isInvoiceDueAfterCurrentMonthWithinDays({ status: 'sent', due_date: '2026-10-05' }, 30, today), false)
 })

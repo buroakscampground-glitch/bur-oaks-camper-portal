@@ -25,7 +25,7 @@ import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFe
 import AdminQuickText from '../../../components/AdminQuickText'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { nextInvoiceNumber } from '../../../lib/invoice-number'
-import { isInvoiceDueThroughCurrentMonth, isInvoiceDueWithinDays, totalInvoiceBalance } from '../../../lib/invoice-balance'
+import { isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../lib/invoice-balance'
 import { buildBillingReminderMessage } from '../../../lib/billing-reminder-message'
 
 type InvoiceFilter = 'all' | 'open' | 'paid' | 'upcoming-30'
@@ -270,7 +270,7 @@ export default function AdminInvoicesPage() {
       filter === 'all' ||
       (filter === 'paid' && invoice.status === 'paid') ||
       (filter === 'open' && invoice.status !== 'paid') ||
-      (filter === 'upcoming-30' && isInvoiceDueWithinDays(invoice, 30))
+      (filter === 'upcoming-30' && isInvoiceDueAfterCurrentMonthWithinDays(invoice, 30))
     const matchesSearch =
       !normalizedSearch ||
       String(invoice.invoice_number || '').toLowerCase().includes(normalizedSearch) ||
@@ -419,7 +419,7 @@ export default function AdminInvoicesPage() {
             <div className="admin-invoice-filters" role="group" aria-label="Filter invoices">
               {(['all', 'open', 'upcoming-30', 'paid'] as InvoiceFilter[]).map((option) => (
                 <button key={option} type="button" className={filter === option ? 'active' : ''} onClick={() => setFilter(option)}>
-                  {option === 'all' ? 'All' : option === 'open' ? 'Open' : option === 'upcoming-30' ? 'Next 30 days' : 'Paid'}
+                  {option === 'all' ? 'All' : option === 'open' ? 'Open' : option === 'upcoming-30' ? 'Later in next 30 days' : 'Paid'}
                 </button>
               ))}
             </div>
