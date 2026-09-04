@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     context.admin.from('documents').select('id,signature_status,document_type,camper_id'),
     context.admin.from('admin_notifications').select('id,type,read_at').is('read_at', null),
     context.admin.from('events').select('id,event_date,title').gte('event_date', today),
-    context.admin.from('portal_invite_log').select('id,email,status,created_at'),
+    context.admin.from('portal_invite_log').select('id,email,delivery_status,created_at'),
     context.admin.from('sewer_pump_out_requests').select('id,status,billed_at'),
   ])
 
@@ -117,10 +117,10 @@ export async function GET(request: Request) {
     item({
       id: 'resend',
       label: 'Email alerts',
-      status: isTruthyEnv(process.env.RESEND_API_KEY) ? 'ready' : 'action',
-      detail: isTruthyEnv(process.env.RESEND_API_KEY)
-        ? 'Resend is connected for alerts and portal invitations.'
-        : 'Add RESEND_API_KEY in Vercel to send alerts and invitations.',
+      status: isTruthyEnv(process.env.SENDGRID_API_KEY) || isTruthyEnv(process.env.RESEND_API_KEY) ? 'ready' : 'action',
+      detail: isTruthyEnv(process.env.SENDGRID_API_KEY) || isTruthyEnv(process.env.RESEND_API_KEY)
+        ? `${isTruthyEnv(process.env.SENDGRID_API_KEY) ? 'SendGrid' : 'Resend'} is connected for alerts and portal invitations.`
+        : 'Add a SendGrid or Resend API key in Vercel to send alerts and invitations.',
       href: '/admin/email-test',
     }),
     item({

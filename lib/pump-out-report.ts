@@ -219,7 +219,11 @@ async function sendReportEmail(to: string, pdfBytes: Uint8Array, reportDate: str
   return { sent: false, provider: null, error: 'SendGrid or Resend is not configured.' }
 }
 
-export async function sendPumpOutReport(client: any, reportDate: string) {
+export async function sendPumpOutReport(
+  client: any,
+  reportDate: string,
+  options: { sendOffice?: boolean; sendPrinter?: boolean } = {},
+) {
   const { data, error } = await client
     .from('sewer_pump_out_requests')
     .select('id,lot_number,camper_name,status,charge_amount,notes,requested_at,billed_at')
@@ -244,17 +248,19 @@ export async function sendPumpOutReport(client: any, reportDate: string) {
   ])
 
   // Epson Email Print should receive its own message, not a CC, so it can process the attachment reliably.
+  const sendOffice = options.sendOffice !== false
+  const sendPrinter = options.sendPrinter !== false
   const [office, printers] = await Promise.all([
-    sendReportEmail(officeEmail, pdfBytes, reportDate, requests.length),
-    Promise.all(printerEmails.map(async (email) => ({
+    sendOffice ? sendReportEmail(officeEmail, pdfBytes, reportDate, requests.length) : Promise.resolve({ sent: true, provider: null } as DeliveryResult),
+    sendPrinter ? Promise.all(printerEmails.map(async (email) => ({
       email,
       delivery: await sendReportEmail(email, pdfBytes, reportDate, requests.length),
-    }))),
+    }))) : Promise.resolve([]),
   ])
 
   const failedPrinters = printers.filter((item) => !item.delivery.sent)
   const printer: DeliveryResult = {
-    sent: printers.length > 0 && failedPrinters.length === 0,
+    sent: !sendPrinter || (printers.length > 0 && failedPrinters.length === 0),
     provider: printers.every((item) => item.delivery.provider === 'sendgrid')
       ? 'sendgrid'
       : printers.every((item) => item.delivery.provider === 'resend')
@@ -264,5 +270,5 @@ export async function sendPumpOutReport(client: any, reportDate: string) {
     error: failedPrinters.map((item) => `${item.email}: ${item.delivery.error || 'delivery failed'}`).join(' | ') || undefined,
   }
 
-  return { requests, pdfBytes, office, printer, printers, officeEmail, printerEmail, printerEmails }
+  return { requests, pdfBytes, office, printer, printers, officeEmail, printerEmail, printerEmails, sentOffice: sendOffice, sentPrinter: sendPrinter }
 }

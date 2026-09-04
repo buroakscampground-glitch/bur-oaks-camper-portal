@@ -64,9 +64,11 @@ export default function MonthlyMeterReportPage() {
           .gte('reading_date', bounds.start)
           .lt('reading_date', bounds.next)
           .order('reading_date', { ascending: true }),
-        supabase.from('campers').select('id,first_name,last_name,second_first_name,second_last_name,lot_number'),
+        supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number'),
       ])
-      if (readingResult.error) setMessage(readingResult.error.message)
+      if (readingResult.error || camperResult.error) {
+        setMessage(readingResult.error?.message || camperResult.error?.message || 'The monthly report could not be loaded.')
+      }
       setReadings(readingResult.data || [])
       setCampers(camperResult.data || [])
       setLoading(false)
@@ -88,7 +90,7 @@ export default function MonthlyMeterReportPage() {
   const rows = useMemo(() => readings.map((reading) => {
     const camper = campers.find((item) => item.id === reading.camper_id)
     const primary = `${camper?.first_name || ''} ${camper?.last_name || ''}`.trim()
-    const second = `${camper?.second_first_name || ''} ${camper?.second_last_name || ''}`.trim()
+    const second = `${camper?.second_profile_first_name || ''} ${camper?.second_profile_last_name || ''}`.trim()
     return {
       ...reading,
       lot_number: camper?.lot_number || '—',

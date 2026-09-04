@@ -40,6 +40,7 @@ export async function GET(request: Request) {
   if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
 
   const reportKey = 'daily-maintenance-work-orders'
+  let retryDelivery: { office_email_status?: string | null; printer_email_status?: string | null } | null = null
   let { data: reservation, error: reserveError } = await admin
     .from('scheduled_reports')
     .insert({ report_key: reportKey, report_date: current.date, status: 'running' })
@@ -49,7 +50,7 @@ export async function GET(request: Request) {
   if (reserveError?.code === '23505') {
     const { data: existing } = await admin
       .from('scheduled_reports')
-      .select('id,status')
+      .select('id,status,office_email_status,printer_email_status')
       .eq('report_key', reportKey)
       .eq('report_date', current.date)
       .maybeSingle()
@@ -59,6 +60,7 @@ export async function GET(request: Request) {
     }
 
     if (existing?.id) {
+      retryDelivery = existing
       await admin.from('scheduled_reports').update({
         status: 'running',
         error_message: null,
@@ -75,7 +77,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const result = await sendMaintenanceWorkOrderReport(admin, current.date)
+    const result = await sendMaintenanceWorkOrderReport(admin, current.date, {
+      sendOffice: retryDelivery?.office_email_status !== 'sent',
+      sendPrinter: retryDelivery?.printer_email_status !== 'sent',
+    })
     if (result.skipped) {
       await admin.from('scheduled_reports').update({
         status: 'sent', item_count: 0, office_email_status: 'skipped', printer_email_status: 'skipped',

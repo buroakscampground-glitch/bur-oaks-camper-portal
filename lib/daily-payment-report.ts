@@ -9,6 +9,7 @@ type PaymentRow = {
   payment_method?: string | null
   paid_at?: string | null
   campers?: { first_name?: string | null; last_name?: string | null; lot_number?: string | null } | null
+  source?: 'invoice' | 'manual'
 }
 
 type DeliveryResult = {
@@ -146,13 +147,48 @@ async function sendPaymentReportEmail(to: string, pdfBytes: Uint8Array, reportDa
   return { sent: false, provider: null, error: 'SendGrid or Resend is not configured.' }
 }
 
-export async function sendDailyPaymentReport(client: any, reportDate: string) {
+export async function sendDailyPaymentReport(
+  client: any,
+  reportDate: string,
+  options: { sendOffice?: boolean; sendPrinter?: boolean } = {},
+) {
   const queryStart = `${reportDate}T00:00:00.000Z`
   const queryEnd = new Date(`${reportDate}T00:00:00.000Z`)
   queryEnd.setUTCDate(queryEnd.getUTCDate() + 2)
-  const { data, error } = await client.from('invoices').select('id,invoice_number,invoice_type,total_due,payment_method,paid_at,campers(first_name,last_name,lot_number)').eq('status', 'paid').gte('paid_at', queryStart).lt('paid_at', queryEnd.toISOString()).order('paid_at', { ascending: true })
-  if (error) throw new Error(error.message)
-  const rows = ((data || []) as PaymentRow[]).filter((row) => row.paid_at && centralDateKey(row.paid_at) === reportDate)
+  const [invoiceResult, manualResult] = await Promise.all([
+    client.from('invoices').select('id,invoice_number,invoice_type,total_due,payment_method,paid_at,campers(first_name,last_name,lot_number)').eq('status', 'paid').gte('paid_at', queryStart).lt('paid_at', queryEnd.toISOString()).order('paid_at', { ascending: true }),
+    client.from('manual_payments').select('id,camper_id,amount,payment_method,payment_reference,received_on,created_at,campers(first_name,last_name,lot_number)').eq('received_on', reportDate).order('created_at', { ascending: true }),
+  ])
+  if (invoiceResult.error) throw new Error(invoiceResult.error.message)
+  if (manualResult.error) throw new Error(manualResult.error.message)
+
+  const manualPayments = manualResult.data || []
+  const paymentIds = manualPayments.map((payment: any) => payment.id)
+  const allocationResult = paymentIds.length
+    ? await client.from('manual_payment_allocations').select('payment_id,invoice_id,amount_applied,invoices(invoice_number,invoice_type)').in('payment_id', paymentIds)
+    : { data: [], error: null }
+  if (allocationResult.error) throw new Error(allocationResult.error.message)
+  const allocations = allocationResult.data || []
+  const manuallyPaidInvoiceIds = new Set(allocations.map((allocation: any) => String(allocation.invoice_id)).filter(Boolean))
+  const onlineRows = ((invoiceResult.data || []) as PaymentRow[])
+    .filter((row) => row.paid_at && centralDateKey(row.paid_at) === reportDate && !manuallyPaidInvoiceIds.has(String(row.id)))
+    .map((row) => ({ ...row, source: 'invoice' as const }))
+  const manualRows = manualPayments.map((payment: any) => {
+    const paymentAllocations = allocations.filter((allocation: any) => String(allocation.payment_id) === String(payment.id))
+    const invoiceNumbers = paymentAllocations.map((allocation: any) => allocation.invoices?.invoice_number).filter(Boolean).join(', ')
+    const invoiceTypes = [...new Set(paymentAllocations.map((allocation: any) => allocation.invoices?.invoice_type).filter(Boolean))].join(' + ')
+    return {
+      id: `manual-${payment.id}`,
+      invoice_number: invoiceNumbers || 'Account credit',
+      invoice_type: invoiceTypes || 'Office payment received',
+      total_due: payment.amount,
+      payment_method: payment.payment_method,
+      paid_at: payment.created_at,
+      campers: payment.campers,
+      source: 'manual' as const,
+    }
+  }) as PaymentRow[]
+  const rows = [...onlineRows, ...manualRows].sort((a, b) => String(a.paid_at || '').localeCompare(String(b.paid_at || '')))
   const total = rows.reduce((sum, row) => sum + Number(row.total_due || 0), 0)
   const pdfBytes = await buildDailyPaymentPdf(rows, reportDate)
   const officeEmail = process.env.PAYMENT_REPORT_EMAIL || process.env.PUMP_OUT_REPORT_EMAIL || 'buroakscampground@gmail.com'
@@ -164,16 +200,18 @@ export async function sendDailyPaymentReport(client: any, reportDate: string) {
     'una63106xie2gt@print.epsonconnect.com',
     'hcv125660p5464@print.epsonconnect.com',
   ])
+  const sendOffice = options.sendOffice !== false
+  const sendPrinter = options.sendPrinter !== false
   const [office, printers] = await Promise.all([
-    sendPaymentReportEmail(officeEmail, pdfBytes, reportDate, rows.length, total),
-    Promise.all(printerEmails.map(async (email) => ({ email, delivery: await sendPaymentReportEmail(email, pdfBytes, reportDate, rows.length, total) }))),
+    sendOffice ? sendPaymentReportEmail(officeEmail, pdfBytes, reportDate, rows.length, total) : Promise.resolve({ sent: true, provider: null } as DeliveryResult),
+    sendPrinter ? Promise.all(printerEmails.map(async (email) => ({ email, delivery: await sendPaymentReportEmail(email, pdfBytes, reportDate, rows.length, total) }))) : Promise.resolve([]),
   ])
   const failed = printers.filter((item) => !item.delivery.sent)
   const printer: DeliveryResult = {
-    sent: printers.length > 0 && failed.length === 0,
+    sent: !sendPrinter || (printers.length > 0 && failed.length === 0),
     provider: printers.every((item) => item.delivery.provider === 'sendgrid') ? 'sendgrid' : printers.every((item) => item.delivery.provider === 'resend') ? 'resend' : null,
     providerMessageId: printers.map((item) => item.delivery.providerMessageId).filter(Boolean).join(',') || null,
     error: failed.map((item) => `${item.email}: ${item.delivery.error || 'delivery failed'}`).join(' | ') || undefined,
   }
-  return { rows, total, pdfBytes, office, printer, printers, officeEmail, printerEmails }
+  return { rows, total, pdfBytes, office, printer, printers, officeEmail, printerEmails, sentOffice: sendOffice, sentPrinter: sendPrinter }
 }

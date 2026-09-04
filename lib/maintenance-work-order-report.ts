@@ -420,17 +420,30 @@ export async function printCompletedMaintenanceWorkOrder(client: any, ticketId: 
   }
 }
 
-export async function sendMaintenanceWorkOrderReport(client: any, reportDate: string) {
+export async function sendMaintenanceWorkOrderReport(
+  client: any,
+  reportDate: string,
+  options: { sendOffice?: boolean; sendPrinter?: boolean } = {},
+) {
   const orders = await loadNewMaintenanceWorkOrders(client)
   if (!orders.length) return { orders, pdfBytes: null, office: null, printer: null, skipped: true }
 
   const pdfBytes = await buildMaintenanceWorkOrdersPdf(orders, reportDate)
   const officeEmail = process.env.MAINTENANCE_REPORT_EMAIL || process.env.PUMP_OUT_REPORT_EMAIL || 'buroakscampground@gmail.com'
   const printerEmail = process.env.MAINTENANCE_PRINTER_EMAIL || process.env.PUMP_OUT_PRINTER_EMAIL || 'una63106xie2gt@print.epsonconnect.com'
-  const [office, printer] = await Promise.all([
-    sendWorkOrderEmail(officeEmail, pdfBytes, reportDate, orders.length),
-    sendWorkOrderEmail(printerEmail, pdfBytes, reportDate, orders.length),
-  ])
+  const sendOffice = options.sendOffice !== false
+  const sendPrinter = options.sendPrinter !== false
+  const office: DeliveryResult = sendOffice
+    ? await sendWorkOrderEmail(officeEmail, pdfBytes, reportDate, orders.length)
+    : { sent: true, provider: null }
+  // When both destinations are pending, deliver the office copy first. If it
+  // fails, leave the work orders unprinted so a retry can safely reproduce the
+  // exact packet without duplicating an Epson print that already succeeded.
+  const printer: DeliveryResult = sendPrinter && (!sendOffice || office.sent)
+    ? await sendWorkOrderEmail(printerEmail, pdfBytes, reportDate, orders.length)
+    : sendPrinter
+      ? { sent: false, provider: null, error: 'Printer delivery held until the office copy succeeds.' }
+      : { sent: true, provider: null }
 
   if (printer.sent) {
     const { error } = await client
@@ -441,5 +454,5 @@ export async function sendMaintenanceWorkOrderReport(client: any, reportDate: st
     if (error) throw new Error(`The printer received the packet, but the work orders could not be marked printed: ${error.message}`)
   }
 
-  return { orders, pdfBytes, office, printer, skipped: false, officeEmail, printerEmail }
+  return { orders, pdfBytes, office, printer, skipped: false, officeEmail, printerEmail, sentOffice: sendOffice, sentPrinter: sendPrinter }
 }
