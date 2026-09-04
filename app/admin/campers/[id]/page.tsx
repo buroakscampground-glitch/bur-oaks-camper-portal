@@ -135,6 +135,7 @@ export default function CamperDetailPage() {
   const [saving, setSaving] = useState(false)
   const [annualLotRent, setAnnualLotRent] = useState('')
   const [savingAnnualRent, setSavingAnnualRent] = useState(false)
+  const [sendingPhoneSetup, setSendingPhoneSetup] = useState(false)
   const [message, setMessage] = useState('')
   const [notFound, setNotFound] = useState(false)
   const [internalHistory, setInternalHistory] = useState<any | null>(null)
@@ -372,6 +373,43 @@ export default function CamperDetailPage() {
     setAnnualLotRent(rentAmount === null ? '' : String(rentAmount))
     setMessage('Annual lot rent and payment plan saved successfully.')
     setSavingAnnualRent(false)
+  }
+
+  async function sendPhonePortalSetup() {
+    const phone = String(camper.second_profile_phone || '').trim()
+    if (!phone) {
+      setMessage('Save the Profile 2 phone number first.')
+      return
+    }
+    if (camper.secondary_email && !isPhonePortalLoginEmail(camper.secondary_email)) {
+      setMessage('This profile already has a separate email login. Remove that second email and save before changing Profile 2 to phone-only login.')
+      return
+    }
+
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) {
+      setMessage('Please sign in again before sending the setup text.')
+      return
+    }
+
+    setSendingPhoneSetup(true)
+    setMessage(`Sending a secure setup text to ${phone}…`)
+    try {
+      const response = await fetch('/api/create-camper-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ camperId, phone }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'The setup text could not be sent.')
+      setMessage(`Portal setup text sent to ${phone}. The link is valid for 24 hours, and Profile 2 will sign in with this mobile number.`)
+      await loadCamper()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The setup text could not be sent.')
+    } finally {
+      setSendingPhoneSetup(false)
+    }
   }
 
   function isAllowedInsuranceFile(file: File) {
@@ -798,6 +836,15 @@ export default function CamperDetailPage() {
             <Field label="Profile 2 last name" value={camper.second_profile_last_name} onChange={(value) => updateField('second_profile_last_name', value)} />
             <Field label="Profile 2 phone" type="tel" value={camper.second_profile_phone} onChange={(value) => updateField('second_profile_phone', value)} icon={<Phone />} />
           </div>
+          {camper.second_profile_phone && (!camper.secondary_email || isPhonePortalLoginEmail(camper.secondary_email)) && (
+            <button type="button" onClick={sendPhonePortalSetup} disabled={sendingPhoneSetup || saving}>
+              {sendingPhoneSetup ? <LoaderCircle className="admin-spin" size={17} /> : <Phone size={17} />}
+              {sendingPhoneSetup ? 'Sending Setup Text…' : 'Text Profile 2 a Portal Setup Link'}
+            </button>
+          )}
+          {camper.secondary_email && !isPhonePortalLoginEmail(camper.secondary_email) && (
+            <p className="admin-camper-panel-note">Profile 2 currently uses the saved second email. Remove that email and save first if this person needs a phone-only login.</p>
+          )}
         </ProfileSection>
 
         <ProfileSection icon={<UsersRound />} kicker="SAFETY" title="Emergency contact">
