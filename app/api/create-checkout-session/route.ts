@@ -215,6 +215,7 @@ export async function POST(request: Request) {
     const checkoutWindow = Math.floor(Date.now() / (60 * 60 * 1000))
     const checkoutFingerprint = createHash('sha256')
       .update([
+        'checkout-v2-customer-phone',
         billedCamperId,
         [...verifiedInvoiceIds].sort().join(','),
         String(invoiceSubtotalCents),
