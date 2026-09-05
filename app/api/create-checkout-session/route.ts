@@ -215,7 +215,7 @@ export async function POST(request: Request) {
     const checkoutWindow = Math.floor(Date.now() / (60 * 60 * 1000))
     const checkoutFingerprint = createHash('sha256')
       .update([
-        'checkout-v2-customer-phone',
+        'checkout-v3-direct-card-phone',
         billedCamperId,
         [...verifiedInvoiceIds].sort().join(','),
         String(invoiceSubtotalCents),
@@ -235,6 +235,9 @@ export async function POST(request: Request) {
         ? { customer: stripeCustomerId }
         : { customer_email: payerEmail || undefined }),
       phone_number_collection: { enabled: true },
+      wallet_options: {
+        link: { display: 'never' },
+      },
       payment_method_types: paymentMethod === 'ach' ? ['us_bank_account'] : ['card'],
       ...(paymentMethod === 'ach' && !stripeCustomerId ? { customer_creation: 'always' as const } : {}),
       metadata: {
