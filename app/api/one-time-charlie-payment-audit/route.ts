@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { calculateCardProcessingFeeCents, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import { getSiteUrl } from '../../../lib/site-url'
+import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
+import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -117,7 +119,7 @@ export async function POST(request: Request) {
   try {
     const { data: candidates, error: camperError } = await admin
       .from('campers')
-      .select('id,lot_number,first_name,last_name,email,secondary_email,active')
+      .select('id,lot_number,first_name,last_name,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active')
       .ilike('lot_number', '47')
     if (camperError) throw camperError
     const matches = (candidates || []).filter(isCharlie).filter((row: any) => row.active !== false)
@@ -193,7 +195,47 @@ export async function POST(request: Request) {
       },
     })
 
-    return NextResponse.json({ success: true, invoiceId: invoice.id, checkoutId: session.id, checkoutUrl: session.url })
+    const shouldSend = new URL(request.url).searchParams.get('send') === '1'
+    const deliveryResults = [] as Array<{ phoneEnding: string; status: 'sent' | 'failed'; error: string | null }>
+    if (shouldSend) {
+      if (!isTwilioConfigured()) throw new Error('Twilio is not configured.')
+      if (!session.url) throw new Error('Stripe did not return a checkout URL.')
+      const phones = await consentedCamperSmsPhones(admin, camper)
+      if (!phones.length) throw new Error('Charlie has no opted-in phone numbers available for the payment link.')
+
+      const message = `Bur Oaks: Charlie, here is your new secure payment link for Invoice ${invoice.invoice_number}: ${session.url}`
+      for (const phone of phones) {
+        const result = await sendTwilioSms({ to: phone, body: message, client: admin, camperId: camper.id })
+        await admin.from('text_reminders').insert({
+          camper_id: camper.id,
+          invoice_id: invoice.id,
+          reminder_type: 'Fresh Stripe Payment Link',
+          message,
+          sent_at: new Date().toISOString(),
+          status: result.sent ? 'sent' : 'failed',
+          recipient_phone: phone,
+          provider: 'twilio',
+          provider_message_id: result.sent ? result.providerMessageId : null,
+          error_message: result.sent ? null : result.error,
+          sent_by: 'one-time-charlie-payment-audit-2026-09-05',
+        })
+        deliveryResults.push({
+          phoneEnding: phone.replace(/\D/g, '').slice(-4),
+          status: result.sent ? 'sent' : 'failed',
+          error: result.sent ? null : result.error,
+        })
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      invoiceId: invoice.id,
+      checkoutId: session.id,
+      checkoutUrl: session.url,
+      sentCount: deliveryResults.filter((result) => result.status === 'sent').length,
+      failedCount: deliveryResults.filter((result) => result.status === 'failed').length,
+      deliveryResults,
+    })
   } catch (error: any) {
     return NextResponse.json({
       success: false,
