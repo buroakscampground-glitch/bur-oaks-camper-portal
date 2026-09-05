@@ -26,11 +26,17 @@ export async function GET(request: Request) {
     if (camperError) throw camperError
 
     const eligible = (candidates || []).filter((row: any) => String(row.role || '').toLowerCase() !== 'admin')
-    const matches = eligible.filter((row: any) => {
+    const exactMatches = eligible.filter((row: any) => {
       const names = [row.first_name, row.last_name, row.second_profile_first_name, row.second_profile_last_name]
         .map((value) => String(value || '').trim().toLowerCase())
       return names.includes('karen') && names.includes('smith')
     })
+    const initialMatches = eligible.filter((row: any) => {
+      const first = String(row.first_name || '').trim().toLowerCase().replace(/[^a-z]/g, '')
+      const last = String(row.last_name || '').trim().toLowerCase()
+      return first === 'k' && last === 'smith'
+    })
+    const matches = exactMatches.length ? exactMatches : initialMatches
     if (matches.length !== 1) {
       return NextResponse.json({
         error: `Expected one Karen Smith camper record; found ${matches.length}.`,
