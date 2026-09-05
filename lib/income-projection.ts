@@ -7,6 +7,7 @@ export type ProjectionSite = {
   lotNumber: string
   camperIds: string[]
   annualLotRent: number
+  lotRentExempt?: boolean
 }
 
 export type ProjectionReading = {
@@ -211,7 +212,7 @@ export function buildIncomeProjection(options: ProjectionOptions) {
       (type) => type.includes('rent') && !type.includes('association'),
     )
     const historicRentAmount = Number(historicRentInvoice?.total_due || 0)
-    const projectedAnnualRent = site.annualLotRent > 0 ? site.annualLotRent : historicRentAmount
+    const projectedAnnualRent = site.lotRentExempt ? 0 : site.annualLotRent > 0 ? site.annualLotRent : historicRentAmount
     if (projectedAnnualRent > 0) {
       configuredRentSites += 1
       if (site.annualLotRent > 0) savedRentSites += 1
@@ -289,7 +290,7 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     configuredRentSites,
     savedRentSites,
     inferredRentSites,
-    missingRentSites: Math.max(0, sites.length - configuredRentSites),
+    missingRentSites: Math.max(0, sites.filter((site) => !site.lotRentExempt).length - configuredRentSites),
     contractDateMatches,
     rentHistoryMatches,
     associationHistoryMatches,

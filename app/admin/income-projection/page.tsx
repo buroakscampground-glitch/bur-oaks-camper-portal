@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import { isLotRentExemptCamper } from '../../../lib/billing-exemptions'
 import { buildIncomeProjection, projectionMonths, type ProjectionSite } from '../../../lib/income-projection'
 
 const categoryColors = {
@@ -56,7 +57,7 @@ export default function AdminIncomeProjectionPage() {
       if (initialLoad) setLoading(true)
       else setRefreshing(true)
       const [camperResult, lotResult, readingResult, invoiceResult, renewalResult] = await Promise.all([
-        supabase.from('campers').select('id,lot_number,role,active').eq('active', true),
+        supabase.from('campers').select('id,lot_number,first_name,last_name,role,active').eq('active', true),
         supabase.from('lots').select('lot_number,lot_rent_amount'),
         supabase.from('electric_readings').select('camper_id,reading_date,amount_due'),
         supabase.from('invoices').select('camper_id,invoice_type,due_date,created_at,total_due,status'),
@@ -78,8 +79,10 @@ export default function AdminIncomeProjectionPage() {
           lotNumber: String(camper.lot_number || key),
           camperIds: [],
           annualLotRent: rentByLot.get(key) || 0,
+          lotRentExempt: false,
         }
         current.camperIds.push(String(camper.id))
+        current.lotRentExempt = current.lotRentExempt || isLotRentExemptCamper(camper)
         siteMap.set(key, current)
       }
 

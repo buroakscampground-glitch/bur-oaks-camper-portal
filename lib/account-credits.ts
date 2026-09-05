@@ -1,4 +1,4 @@
-import { isNoBillingLot } from './billing-exemptions'
+import { isLotRentExemptCamper, isNoBillingLot } from './billing-exemptions'
 
 export function formatCreditMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -88,12 +88,16 @@ export async function createInvoiceBundle({
   if (camperId) {
     const { data: camper, error: camperError } = await client
       .from('campers')
-      .select('lot_number')
+      .select('lot_number,first_name,last_name')
       .eq('id', camperId)
       .maybeSingle()
     if (camperError) throw camperError
     if (isNoBillingLot(camper?.lot_number)) {
       throw new Error(`Lot ${camper.lot_number} is a no-billing camper site. No invoice was created or sent.`)
+    }
+    const invoiceType = String(invoice.invoice_type || '')
+    if (/rent/i.test(invoiceType) && !/association/i.test(invoiceType) && isLotRentExemptCamper(camper || {})) {
+      throw new Error('Charlie Kimball is a staff camper and is exempt from lot rent. No lot-rent invoice was created or sent.')
     }
   }
 

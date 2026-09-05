@@ -1,4 +1,4 @@
-import { isNoBillingLot } from './billing-exemptions'
+import { isLotRentExemptCamper, isNoBillingLot } from './billing-exemptions'
 import {
   buildRenewalRentSchedule,
   hasExistingLotRentForTargetMonth,
@@ -62,11 +62,15 @@ export async function continueSignedRenewalRentSchedule({
   }
 
   const [{ data: camper, error: camperError }, { data: lots, error: lotError }] = await Promise.all([
-    client.from('campers').select('rent_payment_plan').eq('id', camperId).maybeSingle(),
+    client.from('campers').select('rent_payment_plan,lot_number,first_name,last_name').eq('id', camperId).maybeSingle(),
     client.from('lots').select('lot_rent_amount').eq('lot_number', renewal.lot_number).limit(1),
   ])
   if (camperError) throw camperError
   if (lotError) throw lotError
+
+  if (isLotRentExemptCamper(camper || {})) {
+    return { status: 'lot-rent-exempt', created: 0, skipped: 0 }
+  }
 
   const paymentPlan = normalizeRentPaymentPlan(camper?.rent_payment_plan)
   const annualRent = Number(lots?.[0]?.lot_rent_amount || 0)

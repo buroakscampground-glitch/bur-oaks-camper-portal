@@ -6,6 +6,7 @@ import { todayInCentral } from './invoice-reminder-schedule'
 import { DOCUMENT_SIGNATURE_SMS_ALERT, documentReminderCentralDay, documentReminderIsDue } from './document-reminder-schedule'
 import { authorizedContactEmails, loadAuthorizedContactProfiles } from './authorized-billing'
 import { singleSegmentSms } from './sms-segments'
+import { isDocumentDeliveryExcluded } from './document-delivery-exemptions'
 
 const REMINDER_TYPE = 'Document Signature Reminder'
 
@@ -150,6 +151,10 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
   camper: any
   today?: string
 }) {
+  if (isDocumentDeliveryExcluded(camper)) {
+    return { email: 'skipped', sms: 'skipped', emailSent: 0, smsSent: 0, errors: [] as string[], excluded: true }
+  }
+
   const { data: prior, error: priorError } = await client
     .from('text_reminders')
     .select('reminder_type,status,sent_at,recipient_phone,recipient_email,provider,automation_key')

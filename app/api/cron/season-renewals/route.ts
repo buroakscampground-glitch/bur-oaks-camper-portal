@@ -7,6 +7,7 @@ import { isSystemPortalAccount } from '../../../../lib/camper-records'
 import { runPendingDocumentSignatureReminders } from '../../../../lib/document-reminders'
 import { singleSegmentSms } from '../../../../lib/sms-segments'
 import { reconcileRenewalsWithDocuments } from '../../../../lib/renewal-document-reconciliation'
+import { isDocumentDeliveryExcluded } from '../../../../lib/document-delivery-exemptions'
 
 export const dynamic = 'force-dynamic'
 
@@ -186,6 +187,16 @@ export async function GET(request: Request) {
       const message = 'The active camper record could not be found.'
       await admin.from('season_renewals').update({ automation_error: message, last_automation_at: new Date().toISOString() }).eq('id', record.id)
       results.push({ renewalId: record.id, status: 'failed', error: message })
+      continue
+    }
+
+    if (isDocumentDeliveryExcluded(camper)) {
+      await admin.from('season_renewals').update({
+        auto_send_approved: false,
+        last_automation_at: new Date().toISOString(),
+        automation_error: null,
+      }).eq('id', record.id)
+      results.push({ renewalId: record.id, lot: camper.lot_number, status: 'document-delivery-excluded' })
       continue
     }
 
