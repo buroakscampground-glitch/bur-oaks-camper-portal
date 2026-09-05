@@ -27,7 +27,7 @@ export async function GET(request: Request) {
     const stripe = new Stripe(stripeKey)
     const { data: invoice, error } = await admin
       .from('invoices')
-      .select('id,camper_id,invoice_number,invoice_type,total_due,due_date,status,payment_method,payment_reference,paid_at,created_at,updated_at')
+      .select('id,camper_id,invoice_number,invoice_type,total_due,due_date,status,payment_method,payment_reference,paid_at,created_at')
       .eq('id', INVOICE_ID)
       .single()
     if (error) throw error
