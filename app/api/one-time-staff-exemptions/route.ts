@@ -26,7 +26,11 @@ export async function POST(request: Request) {
 
   const normalize = (value: unknown) => String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
   const anthony = (campers || []).filter((camper) => normalize(camper.first_name) === 'anthony' && normalize(camper.last_name) === 'finley' && normalize(camper.lot_number) === '48')
-  const charlie = (campers || []).filter((camper) => normalize(camper.first_name) === 'charlie' && normalize(camper.last_name) === 'kimball' && normalize(camper.lot_number) === '47')
+  const charlie = (campers || []).filter((camper) =>
+    ['charlie', 'charles'].includes(normalize(camper.first_name))
+    && ['kimbal', 'kimball'].includes(normalize(camper.last_name))
+    && normalize(camper.lot_number) === '47'
+  )
   if (anthony.length !== 1 || charlie.length !== 1) {
     return NextResponse.json({ error: `Expected one Anthony Finley at Lot 48 and one Charlie Kimball at Lot 47; found ${anthony.length} and ${charlie.length}.` }, { status: 409 })
   }

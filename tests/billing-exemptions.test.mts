@@ -15,6 +15,7 @@ test('other camper sites continue through normal billing', () => {
 
 test('Charlie Kimball remains billable for services but is exempt from lot rent', () => {
   assert.equal(isLotRentExemptCamper({ lot_number: '47', first_name: 'Charlie', last_name: 'Kimball' }), true)
+  assert.equal(isLotRentExemptCamper({ lot_number: '47', first_name: 'Charles', last_name: 'Kimbal' }), true)
   assert.equal(isLotRentExemptCamper({ lot_number: '47', first_name: 'Another', last_name: 'Camper' }), false)
   assert.equal(isLotRentExemptCamper({ lot_number: '48', first_name: 'Charlie', last_name: 'Kimball' }), false)
 })

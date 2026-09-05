@@ -21,9 +21,11 @@ export function isLotRentExemptCamper(camper: {
   first_name?: unknown
   last_name?: unknown
 }) {
+  const firstName = normalizedName(camper?.first_name)
+  const lastName = normalizedName(camper?.last_name)
   return normalizeBillingLot(camper?.lot_number) === '47'
-    && normalizedName(camper?.first_name) === 'charlie'
-    && normalizedName(camper?.last_name) === 'kimball'
+    && ['charlie', 'charles'].includes(firstName)
+    && ['kimbal', 'kimball'].includes(lastName)
 }
 
 export function lotRentExemptionReason(camper: {
