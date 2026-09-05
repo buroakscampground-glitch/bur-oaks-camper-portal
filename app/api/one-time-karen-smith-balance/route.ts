@@ -19,17 +19,29 @@ export async function GET(request: Request) {
 
   const admin = createClient(url, key)
   try {
-    const [{ data: primary, error: primaryError }, { data: secondary, error: secondaryError }] = await Promise.all([
-      admin.from('campers').select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,active,role').ilike('first_name', 'Karen').ilike('last_name', 'Smith'),
-      admin.from('campers').select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,active,role').ilike('second_profile_first_name', 'Karen').ilike('second_profile_last_name', 'Smith'),
-    ])
-    if (primaryError || secondaryError) throw primaryError || secondaryError
+    const { data: candidates, error: camperError } = await admin
+      .from('campers')
+      .select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,active,role')
+      .or('first_name.ilike.%karen%,last_name.ilike.%karen%,second_profile_first_name.ilike.%karen%,second_profile_last_name.ilike.%karen%,first_name.ilike.%smith%,last_name.ilike.%smith%,second_profile_first_name.ilike.%smith%,second_profile_last_name.ilike.%smith%')
+    if (camperError) throw camperError
 
-    const matches = [...(primary || []), ...(secondary || [])]
-      .filter((row, index, all) => all.findIndex((candidate) => candidate.id === row.id) === index)
-      .filter((row: any) => String(row.role || '').toLowerCase() !== 'admin')
+    const eligible = (candidates || []).filter((row: any) => String(row.role || '').toLowerCase() !== 'admin')
+    const matches = eligible.filter((row: any) => {
+      const names = [row.first_name, row.last_name, row.second_profile_first_name, row.second_profile_last_name]
+        .map((value) => String(value || '').trim().toLowerCase())
+      return names.includes('karen') && names.includes('smith')
+    })
     if (matches.length !== 1) {
-      return NextResponse.json({ error: `Expected one Karen Smith camper record; found ${matches.length}.`, matches }, { status: 409 })
+      return NextResponse.json({
+        error: `Expected one Karen Smith camper record; found ${matches.length}.`,
+        matches,
+        closeCandidates: eligible.map((row: any) => ({
+          lotNumber: row.lot_number,
+          primaryName: `${row.first_name || ''} ${row.last_name || ''}`.trim(),
+          secondProfileName: `${row.second_profile_first_name || ''} ${row.second_profile_last_name || ''}`.trim(),
+          active: row.active,
+        })),
+      }, { status: 409 })
     }
 
     const camper = matches[0]
