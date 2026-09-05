@@ -199,6 +199,15 @@ export async function POST(request: Request) {
 
     const stripe = new Stripe(key)
     const origin = getSiteUrl()
+    let stripeCustomerId = ''
+    if (!finalPayload && payerEmail) {
+      const customers = await stripe.customers.list({ email: payerEmail, limit: 10 })
+      const matchingCustomers = customers.data.filter((customer) =>
+        customer.metadata.supabase_user_id === payerId ||
+        customer.metadata.camper_id === accountCamperId
+      )
+      if (matchingCustomers.length === 1) stripeCustomerId = matchingCustomers[0].id
+    }
     const finalReturnUrl = finalInvoiceToken
       ? `${origin}/final-invoice/${encodeURIComponent(finalInvoiceToken)}`
       : ''
@@ -221,9 +230,12 @@ export async function POST(request: Request) {
       success_url: finalReturnUrl ? `${finalReturnUrl}?payment=success` : `${origin}/success`,
       cancel_url: finalReturnUrl || `${origin}/invoices`,
       client_reference_id: payerId,
-      customer_email: payerEmail || undefined,
+      ...(stripeCustomerId
+        ? { customer: stripeCustomerId }
+        : { customer_email: payerEmail || undefined }),
+      phone_number_collection: { enabled: true },
       payment_method_types: paymentMethod === 'ach' ? ['us_bank_account'] : ['card'],
-      ...(paymentMethod === 'ach' ? { customer_creation: 'always' as const } : {}),
+      ...(paymentMethod === 'ach' && !stripeCustomerId ? { customer_creation: 'always' as const } : {}),
       metadata: {
         invoice_ids: JSON.stringify(verifiedInvoiceIds),
         camper_id: billedCamperId,
