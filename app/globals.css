@@ -9573,6 +9573,49 @@ tbody tr:hover {
   margin: 0 auto;
 }
 
+.camper-event-rsvp-guide {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin: 0 0 22px;
+  padding: 19px 21px;
+  border: 1px solid #c9dbc9;
+  border-radius: 19px;
+  background: #eef6ec;
+  color: #315f3d;
+  box-shadow: 0 12px 30px rgba(38,59,45,.06);
+}
+
+.camper-event-rsvp-guide > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+}
+
+.camper-event-rsvp-guide small {
+  color: #8a6b2b;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .13em;
+}
+
+.camper-event-rsvp-guide h2 {
+  margin: 4px 0 5px;
+  color: #294632;
+  font: 500 24px Georgia, serif;
+}
+
+.camper-event-rsvp-guide p {
+  margin: 0;
+  color: #586a5e;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.camper-event-rsvp-guide a {
+  color: #315f3d;
+  font-weight: 900;
+}
+
 .camper-events-overview {
   display: grid;
   grid-template-columns: repeat(3,minmax(0,1fr));
@@ -9672,6 +9715,14 @@ tbody tr:hover {
   color: #66726a;
   font-size: 13px;
   line-height: 1.55;
+}
+
+.camper-event-copy .camper-event-rsvp-scope {
+  padding: 10px 11px;
+  border-left: 3px solid #759979;
+  border-radius: 0 11px 11px 0;
+  background: #eef6ec;
+  color: #4f6255;
 }
 
 .camper-event-location,
@@ -9883,6 +9934,30 @@ tbody tr:hover {
   margin: 0;
   color: #647168;
   line-height: 1.55;
+}
+
+.portal-event-rsvp-scope {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 15px 17px;
+  border: 1px solid #c8d9c7;
+  border-radius: 17px;
+  background: rgba(255,255,255,.72);
+}
+
+.portal-event-rsvp-scope strong {
+  color: #294632;
+  font-size: 14px;
+}
+
+.portal-event-rsvp-scope p {
+  font-size: 12px;
+}
+
+.portal-event-rsvp-scope a {
+  color: #315f3d;
+  font-weight: 900;
 }
 
 .portal-event-rsvp-actions {

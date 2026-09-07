@@ -187,9 +187,20 @@ export default function PortalEventDetailPage() {
 
             <section className="portal-event-rsvp-panel">
               <div>
-                <span>Let us know</span>
-                <h2>Are you coming?</h2>
-                <p>Your answer helps Bur Oaks plan food, setup, seating, and supplies.</p>
+                <span>Overall event RSVP</span>
+                <h2>Is your campsite attending this event?</h2>
+                <p>Choose one response for your campsite&apos;s overall attendance at this event or weekend.</p>
+              </div>
+
+              <div className="portal-event-rsvp-scope">
+                <strong>One RSVP covers the whole event.</strong>
+                <p>
+                  You do not need to text the office separately for each activity or food item shown on the flyer,
+                  unless the flyer specifically asks for another sign-up, ticket, or preorder.
+                </p>
+                <p>
+                  Saturday Dinner meal counts are separate. <a href="/dinners">Open Saturday Dinner RSVPs</a> to reserve those meals.
+                </p>
               </div>
 
               <div className="portal-event-rsvp-actions">

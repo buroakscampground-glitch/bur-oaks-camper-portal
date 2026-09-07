@@ -76,7 +76,7 @@ export default function EventFlyerShowcase({
                 {context === 'portal' && (
                   <div className="event-flyer-rsvp-prompt">
                     <CheckCircle2 size={14} />
-                    Tap to view details and choose Going / Maybe / Not Going
+                    RSVP is for the overall event — tap for details
                   </div>
                 )}
               </div>

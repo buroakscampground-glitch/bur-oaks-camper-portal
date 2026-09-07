@@ -105,6 +105,20 @@ export default function CalendarPage() {
       <div className="camper-events-shell">
         <EventFlyerShowcase context="portal" limit={6} />
 
+        <section className="camper-event-rsvp-guide" aria-label="How event RSVPs work">
+          <CheckCircle2 size={22} />
+          <div>
+            <small>HOW EVENT RSVPs WORK</small>
+            <h2>One response is for the overall event.</h2>
+            <p>
+              Choose Going if anyone from your campsite plans to attend the listed event or weekend. You do not
+              need to text the office separately for each activity or food item unless the flyer specifically asks
+              for another sign-up, ticket, or preorder. Saturday Dinner meal counts are handled separately in
+              <a href="/dinners"> Saturday Dinners</a>.
+            </p>
+          </div>
+        </section>
+
         <section className="camper-events-overview">
           <article><CalendarDays size={20} /><span><small>Upcoming</small><strong>{upcomingEvents.length}</strong></span></article>
           <article><UsersRound size={20} /><span><small>Your RSVPs</small><strong>{rsvps.length}</strong></span></article>
@@ -126,6 +140,10 @@ export default function CalendarPage() {
                   <small>BUR OAKS EVENT</small>
                   <h2>{event.title}</h2>
                   <p>{event.description || 'More details will be shared soon.'}</p>
+
+                  <p className="camper-event-rsvp-scope">
+                    <strong>RSVP scope:</strong> Your response is for this overall event, not each individual flyer item.
+                  </p>
 
                   {event.location && (
                     <p className="camper-event-location">
