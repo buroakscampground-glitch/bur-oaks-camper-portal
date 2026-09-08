@@ -2,6 +2,8 @@ export type BalanceInvoice = {
   status?: string | null
   due_date?: string | null
   total_due?: number | string | null
+  subtotal?: number | string | null
+  late_fee?: number | string | null
 }
 
 export type InvoiceMonthGroup<T extends BalanceInvoice = BalanceInvoice> = {
@@ -22,6 +24,14 @@ export function normalizedInvoiceStatus(invoice: BalanceInvoice) {
 
 export function isInvoicePaid(invoice: BalanceInvoice) {
   return normalizedInvoiceStatus(invoice) === 'paid'
+}
+
+export function invoiceRecordedTotal(invoice: BalanceInvoice) {
+  const currentTotal = Number(invoice.total_due || 0)
+  if (!isInvoicePaid(invoice)) return currentTotal
+
+  const originalCharge = Number(invoice.subtotal || 0) + Number(invoice.late_fee || 0)
+  return Math.max(currentTotal, originalCharge)
 }
 
 export function isInvoiceClosed(invoice: BalanceInvoice) {
@@ -122,5 +132,5 @@ export function isInvoiceDueAfterCurrentMonthWithinDays(invoice: BalanceInvoice,
 }
 
 export function totalInvoiceBalance(invoices: BalanceInvoice[]) {
-  return invoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  return invoices.reduce((sum, invoice) => sum + invoiceRecordedTotal(invoice), 0)
 }

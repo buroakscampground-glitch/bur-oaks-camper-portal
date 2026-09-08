@@ -47,6 +47,7 @@ import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 import {
   groupInvoicesByDueMonth,
+  invoiceRecordedTotal,
   isInvoiceClosed,
   isInvoiceDueAfterCurrentMonthWithinDays,
   isInvoiceDueThroughCurrentMonth,
@@ -410,7 +411,7 @@ export default function AdminPage() {
       waitlist: waitlistResult.data?.length || 0,
       unpaidInvoices: openInvoices.length,
       amountDueInvoices: amountDueInvoices.length,
-      totalRevenue: paidThisMonth.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+      totalRevenue: paidThisMonth.reduce((sum, invoice) => sum + invoiceRecordedTotal(invoice), 0),
       paidInvoicesThisMonth: paidThisMonth.length,
       activeCreditBalance: activeCredits.reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
       activeCredits: activeCredits.length,

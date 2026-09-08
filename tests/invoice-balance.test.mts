@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { groupInvoicesByDueMonth, isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
+import { groupInvoicesByDueMonth, invoiceRecordedTotal, isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
 
 test('amount due excludes future invoices while keeping them upcoming', () => {
   const today = '2026-08-28'
@@ -41,6 +41,13 @@ test('billing records are grouped into plain month-by-month totals', () => {
   assert.equal(groups[0].openTotal, 132.51)
   assert.equal(groups[0].paidTotal, 50)
   assert.equal(groups[0].electricOpenTotal, 132.51)
+})
+
+test('a fully paid office invoice keeps its original amount instead of displaying zero', () => {
+  const paidOfficeInvoice = { status: 'paid', total_due: 0, subtotal: 750, late_fee: 0 }
+
+  assert.equal(invoiceRecordedTotal(paidOfficeInvoice), 750)
+  assert.equal(groupInvoicesByDueMonth([{ ...paidOfficeInvoice, due_date: '2026-10-01' }])[0].paidTotal, 750)
 })
 
 test('an open invoice without a due date is due now', () => {

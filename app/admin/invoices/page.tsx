@@ -27,6 +27,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { nextInvoiceNumber } from '../../../lib/invoice-number'
 import {
   groupInvoicesByDueMonth,
+  invoiceRecordedTotal,
   isInvoiceClosed,
   isInvoiceDueAfterCurrentMonthWithinDays,
   isInvoiceDueThroughCurrentMonth,
@@ -274,7 +275,7 @@ export default function AdminInvoicesPage() {
   const dueThisMonthInvoices = invoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
   const paidInvoices = invoices.filter(isInvoicePaid)
   const openBalance = totalInvoiceBalance(dueThisMonthInvoices)
-  const collectedRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const collectedRevenue = paidInvoices.reduce((sum, invoice) => sum + invoiceRecordedTotal(invoice), 0)
   const previewInvoiceAmount = Number(amount || 0)
   const previewProcessingFee = calculateCardProcessingFee(previewInvoiceAmount, feeSettings)
   const previewCardTotal = previewInvoiceAmount + previewProcessingFee
@@ -490,10 +491,11 @@ export default function AdminInvoicesPage() {
                 const isPaid = isInvoicePaid(invoice)
                 const isProcessing = normalizedInvoiceStatus(invoice) === 'processing'
                 const isClosed = isInvoiceClosed(invoice)
-                const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
-                const cardTotal = Number(invoice.total_due || 0) + processingFee
-                const achFee = calculateAchProcessingFee(Number(invoice.total_due || 0))
-                const achTotal = Number(invoice.total_due || 0) + achFee
+                const invoiceAmount = invoiceRecordedTotal(invoice)
+                const processingFee = calculateCardProcessingFee(invoiceAmount, feeSettings)
+                const cardTotal = invoiceAmount + processingFee
+                const achFee = calculateAchProcessingFee(invoiceAmount)
+                const achTotal = invoiceAmount + achFee
                 return (
                   <article className="admin-invoice-record" key={invoice.id}>
                     <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}`}>
@@ -506,7 +508,7 @@ export default function AdminInvoicesPage() {
                     </span>
                     <span className="admin-invoice-record-date"><CalendarDays size={14} /><span><small>Due</small><strong>{formatDate(invoice.due_date)}</strong></span></span>
                     <span className="admin-invoice-record-total">
-                      <strong>{formatMoney(invoice.total_due)}</strong>
+                      <strong>{formatMoney(invoiceAmount)}</strong>
                       <em className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
                         {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : isClosed ? 'Canceled — nothing due' : 'Payment due'}
                       </em>
