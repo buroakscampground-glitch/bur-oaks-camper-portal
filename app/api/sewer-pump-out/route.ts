@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       .select('*')
       .eq('lot_number', requestedServiceLot)
       .is('billed_at', null)
-      .neq('status', 'cancelled')
+      .eq('status', 'requested')
       .order('requested_at', { ascending: false })
       .limit(1)
 

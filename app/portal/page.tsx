@@ -664,7 +664,7 @@ export default function CamperPortalPage() {
     (ticket) => ticket.status !== 'Completed'
   )
   const activePumpOutRequests = pumpOutRequests.filter(
-    (request) => request.status !== 'cancelled' && !request.billed_at
+    (request) => request.status === 'requested' && !request.billed_at
   )
   const activeSiteCare = siteCareNotices.filter((notice) => notice.status !== 'Resolved')
   const latestMaintenance = maintenanceTickets[0]
