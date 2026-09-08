@@ -117,8 +117,9 @@ export default function AdminInvoicesPage() {
   useEffect(() => {
     async function loadWorkspace() {
       const searchParams = new URLSearchParams(window.location.search)
-      if (searchParams.get('filter') === 'upcoming-30') {
-        setFilter('upcoming-30')
+      const requestedFilter = searchParams.get('filter')
+      if (requestedFilter && ['all', 'open', 'paid', 'upcoming-30', 'closed'].includes(requestedFilter)) {
+        setFilter(requestedFilter as InvoiceFilter)
       }
       const requestedMonth = searchParams.get('month') || ''
       if (/^\d{4}-\d{2}$/.test(requestedMonth)) setMonthFilter(requestedMonth)

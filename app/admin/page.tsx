@@ -9,6 +9,7 @@ import {
   CakeSlice,
   CalendarDays,
   CalendarClock,
+  CheckCircle2,
   CircleDollarSign,
   ClipboardCheck,
   ClipboardList,
@@ -678,17 +679,30 @@ export default function AdminPage() {
           </header>
           <div className="admin-monthly-billing-grid">
             {stats.billingMonths.slice(0, 6).map((month) => (
-              <a href={`/admin/invoices?month=${month.key}`} key={month.key}>
+              <article key={month.key}>
                 <div className="admin-monthly-billing-title">
                   <h3>{month.label}</h3>
-                  <span>{month.openCount} invoice{month.openCount === 1 ? '' : 's'} still due</span>
+                  <span className={month.openCount ? 'unpaid' : 'complete'}>
+                    {month.openCount ? `${month.openCount} still unpaid` : 'All paid'}
+                  </span>
                 </div>
-                <dl>
-                  <div><dt>Still due</dt><dd>${month.openTotal.toFixed(2)}</dd></div>
-                  <div><dt>Already paid</dt><dd>${month.paidTotal.toFixed(2)}</dd></div>
-                  <div className="electric"><dt>Electric still due</dt><dd>${month.electricOpenTotal.toFixed(2)}</dd></div>
-                </dl>
-              </a>
+                <div className="admin-monthly-payment-board">
+                  <a className="unpaid" href={`/admin/invoices?month=${month.key}&filter=open`} aria-label={`See who has not paid for ${month.label}`}>
+                    <span><CircleDollarSign size={20} /></span>
+                    <div><small>Not paid yet</small><strong>${month.openTotal.toFixed(2)}</strong><em>{month.openCount} unpaid invoice{month.openCount === 1 ? '' : 's'}</em></div>
+                    <b>See names <ArrowRight size={14} /></b>
+                  </a>
+                  <a className="paid" href={`/admin/invoices?month=${month.key}&filter=paid`} aria-label={`See who already paid for ${month.label}`}>
+                    <span><CheckCircle2 size={20} /></span>
+                    <div><small>Paid</small><strong>${month.paidTotal.toFixed(2)}</strong><em>{month.paidCount} paid invoice{month.paidCount === 1 ? '' : 's'}</em></div>
+                    <b>See names <ArrowRight size={14} /></b>
+                  </a>
+                </div>
+                <a className="admin-monthly-electric-row" href={`/admin/invoices?month=${month.key}&filter=open`}>
+                  <span><Zap size={15} /> Electric still unpaid</span>
+                  <strong>${month.electricOpenTotal.toFixed(2)}</strong>
+                </a>
+              </article>
             ))}
           </div>
         </section>
