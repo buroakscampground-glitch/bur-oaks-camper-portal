@@ -4835,8 +4835,72 @@ button:hover {
   --season-soft: #f4e5d5;
   --season-paper: #fff8eb;
   --season-symbol: "◆";
-  --season-garland: "◆  ✦  ◆";
+  --season-garland: "🍁  🍂  🍁";
   --season-overlay: radial-gradient(ellipse at center, rgba(255,202,112,.2) 0 3px, transparent 3.8px) 0 0 / 42px 30px;
+}
+
+.seasonal-theme-fall.camper-workspace-page::before,
+.seasonal-theme-fall.camper-workspace-page::after,
+.seasonal-theme-fall.admin-workspace-page::before,
+.seasonal-theme-fall.admin-workspace-page::after {
+  position: fixed;
+  z-index: 40;
+  width: 52px;
+  pointer-events: none;
+  color: transparent;
+  font-size: 25px;
+  line-height: 1.35;
+  text-align: center;
+  text-shadow: 0 5px 10px rgba(73,45,34,.2);
+  filter: saturate(.9);
+  opacity: .76;
+}
+
+.seasonal-theme-fall.camper-workspace-page::before,
+.seasonal-theme-fall.admin-workspace-page::before {
+  content: "🍂\A 🍁";
+  top: 76px;
+  right: 5px;
+  white-space: pre;
+  transform: rotate(8deg);
+  animation: fall-leaf-sway-right 6s ease-in-out infinite;
+}
+
+.seasonal-theme-fall.camper-workspace-page::after,
+.seasonal-theme-fall.admin-workspace-page::after {
+  content: "🍁\A 🍂";
+  left: 5px;
+  bottom: 84px;
+  white-space: pre;
+  transform: rotate(-9deg);
+  animation: fall-leaf-sway-left 7s ease-in-out infinite;
+}
+
+@keyframes fall-leaf-sway-right {
+  0%, 100% { transform: translateY(0) rotate(8deg); }
+  50% { transform: translateY(8px) rotate(13deg); }
+}
+
+@keyframes fall-leaf-sway-left {
+  0%, 100% { transform: translateY(0) rotate(-9deg); }
+  50% { transform: translateY(-7px) rotate(-14deg); }
+}
+
+@media(max-width:700px) {
+  .seasonal-theme-fall.camper-workspace-page::before,
+  .seasonal-theme-fall.camper-workspace-page::after,
+  .seasonal-theme-fall.admin-workspace-page::before,
+  .seasonal-theme-fall.admin-workspace-page::after {
+    width: 36px;
+    font-size: 19px;
+    opacity: .64;
+  }
+
+  .seasonal-theme-fall.camper-workspace-page::after,
+  .seasonal-theme-fall.admin-workspace-page::after {
+    left: 1px;
+    bottom: 76px;
+  }
 }
 
 .seasonal-theme-halloween {
@@ -5103,6 +5167,11 @@ button:hover {
 @media(prefers-reduced-motion: reduce) {
   .seasonal-theme .camper-sidebar-nav a,
   .seasonal-theme .admin-sidebar-group a { transition: none; }
+
+  .seasonal-theme-fall.camper-workspace-page::before,
+  .seasonal-theme-fall.camper-workspace-page::after,
+  .seasonal-theme-fall.admin-workspace-page::before,
+  .seasonal-theme-fall.admin-workspace-page::after { animation: none; }
 }
 
 /* ADMIN BILLING WORKSPACE */

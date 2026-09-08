@@ -84,6 +84,6 @@ export function getSeasonalTheme(date = new Date()): SeasonalTheme {
 
   if (mmdd >= 301 && mmdd <= 531) return { key: 'spring', label: 'Spring at Bur Oaks', detail: 'Fresh air and a new camping season', symbol: '✿' }
   if (mmdd >= 601 && mmdd <= 831) return { key: 'summer', label: 'Summer at Bur Oaks', detail: 'Lake days, campfires, and good company', symbol: '☀' }
-  if (mmdd >= 901 && mmdd <= 1130) return { key: 'fall', label: 'Fall at Bur Oaks', detail: 'Cool nights and colorful weekends', symbol: '◆' }
+  if (mmdd >= 901 && mmdd <= 1130) return { key: 'fall', label: 'Fall at Bur Oaks', detail: 'Cool nights and colorful weekends', symbol: '🍂' }
   return { key: 'winter', label: 'Winter at Bur Oaks', detail: 'Quiet oaks and cozy planning', symbol: '❄' }
 }
