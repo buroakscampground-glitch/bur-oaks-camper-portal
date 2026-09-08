@@ -404,7 +404,7 @@ export async function PATCH(request: Request) {
         .select('id')
         .eq('camper_id', submission.camper_id)
         .is('billed_at', null)
-        .neq('status', 'cancelled')
+        .eq('status', 'completed')
         .limit(1),
       context.admin
         .from('site_service_charges')

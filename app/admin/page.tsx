@@ -46,6 +46,7 @@ import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 import { isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../lib/invoice-balance'
 import { type ElectricPaymentCycle, rollingElectricPaymentCycles } from '../../lib/electric-payment-cycles'
+import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 
 type AdminStats = {
   campers: number
@@ -295,7 +296,7 @@ export default function AdminPage() {
     })
     const dueSoonInvoices = openInvoices.filter((invoice) => isInvoiceDueAfterCurrentMonthWithinDays(invoice, 30))
     const activeCredits = (creditResult.data || []).filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)
-    const pumpOutsNeedingService = pumpOuts.filter((request) => request.status === 'requested' && !request.billed_at)
+    const pumpOutsNeedingService = pumpOuts.filter(isPumpOutWaitingForService)
     const insuredCamperIds = new Set(
       documents
         .filter((document) => document.document_type === 'Golf Cart Insurance')

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { isSystemPortalAccount } from '../../../lib/camper-records'
 import { isPhonePortalLoginEmail } from '../../../lib/phone-portal-login'
+import { isPumpOutWaitingForService } from '../../../lib/pump-out-status'
 
 export default function AdminCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -71,8 +72,7 @@ export default function AdminCampersPage() {
       )
       const activePumpOuts = (pumpOutResult.data || []).filter((request) =>
         request.camper_id === camper.id &&
-        request.status !== 'cancelled' &&
-        !request.billed_at
+        isPumpOutWaitingForService(request)
       )
 
       health[camper.id] = {

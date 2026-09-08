@@ -3,7 +3,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
-import { allowedPumpOutServiceLot, pumpOutServiceLotsForAccount } from '../../../lib/multi-site-pump-outs'
+import { allowedPumpOutServiceLot } from '../../../lib/multi-site-pump-outs'
 
 export const runtime = 'nodejs'
 
@@ -33,7 +33,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'That camper site could not be found.' }, { status: 404 })
   }
 
-  const serviceLots = pumpOutServiceLotsForAccount(targetCamper.email, targetCamper.lot_number)
   const serviceLot = allowedPumpOutServiceLot(
     targetCamper.email,
     targetCamper.lot_number,
@@ -56,50 +55,15 @@ export async function POST(request: Request) {
     notes,
   ].filter(Boolean).join(' ').slice(0, 500)
 
-  let requestResults: any = null
-  let error: any = null
-  if (serviceLots.length > 1) {
-    const { data: existing, error: existingError } = await context.admin
-      .from('sewer_pump_out_requests')
-      .select('*')
-      .eq('lot_number', serviceLot)
-      .is('billed_at', null)
-      .eq('status', 'requested')
-      .order('requested_at', { ascending: false })
-      .limit(1)
-
-    if (existingError) {
-      error = existingError
-    } else if (existing?.length) {
-      requestResults = [{ request_row: existing[0], duplicate: true }]
-    } else {
-      const { data: created, error: insertError } = await context.admin
-        .from('sewer_pump_out_requests')
-        .insert({
-          camper_id: targetCamper.id,
-          lot_number: serviceLot,
-          camper_name: camperName,
-          status: 'requested',
-          charge_amount: chargeAmount,
-          gallons_used: gallonsUsed,
-          notes: officeNotes,
-        })
-        .select('*')
-        .single()
-      error = insertError
-      requestResults = created ? [{ request_row: created, duplicate: false }] : null
-    }
-  } else {
-    const result = await context.admin.rpc('request_sewer_pump_out_atomic', {
-      p_camper_id: targetCamper.id,
-      p_lot_number: serviceLot,
-      p_camper_name: camperName,
-      p_charge_amount: chargeAmount,
-      p_notes: officeNotes,
-    })
-    requestResults = result.data
-    error = result.error
-  }
+  const rpcResult = await context.admin.rpc('request_sewer_pump_out_atomic', {
+    p_camper_id: targetCamper.id,
+    p_lot_number: serviceLot,
+    p_camper_name: camperName,
+    p_charge_amount: chargeAmount,
+    p_notes: officeNotes,
+  })
+  const requestResults = rpcResult.data
+  const error = rpcResult.error
 
   if (error) {
     return NextResponse.json({ error: 'Unable to add the pump-out request.' }, { status: 500 })

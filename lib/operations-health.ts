@@ -1,6 +1,7 @@
 import { authorizedBillingLinks, normalizeBillingEmail, normalizeBillingLot } from './authorized-billing'
 import { isOperationalCamper } from './camper-records'
 import { todayInCentral } from './invoice-texting'
+import { isPumpOutWaitingForService } from './pump-out-status'
 
 async function safeRows(query: any) {
   try {
@@ -71,7 +72,7 @@ export async function loadOperationsSnapshot(client: any) {
   const unsignedDocuments = documentResult.rows.filter((document: any) => !['signed', 'not_required', 'declined'].includes(String(document.signature_status || '').toLowerCase()))
   const openMaintenance = maintenanceResult.rows.filter((ticket: any) => isOpenStatus(ticket.status))
   const pendingMaintenance = openMaintenance.filter((ticket: any) => ticket.admin_approved !== true)
-  const openPumpOuts = pumpResult.rows.filter((request: any) => request.status === 'requested' && !request.billed_at)
+  const openPumpOuts = pumpResult.rows.filter(isPumpOutWaitingForService)
   const unreadMessages = messageResult.rows.filter((message: any) => message.sender_role === 'camper' && !message.read_by_admin_at)
   const failedTextAttempts = textResult.rows.filter((delivery: any) => String(delivery.status || '').toLowerCase() === 'failed')
   const failedInviteAttempts = inviteResult.rows.filter((delivery: any) => String(delivery.delivery_status || '').toLowerCase() === 'failed')

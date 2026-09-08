@@ -162,7 +162,7 @@ export default function AdminElectricPage() {
       .from('sewer_pump_out_requests')
       .select('*')
       .is('billed_at', null)
-      .neq('status', 'cancelled')
+      .eq('status', 'completed')
       .order('requested_at', { ascending: true })
 
     setPumpOuts(data || [])
@@ -525,7 +525,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
       .select('*')
       .eq('camper_id', camperId)
       .is('billed_at', null)
-      .neq('status', 'cancelled')
+      .eq('status', 'completed')
       .order('requested_at', { ascending: true })
 
     if (pumpOutLookupError) {

@@ -3,6 +3,7 @@ import { nextSaturdayDinner } from '../../../lib/saturday-dinners'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { ownerTextAlertConfigured } from '../../../lib/owner-alert-sms'
+import { isCompletedPumpOutWaitingForBilling, isPumpOutWaitingForService } from '../../../lib/pump-out-status'
 
 export const runtime = 'nodejs'
 
@@ -78,8 +79,8 @@ export async function GET(request: Request) {
   const unreadRsvps = notifications.filter((notification) => notification.type === 'event_rsvp')
   const unreadDinners = notifications.filter((notification) => notification.type === 'saturday_dinner')
   const unreadPumpOuts = notifications.filter((notification) => notification.type === 'sewer_pump_out')
-  const openPumpOuts = pumpOuts.filter((request) => request.status !== 'cancelled' && !request.billed_at)
-  const waitingPumpOuts = openPumpOuts.filter((request) => request.status !== 'completed')
+  const waitingPumpOuts = pumpOuts.filter(isPumpOutWaitingForService)
+  const completedPendingBilling = pumpOuts.filter(isCompletedPumpOutWaitingForBilling)
   const pendingDocuments = documents.filter((document) => {
     const status = String(document.signature_status || '').toLowerCase()
     return status !== 'signed' && status !== 'not_required'
@@ -189,11 +190,11 @@ export async function GET(request: Request) {
     item({
       id: 'pump-outs',
       label: 'Sewer pump-outs',
-      status: waitingPumpOuts.length ? 'action' : openPumpOuts.length ? 'warning' : 'ready',
+      status: waitingPumpOuts.length ? 'action' : completedPendingBilling.length ? 'warning' : 'ready',
       detail: waitingPumpOuts.length
         ? `${waitingPumpOuts.length} pump-out request${waitingPumpOuts.length === 1 ? '' : 's'} waiting for service.`
-        : openPumpOuts.length
-          ? `${openPumpOuts.length} completed pump-out charge${openPumpOuts.length === 1 ? '' : 's'} waiting to be billed.`
+        : completedPendingBilling.length
+          ? `${completedPendingBilling.length} completed pump-out charge${completedPendingBilling.length === 1 ? '' : 's'} waiting to be billed.`
           : 'No sewer pump-out requests waiting.',
       href: '/admin/pump-outs',
     }),

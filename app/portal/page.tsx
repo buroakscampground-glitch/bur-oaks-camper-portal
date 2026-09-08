@@ -41,6 +41,7 @@ import PortalWeather, { PortalWeatherMini } from '../../components/PortalWeather
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
+import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 import { getSeasonalTheme } from '../../lib/seasonal-theme'
 import { isInvoiceDueNow, isInvoiceDueWithinDays, isInvoiceOutstanding, totalInvoiceBalance } from '../../lib/invoice-balance'
 
@@ -664,7 +665,7 @@ export default function CamperPortalPage() {
     (ticket) => ticket.status !== 'Completed'
   )
   const activePumpOutRequests = pumpOutRequests.filter(
-    (request) => request.status === 'requested' && !request.billed_at
+    isPumpOutWaitingForService
   )
   const activeSiteCare = siteCareNotices.filter((notice) => notice.status !== 'Resolved')
   const latestMaintenance = maintenanceTickets[0]
@@ -931,15 +932,13 @@ export default function CamperPortalPage() {
       tone: 'gold',
       icon: FileText,
     })),
-    ...activePumpOutRequests.slice(0, 2).map((request) => ({
+    ...activePumpOutRequests.slice(0, 2).map(() => ({
       href: '/portal#pump-out',
       label: 'Pump-out',
-      title: request.status === 'completed' ? 'Pump-out completed' : 'Pump-out request received',
-      detail: request.status === 'completed'
-        ? `$${Number(request.charge_amount || 10).toFixed(2)} will be added to your next electric bill.`
-        : 'Your site is on the office pump-out list. No duplicate request is needed.',
-      status: request.status === 'completed' ? 'Completed' : 'In office queue',
-      tone: request.status === 'completed' ? 'green' : 'red',
+      title: 'Pump-out request received',
+      detail: 'Your site is on the office pump-out list. No duplicate request is needed.',
+      status: 'In office queue',
+      tone: 'red',
       icon: Droplets,
     })),
     ...activeMaintenance.slice(0, 2).map((ticket) => ({

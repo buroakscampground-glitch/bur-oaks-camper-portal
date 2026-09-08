@@ -52,7 +52,6 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const notes = String(body.notes || '').trim().slice(0, 500)
-  const serviceLots = pumpOutServiceLotsForAccount(context.user.email, context.camper.lot_number)
   const requestedServiceLot = allowedPumpOutServiceLot(
     context.user.email,
     context.camper.lot_number,
@@ -71,52 +70,18 @@ export async function POST(request: Request) {
     ? ' This is a holding-tank site, so the holding-tank pump-out rate applies.'
     : ''
 
-  let requestResults: any = null
-  let error: any = null
-  if (serviceLots.length > 1) {
-    const { data: existing, error: existingError } = await context.admin
-      .from('sewer_pump_out_requests')
-      .select('*')
-      .eq('lot_number', requestedServiceLot)
-      .is('billed_at', null)
-      .eq('status', 'requested')
-      .order('requested_at', { ascending: false })
-      .limit(1)
-
-    if (existingError) {
-      error = existingError
-    } else if (existing?.length) {
-      requestResults = [{ request_row: existing[0], duplicate: true }]
-    } else {
-      const billingNote = `Service site ${requestedServiceLot}; bill to Lot ${context.camper.lot_number}.`
-      const combinedNotes = [billingNote, initiatedBy, notes].filter(Boolean).join(' ').slice(0, 500)
-      const { data: created, error: insertError } = await context.admin
-        .from('sewer_pump_out_requests')
-        .insert({
-          camper_id: context.camper.id,
-          lot_number: requestedServiceLot,
-          camper_name: camperName,
-          status: 'requested',
-          charge_amount: pumpCharge,
-          gallons_used: gallonsUsed,
-          notes: combinedNotes,
-        })
-        .select('*')
-        .single()
-      error = insertError
-      requestResults = created ? [{ request_row: created, duplicate: false }] : null
-    }
-  } else {
-    const result = await context.admin.rpc('request_sewer_pump_out_atomic', {
-      p_camper_id: context.camper.id,
-      p_lot_number: requestedServiceLot,
-      p_camper_name: camperName,
-      p_charge_amount: pumpCharge,
-      p_notes: [initiatedBy, notes].filter(Boolean).join(' ').slice(0, 500),
-    })
-    requestResults = result.data
-    error = result.error
-  }
+  const billingNote = requestedServiceLot !== context.camper.lot_number
+    ? `Service site ${requestedServiceLot}; bill to Lot ${context.camper.lot_number}.`
+    : ''
+  const result = await context.admin.rpc('request_sewer_pump_out_atomic', {
+    p_camper_id: context.camper.id,
+    p_lot_number: requestedServiceLot,
+    p_camper_name: camperName,
+    p_charge_amount: pumpCharge,
+    p_notes: [billingNote, initiatedBy, notes].filter(Boolean).join(' ').slice(0, 500),
+  })
+  const requestResults = result.data
+  const error = result.error
 
   if (error) {
     return NextResponse.json(

@@ -8,6 +8,11 @@ import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge } from '../..
 import { isOperationalCamper, isSystemPortalAccount } from '../../../lib/camper-records'
 import { pumpOutServiceLotsForAccount } from '../../../lib/multi-site-pump-outs'
 import { pumpOutBillingLot, pumpOutDisplayNotes, pumpOutOrigin } from '../../../lib/pump-out-audit'
+import {
+  isCompletedPumpOutWaitingForBilling,
+  isPumpOutWaitingForService,
+  isUnbilledPumpOutWork,
+} from '../../../lib/pump-out-status'
 
 const statusLabels: Record<string, string> = {
   requested: 'Needs Pumped',
@@ -160,9 +165,9 @@ export default function AdminPumpOutsPage() {
     })
   }, [filter, requests, search])
 
-  const activeRequests = requests.filter((request) => request.status !== 'cancelled' && !request.billed_at)
-  const needsPumping = requests.filter((request) => request.status === 'requested' && !request.billed_at)
-  const completedUnbilled = requests.filter((request) => request.status === 'completed' && !request.billed_at)
+  const activeRequests = requests.filter(isUnbilledPumpOutWork)
+  const needsPumping = requests.filter(isPumpOutWaitingForService)
+  const completedUnbilled = requests.filter(isCompletedPumpOutWaitingForBilling)
   const pendingChargeTotal = activeRequests.reduce((sum, request) => sum + Number(request.charge_amount || 10), 0)
   const pendingGallons = activeRequests.reduce(
     (sum, request) => sum + Number(request.gallons_used || getSewerPumpOutGallonsForCharge(request.charge_amount)),
