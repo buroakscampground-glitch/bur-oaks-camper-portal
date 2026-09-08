@@ -27,6 +27,7 @@ import {
 import { saveSmsConsentPreference } from '../../../lib/sms-consent'
 import InvoiceSmsOptInAlert from '../../components/invoice-sms-opt-in-alert'
 import { printPageWithFlag } from '../../../lib/print-page'
+import { isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -264,8 +265,9 @@ export default function CamperInvoiceDetailPage() {
     )
   }
 
-  const isPaid = invoice.status === 'paid'
-  const isProcessing = invoice.status === 'processing'
+  const isPaid = isInvoicePaid(invoice)
+  const isProcessing = normalizedInvoiceStatus(invoice) === 'processing'
+  const isClosed = isInvoiceClosed(invoice)
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
   const processingFee = paymentMethod === 'card'
     ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
@@ -301,8 +303,8 @@ export default function CamperInvoiceDetailPage() {
         <section className="camper-invoice-detail-summary">
           <article>
             <small>Status</small>
-            <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
-              {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : 'Payment due'}
+            <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
+              {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : isClosed ? 'Canceled — nothing due' : 'Payment due'}
             </strong>
           </article>
           <article>
@@ -310,7 +312,7 @@ export default function CamperInvoiceDetailPage() {
             <strong>{formatDate(invoice.due_date)}</strong>
           </article>
           <article>
-            <small>Total</small>
+            <small>{isClosed ? 'Canceled amount — not due' : 'Total due'}</small>
             <strong>{formatMoney(invoice.total_due)}</strong>
           </article>
         </section>
@@ -365,7 +367,7 @@ export default function CamperInvoiceDetailPage() {
             </section>
           )}
 
-          {!isPaid && !isProcessing && (
+          {!isPaid && !isProcessing && !isClosed && (
             <div className="camper-invoice-payment-choice">
               <strong>Choose how to pay</strong>
               <div>
@@ -387,8 +389,8 @@ export default function CamperInvoiceDetailPage() {
           <div className="camper-invoice-total-box">
             <p><span>Subtotal</span><strong>{formatMoney(subtotal || invoice.subtotal || invoice.total_due)}</strong></p>
             <p><span>Late fee</span><strong>{formatMoney(invoice.late_fee)}</strong></p>
-            <p className="grand-total"><span>Total due</span><strong>{formatMoney(invoice.total_due)}</strong></p>
-            {!isPaid && !isProcessing && (
+            <p className="grand-total"><span>{isClosed ? 'Canceled invoice amount — nothing due' : 'Total due'}</span><strong>{formatMoney(invoice.total_due)}</strong></p>
+            {!isPaid && !isProcessing && !isClosed && (
               <>
                 <p><span>{paymentMethod === 'ach' ? achProcessingFeeLabel : feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>
                 <p className="grand-total"><span>{paymentMethod === 'ach' ? 'ACH bank payment' : 'Total charged by card today'}</span><strong>{formatMoney(payToday)}</strong></p>
@@ -406,6 +408,8 @@ export default function CamperInvoiceDetailPage() {
               <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice is paid</span>
             ) : isProcessing ? (
               <span className="camper-invoice-processing"><Hourglass size={18} /> Bank payment processing — please do not pay again</span>
+            ) : isClosed ? (
+              <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice was canceled. Nothing is owed.</span>
             ) : (
               <button type="button" onClick={payInvoice} disabled={paying}>
                 <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : `${paymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} ${formatMoney(payToday)}`} <ChevronRight size={16} />

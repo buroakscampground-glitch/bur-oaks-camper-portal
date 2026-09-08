@@ -10,6 +10,7 @@ import {
   uniqueSmsBroadcastRecipients,
   validSmsBroadcastRequestId,
 } from '../../../lib/sms-broadcast'
+import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
 
 function camperName(camper: any) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
@@ -101,7 +102,9 @@ export async function POST(request: Request) {
 
     if (invoiceError) return NextResponse.json({ error: invoiceError.message }, { status: 500 })
 
-    const camperIdsWithBalance = new Set((invoices || []).map((invoice: any) => String(invoice.camper_id)))
+    const camperIdsWithBalance = new Set((invoices || [])
+      .filter(isInvoiceOutstanding)
+      .map((invoice: any) => String(invoice.camper_id)))
     targetCampers = targetCampers.filter((camper: any) => camperIdsWithBalance.has(String(camper.id)))
   }
 

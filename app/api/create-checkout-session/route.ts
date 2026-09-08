@@ -13,6 +13,7 @@ import {
 } from '../../../lib/payment-fees'
 import { getSiteUrl } from '../../../lib/site-url'
 import { loadAuthorizedBillingCampers } from '../../../lib/authorized-billing'
+import { isInvoiceOutstanding, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
 
 export const runtime = 'nodejs'
 
@@ -105,14 +106,14 @@ export async function POST(request: Request) {
       )
     }
 
-    if (invoices.some((invoice) => invoice.status === 'paid')) {
+    if (invoices.some((invoice) => !isInvoiceOutstanding(invoice))) {
       return NextResponse.json(
-        { error: 'One or more selected invoices are already paid.' },
+        { error: 'One or more selected invoices are already paid, canceled, or void.' },
         { status: 400 }
       )
     }
 
-    if (invoices.some((invoice) => invoice.status === 'processing')) {
+    if (invoices.some((invoice) => normalizedInvoiceStatus(invoice) === 'processing')) {
       return NextResponse.json(
         { error: 'A payment is already processing for one or more selected invoices. Please do not pay again.' },
         { status: 409 }

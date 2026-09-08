@@ -11,6 +11,7 @@ import AdminQuickText from '../../../../components/AdminQuickText'
 import { printPageWithFlag } from '../../../../lib/print-page'
 import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-message'
 import { buildPaymentAllocationPreview, submitManualPayment } from '../../../../lib/manual-payment'
+import { isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../../lib/invoice-balance'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -79,7 +80,7 @@ export default function InvoiceDetailPage() {
   }, [])
 
   useEffect(() => {
-    if (editing && ['paid', 'processing'].includes(String(invoice?.status || '').toLowerCase())) {
+    if (editing && (isInvoicePaid(invoice || {}) || isInvoiceClosed(invoice || {}) || normalizedInvoiceStatus(invoice || {}) === 'processing')) {
       setEditing(false)
       setMessage('Editing closed because this invoice payment status changed.')
     }
@@ -219,7 +220,7 @@ export default function InvoiceDetailPage() {
   }
 
   function beginEditing() {
-    if (!invoice || isPaid || isProcessing) return
+    if (!invoice || isPaid || isProcessing || isClosed) return
 
     setEditInvoiceNumber(String(invoice.invoice_number || ''))
     setEditInvoiceType(String(invoice.invoice_type || 'Campground charge'))
@@ -260,7 +261,7 @@ export default function InvoiceDetailPage() {
   }
 
   async function saveInvoiceEdits() {
-    if (!invoice || isPaid || isProcessing) return
+    if (!invoice || isPaid || isProcessing || isClosed) return
 
     if (!editInvoiceNumber.trim() || !editInvoiceType.trim()) {
       setMessage('Invoice number and invoice type are required.')
@@ -344,8 +345,9 @@ export default function InvoiceDetailPage() {
     }
   }
 
-  const isPaid = invoice?.status === 'paid'
-  const isProcessing = invoice?.status === 'processing'
+  const isPaid = isInvoicePaid(invoice || {})
+  const isProcessing = normalizedInvoiceStatus(invoice || {}) === 'processing'
+  const isClosed = isInvoiceClosed(invoice || {})
   const cardProcessingFee = calculateCardProcessingFee(Number(invoice?.total_due || 0), feeSettings)
   const cardPayTotal = Number(invoice?.total_due || 0) + cardProcessingFee
   const achProcessingFee = calculateAchProcessingFee(Number(invoice?.total_due || 0))
@@ -407,12 +409,12 @@ export default function InvoiceDetailPage() {
             </p>
           </div>
           <div className="admin-invoice-detail-actions">
-            {!isPaid && !isProcessing && !editing && (
+            {!isPaid && !isProcessing && !isClosed && !editing && (
               <button type="button" onClick={beginEditing} disabled={busy}>
                 <Pencil size={16} /> Edit invoice
               </button>
             )}
-            {!isPaid && !isProcessing && !editing && (
+            {!isPaid && !isProcessing && !isClosed && !editing && (
               <button type="button" onClick={() => document.getElementById('record-office-payment')?.scrollIntoView({ behavior: 'smooth' })} disabled={busy}>
                 <CheckCircle2 size={16} /> Record office payment
               </button>
@@ -428,13 +430,13 @@ export default function InvoiceDetailPage() {
 
         <div className="camper-invoice-detail-summary">
           <article>
-            <small>Invoice balance</small>
+            <small>{isClosed ? 'Canceled amount — not due' : 'Invoice balance'}</small>
             <strong>{formatMoney(invoice.total_due)}</strong>
           </article>
           <article>
             <small>Status</small>
-            <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
-              {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : 'Payment due'}
+            <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
+              {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : isClosed ? 'Canceled — nothing due' : 'Payment due'}
             </strong>
           </article>
           <article>
@@ -443,7 +445,7 @@ export default function InvoiceDetailPage() {
           </article>
         </div>
 
-        {!isPaid && !isProcessing && (
+        {!isPaid && !isProcessing && !isClosed && (
           <section className="admin-manual-payment-card" id="record-office-payment">
             <div className="admin-manual-payment-heading">
               <span><CheckCircle2 size={21} /></span>
@@ -548,8 +550,8 @@ export default function InvoiceDetailPage() {
               <small>FULL BREAKDOWN</small>
               <h2>How this invoice total was calculated</h2>
             </div>
-            <span className={isPaid ? 'admin-invoice-status paid' : isProcessing ? 'admin-invoice-status processing' : 'admin-invoice-status open'}>
-              {isPaid ? 'Paid' : isProcessing ? 'Processing' : 'Open'}
+            <span className={isPaid ? 'admin-invoice-status paid' : isProcessing ? 'admin-invoice-status processing' : isClosed ? 'admin-invoice-status closed' : 'admin-invoice-status open'}>
+              {isPaid ? 'Paid' : isProcessing ? 'Processing' : isClosed ? 'Canceled — nothing due' : 'Open'}
             </span>
           </div>
 
@@ -586,8 +588,8 @@ export default function InvoiceDetailPage() {
                 <strong>{formatMoney(totalDifference)}</strong>
               </p>
             )}
-            <p className="grand-total"><span>Invoice balance due</span><strong>{formatMoney(invoice.total_due)}</strong></p>
-            {!isPaid && (
+            <p className="grand-total"><span>{isClosed ? 'Canceled invoice amount — nothing due' : 'Invoice balance due'}</span><strong>{formatMoney(invoice.total_due)}</strong></p>
+            {!isPaid && !isClosed && (
               <>
                 <p><span>{feeSettings.label} if paid online by card</span><strong>{formatMoney(cardProcessingFee)}</strong></p>
                 <p className="grand-total"><span>Total charged by Stripe card checkout</span><strong>{formatMoney(cardPayTotal)}</strong></p>
@@ -607,7 +609,7 @@ export default function InvoiceDetailPage() {
           </div>
         </section>
 
-        {invoice?.campers?.active === false && !isPaid && !isProcessing && (
+        {invoice?.campers?.active === false && !isPaid && !isProcessing && !isClosed && (
           <section className="admin-quick-text">
             <div className="admin-quick-text-heading">
               <span><CreditCard size={18} /></span>

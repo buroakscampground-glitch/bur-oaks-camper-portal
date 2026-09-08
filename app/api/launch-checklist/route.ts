@@ -4,6 +4,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { ownerTextAlertConfigured } from '../../../lib/owner-alert-sms'
 import { isCompletedPumpOutWaitingForBilling, isPumpOutWaitingForService } from '../../../lib/pump-out-status'
+import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
 
 export const runtime = 'nodejs'
 
@@ -69,7 +70,7 @@ export async function GET(request: Request) {
 
   const activeCampers = campers.filter(isOperationalCamper)
   const campersMissingEmail = activeCampers.filter((camper) => !camper.email && !camper.secondary_email)
-  const unpaidInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
+  const unpaidInvoices = invoices.filter(isInvoiceOutstanding)
   const openBalance = unpaidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const pendingMaintenance = maintenance.filter((ticket) => ticket.admin_approved !== true)
   const activeMaintenance = maintenance.filter((ticket) => ticket.status !== 'Completed')

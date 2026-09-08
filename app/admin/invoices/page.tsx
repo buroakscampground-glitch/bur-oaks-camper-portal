@@ -25,10 +25,19 @@ import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFe
 import AdminQuickText from '../../../components/AdminQuickText'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { nextInvoiceNumber } from '../../../lib/invoice-number'
-import { isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../lib/invoice-balance'
+import {
+  groupInvoicesByDueMonth,
+  isInvoiceClosed,
+  isInvoiceDueAfterCurrentMonthWithinDays,
+  isInvoiceDueThroughCurrentMonth,
+  isInvoiceOutstanding,
+  isInvoicePaid,
+  normalizedInvoiceStatus,
+  totalInvoiceBalance,
+} from '../../../lib/invoice-balance'
 import { buildBillingReminderMessage } from '../../../lib/billing-reminder-message'
 
-type InvoiceFilter = 'all' | 'open' | 'paid' | 'upcoming-30'
+type InvoiceFilter = 'all' | 'open' | 'paid' | 'upcoming-30' | 'closed'
 
 const invoiceDescriptionOptions = [
   'Lot Rent',
@@ -65,7 +74,8 @@ export default function AdminInvoicesPage() {
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [searchText, setSearchText] = useState('')
-  const [filter, setFilter] = useState<InvoiceFilter>('all')
+  const [filter, setFilter] = useState<InvoiceFilter>('open')
+  const [monthFilter, setMonthFilter] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
@@ -93,8 +103,10 @@ export default function AdminInvoicesPage() {
       .order('created_at', { ascending: false })
 
     const sortedInvoices = (data || []).sort((a: any, b: any) => {
-      if (a.status === 'paid' && b.status !== 'paid') return 1
-      if (a.status !== 'paid' && b.status === 'paid') return -1
+      if (isInvoiceClosed(a) && !isInvoiceClosed(b)) return 1
+      if (!isInvoiceClosed(a) && isInvoiceClosed(b)) return -1
+      if (isInvoicePaid(a) && !isInvoicePaid(b)) return 1
+      if (!isInvoicePaid(a) && isInvoicePaid(b)) return -1
       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     })
 
@@ -104,9 +116,12 @@ export default function AdminInvoicesPage() {
 
   useEffect(() => {
     async function loadWorkspace() {
-      if (new URLSearchParams(window.location.search).get('filter') === 'upcoming-30') {
+      const searchParams = new URLSearchParams(window.location.search)
+      if (searchParams.get('filter') === 'upcoming-30') {
         setFilter('upcoming-30')
       }
+      const requestedMonth = searchParams.get('month') || ''
+      if (/^\d{4}-\d{2}$/.test(requestedMonth)) setMonthFilter(requestedMonth)
 
       const [, camperResult, paymentFeeSettings] = await Promise.all([
         loadInvoices(),
@@ -256,7 +271,7 @@ export default function AdminInvoicesPage() {
   }
 
   const dueThisMonthInvoices = invoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
-  const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid')
+  const paidInvoices = invoices.filter(isInvoicePaid)
   const openBalance = totalInvoiceBalance(dueThisMonthInvoices)
   const collectedRevenue = paidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const previewInvoiceAmount = Number(amount || 0)
@@ -267,9 +282,10 @@ export default function AdminInvoicesPage() {
   const normalizedSearch = searchText.trim().toLowerCase()
   const visibleInvoices = invoices.filter((invoice) => {
     const matchesStatus =
-      filter === 'all' ||
-      (filter === 'paid' && invoice.status === 'paid') ||
-      (filter === 'open' && invoice.status !== 'paid') ||
+      (filter === 'all' && !isInvoiceClosed(invoice)) ||
+      (filter === 'paid' && isInvoicePaid(invoice)) ||
+      (filter === 'open' && isInvoiceOutstanding(invoice)) ||
+      (filter === 'closed' && isInvoiceClosed(invoice)) ||
       (filter === 'upcoming-30' && isInvoiceDueAfterCurrentMonthWithinDays(invoice, 30))
     const matchesSearch =
       !normalizedSearch ||
@@ -279,8 +295,11 @@ export default function AdminInvoicesPage() {
       String(invoice.campers?.last_name || '').toLowerCase().includes(normalizedSearch) ||
       String(invoice.campers?.lot_number || '').toLowerCase().includes(normalizedSearch)
 
-    return matchesStatus && matchesSearch
+    const matchesMonth = !monthFilter || String(invoice.due_date || '').slice(0, 7) === monthFilter
+    return matchesStatus && matchesSearch && matchesMonth
   })
+  const visibleInvoiceMonths = groupInvoicesByDueMonth(visibleInvoices)
+  const availableInvoiceMonths = groupInvoicesByDueMonth(invoices.filter((invoice) => !isInvoiceClosed(invoice)))
   const selectedCamper = campers.find((camper) => camper.id === camperId)
   const selectedCamperDueInvoices = selectedCamper
     ? dueThisMonthInvoices.filter((invoice) => String(invoice.camper_id) === String(selectedCamper.id))
@@ -415,11 +434,11 @@ export default function AdminInvoicesPage() {
 
         <section className="admin-invoice-history-panel">
           <div className="admin-history-heading">
-            <div><small>BILLING RECORDS</small><h2>Invoice history</h2><p>{visibleInvoices.length} of {invoices.length} invoices shown</p></div>
+            <div><small>MONTH-BY-MONTH BILLING</small><h2>Invoices by due month</h2><p>Open bills are shown first. Paid and canceled records stay in their own filters.</p></div>
             <div className="admin-invoice-filters" role="group" aria-label="Filter invoices">
-              {(['all', 'open', 'upcoming-30', 'paid'] as InvoiceFilter[]).map((option) => (
+              {(['open', 'upcoming-30', 'paid', 'all', 'closed'] as InvoiceFilter[]).map((option) => (
                 <button key={option} type="button" className={filter === option ? 'active' : ''} onClick={() => setFilter(option)}>
-                  {option === 'all' ? 'All' : option === 'open' ? 'Open' : option === 'upcoming-30' ? 'Later in next 30 days' : 'Paid'}
+                  {option === 'all' ? 'All active history' : option === 'open' ? 'Still due' : option === 'upcoming-30' ? 'Due next 30 days' : option === 'paid' ? 'Paid' : 'Canceled / void'}
                 </button>
               ))}
             </div>
@@ -439,22 +458,44 @@ export default function AdminInvoicesPage() {
             <input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Search camper, lot, invoice, or type…" />
           </label>
 
+          <label className="admin-invoice-month-filter">
+            <span>Show due month</span>
+            <select value={monthFilter} onChange={(event) => setMonthFilter(event.target.value)}>
+              <option value="">All due months</option>
+              {availableInvoiceMonths.filter((month) => month.key !== 'undated').map((month) => (
+                <option value={month.key} key={month.key}>{month.label}</option>
+              ))}
+            </select>
+          </label>
+
           {loading ? (
             <div className="admin-invoice-empty"><Loader2 className="admin-spin" size={28} /><p>Loading billing records…</p></div>
           ) : visibleInvoices.length === 0 ? (
             <div className="admin-invoice-empty"><FileText size={32} /><h3>No invoices found</h3><p>Try another search or status filter.</p></div>
           ) : (
-            <div className="admin-invoice-records">
-              {visibleInvoices.map((invoice) => {
-                const isPaid = invoice.status === 'paid'
-                const isProcessing = invoice.status === 'processing'
+            <div className="admin-invoice-month-groups">
+              {visibleInvoiceMonths.map((month) => (
+                <section className="admin-invoice-month-group" key={month.key}>
+                  <header>
+                    <div><small>BILLS DUE IN</small><h3>{month.label}</h3></div>
+                    <div className="admin-invoice-month-totals">
+                      <span><small>Still due</small><strong>{formatMoney(month.openTotal)}</strong></span>
+                      <span><small>Already paid</small><strong>{formatMoney(month.paidTotal)}</strong></span>
+                      <span className="electric"><small>Electric still due</small><strong>{formatMoney(month.electricOpenTotal)}</strong></span>
+                    </div>
+                  </header>
+                  <div className="admin-invoice-records">
+                    {month.invoices.map((invoice) => {
+                const isPaid = isInvoicePaid(invoice)
+                const isProcessing = normalizedInvoiceStatus(invoice) === 'processing'
+                const isClosed = isInvoiceClosed(invoice)
                 const processingFee = calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
                 const cardTotal = Number(invoice.total_due || 0) + processingFee
                 const achFee = calculateAchProcessingFee(Number(invoice.total_due || 0))
                 const achTotal = Number(invoice.total_due || 0) + achFee
                 return (
                   <article className="admin-invoice-record" key={invoice.id}>
-                    <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}`}>
+                    <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}`}>
                       {isPaid ? <CheckCircle2 size={20} /> : isProcessing ? <Loader2 size={20} /> : <ReceiptText size={20} />}
                     </span>
                     <span className="admin-invoice-record-camper">
@@ -465,10 +506,10 @@ export default function AdminInvoicesPage() {
                     <span className="admin-invoice-record-date"><CalendarDays size={14} /><span><small>Due</small><strong>{formatDate(invoice.due_date)}</strong></span></span>
                     <span className="admin-invoice-record-total">
                       <strong>{formatMoney(invoice.total_due)}</strong>
-                      <em className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
-                        {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : 'Payment due'}
+                      <em className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
+                        {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : isClosed ? 'Canceled — nothing due' : 'Payment due'}
                       </em>
-                      {!isPaid && !isProcessing && (
+                      {!isPaid && !isProcessing && !isClosed && (
                         <small>
                           Card pay total: {formatMoney(cardTotal)}
                           <br />
@@ -479,8 +520,8 @@ export default function AdminInvoicesPage() {
                       )}
                     </span>
                     <span className="admin-invoice-record-actions">
-                      <a href={`/admin/invoices/${invoice.id}${isPaid || isProcessing ? '' : '#record-office-payment'}`}>
-                        {isPaid || isProcessing ? 'View' : 'Record payment'} <ArrowRight size={14} />
+                      <a href={`/admin/invoices/${invoice.id}${isPaid || isProcessing || isClosed ? '' : '#record-office-payment'}`}>
+                        {isPaid || isProcessing || isClosed ? 'View' : 'Record payment'} <ArrowRight size={14} />
                       </a>
                       <button type="button" onClick={() => deleteInvoice(invoice)} disabled={isProcessing || deletingInvoiceId === invoice.id}>
                         <Trash2 size={14} /> {isProcessing ? 'Payment locked' : deletingInvoiceId === invoice.id ? 'Deleting…' : 'Delete'}
@@ -488,7 +529,10 @@ export default function AdminInvoicesPage() {
                     </span>
                   </article>
                 )
-              })}
+                    })}
+                  </div>
+                </section>
+              ))}
             </div>
           )}
         </section>

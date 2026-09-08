@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
+import { groupInvoicesByDueMonth, isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
 
 test('amount due excludes future invoices while keeping them upcoming', () => {
   const today = '2026-08-28'
@@ -27,6 +27,20 @@ test('void and canceled invoices never appear in camper balances', () => {
   ]
 
   assert.equal(totalInvoiceBalance(invoices.filter((invoice) => isInvoiceDueNow(invoice, '2026-09-04'))), 50)
+  assert.equal(isInvoiceOutstanding({ status: 'canceled', total_due: 1500 }), false)
+})
+
+test('billing records are grouped into plain month-by-month totals', () => {
+  const groups = groupInvoicesByDueMonth([
+    { status: 'sent', due_date: '2026-09-12', total_due: 132.51, invoice_type: 'Electric + Services' },
+    { status: 'paid', due_date: '2026-09-14', total_due: 50, invoice_type: 'Electric' },
+    { status: 'sent', due_date: '2026-10-01', total_due: 375, invoice_type: 'Lot Rent' },
+  ])
+
+  assert.deepEqual(groups.map((group) => group.label), ['September 2026', 'October 2026'])
+  assert.equal(groups[0].openTotal, 132.51)
+  assert.equal(groups[0].paidTotal, 50)
+  assert.equal(groups[0].electricOpenTotal, 132.51)
 })
 
 test('an open invoice without a due date is due now', () => {

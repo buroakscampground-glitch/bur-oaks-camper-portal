@@ -44,8 +44,14 @@ import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
-import { isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../lib/invoice-balance'
-import { type ElectricPaymentCycle, rollingElectricPaymentCycles } from '../../lib/electric-payment-cycles'
+import {
+  groupInvoicesByDueMonth,
+  isInvoiceClosed,
+  isInvoiceDueAfterCurrentMonthWithinDays,
+  isInvoiceDueThroughCurrentMonth,
+  totalInvoiceBalance,
+  type InvoiceMonthGroup,
+} from '../../lib/invoice-balance'
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 
 type AdminStats = {
@@ -56,7 +62,6 @@ type AdminStats = {
   announcements: number
   rsvps: number
   electric: number
-  electricCycles: ElectricPaymentCycle[]
   electricSitesLeft: number
   waitlist: number
   unpaidInvoices: number
@@ -92,6 +97,7 @@ type AdminStats = {
   nextDinnerDishes: number
   nextEventRsvps: number
   needsContactInfo: number
+  billingMonths: InvoiceMonthGroup<any>[]
 }
 
 type CockpitItem = {
@@ -114,7 +120,6 @@ const emptyStats: AdminStats = {
   announcements: 0,
   rsvps: 0,
   electric: 0,
-  electricCycles: [],
   electricSitesLeft: 0,
   waitlist: 0,
   unpaidInvoices: 0,
@@ -150,6 +155,7 @@ const emptyStats: AdminStats = {
   nextDinnerDishes: 0,
   nextEventRsvps: 0,
   needsContactInfo: 0,
+  billingMonths: [],
 }
 
 export default function AdminPage() {
@@ -248,7 +254,6 @@ export default function AdminPage() {
     const unreadMessages = messageResult.data || []
     const activeSupplyRequests = supplyRequestResult.data || []
     const activeSiteCare = siteCareResult.data || []
-    const electricCycles = rollingElectricPaymentCycles({ invoices, readings: electricResult.data || [], currentMonth: electricBillingMonth })
     let electricSitesLeft = 0
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
@@ -295,6 +300,9 @@ export default function AdminPage() {
       return !Number.isNaN(dueDate.getTime()) && dueDate < today
     })
     const dueSoonInvoices = openInvoices.filter((invoice) => isInvoiceDueAfterCurrentMonthWithinDays(invoice, 30))
+    const billingMonths = groupInvoicesByDueMonth(
+      invoices.filter((invoice) => !isInvoiceClosed(invoice))
+    ).filter((month) => month.key !== 'undated' && (month.openCount > 0 || month.key === electricBillingMonth))
     const activeCredits = (creditResult.data || []).filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)
     const pumpOutsNeedingService = pumpOuts.filter(isPumpOutWaitingForService)
     const insuredCamperIds = new Set(
@@ -397,7 +405,6 @@ export default function AdminPage() {
       announcements: (announcementsResult.data || []).filter((item) => !isAnnouncementExpired(item)).length,
       rsvps: rsvpsResult.data?.length || 0,
       electric: electricResult.data?.length || 0,
-      electricCycles,
       electricSitesLeft,
       waitlist: waitlistResult.data?.length || 0,
       unpaidInvoices: openInvoices.length,
@@ -451,6 +458,7 @@ export default function AdminPage() {
         !camper.mailing_state ||
         !camper.mailing_zip
       ).length,
+      billingMonths,
     })
   }
 
@@ -630,7 +638,6 @@ export default function AdminPage() {
     .slice(0, 3)
     .map((item) => `${item.count} ${item.title.replace(' notices', '').replace(' invoices', '').replace(' approvals', '').toLowerCase()}`)
     .join(' · ')
-  const dashboardMonth = stats.electricCycles.at(-1)?.label || new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const normalizedToolSearch = toolSearch.trim().toLowerCase()
 
   return (
@@ -660,50 +667,52 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <section className="admin-desk-summary" aria-label="Campground overview">
+        <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
+          <header>
+            <div>
+              <span>Billing made simple</span>
+              <h2 id="monthly-billing-heading">Billing, month by month</h2>
+              <p>Each month shows what is still due, what is already paid, and how much of the unpaid total is electric. Canceled and void invoices are not included.</p>
+            </div>
+            <a href="/admin/invoices">See every invoice <ArrowRight size={16} /></a>
+          </header>
+          <div className="admin-monthly-billing-grid">
+            {stats.billingMonths.slice(0, 6).map((month) => (
+              <a href={`/admin/invoices?month=${month.key}`} key={month.key}>
+                <div className="admin-monthly-billing-title">
+                  <h3>{month.label}</h3>
+                  <span>{month.openCount} invoice{month.openCount === 1 ? '' : 's'} still due</span>
+                </div>
+                <dl>
+                  <div><dt>Still due</dt><dd>${month.openTotal.toFixed(2)}</dd></div>
+                  <div><dt>Already paid</dt><dd>${month.paidTotal.toFixed(2)}</dd></div>
+                  <div className="electric"><dt>Electric still due</dt><dd>${month.electricOpenTotal.toFixed(2)}</dd></div>
+                </dl>
+              </a>
+            ))}
+          </div>
+        </section>
+
+        <section className="admin-desk-summary admin-office-summary" aria-label="Office work overview">
           <div className={attentionTotal ? 'needs-attention' : ''}>
             <span>Needs attention</span>
             <strong>{attentionTotal}</strong>
             <small>{attentionBreakdown || 'Everything is caught up'}</small>
           </div>
-          <a className="money-summary owed" href="/admin/reports?detail=owed" aria-label="Open the campers and invoices included in the amount owed">
-            <span>Amount due · {dashboardMonth}</span>
-            <strong>${stats.balance.toFixed(2)}</strong>
-            <small>{stats.amountDueInvoices} current/carryover invoice{stats.amountDueInvoices === 1 ? '' : 's'} · Tap for details</small>
-          </a>
-          <a className="money-summary paid" href="/admin/reports?detail=received" aria-label="Open who paid, what they paid, the amount, and payment date">
-            <span>Paid · {dashboardMonth}</span>
-            <strong>${stats.totalRevenue.toFixed(2)}</strong>
-            <small>{stats.paidInvoicesThisMonth} paid invoice{stats.paidInvoicesThisMonth === 1 ? '' : 's'} · Tap for details</small>
-          </a>
           <a className="money-summary late" href="/admin/open-balance?filter=past-due" aria-label="Open the campers and invoices with late payments">
             <span>Late payments</span>
             <strong>${stats.pastDueAmount.toFixed(2)}</strong>
             <small>{stats.pastDueInvoices} past-due invoice{stats.pastDueInvoices === 1 ? '' : 's'} · Tap to see who</small>
-          </a>
-          <a className="money-summary upcoming" href="/admin/invoices?filter=upcoming-30" aria-label="Open invoices due in the next 30 days">
-            <span>Later bills · next 30 days</span>
-            <strong>${stats.almostDueAmount.toFixed(2)}</strong>
-            <small>{stats.dueSoonInvoices} upcoming invoice{stats.dueSoonInvoices === 1 ? '' : 's'} · Tap for details</small>
           </a>
           <div>
             <span>Maintenance active</span>
             <strong>{stats.openMaintenance + stats.inProgressMaintenance}</strong>
             <small>{stats.pendingMaintenance} awaiting approval</small>
           </div>
-          <a className="electric-summary" href="/admin/electric" aria-label="Open the rolling electric payment progress">
-            <span>Electric payments · previous and current month</span>
-            <div className="electric-cycle-grid">
-              {stats.electricCycles.map((cycle) => (
-                <section key={cycle.month}>
-                  <strong>{cycle.label}</strong>
-                  <b>${cycle.outstanding.toFixed(2)} due</b>
-                  <small>${cycle.paid.toFixed(2)} paid of ${cycle.billed.toFixed(2)}</small>
-                  <em>{cycle.paidCount} of {cycle.invoiceCount} paid · {cycle.openCount} unpaid</em>
-                </section>
-              ))}
-            </div>
-            <small className="electric-sites-left">Current billing work: {stats.electricSitesLeft} site{stats.electricSitesLeft === 1 ? '' : 's'} left to finish</small>
+          <a className="money-summary electric" href="/admin/electric" aria-label="Open electric meter billing work">
+            <span>Electric billing work</span>
+            <strong>{stats.electricSitesLeft}</strong>
+            <small>site{stats.electricSitesLeft === 1 ? '' : 's'} left to finish this month</small>
           </a>
         </section>
 

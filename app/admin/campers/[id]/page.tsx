@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import AddressFinder from '../../../../components/AddressFinder'
-import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../../lib/invoice-balance'
+import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 import { isPhonePortalLoginEmail } from '../../../../lib/phone-portal-login'
 import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/staff-roles'
 
@@ -579,7 +579,7 @@ export default function CamperDetailPage() {
     )
   }
 
-  const openInvoices = invoices.filter((invoice) => invoice.status !== 'paid')
+  const openInvoices = invoices.filter(isInvoiceOutstanding)
   const balanceDue = totalInvoiceBalance(invoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice)))
   const initials = `${camper.first_name?.[0] || ''}${camper.last_name?.[0] || ''}`.toUpperCase()
   const history = internalHistory

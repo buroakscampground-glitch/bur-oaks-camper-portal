@@ -9,6 +9,7 @@ import {
   scheduledInvoiceNoticeKind,
   shouldAssessLateFee,
 } from '../../../../lib/invoice-reminder-schedule'
+import { isInvoiceOutstanding } from '../../../../lib/invoice-balance'
 
 export const dynamic = 'force-dynamic'
 
@@ -58,8 +59,9 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  const openInvoices = (invoices || []).filter(isInvoiceOutstanding)
   const summary = {
-    checked: invoices?.length || 0,
+    checked: openInvoices.length,
     textSent: 0,
     emailSent: 0,
     lateFeesApplied: 0,
@@ -68,7 +70,7 @@ export async function GET(request: Request) {
     results: [] as any[],
   }
 
-  for (const invoice of invoices || []) {
+  for (const invoice of openInvoices) {
     const daysUntilDue = daysUntilDate(String(invoice.due_date), today)
     const daysPastDue = Math.max(0, -daysUntilDue)
     let lateFeeWarningCompletedBeforeToday = Number(invoice.late_fee || 0) > 0
@@ -134,8 +136,7 @@ export async function GET(request: Request) {
           .update({ late_fee: lateFee, total_due: updatedTotal })
           .eq('id', invoice.id)
           .eq('total_due', invoice.total_due)
-          .neq('status', 'paid')
-          .neq('status', 'processing')
+          .in('status', ['open', 'sent', 'overdue'])
           .or('late_fee.is.null,late_fee.eq.0')
           .select('id,late_fee,total_due')
           .maybeSingle()

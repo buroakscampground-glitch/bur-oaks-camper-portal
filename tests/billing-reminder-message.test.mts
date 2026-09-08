@@ -33,3 +33,14 @@ test('billing reminder excludes paid invoices', () => {
   assert.match(message, /\$31\.50/)
   assert.doesNotMatch(message, /\$781\.50|\$750\.00/)
 })
+
+test('canceled rent never appears in a balance or reminder', () => {
+  const message = buildBillingReminderMessage([
+    { status: 'canceled', total_due: 750, due_date: '2026-10-01' },
+    { status: 'canceled', total_due: 750, due_date: '2027-04-01' },
+    { status: 'sent', total_due: 132.51, due_date: '2026-09-12' },
+  ], '2026-09-08')
+
+  assert.match(message, /open balance of \$132\.51/)
+  assert.doesNotMatch(message, /\$1,500\.00|\$1,632\.51/)
+})

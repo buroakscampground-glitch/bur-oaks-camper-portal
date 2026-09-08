@@ -41,7 +41,7 @@ import {
   type AutoPayPreference,
 } from '../../lib/autopay'
 import InvoiceSmsOptInAlert from '../components/invoice-sms-opt-in-alert'
-import { isInvoiceDueNow, isInvoiceOutstanding, isInvoiceUpcoming, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { isInvoiceClosed, isInvoiceDueNow, isInvoiceOutstanding, isInvoicePaid, isInvoiceUpcoming, totalInvoiceBalance } from '../../lib/invoice-balance'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -287,7 +287,7 @@ export default function InvoicesPage() {
   }
 
   const payableInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice) && invoice.status !== 'processing')
-  const paidInvoices = invoices.filter((invoice) => invoice.status === 'paid')
+  const paidInvoices = invoices.filter(isInvoicePaid)
   const openInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice))
   const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
   const upcomingInvoices = invoices.filter((invoice) => isInvoiceUpcoming(invoice))
@@ -304,9 +304,9 @@ export default function InvoicesPage() {
     : 0
   const selectedChargeTotal = selectedTotal + selectedProcessingFee
   const visibleInvoices = invoices.filter((invoice) => {
-    if (filter === 'open') return invoice.status !== 'paid'
-    if (filter === 'paid') return invoice.status === 'paid'
-    return true
+    if (filter === 'open') return isInvoiceOutstanding(invoice)
+    if (filter === 'paid') return isInvoicePaid(invoice)
+    return !isInvoiceClosed(invoice)
   })
 
   function toggleInvoice(id: string) {
@@ -469,7 +469,8 @@ export default function InvoicesPage() {
             <div className="family-billing-grid">
               {familyBillingAccounts.map((account) => {
                 const accountInvoices = Array.isArray(account.invoices) ? account.invoices : []
-                const accountOpenInvoices = accountInvoices.filter((invoice: any) => invoice.status !== 'paid')
+                const accountVisibleInvoices = accountInvoices.filter((invoice: any) => !isInvoiceClosed(invoice))
+                const accountOpenInvoices = accountInvoices.filter(isInvoiceOutstanding)
                 const accountOpenBalance = accountOpenInvoices.reduce(
                   (sum: number, invoice: any) => sum + Number(invoice.total_due || 0),
                   0
@@ -485,12 +486,12 @@ export default function InvoicesPage() {
                       <span><small>Open balance</small><strong>{formatMoney(accountOpenBalance)}</strong></span>
                     </header>
 
-                    {accountInvoices.length === 0 ? (
+                    {accountVisibleInvoices.length === 0 ? (
                       <p className="family-billing-clear"><CheckCircle2 size={18} /> No invoices for this account yet.</p>
                     ) : (
                       <div className="family-billing-invoices">
-                        {accountInvoices.map((invoice: any) => {
-                          const isPaid = invoice.status === 'paid'
+                        {accountVisibleInvoices.map((invoice: any) => {
+                          const isPaid = isInvoicePaid(invoice)
                           const isProcessing = invoice.status === 'processing'
                           return (
                             <div key={invoice.id}>

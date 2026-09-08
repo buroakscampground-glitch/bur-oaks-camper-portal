@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { loadAuthorizedBillingCampers } from '../../../lib/authorized-billing'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { isInvoiceClosed } from '../../../lib/invoice-balance'
 
 export const runtime = 'nodejs'
 
@@ -42,7 +43,9 @@ export async function GET(request: Request) {
     return NextResponse.json({
       accounts: accounts.map((account: any) => ({
         ...account,
-        invoices: (invoices || []).filter((invoice: any) => String(invoice.camper_id) === String(account.id)),
+        invoices: (invoices || []).filter((invoice: any) =>
+          String(invoice.camper_id) === String(account.id) && !isInvoiceClosed(invoice)
+        ),
       })),
     })
   } catch (error: any) {
@@ -52,4 +55,3 @@ export async function GET(request: Request) {
     )
   }
 }
-

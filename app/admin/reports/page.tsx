@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, ChevronDown, Download, Droplets, FileSpreadsheet, Landmark, Printer, ReceiptText, Search, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
-import { isInvoiceDueThroughCurrentMonth } from '../../../lib/invoice-balance'
+import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding } from '../../../lib/invoice-balance'
 import { futureOpenSchedule, invoiceReportLines, monthlyDueSummary } from '../../../lib/monthly-billing-report'
 
 const categoryColors: Record<string, string> = {
@@ -313,7 +313,7 @@ export default function AdminMonthlyReportsPage() {
     : dueMonthSummary.lines.filter((line) => {
         const status = String(line.invoice.status || '').toLowerCase()
         if (monthlyDetail === 'paid') return status === 'paid'
-        if (monthlyDetail === 'open') return status !== 'paid'
+        if (monthlyDetail === 'open') return isInvoiceOutstanding(line.invoice)
         if (monthlyDetail.startsWith('category:')) return line.category === monthlyDetail.slice('category:'.length)
         return true
       })

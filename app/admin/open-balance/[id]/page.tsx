@@ -7,7 +7,7 @@ import { supabase } from "../../../../lib/supabase"
 import { deleteInvoiceWithCreditRestore } from "../../../../lib/account-credits"
 import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from "../../../../lib/payment-fees"
 import AdminQuickText from "../../../../components/AdminQuickText"
-import { isInvoiceDueThroughCurrentMonth, totalInvoiceBalance } from '../../../../lib/invoice-balance'
+import { groupInvoicesByDueMonth, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 import { printPageWithFlag } from '../../../../lib/print-page'
 import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-message'
 import { buildPaymentAllocationPreview, submitManualPayment } from '../../../../lib/manual-payment'
@@ -81,8 +81,9 @@ export default function CamperBalancePage() {
       .neq("status", "paid")
       .order("due_date")
 
-    setAllOpenInvoices(invoiceData || [])
-    const dueInvoices = (invoiceData || []).filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
+    const outstandingInvoices = (invoiceData || []).filter(isInvoiceOutstanding)
+    setAllOpenInvoices(outstandingInvoices)
+    const dueInvoices = outstandingInvoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
     setInvoices(dueInvoices)
     setTotalDue(totalInvoiceBalance(dueInvoices))
     setFeeSettings(await loadPaymentFeeSettings(supabase))
@@ -202,6 +203,7 @@ Bur Oaks Campground
     return due < new Date()
   })
   const billingReminderMessage = buildBillingReminderMessage(invoices)
+  const invoiceMonthGroups = groupInvoicesByDueMonth(invoices)
 
   return (
     <main className="admin-open-balance-page admin-open-detail-page">
@@ -253,8 +255,15 @@ Bur Oaks Campground
             <p>This camper does not currently have an outstanding balance.</p>
           </div>
         ) : (
-          <div className="admin-open-invoice-list">
-            {invoices.map((invoice) => (
+          <div className="admin-open-invoice-months">
+            {invoiceMonthGroups.map((month) => (
+              <section className="admin-open-invoice-month" key={month.key}>
+                <header>
+                  <div><small>BILLS DUE IN</small><h3>{month.label}</h3></div>
+                  <div><small>Still due</small><strong>{formatMoney(month.openTotal)}</strong><em>{month.openCount} invoice{month.openCount === 1 ? '' : 's'}</em></div>
+                </header>
+                <div className="admin-open-invoice-list">
+                  {month.invoices.map((invoice) => (
               <article key={invoice.id} className={paymentInvoiceId === invoice.id ? "recording-payment" : ""}>
                 <div className="admin-open-invoice-main">
                   <small>Invoice #{invoice.invoice_number}</small>
@@ -331,6 +340,9 @@ Bur Oaks Campground
                   </div>
                 )}
               </article>
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}

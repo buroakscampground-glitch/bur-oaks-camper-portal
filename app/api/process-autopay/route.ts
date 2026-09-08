@@ -4,6 +4,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { sendPaymentReceivedAlert } from '../../../lib/payment-alerts'
 import { getSiteUrl } from '../../../lib/site-url'
+import { isInvoiceOutstanding, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
 
 export const runtime = 'nodejs'
 
@@ -49,11 +50,11 @@ export async function POST(request: Request) {
       .eq('id', invoiceId)
       .single()
 
-    if (!invoice || invoice.status === 'paid') {
+    if (!invoice || !isInvoiceOutstanding(invoice)) {
       return NextResponse.json({ charged: false, reason: 'not_open' })
     }
 
-    if (invoice.status === 'processing') {
+    if (normalizedInvoiceStatus(invoice) === 'processing') {
       return NextResponse.json({
         charged: false,
         initiated: true,
@@ -146,7 +147,7 @@ export async function POST(request: Request) {
           payment_reference: intent.id,
         })
         .eq('id', invoice.id)
-        .neq('status', 'paid')
+        .in('status', ['open', 'sent', 'overdue'])
         .select('id')
 
       if (paidUpdateError) throw paidUpdateError
@@ -182,7 +183,7 @@ export async function POST(request: Request) {
           payment_reference: intent.id,
         })
         .eq('id', invoice.id)
-        .neq('status', 'paid')
+        .in('status', ['open', 'sent', 'overdue'])
 
       if (processingUpdateError) throw processingUpdateError
 

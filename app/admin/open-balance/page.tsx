@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Download, Search, WalletCards } from 'lucide-react'
 import { supabase } from "../../../lib/supabase"
-import { isInvoiceDueThroughCurrentMonth } from '../../../lib/invoice-balance'
+import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding } from '../../../lib/invoice-balance'
 
 export default function OpenBalancePage() {
   const [balances, setBalances] = useState<any[]>([])
@@ -36,7 +36,9 @@ export default function OpenBalancePage() {
     }
 
     const grouped: any = {}
-    const dueInvoices = (invoices || []).filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
+    const dueInvoices = (invoices || []).filter((invoice) =>
+      isInvoiceOutstanding(invoice) && isInvoiceDueThroughCurrentMonth(invoice)
+    )
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 

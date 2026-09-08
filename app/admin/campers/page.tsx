@@ -6,6 +6,7 @@ import { supabase } from '../../../lib/supabase'
 import { isSystemPortalAccount } from '../../../lib/camper-records'
 import { isPhonePortalLoginEmail } from '../../../lib/phone-portal-login'
 import { isPumpOutWaitingForService } from '../../../lib/pump-out-status'
+import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
 
 export default function AdminCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -60,7 +61,7 @@ export default function AdminCampersPage() {
 
     activeCampers.forEach((camper) => {
       const camperInvoices = (invoiceResult.data || []).filter((invoice) => invoice.camper_id === camper.id)
-      const openInvoices = camperInvoices.filter((invoice) => invoice.status !== 'paid')
+      const openInvoices = camperInvoices.filter(isInvoiceOutstanding)
       const unsignedDocs = (documentResult.data || []).filter((doc) => {
         const status = String(doc.signature_status || '').toLowerCase()
         return doc.camper_id === camper.id && status !== 'signed' && status !== 'not_required'

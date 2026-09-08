@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 import { isUnbilledPumpOutWork } from '../../../lib/pump-out-status'
+import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
 
 export default function ArchivedCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -67,7 +68,9 @@ export default function ArchivedCampersPage() {
 
     const nextStatus: Record<string, { openInvoices: number; balance: number; unbilledPumpOuts: number }> = {}
     for (const camper of archivedCampers) {
-      const openInvoices = (invoiceResult.data || []).filter((invoice) => invoice.camper_id === camper.id && !['paid', 'cancelled'].includes(String(invoice.status || '').toLowerCase()))
+      const openInvoices = (invoiceResult.data || []).filter((invoice) =>
+        invoice.camper_id === camper.id && isInvoiceOutstanding(invoice)
+      )
       const unbilledPumpOuts = (pumpOutResult.data || []).filter((pumpOut) =>
         pumpOut.camper_id === camper.id && isUnbilledPumpOutWork(pumpOut)
       )

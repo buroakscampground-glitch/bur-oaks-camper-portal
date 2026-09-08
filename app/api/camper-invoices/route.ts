@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { isInvoiceClosed } from '../../../lib/invoice-balance'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       camper: context.camper,
-      invoices: invoices || [],
+      invoices: (invoices || []).filter((invoice) => !isInvoiceClosed(invoice)),
       accountCredit,
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error: any) {
