@@ -145,10 +145,14 @@ export default function SaturdayDinnersPage() {
     }
 
     let emailNote = ''
-    if (result?.emailStatus === 'failed') emailNote = ` Admin email alert failed: ${result.emailMessage || 'unknown error'}.`
-    if (result?.emailStatus === 'skipped') emailNote = ` Admin email alert skipped: ${result.emailMessage || 'not configured'}.`
+    if (result?.notificationStatus === 'unchanged') emailNote = ' This RSVP was already saved, so no duplicate office alert was sent.'
+    else if (result?.emailStatus === 'failed') emailNote = ` Admin email alert failed: ${result.emailMessage || 'unknown error'}.`
+    else if (result?.emailStatus === 'skipped') emailNote = ` Admin email alert skipped: ${result.emailMessage || 'not configured'}.`
 
-    setMessage(`Saved — we have you marked ${status} for ${selectedDinner.month} ${selectedDinner.day}.${emailNote}`)
+    const peopleNote = status === 'Not Going'
+      ? ''
+      : ` for ${guestCount} ${guestCount === 1 ? 'person' : 'people'}`
+    setMessage(`Saved — your one campsite RSVP is marked ${status}${peopleNote} for ${selectedDinner.month} ${selectedDinner.day}.${emailNote}`)
     savingRef.current = false
     setSaving(false)
     loadSignups()
@@ -218,6 +222,14 @@ export default function SaturdayDinnersPage() {
           {selectedDinner?.theme && <p><Sparkles size={15} /> Theme: {selectedDinner.theme}</p>}
         </div>
 
+        <div className="saturday-dinner-household-note">
+          <UsersRound size={24} />
+          <div>
+            <strong>Submit one RSVP for your whole campsite.</strong>
+            <span>Enter your total head count below. Do not submit a separate RSVP for each person.</span>
+          </div>
+        </div>
+
         <div className="saturday-dinner-form">
           <label>
             <span>Dinner date</span>
@@ -238,7 +250,7 @@ export default function SaturdayDinnersPage() {
             </select>
           </label>
           <label>
-            <span>How many people?</span>
+            <span>Total head count</span>
             <div className="saturday-dinner-count">
               <button type="button" onClick={() => updateGuestCount(guestCount - 1)} disabled={guestCount <= 1}>−</button>
               <input
@@ -252,6 +264,7 @@ export default function SaturdayDinnersPage() {
               />
               <button type="button" onClick={() => updateGuestCount(guestCount + 1)}>+</button>
             </div>
+            <small className="saturday-dinner-count-help">One total for your campsite.</small>
           </label>
           <label className="bring-field bring-field-featured">
             <span className="bring-field-callout">

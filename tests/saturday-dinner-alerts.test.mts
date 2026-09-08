@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { isUnchangedDinnerSignup } from '../lib/saturday-dinner-signup-state.ts'
 
@@ -24,4 +25,12 @@ test('a real Saturday dinner response change still needs an alert', () => {
   assert.equal(isUnchangedDinnerSignup(existing, { status: 'Maybe', bringing: 'Chips', guestCount: 2 }), false)
   assert.equal(isUnchangedDinnerSignup(existing, { status: 'Going', bringing: 'Dessert', guestCount: 2 }), false)
   assert.equal(isUnchangedDinnerSignup(existing, { status: 'Going', bringing: 'Chips', guestCount: 3 }), false)
+})
+
+test('the dinner form explains that one RSVP covers the entire campsite', async () => {
+  const source = await readFile(new URL('../app/dinners/page.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /Submit one RSVP for your whole campsite/)
+  assert.match(source, /Total head count/)
+  assert.match(source, /Do not submit a separate RSVP for each person/)
 })
