@@ -23,10 +23,15 @@ export function adminAlertRecipients() {
     process.env.ADMIN_ALERT_EMAIL ||
     'buroakscampground@gmail.com'
 
-  return raw
-    .split(',')
-    .map((email) => email.trim())
-    .filter(Boolean)
+  return Array.from(
+    new Map(
+      raw
+        .split(',')
+        .map((email) => email.trim())
+        .filter(Boolean)
+        .map((email) => [email.toLowerCase(), email])
+    ).values()
+  )
 }
 
 function parseSender(value: string) {
@@ -124,9 +129,14 @@ export async function sendAdminAlertEmail({
     return { skipped: true, reason: providerStatus.reason || 'Admin alert email is not configured.' }
   }
 
-  const to = (recipients?.length ? recipients : adminAlertRecipients())
-    .map((email) => email.trim())
-    .filter(Boolean)
+  const to = Array.from(
+    new Map(
+      (recipients?.length ? recipients : adminAlertRecipients())
+        .map((email) => email.trim())
+        .filter(Boolean)
+        .map((email) => [email.toLowerCase(), email])
+    ).values()
+  )
   const from = providerStatus.from
   const replyTo = providerStatus.replyTo
   let safeActionUrl = ''

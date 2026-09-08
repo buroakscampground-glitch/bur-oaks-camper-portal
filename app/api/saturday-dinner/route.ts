@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { saturdayDinners2026 } from '../../../lib/saturday-dinners'
+import { isUnchangedDinnerSignup } from '../../../lib/saturday-dinner-signup-state'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { getSiteUrl } from '../../../lib/site-url'
 
@@ -75,6 +76,31 @@ export async function POST(request: Request) {
 
   const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'Camper'
 
+  const { data: existingSignup, error: existingError } = await context.admin
+    .from('saturday_dinner_signups')
+    .select('*')
+    .eq('dinner_date', dinnerDate)
+    .eq('camper_id', context.camper.id)
+    .maybeSingle()
+
+  if (existingError) {
+    return NextResponse.json({ error: existingError.message }, { status: 500 })
+  }
+
+  if (isUnchangedDinnerSignup(existingSignup, { status, bringing, guestCount })) {
+    console.info('Duplicate Saturday dinner response suppressed:', {
+      dinnerDate,
+      camperId: context.camper.id,
+    })
+    return NextResponse.json({
+      success: true,
+      signup: existingSignup,
+      notificationStatus: 'unchanged',
+      emailStatus: 'skipped',
+      emailMessage: 'The saved response was unchanged, so no duplicate alert was sent.',
+    })
+  }
+
   const { data: signup, error } = await context.admin
     .from('saturday_dinner_signups')
     .upsert({
@@ -97,7 +123,8 @@ export async function POST(request: Request) {
   }
 
   const title = `Saturday dinner: Site ${context.camper.lot_number || 'Unknown'} ${status}`
-  const message = `${camperName} marked ${status} for ${dinner.month} ${dinner.day} ${dinner.menu}${bringing ? ` and is bringing ${bringing}` : ''}.`
+  const guestLabel = `${guestCount} ${guestCount === 1 ? 'guest' : 'guests'}`
+  const message = `${camperName} marked ${status} for ${dinner.month} ${dinner.day} ${dinner.menu} with ${guestLabel}${bringing ? ` and is bringing ${bringing}` : ''}.`
   const origin = getSiteUrl()
 
   await createAdminNotification(context.admin, {
@@ -140,5 +167,5 @@ export async function POST(request: Request) {
     emailMessage = emailError?.message || 'Dinner alert email failed.'
   }
 
-  return NextResponse.json({ success: true, signup, emailStatus, emailMessage })
+  return NextResponse.json({ success: true, signup, notificationStatus: 'sent', emailStatus, emailMessage })
 }

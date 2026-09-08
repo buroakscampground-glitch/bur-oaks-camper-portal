@@ -19,6 +19,7 @@ export default function SaturdayDinnersPage() {
   const [guestCount, setGuestCount] = useState(1)
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
   const signupCardRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
@@ -111,10 +112,13 @@ export default function SaturdayDinnersPage() {
   }, [selectedDate, selectedDinner?.menu, signups.length])
 
   async function saveDinnerSignup() {
+    if (savingRef.current) return
+
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     if (!token || !selectedDinner) return
 
+    savingRef.current = true
     setSaving(true)
     setMessage('Saving your dinner response…')
     const bringing = bringChoice === 'Other' ? customBringing.trim() : bringChoice.trim()
@@ -135,6 +139,7 @@ export default function SaturdayDinnersPage() {
 
     if (!response.ok) {
       setMessage(result?.error || 'Unable to save your dinner response.')
+      savingRef.current = false
       setSaving(false)
       return
     }
@@ -144,6 +149,7 @@ export default function SaturdayDinnersPage() {
     if (result?.emailStatus === 'skipped') emailNote = ` Admin email alert skipped: ${result.emailMessage || 'not configured'}.`
 
     setMessage(`Saved — we have you marked ${status} for ${selectedDinner.month} ${selectedDinner.day}.${emailNote}`)
+    savingRef.current = false
     setSaving(false)
     loadSignups()
   }
