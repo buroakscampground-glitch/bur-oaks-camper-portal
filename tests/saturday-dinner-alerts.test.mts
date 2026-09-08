@@ -27,10 +27,11 @@ test('a real Saturday dinner response change still needs an alert', () => {
   assert.equal(isUnchangedDinnerSignup(existing, { status: 'Going', bringing: 'Chips', guestCount: 3 }), false)
 })
 
-test('the dinner form explains that one RSVP covers the entire campsite', async () => {
+test('the dinner form politely explains one RSVP and a total head count', async () => {
   const source = await readFile(new URL('../app/dinners/page.tsx', import.meta.url), 'utf8')
 
-  assert.match(source, /Submit one RSVP for your whole campsite/)
+  assert.match(source, /One RSVP per campsite/)
   assert.match(source, /Total head count/)
-  assert.match(source, /Do not submit a separate RSVP for each person/)
+  assert.match(source, /Please enter your total head count below/)
+  assert.doesNotMatch(source, /Do not submit/)
 })

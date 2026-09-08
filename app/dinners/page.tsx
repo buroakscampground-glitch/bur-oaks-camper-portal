@@ -149,10 +149,8 @@ export default function SaturdayDinnersPage() {
     else if (result?.emailStatus === 'failed') emailNote = ` Admin email alert failed: ${result.emailMessage || 'unknown error'}.`
     else if (result?.emailStatus === 'skipped') emailNote = ` Admin email alert skipped: ${result.emailMessage || 'not configured'}.`
 
-    const peopleNote = status === 'Not Going'
-      ? ''
-      : ` for ${guestCount} ${guestCount === 1 ? 'person' : 'people'}`
-    setMessage(`Saved — your one campsite RSVP is marked ${status}${peopleNote} for ${selectedDinner.month} ${selectedDinner.day}.${emailNote}`)
+    const peopleNote = status === 'Not Going' ? '' : ` · Head count: ${guestCount}`
+    setMessage(`Saved — ${status}${peopleNote} · ${selectedDinner.month} ${selectedDinner.day}.${emailNote}`)
     savingRef.current = false
     setSaving(false)
     loadSignups()
@@ -225,8 +223,8 @@ export default function SaturdayDinnersPage() {
         <div className="saturday-dinner-household-note">
           <UsersRound size={24} />
           <div>
-            <strong>Submit one RSVP for your whole campsite.</strong>
-            <span>Enter your total head count below. Do not submit a separate RSVP for each person.</span>
+            <strong>One RSVP per campsite</strong>
+            <span>Please enter your total head count below.</span>
           </div>
         </div>
 
@@ -264,7 +262,7 @@ export default function SaturdayDinnersPage() {
               />
               <button type="button" onClick={() => updateGuestCount(guestCount + 1)}>+</button>
             </div>
-            <small className="saturday-dinner-count-help">One total for your campsite.</small>
+            <small className="saturday-dinner-count-help">Your campsite total</small>
           </label>
           <label className="bring-field bring-field-featured">
             <span className="bring-field-callout">
