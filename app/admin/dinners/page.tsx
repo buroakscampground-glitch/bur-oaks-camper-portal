@@ -13,6 +13,19 @@ export default function AdminDinnersPage() {
 
   useEffect(() => {
     loadSignups()
+
+    const refresh = window.setInterval(loadSignups, 15_000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadSignups()
+    }
+    window.addEventListener('focus', loadSignups)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      window.clearInterval(refresh)
+      window.removeEventListener('focus', loadSignups)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
   }, [])
 
   async function loadSignups() {
@@ -78,6 +91,8 @@ export default function AdminDinnersPage() {
         <article><small>Maybe</small><strong>{maybe.length}</strong></article>
         <article><small>Expected plates</small><strong>{totalGuests}</strong></article>
       </section>
+
+      <p className="admin-dinner-message" role="status">Live updates are on — camper responses refresh automatically.</p>
 
       {selectedDinner && (
         <section className="admin-dinner-feature">
