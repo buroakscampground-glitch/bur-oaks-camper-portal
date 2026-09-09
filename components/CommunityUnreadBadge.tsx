@@ -16,8 +16,20 @@ export default function CommunityUnreadBadge() {
       if (active && response.ok) setCount(Number(result.unreadCount || 0) + Number(result.directCount || 0))
     }
     load()
+    const interval = window.setInterval(load, 60_000)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') load()
+    }
     window.addEventListener('community-unread-changed', load)
-    return () => { active = false; window.removeEventListener('community-unread-changed', load) }
+    window.addEventListener('focus', load)
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      active = false
+      window.clearInterval(interval)
+      window.removeEventListener('community-unread-changed', load)
+      window.removeEventListener('focus', load)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
   }, [])
 
   if (!count) return null

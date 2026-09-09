@@ -41,6 +41,7 @@ import {
   Zap,
 } from 'lucide-react'
 import AdminWeather, { AdminWeatherNow } from '../../components/AdminWeather'
+import CommunityUnreadBadge from '../../components/CommunityUnreadBadge'
 import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
@@ -632,7 +633,9 @@ export default function AdminPage() {
             <strong>Open the camper conversation</strong>
             <em>View posts and comments · Post as the office · Manage or block members</em>
           </span>
-          <b>Open Community <ArrowRight size={17} /></b>
+          <span className="admin-community-home-cta">
+            Open Community <ArrowRight size={17} /> <CommunityUnreadBadge />
+          </span>
         </a>
 
         <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
