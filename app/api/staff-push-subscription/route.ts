@@ -7,6 +7,7 @@ import { canManageCommunity } from '../../../lib/staff-roles'
 export const runtime = 'nodejs'
 
 type SavedSubscription = {
+  app: 'admin' | 'community'
   endpoint: string
   expirationTime: number | null
   keys: { p256dh: string; auth: string }
@@ -17,12 +18,14 @@ function isStaff(role: unknown) {
   return canManageCommunity(role)
 }
 
-function normalizeSubscription(value: any): SavedSubscription | null {
+function normalizeSubscription(value: any, app: unknown): SavedSubscription | null {
+  if (app !== 'admin' && app !== 'community') return null
   const endpoint = String(value?.endpoint || '').trim()
   const p256dh = String(value?.keys?.p256dh || '').trim()
   const auth = String(value?.keys?.auth || '').trim()
   if (!endpoint.startsWith('https://') || endpoint.length > 2000 || !p256dh || p256dh.length > 500 || !auth || auth.length > 500) return null
   return {
+    app,
     endpoint,
     expirationTime: Number.isFinite(Number(value?.expirationTime)) ? Number(value.expirationTime) : null,
     keys: { p256dh, auth },
@@ -44,7 +47,12 @@ export async function POST(request: Request) {
   const context = await getAuthenticatedContext(request)
   if (!context || !isStaff(context.camper.role)) return NextResponse.json({ error: 'Staff access is required.' }, { status: 401 })
   const body = await request.json().catch(() => ({}))
-  const subscription = normalizeSubscription(body.subscription)
+  const role = String(context.camper.role || '').toLowerCase()
+  const app = body.app === 'admin' ? 'admin' : body.app === 'community' ? 'community' : ''
+  if ((role === 'admin' && app !== 'admin') || (role === 'event_coordinator' && app !== 'community')) {
+    return NextResponse.json({ error: 'This notification app does not match the signed-in staff account.' }, { status: 403 })
+  }
+  const subscription = normalizeSubscription(body.subscription, app)
   if (!subscription) return NextResponse.json({ error: 'This phone did not provide a valid notification subscription.' }, { status: 400 })
 
   const current = Array.isArray(context.user.user_metadata?.staff_push_subscriptions)

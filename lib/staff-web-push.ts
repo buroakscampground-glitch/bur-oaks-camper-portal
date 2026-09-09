@@ -2,6 +2,7 @@ import webpush, { type PushSubscription } from 'web-push'
 import { effectivePortalRole } from './staff-roles'
 
 type StaffPushSubscription = PushSubscription & {
+  app?: 'admin' | 'community'
   createdAt?: string
 }
 
@@ -85,7 +86,8 @@ export async function sendStaffWebPush(admin: any, options: StaffPushOptions) {
   for (const user of users) {
     const recipient = recipientByEmail.get(String(user.email || '').trim().toLowerCase())
     if (!recipient) continue
-    const subscriptions = savedSubscriptions(user.user_metadata?.staff_push_subscriptions)
+    const expectedApp = recipient.role === 'admin' ? 'admin' : 'community'
+    const subscriptions = savedSubscriptions(user.user_metadata?.staff_push_subscriptions).filter((item) => item.app === expectedApp)
     if (!subscriptions.length) continue
     const expired = new Set<string>()
     const countResult = recipient.role === 'admin'

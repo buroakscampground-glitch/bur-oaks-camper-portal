@@ -642,7 +642,7 @@ export default function AdminPage() {
             Open Community <ArrowRight size={17} /> <CommunityUnreadBadge syncHomeScreen={false} />
           </span>
         </a>
-        <AppBadgePermission label="important office alerts" staffBackground />
+        <AppBadgePermission label="important office alerts" staffApp="admin" />
 
         <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
           <header>

@@ -3,7 +3,8 @@ import { supabase } from './supabase'
 export async function removeStaffPushFromThisPhone() {
   if (!('serviceWorker' in navigator)) return
   try {
-    const registration = await navigator.serviceWorker.getRegistration('/staff-sw.js') || await navigator.serviceWorker.getRegistration('/')
+    const scopePath = window.location.pathname.startsWith('/admin') ? '/admin/' : '/community/'
+    const registration = await navigator.serviceWorker.getRegistration(scopePath) || await navigator.serviceWorker.getRegistration('/')
     const subscription = await registration?.pushManager.getSubscription()
     if (!subscription) return
     const { data: { session } } = await supabase.auth.getSession()
