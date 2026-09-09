@@ -1,6 +1,6 @@
 'use client'
 
-import { Bell, Camera, Check, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, RefreshCw, Send, ShieldCheck, UsersRound, X } from 'lucide-react'
+import { Ban, Bell, Camera, Check, Eye, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
@@ -21,6 +21,11 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [viewer, setViewer] = useState<any>(null)
   const [preferences, setPreferences] = useState<any>(null)
   const [reports, setReports] = useState<any[]>([])
+  const [members, setMembers] = useState<any[]>([])
+  const [memberSearch, setMemberSearch] = useState('')
+  const [showMemberControls, setShowMemberControls] = useState(false)
+  const [blocked, setBlocked] = useState(false)
+  const [blockReason, setBlockReason] = useState('')
   const [tab, setTab] = useState<'all' | 'official' | 'mine'>('all')
   const [draft, setDraft] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
@@ -59,8 +64,11 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     }
     setPosts(result.posts || [])
     setViewer(result.viewer || null)
+    setBlocked(Boolean(result.blocked))
+    setBlockReason(result.reason || '')
     setPreferences(result.preferences || null)
     setReports(result.reports || [])
+    setMembers(result.members || [])
     setLoading(false)
     const unreadIds = (result.posts || []).filter((post: any) => !post.read_by_me && post.status === 'published').map((post: any) => post.id)
     if (unreadIds.length || result.directCount) {
@@ -157,11 +165,50 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     setWorking('')
   }
 
+  async function deleteContent(contentType: 'post' | 'comment', id: string) {
+    const label = contentType === 'post' ? 'post and all of its comments' : 'comment'
+    if (!window.confirm(`Permanently delete this ${label}? This cannot be undone.`)) return
+    setWorking(`delete:${id}`)
+    try {
+      await communityAction({ action: 'delete_content', contentType, id, reason: 'Deleted by campground administrator.' })
+      setNotice(`The ${contentType} was permanently deleted.`)
+      await loadFeed(true)
+    } catch (error: any) { setNotice(error.message) }
+    setWorking('')
+  }
+
+  async function setMemberAccess(member: any, accessLevel: 'active' | 'read_only' | 'blocked') {
+    const description = accessLevel === 'blocked' ? 'block all Community access' : accessLevel === 'read_only' ? 'make this camper read-only' : 'restore full Community access'
+    if (!window.confirm(`${description[0].toUpperCase()}${description.slice(1)} for ${member.name} at Lot ${member.lotNumber}? Their billing, documents, payments, and the rest of their portal will not be affected.`)) return
+    let reason = ''
+    if (accessLevel !== 'active') {
+      const enteredReason = window.prompt('Optional: enter the reason this camper will see. Leave blank for the standard office message.', '')
+      if (enteredReason === null) return
+      reason = enteredReason.trim().slice(0, 300)
+    }
+    setWorking(`member:${member.id}`)
+    try {
+      await communityAction({ action: 'set_member_access', camperId: member.id, accessLevel, reason: accessLevel === 'active' ? '' : reason || 'Community access changed by the campground administrator.' })
+      setNotice(`${member.name} is now ${accessLevel === 'blocked' ? 'blocked from the Community' : accessLevel === 'read_only' ? 'read-only' : 'active in the Community'}.`)
+      await loadFeed(true)
+    } catch (error: any) { setNotice(error.message) }
+    setWorking('')
+  }
+
   const visiblePosts = useMemo(() => posts.filter((post) => {
     if (tab === 'official') return post.is_official
     if (tab === 'mine') return String(post.camper_id) === String(viewer?.id)
     return true
   }), [posts, tab, viewer])
+  const filteredMembers = useMemo(() => members.filter((member) => `${member.name} ${member.lotNumber}`.toLowerCase().includes(memberSearch.trim().toLowerCase())), [members, memberSearch])
+
+  if (!loading && blocked) {
+    return (
+      <main className="campground-community-page">
+        <section className="campground-community-blocked"><Ban size={34} /><small>COMMUNITY ACCESS PAUSED</small><h1>The Community is not available for this account.</h1><p>{blockReason || 'Please contact the Bur Oaks office if you have questions.'}</p><a href="/portal">Return to Portal Home</a></section>
+      </main>
+    )
+  }
 
   return (
     <main className={`campground-community-page${adminMode ? ' admin-community-page' : ''}`}>
@@ -177,6 +224,23 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
       <section className="campground-community-calm"><ShieldCheck size={18} /><div><strong>No constant community texts.</strong><span>Conversation uses portal badges and your email choices. Emergency text alerts stay separate.</span></div></section>
       {notice && <p className="campground-community-notice" role="status">{notice}</p>}
+
+      {adminMode && viewer?.canDelete && (
+        <section className="campground-community-owner-controls">
+          <button type="button" onClick={() => setShowMemberControls((open) => !open)}><ShieldCheck size={18} /><span><small>OWNER CONTROL</small><strong>Manage camper access</strong></span><b>{members.filter((member) => member.accessLevel !== 'active').length} restricted</b></button>
+          {showMemberControls && (
+            <div className="campground-community-members">
+              <header><div><small>COMMUNITY MEMBERS</small><h2>Block, restrict, or restore access</h2><p>These controls affect only Community posts and comments—not billing or the rest of the portal.</p></div><button type="button" onClick={() => setShowMemberControls(false)} aria-label="Close member controls"><X size={18} /></button></header>
+              <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Search camper or lot…" aria-label="Search Community members" />
+              <div className="campground-community-member-list">
+                {filteredMembers.map((member) => (
+                  <article className={member.accessLevel} key={member.id}><div><strong>{member.name}</strong><small>Lot {member.lotNumber} · {member.accessLevel === 'blocked' ? 'Blocked' : member.accessLevel === 'read_only' ? 'Read-only' : 'Active'}</small></div><div><button type="button" className={member.accessLevel === 'active' ? 'selected' : ''} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'active')}><UserCheck size={14} /> Active</button><button type="button" className={member.accessLevel === 'read_only' ? 'selected' : ''} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'read_only')}><Eye size={14} /> Read-only</button><button type="button" className={member.accessLevel === 'blocked' ? 'selected danger' : 'danger'} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'blocked')}><Ban size={14} /> Block</button></div></article>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {adminMode && reports.length > 0 && (
         <section className="campground-community-review">
@@ -211,7 +275,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               <header>
                 <span className="campground-community-avatar">{String(post.author_name || 'BO').split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>
                 <div><strong>{post.author_name}</strong>{post.is_official && <b>OFFICIAL</b>}<small>{post.lot_number ? `Lot ${post.lot_number} · ` : ''}{formatDate(post.created_at)}</small></div>
-                {adminMode ? <button type="button" className="campground-community-menu" onClick={() => moderate('post', post.id, post.status === 'hidden' ? 'published' : 'hidden')} disabled={working === `moderate:${post.id}`}>{post.status === 'hidden' ? 'Restore' : 'Hide'}</button> : <button type="button" className="campground-community-menu" onClick={() => reportPost(post.id)} aria-label="Report post"><MoreHorizontal size={19} /></button>}
+                {adminMode ? <div className="campground-community-admin-actions"><button type="button" onClick={() => moderate('post', post.id, post.status === 'hidden' ? 'published' : 'hidden')} disabled={working === `moderate:${post.id}`}>{post.status === 'hidden' ? 'Restore' : 'Hide'}</button>{viewer?.canDelete && <>{String(post.camper_id) !== String(viewer.id) && <button type="button" onClick={() => setMemberAccess({ id: post.camper_id, name: post.author_name, lotNumber: post.lot_number }, 'blocked')}><Ban size={14} /> Block</button>}<button className="danger" type="button" onClick={() => deleteContent('post', post.id)} disabled={working === `delete:${post.id}`}><Trash2 size={14} /> Delete</button></>}</div> : <button type="button" className="campground-community-menu" onClick={() => reportPost(post.id)} aria-label="Report post"><MoreHorizontal size={19} /></button>}
               </header>
               {post.status === 'hidden' && <em className="campground-community-hidden-label">Hidden from campers</em>}
               <p>{post.body}</p>
@@ -224,7 +288,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
                 <div className={`campground-community-comment${comment.status === 'hidden' ? ' hidden' : ''}`} key={comment.id}>
                   <span>{String(comment.author_name || 'BO').split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>
                   <div><strong>{comment.author_name}</strong><small>{comment.lot_number ? `Lot ${comment.lot_number} · ` : ''}{formatDate(comment.created_at)}</small><p>{comment.body}</p></div>
-                  {adminMode && <button type="button" onClick={() => moderate('comment', comment.id, comment.status === 'hidden' ? 'published' : 'hidden')}>{comment.status === 'hidden' ? 'Restore' : 'Hide'}</button>}
+                  {adminMode && <div className="campground-community-comment-admin"><button type="button" onClick={() => moderate('comment', comment.id, comment.status === 'hidden' ? 'published' : 'hidden')}>{comment.status === 'hidden' ? 'Restore' : 'Hide'}</button>{viewer?.canDelete && <button className="danger" type="button" onClick={() => deleteContent('comment', comment.id)}><Trash2 size={12} /> Delete</button>}</div>}
                 </div>
               ))}
               {post.comments_enabled && post.status !== 'hidden' && (
