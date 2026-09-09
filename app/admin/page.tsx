@@ -635,10 +635,10 @@ export default function AdminPage() {
             <em>View posts and comments · Post as the office · Manage or block members</em>
           </span>
           <span className="admin-community-home-cta">
-            Open Community <ArrowRight size={17} /> <CommunityUnreadBadge />
+            Open Community <ArrowRight size={17} /> <CommunityUnreadBadge syncHomeScreen={false} />
           </span>
         </a>
-        <AppBadgePermission />
+        <AppBadgePermission label="all office alerts" />
 
         <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
           <header>

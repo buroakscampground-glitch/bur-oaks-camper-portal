@@ -35,6 +35,10 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const notifications = notificationResult.data || []
+  const workflowNotificationTypes = new Set(['maintenance_request', 'direct_message', 'site_care'])
+  const standaloneNotifications = notifications.filter((item: any) =>
+    requiresAdminAttention(item.type) && !workflowNotificationTypes.has(String(item.type || ''))
+  ).length
   const counts: Record<string, number> = {
     '/admin/notifications': notifications.filter((item: any) => item.type !== 'event_rsvp' && requiresAdminAttention(item.type)).length,
     '/admin/messages': (messageResult.data || []).length,
@@ -44,6 +48,12 @@ export async function GET(request: Request) {
     '/admin/maintenance/supplies': (supplyResult.data || []).length,
     '/admin/site-care': (siteCareResult.data || []).length,
   }
+  const appBadgeCount = standaloneNotifications
+    + counts['/admin/messages']
+    + counts['/admin/documents']
+    + counts['/admin/maintenance']
+    + counts['/admin/maintenance/supplies']
+    + counts['/admin/site-care']
 
-  return NextResponse.json({ counts }, { headers: { 'Cache-Control': 'no-store' } })
+  return NextResponse.json({ counts, appBadgeCount }, { headers: { 'Cache-Control': 'no-store' } })
 }

@@ -43,6 +43,7 @@ import {
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
+import { syncHomeScreenBadge } from '../lib/home-screen-badge'
 import { supabase } from '../lib/supabase'
 import SeasonalThemeCard from './SeasonalThemeCard'
 import CommunityUnreadBadge from './CommunityUnreadBadge'
@@ -180,29 +181,47 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
       const { data: { session } } = await supabase.auth.getSession()
       if (!session?.access_token) return
       const headers = { Authorization: `Bearer ${session.access_token}` }
-      const [sidebarResponse, birthdayResponse] = await Promise.all([
+      const [sidebarResponse, birthdayResponse, communityResponse] = await Promise.all([
         fetch('/api/admin-sidebar-attention', { headers }),
         fetch('/api/admin-birthdays', { headers }),
+        fetch('/api/community-feed?mode=summary', { headers }),
       ])
       const sidebar = await sidebarResponse.json().catch(() => ({}))
       const birthdays = await birthdayResponse.json().catch(() => ({}))
+      const community = await communityResponse.json().catch(() => ({}))
       if (active) {
+        const birthdayCount = birthdayResponse.ok ? Number(birthdays.counts?.needsGreeting || 0) : 0
+        const communityCount = communityResponse.ok
+          ? Number(community.unreadCount || 0) + Number(community.directCount || 0)
+          : 0
         setAttentionCounts({
           ...(sidebarResponse.ok ? sidebar.counts || {} : {}),
-          '/admin/birthdays': birthdayResponse.ok ? Number(birthdays.counts?.needsGreeting || 0) : 0,
+          '/admin/birthdays': birthdayCount,
         })
+        void syncHomeScreenBadge((sidebarResponse.ok ? Number(sidebar.appBadgeCount || 0) : 0) + birthdayCount + communityCount)
       }
     }
 
     loadAttentionCounts()
     const refresh = window.setInterval(loadAttentionCounts, 30_000)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadAttentionCounts()
+    }
     window.addEventListener('focus', loadAttentionCounts)
+    window.addEventListener('online', loadAttentionCounts)
+    window.addEventListener('pageshow', loadAttentionCounts)
     window.addEventListener('admin-attention-changed', loadAttentionCounts)
+    window.addEventListener('community-unread-changed', loadAttentionCounts)
+    document.addEventListener('visibilitychange', handleVisibility)
     return () => {
       active = false
       window.clearInterval(refresh)
       window.removeEventListener('focus', loadAttentionCounts)
+      window.removeEventListener('online', loadAttentionCounts)
+      window.removeEventListener('pageshow', loadAttentionCounts)
       window.removeEventListener('admin-attention-changed', loadAttentionCounts)
+      window.removeEventListener('community-unread-changed', loadAttentionCounts)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 
@@ -264,7 +283,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
                       <Icon size={17} />
                       <span>{link.label}</span>
                       {attentionCount > 0 && <b className="admin-attention-badge" aria-label={`${attentionCount} item${attentionCount === 1 ? '' : 's'} need attention`}>{attentionCount > 99 ? '99+' : attentionCount}</b>}
-                      {link.href === '/admin/community-feed' && <CommunityUnreadBadge />}
+                      {link.href === '/admin/community-feed' && <CommunityUnreadBadge syncHomeScreen={false} />}
                     </a>
                   )
                 })}
