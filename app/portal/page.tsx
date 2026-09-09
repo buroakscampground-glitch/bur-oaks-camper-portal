@@ -1082,9 +1082,9 @@ export default function CamperPortalPage() {
             <strong>See what everyone is talking about</strong>
             <em>Read campground posts, join a conversation, or share an update.</em>
           </span>
-          <span className="portal-community-home-cta">Open Community <ArrowRight size={17} /> <CommunityUnreadBadge /></span>
+          <span className="portal-community-home-cta">Open Community <ArrowRight size={17} /> <CommunityUnreadBadge syncHomeScreen={false} /></span>
         </a>
-        <AppBadgePermission />
+        <AppBadgePermission label="your portal alerts" />
 
         {urgentAnnouncement && (
           <a className="portal-urgent-announcement" href="/updates" aria-label={`Urgent campground announcement: ${urgentAnnouncement.title}`}>

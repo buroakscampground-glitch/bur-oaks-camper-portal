@@ -7,7 +7,7 @@ type BadgeNavigator = Navigator & {
   setAppBadge?: (contents?: number) => Promise<void>
 }
 
-export default function AppBadgePermission() {
+export default function AppBadgePermission({ label = 'Community counts' }: { label?: string }) {
   const [available, setAvailable] = useState(false)
   const [status, setStatus] = useState<'ready' | 'working' | 'denied'>('ready')
 
@@ -24,6 +24,7 @@ export default function AppBadgePermission() {
     if (permission === 'granted') {
       setAvailable(false)
       window.dispatchEvent(new Event('community-unread-changed'))
+      window.dispatchEvent(new Event('portal-attention-changed'))
       return
     }
 
@@ -34,7 +35,7 @@ export default function AppBadgePermission() {
 
   return (
     <div className="admin-app-badge-permission">
-      <span><Bell size={17} /> Show Community counts on the Bur Oaks Home Screen icon.</span>
+      <span><Bell size={17} /> Show {label} on the Bur Oaks Home Screen icon.</span>
       <button type="button" onClick={enableBadge} disabled={status === 'working'}>
         {status === 'working' ? 'Turning on…' : status === 'denied' ? 'Not allowed in iPhone Settings' : 'Turn on red badge'}
       </button>

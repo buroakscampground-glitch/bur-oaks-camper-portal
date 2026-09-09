@@ -22,6 +22,7 @@ import {
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
+import CamperAttentionBadge from './CamperAttentionBadge'
 import CommunityUnreadBadge from './CommunityUnreadBadge'
 import OfficeChatLauncher from './OfficeChatLauncher'
 import SeasonalThemeCard from './SeasonalThemeCard'
@@ -123,7 +124,8 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
                     <strong>{link.label}</strong>
                     <small>{link.note}</small>
                   </span>
-                  {link.href === '/campground-community' && <CommunityUnreadBadge />}
+                  {link.href === '/portal' && <CamperAttentionBadge />}
+                  {link.href === '/campground-community' && <CommunityUnreadBadge syncHomeScreen={false} />}
                 </a>
               )
             })}
