@@ -104,6 +104,7 @@ export default function AdminMessagesPage() {
           ? { ...conversation, unreadCount: 0 }
           : conversation
       )))
+      window.dispatchEvent(new Event('admin-attention-changed'))
     }
   }
 

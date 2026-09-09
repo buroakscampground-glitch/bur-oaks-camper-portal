@@ -4228,6 +4228,32 @@ button:hover {
   color: #315f3d;
 }
 
+.admin-attention-badge {
+  display: grid;
+  flex: 0 0 auto;
+  min-width: 24px;
+  height: 24px;
+  margin-left: auto;
+  padding: 0 6px;
+  place-items: center;
+  border-radius: 999px;
+  background: #c74336;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 950;
+  line-height: 1;
+  box-shadow: 0 0 0 3px rgba(199,67,54,.18);
+}
+
+.admin-sidebar-create {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.admin-sidebar-group a.active .admin-attention-badge {
+  color: #fff;
+  background: #c74336;
+}
+
 .admin-sidebar-footer {
   display: flex;
   align-items: center;

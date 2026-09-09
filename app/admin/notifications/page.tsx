@@ -47,7 +47,10 @@ export default function AdminNotificationsPage() {
 
     const { error } = await query
     setMessage(error ? error.message : id ? 'Notification marked handled.' : 'All notifications marked handled.')
-    if (!error) loadNotifications()
+    if (!error) {
+      window.dispatchEvent(new Event('admin-attention-changed'))
+      loadNotifications()
+    }
   }
 
   const visible = notifications.filter((notification) => {

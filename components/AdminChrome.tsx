@@ -41,8 +41,9 @@ import {
   Zap,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
+import { supabase } from '../lib/supabase'
 import SeasonalThemeCard from './SeasonalThemeCard'
 import CommunityUnreadBadge from './CommunityUnreadBadge'
 
@@ -170,7 +171,42 @@ function isActiveLink(pathname: string, href: string) {
 export default function AdminChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [attentionCounts, setAttentionCounts] = useState<Record<string, number>>({})
   const theme = getSeasonalTheme()
+
+  useEffect(() => {
+    let active = true
+    async function loadAttentionCounts() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+      const headers = { Authorization: `Bearer ${session.access_token}` }
+      const [sidebarResponse, birthdayResponse] = await Promise.all([
+        fetch('/api/admin-sidebar-attention', { headers }),
+        fetch('/api/admin-birthdays', { headers }),
+      ])
+      const sidebar = await sidebarResponse.json().catch(() => ({}))
+      const birthdays = await birthdayResponse.json().catch(() => ({}))
+      if (active) {
+        setAttentionCounts({
+          ...(sidebarResponse.ok ? sidebar.counts || {} : {}),
+          '/admin/birthdays': birthdayResponse.ok ? Number(birthdays.counts?.needsGreeting || 0) : 0,
+        })
+      }
+    }
+
+    loadAttentionCounts()
+    const refresh = window.setInterval(loadAttentionCounts, 30_000)
+    window.addEventListener('focus', loadAttentionCounts)
+    window.addEventListener('admin-attention-changed', loadAttentionCounts)
+    return () => {
+      active = false
+      window.clearInterval(refresh)
+      window.removeEventListener('focus', loadAttentionCounts)
+      window.removeEventListener('admin-attention-changed', loadAttentionCounts)
+    }
+  }, [])
+
+  const totalAttention = Object.values(attentionCounts).reduce((sum, count) => sum + Number(count || 0), 0)
 
   const section = pathname.split('/')[2] || ''
   const pageTitle = pathname === '/admin' ? 'Operations Dashboard' : pageNames[section] || 'Operations'
@@ -197,6 +233,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               <span>{mobileMenuOpen ? 'Close' : 'Menu'}</span>
+              {!mobileMenuOpen && totalAttention > 0 && <b className="admin-attention-badge">{totalAttention > 99 ? '99+' : totalAttention}</b>}
             </button>
           </div>
 
@@ -206,6 +243,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
               <strong>What needs attention?</strong>
               <small>Supplies, tickets, balances, pump-outs</small>
             </span>
+            {Number(attentionCounts['/admin/notifications'] || 0) > 0 && <b className="admin-attention-badge">{attentionCounts['/admin/notifications'] > 99 ? '99+' : attentionCounts['/admin/notifications']}</b>}
           </a>
 
           <SeasonalThemeCard theme={theme} />
@@ -217,6 +255,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
                 {group.links.map((link) => {
                   const Icon = link.icon
                   const active = isActiveLink(pathname, link.href)
+                  const attentionCount = Number(attentionCounts[link.href] || 0)
 
                   return (
                     <a
@@ -227,6 +266,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
                     >
                       <Icon size={17} />
                       <span>{link.label}</span>
+                      {attentionCount > 0 && <b className="admin-attention-badge" aria-label={`${attentionCount} item${attentionCount === 1 ? '' : 's'} need attention`}>{attentionCount > 99 ? '99+' : attentionCount}</b>}
                       {link.href === '/admin/community-feed' && <CommunityUnreadBadge />}
                     </a>
                   )

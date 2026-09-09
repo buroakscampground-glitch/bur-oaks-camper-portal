@@ -134,6 +134,7 @@ export default function AdminBirthdaysPage() {
         ? `🎉 Birthday greeting sent to ${birthday.name} by ${sent.join(' and ')}.`
         : `${birthday.name} had already received the available greeting, or no deliverable opted-in channel is available.`)
       if (result.office) setOffice(result.office)
+      window.dispatchEvent(new Event('admin-attention-changed'))
     }
     setSending('')
   }
