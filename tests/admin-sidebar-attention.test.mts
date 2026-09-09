@@ -37,3 +37,11 @@ test('handled notifications, opened messages, and birthday greetings refresh bad
   ].map((path) => readFile(new URL(path, import.meta.url), 'utf8')))
   sources.forEach((source) => assert.match(source, /dispatchEvent\(new Event\('admin-attention-changed'\)\)/))
 })
+
+test('desktop counts reveal on hover while mobile counts remain inside menu items', async () => {
+  const styles = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8')
+  assert.match(styles, /@media\(min-width:1281px\)/)
+  assert.match(styles, /admin-sidebar-group a:hover \.admin-attention-badge/)
+  assert.match(styles, /admin-sidebar-group a:focus-visible \.admin-attention-badge/)
+  assert.match(styles, /opacity: 0/)
+})

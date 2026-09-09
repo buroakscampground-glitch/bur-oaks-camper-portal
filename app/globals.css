@@ -4254,6 +4254,23 @@ button:hover {
   background: #c74336;
 }
 
+@media(min-width:1281px) {
+  .admin-sidebar-group a .admin-attention-badge,
+  .admin-sidebar-create .admin-attention-badge {
+    opacity: 0;
+    transform: translateX(5px) scale(.88);
+    transition: opacity .16s ease, transform .16s ease;
+  }
+
+  .admin-sidebar-group a:hover .admin-attention-badge,
+  .admin-sidebar-group a:focus-visible .admin-attention-badge,
+  .admin-sidebar-create:hover .admin-attention-badge,
+  .admin-sidebar-create:focus-visible .admin-attention-badge {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .admin-sidebar-footer {
   display: flex;
   align-items: center;
