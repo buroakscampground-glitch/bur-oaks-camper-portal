@@ -1,3 +1,5 @@
+self.addEventListener('install', function () { self.skipWaiting() })
+self.addEventListener('activate', function (event) { event.waitUntil(self.clients.claim()) })
 self.addEventListener('push', function (event) {
   var data = {}
   try { data = event.data ? event.data.json() : {} } catch (_) {}
