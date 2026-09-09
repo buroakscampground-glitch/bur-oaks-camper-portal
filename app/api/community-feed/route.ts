@@ -177,11 +177,11 @@ export async function POST(request: Request) {
     }
     const { data: post, error } = await context.admin.from('community_posts').insert({
       camper_id: camperId,
-      author_name: camperName(context.camper),
-      lot_number: context.camper.lot_number || null,
+      author_name: isOwnerAdmin ? 'Bur Oaks Campground' : camperName(context.camper),
+      lot_number: isOwnerAdmin ? null : context.camper.lot_number || null,
       body: text || 'Shared a campground photo.',
       photo_path: photoPath,
-      is_official: isManager && body.isOfficial === true,
+      is_official: isOwnerAdmin || (isManager && body.isOfficial === true),
       comments_enabled: body.commentsEnabled !== false,
       request_id: requestId,
     }).select('*').single()
@@ -241,11 +241,12 @@ export async function POST(request: Request) {
     if (!postId || !text) return NextResponse.json({ error: 'Write a comment first.' }, { status: 400 })
     const { data: post, error: postError } = await context.admin.from('community_posts').select('*').eq('id', postId).maybeSingle()
     if (postError || !post || !published(post) || !post.comments_enabled) return NextResponse.json({ error: 'Comments are not available on this post.' }, { status: 400 })
+    const replyAuthor = isOwnerAdmin ? 'Bur Oaks Campground' : camperName(context.camper)
     const { data: comment, error } = await context.admin.from('community_comments').insert({
       post_id: postId,
       camper_id: camperId,
-      author_name: camperName(context.camper),
-      lot_number: context.camper.lot_number || null,
+      author_name: replyAuthor,
+      lot_number: isOwnerAdmin ? null : context.camper.lot_number || null,
       body: text,
     }).select('*').single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -256,7 +257,7 @@ export async function POST(request: Request) {
         post_id: postId,
         comment_id: comment.id,
         kind: 'reply',
-        message: `${camperName(context.camper)} replied to your Community post.`,
+        message: `${replyAuthor} replied to your Community post.`,
       }).select('id').single()
 
       const [{ data: owner }, { data: preference }] = await Promise.all([
@@ -270,9 +271,9 @@ export async function POST(request: Request) {
             const result: any = await sendCommunityEmail({
               to: camperCommunityEmails(owner).slice(0, 1),
               camperName: camperName(owner),
-              subject: `${camperName(context.camper)} replied to your Bur Oaks post`,
+              subject: `${replyAuthor} replied to your Bur Oaks post`,
               heading: 'Someone replied to you',
-              message: `${camperName(context.camper)} commented: “${text.slice(0, 240)}”`,
+              message: `${replyAuthor} commented: “${text.slice(0, 240)}”`,
               actionUrl: `${origin}/campground-community?post=${encodeURIComponent(postId)}`,
             })
             if (replyNotification?.id) await context.admin.from('community_notifications').update({ email_status: result?.skipped ? 'skipped' : 'sent', email_provider_id: result?.id || null, email_sent_at: result?.skipped ? null : new Date().toISOString(), email_error: result?.reason || null }).eq('id', replyNotification.id)

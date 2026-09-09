@@ -2,6 +2,7 @@
 
 import { Ban, Bell, Camera, Check, Eye, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { communityPostAuthor, communityPostLocation } from '../lib/community-branding'
 import { supabase } from '../lib/supabase'
 
 type FeedProps = { adminMode?: boolean }
@@ -30,7 +31,6 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [draft, setDraft] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
-  const [official, setOfficial] = useState(adminMode)
   const [commentsEnabled, setCommentsEnabled] = useState(true)
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
   const [showComposer, setShowComposer] = useState(false)
@@ -104,12 +104,12 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         if (!response.ok) throw new Error(result.error || 'The photo could not be uploaded.')
         photoPath = result.path
       }
-      await communityAction({ action: 'create_post', requestId: postRequestId.current, body: draft, photoPath, isOfficial: adminMode && official, commentsEnabled })
+      await communityAction({ action: 'create_post', requestId: postRequestId.current, body: draft, photoPath, isOfficial: adminMode, commentsEnabled })
       setDraft('')
       postRequestId.current = ''
       choosePhoto()
       setShowComposer(false)
-      setNotice(adminMode && official ? 'The official Community post is live.' : 'Your post is now in the Community.')
+      setNotice(adminMode ? 'The official Bur Oaks Community post is live.' : 'Your post is now in the Community.')
       await loadFeed(true)
     } catch (error: any) {
       setNotice(error.message)
@@ -273,13 +273,13 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
           ) : visiblePosts.map((post) => (
             <article className={`campground-community-post${post.is_official ? ' official' : ''}${post.status === 'hidden' ? ' hidden' : ''}`} id={`community-post-${post.id}`} key={post.id}>
               <header>
-                <span className="campground-community-avatar">{String(post.author_name || 'BO').split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>
-                <div><strong>{post.author_name}</strong>{post.is_official && <b>OFFICIAL</b>}<small>{post.lot_number ? `Lot ${post.lot_number} · ` : ''}{formatDate(post.created_at)}</small></div>
+                {post.is_official ? <span className="campground-community-avatar official"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /></span> : <span className="campground-community-avatar">{communityPostAuthor(post).split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>}
+                <div><strong>{communityPostAuthor(post)}</strong>{post.is_official && <b>OFFICIAL BUR OAKS POST</b>}<small>{communityPostLocation(post) ? `${communityPostLocation(post)} · ` : ''}{formatDate(post.created_at)}</small></div>
                 {adminMode ? <div className="campground-community-admin-actions"><button type="button" onClick={() => moderate('post', post.id, post.status === 'hidden' ? 'published' : 'hidden')} disabled={working === `moderate:${post.id}`}>{post.status === 'hidden' ? 'Restore' : 'Hide'}</button>{viewer?.canDelete && <>{String(post.camper_id) !== String(viewer.id) && <button type="button" onClick={() => setMemberAccess({ id: post.camper_id, name: post.author_name, lotNumber: post.lot_number }, 'blocked')}><Ban size={14} /> Block</button>}<button className="danger" type="button" onClick={() => deleteContent('post', post.id)} disabled={working === `delete:${post.id}`}><Trash2 size={14} /> Delete</button></>}</div> : <button type="button" className="campground-community-menu" onClick={() => reportPost(post.id)} aria-label="Report post"><MoreHorizontal size={19} /></button>}
               </header>
               {post.status === 'hidden' && <em className="campground-community-hidden-label">Hidden from campers</em>}
               <p>{post.body}</p>
-              {post.photo_url && <img className="campground-community-photo" src={post.photo_url} alt={`Shared by ${post.author_name}`} />}
+              {post.photo_url && <img className="campground-community-photo" src={post.photo_url} alt={`Shared by ${communityPostAuthor(post)}`} />}
               <div className="campground-community-actions">
                 <button type="button" className={post.liked_by_me ? 'liked' : ''} onClick={() => toggleLike(post)}><Heart size={17} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.liked_by_me ? 'Liked' : 'Like'} <span>{post.reaction_count || ''}</span></button>
                 <span><MessageCircle size={17} /> {(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length} comment{(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length === 1 ? '' : 's'}</span>
@@ -293,7 +293,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               ))}
               {post.comments_enabled && post.status !== 'hidden' && (
                 <div className="campground-community-comment-box">
-                  <input value={commentDrafts[post.id] || ''} onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))} onKeyDown={(event) => { if (event.key === 'Enter') addComment(post) }} placeholder="Write a friendly comment…" aria-label={`Comment on ${post.author_name}'s post`} />
+                  <input value={commentDrafts[post.id] || ''} onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))} onKeyDown={(event) => { if (event.key === 'Enter') addComment(post) }} placeholder="Write a friendly comment…" aria-label={`Comment on ${communityPostAuthor(post)}'s post`} />
                   <button type="button" onClick={() => addComment(post)} disabled={working === `comment:${post.id}` || !String(commentDrafts[post.id] || '').trim()}><Send size={17} /></button>
                 </div>
               )}
@@ -312,14 +312,14 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       {showComposer && (
         <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create Community post">
           <section className="campground-community-modal">
-            <header><div><small>{adminMode ? 'COMMUNITY OR OFFICIAL' : 'NEW COMMUNITY POST'}</small><h2>Create a post</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
+            <header><div><small>{adminMode ? 'OFFICIAL BUR OAKS POST' : 'NEW COMMUNITY POST'}</small><h2>Create a post</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={6} maxLength={2000} placeholder="What would you like the campground to know?" autoFocus />
             {photoPreview && <div className="campground-community-photo-preview"><img src={photoPreview} alt="Selected upload preview" /><button type="button" onClick={() => choosePhoto()}><X size={16} /> Remove</button></div>}
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => choosePhoto(event.target.files?.[0])} />
             <div className="campground-community-compose-options">
               <button type="button" onClick={() => fileRef.current?.click()}><ImageIcon size={17} /> Add photo</button>
               <label><input type="checkbox" checked={commentsEnabled} onChange={(event) => setCommentsEnabled(event.target.checked)} /> Allow comments</label>
-              {adminMode && <label><input type="checkbox" checked={official} onChange={(event) => setOfficial(event.target.checked)} /> Official office post</label>}
+              {adminMode && <span className="campground-community-official-compose-note"><ShieldCheck size={17} /> Campers will see this from Bur Oaks Campground</span>}
             </div>
             <button className="campground-community-primary" type="button" onClick={publishPost} disabled={working === 'post' || (!draft.trim() && !photo)}>{working === 'post' ? 'Posting…' : 'Post to the Community'}</button>
           </section>
