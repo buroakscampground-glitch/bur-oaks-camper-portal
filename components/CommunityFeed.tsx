@@ -231,7 +231,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
       {adminMode && activityNotifications.length > 0 && (
         <section className="campground-community-staff-activity">
-          <header><Bell size={19} /><div><small>STAFF ALERTS</small><h2>Recent Community activity</h2><p>Rachel and administrator accounts receive these immediately by email and in the portal.</p></div></header>
+          <header><Bell size={19} /><div><small>STAFF ALERTS</small><h2>Recent Community activity</h2><p>Rachel and administrator accounts see activity here, with routine items collected into the daily email.</p></div></header>
           <div>{activityNotifications.slice(0, 10).map((item) => (
             <a href={item.post_id ? `#community-post-${item.post_id}` : undefined} key={item.id}>
               <span>{item.message}</span>

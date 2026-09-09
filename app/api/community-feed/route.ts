@@ -3,7 +3,7 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { canAdministerCommunity, canManageCommunity, canPublishOfficialCommunityPosts, effectivePortalRole } from '../../../lib/staff-roles'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { communityActorAuthor, OFFICIAL_COMMUNITY_NAME } from '../../../lib/community-branding'
+import { communityActorAuthor, communityVisibleAuthorName, communityVisibleText, OFFICIAL_COMMUNITY_NAME } from '../../../lib/community-branding'
 import { canParticipateInCommunity, canViewCommunity, communityAccessLabel, normalizeCommunityAccess } from '../../../lib/community-access'
 import { communityActivityMessage, communityStaffRecipients, type CommunityActivityKind } from '../../../lib/community-staff-alerts'
 import {
@@ -65,7 +65,7 @@ async function notifyCommunityStaff({
   const excluded = new Set(excludeCamperIds.map((id) => String(id || '')).filter(Boolean))
   const recipients = communityStaffRecipients(campers || [], actor?.id).filter((recipient) => !excluded.has(String(recipient.id)))
   if (!recipients.length) return
-  const message = communityActivityMessage({ kind, actorName: camperName(actor), lotNumber: actor?.lot_number, detail })
+  const message = communityActivityMessage({ kind, actorName: communityActorAuthor(actor), lotNumber: actor?.lot_number, detail })
   const { data: notifications, error: notificationError } = await admin.from('community_notifications').insert(recipients.map((recipient: any) => ({
     camper_id: recipient.id,
     post_id: postId || null,
@@ -204,8 +204,11 @@ export async function GET(request: Request) {
   const visibleComments = (comments || []).filter((comment: any) => isManager || published(comment))
   const enrichedPosts = await Promise.all((posts || []).map(async (post: any) => ({
     ...post,
+    author_name: communityVisibleAuthorName(post.author_name),
     photo_url: await signedPhotoUrl(context.admin, post.photo_path),
-    comments: visibleComments.filter((comment: any) => String(comment.post_id) === String(post.id)),
+    comments: visibleComments
+      .filter((comment: any) => String(comment.post_id) === String(post.id))
+      .map((comment: any) => ({ ...comment, author_name: communityVisibleAuthorName(comment.author_name) })),
     reaction_count: (reactions || []).filter((reaction: any) => String(reaction.post_id) === String(post.id)).length,
     liked_by_me: (reactions || []).some((reaction: any) => String(reaction.post_id) === String(post.id) && String(reaction.camper_id) === camperId),
     read_by_me: readIds.has(String(post.id)),
@@ -217,7 +220,7 @@ export async function GET(request: Request) {
     unreadCount: unreadPostCount,
     directCount: directCount || 0,
     reports: reportResult.data || [],
-    activityNotifications: activityResult.data || [],
+    activityNotifications: (activityResult.data || []).map((item: any) => ({ ...item, message: communityVisibleText(item.message) })),
     members,
     viewer: {
       id: camperId,
