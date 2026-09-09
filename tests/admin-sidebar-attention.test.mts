@@ -38,10 +38,9 @@ test('handled notifications, opened messages, and birthday greetings refresh bad
   sources.forEach((source) => assert.match(source, /dispatchEvent\(new Event\('admin-attention-changed'\)\)/))
 })
 
-test('desktop counts reveal on hover while mobile counts remain inside menu items', async () => {
+test('desktop counts remain visible without requiring hover', async () => {
   const styles = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8')
-  assert.match(styles, /@media\(min-width:1281px\)/)
-  assert.match(styles, /admin-sidebar-group a:hover \.admin-attention-badge/)
-  assert.match(styles, /admin-sidebar-group a:focus-visible \.admin-attention-badge/)
-  assert.match(styles, /opacity: 0/)
+  assert.doesNotMatch(styles, /admin-sidebar-group a:hover \.admin-attention-badge/)
+  assert.doesNotMatch(styles, /admin-sidebar-group a:focus-visible \.admin-attention-badge/)
+  assert.doesNotMatch(styles, /admin-sidebar-group a \.admin-attention-badge[\s\S]*?opacity: 0/)
 })
