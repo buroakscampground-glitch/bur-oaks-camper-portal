@@ -26,6 +26,7 @@ import CamperAttentionBadge from './CamperAttentionBadge'
 import CommunityUnreadBadge from './CommunityUnreadBadge'
 import OfficeChatLauncher from './OfficeChatLauncher'
 import SeasonalThemeCard from './SeasonalThemeCard'
+import RoleGuard from './RoleGuard'
 
 const camperPages: Record<string, string> = {
   '/portal': 'Portal Home',
@@ -66,20 +67,43 @@ function isActiveLink(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
+function isCamperOnlyPath(pathname: string) {
+  if (pathname === '/maintenance' || pathname.startsWith('/maintenance/history')) return true
+  return [
+    '/portal',
+    '/invoices',
+    '/profile',
+    '/messages',
+    '/campground-community',
+    '/updates',
+    '/documents',
+    '/electric',
+    '/calendar',
+    '/dinners',
+    '/directory',
+    '/site',
+  ].some((path) => pathname === path || pathname.startsWith(`${path}/`))
+}
+
 export default function CamperChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const title = camperPages[pathname]
   const theme = getSeasonalTheme()
 
-  if (!title) return <>{children}</>
+  if (!title) {
+    return isCamperOnlyPath(pathname)
+      ? <RoleGuard allowedRoles={['camper']}>{children}</RoleGuard>
+      : <>{children}</>
+  }
 
   const isPortalHome = pathname === '/portal'
   const backHref = pathname === '/maintenance/history' ? '/maintenance' : '/portal'
   const backLabel = pathname === '/maintenance/history' ? 'Back to maintenance' : 'Back to portal'
 
   return (
-    <div className={`camper-workspace-page seasonal-theme seasonal-theme-${theme.key}${isPortalHome ? ' camper-workspace-home-page' : ''}`}>
+    <RoleGuard allowedRoles={['camper']}>
+      <div className={`camper-workspace-page seasonal-theme seasonal-theme-${theme.key}${isPortalHome ? ' camper-workspace-home-page' : ''}`}>
       <div className="camper-workspace-shell">
         <aside className="camper-sidebar" aria-label="Camper portal navigation">
           <div className="camper-sidebar-mobile-head">
@@ -168,6 +192,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
           <OfficeChatLauncher />
         </div>
       </div>
-    </div>
+      </div>
+    </RoleGuard>
   )
 }

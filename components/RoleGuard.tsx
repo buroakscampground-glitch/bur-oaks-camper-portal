@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { effectivePortalRole } from '../lib/staff-roles'
 
 export default function RoleGuard({
   allowedRoles,
@@ -75,13 +76,14 @@ export default function RoleGuard({
           const { data: camperMatches } = await withTimeout(
             supabase
               .from('campers')
-              .select('role,active')
+              .select('role,active,lot_number')
               .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
               .limit(10),
             7000
           )
-          const camper = (camperMatches || []).find((match) => match.active !== false && match.role)
-          const fallbackRole = String(camper?.role || '').toLowerCase()
+          const activeMatches = (camperMatches || []).filter((match) => match.active !== false && match.role)
+          const camper = activeMatches.length === 1 ? activeMatches[0] : null
+          const fallbackRole = camper ? effectivePortalRole(camper) : ''
           if (allowedRolesKey.split(',').includes(fallbackRole)) {
             if (active) setAllowed(true)
             return

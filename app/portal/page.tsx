@@ -265,6 +265,11 @@ export default function CamperPortalPage() {
           return
         }
 
+        if (camperData?.role?.toLowerCase() === 'event_coordinator') {
+          window.location.replace('/community')
+          return
+        }
+
         if (!camperData) {
           await supabase.auth.signOut()
           window.location.replace('/login?account=inactive')
