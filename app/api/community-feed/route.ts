@@ -1,7 +1,7 @@
 import { after, NextResponse } from 'next/server'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
-import { canManageCommunity } from '../../../lib/staff-roles'
+import { canAdministerCommunity, canManageCommunity } from '../../../lib/staff-roles'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { canParticipateInCommunity, canViewCommunity, communityAccessLabel, normalizeCommunityAccess } from '../../../lib/community-access'
 import {
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
   const isManager = canManageCommunity(context.camper.role)
   const summaryOnly = url.searchParams.get('mode') === 'summary'
   const camperId = String(context.camper.id)
-  const isOwnerAdmin = String(context.camper.role || '').toLowerCase() === 'admin'
+  const isCommunityAdmin = canAdministerCommunity(context.camper.role)
   const { data: memberControl, error: controlError } = await context.admin
     .from('community_member_controls')
     .select('access_level,reason')
@@ -107,10 +107,10 @@ export async function GET(request: Request) {
     : { data: [], error: null }
   if (reportResult.error) return NextResponse.json({ error: reportResult.error.message }, { status: 500 })
 
-  const memberResult = isOwnerAdmin
+  const memberResult = isCommunityAdmin
     ? await context.admin.from('campers').select('id,first_name,last_name,lot_number,active,role').eq('active', true).order('lot_number', { ascending: true })
     : { data: [], error: null }
-  const controlsResult = isOwnerAdmin
+  const controlsResult = isCommunityAdmin
     ? await context.admin.from('community_member_controls').select('*').order('updated_at', { ascending: false })
     : { data: [], error: null }
   if (memberResult.error || controlsResult.error) return NextResponse.json({ error: memberResult.error?.message || controlsResult.error?.message }, { status: 500 })
@@ -141,7 +141,7 @@ export async function GET(request: Request) {
       name: camperName(context.camper),
       lotNumber: context.camper.lot_number || '',
       canManage: isManager,
-      canDelete: isOwnerAdmin,
+      canDelete: isCommunityAdmin,
       accessLevel,
       canParticipate: canParticipateInCommunity(accessLevel),
     },
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
   const action = String(body.action || '')
   const camperId = String(context.camper.id)
   const isManager = canManageCommunity(context.camper.role)
-  const isOwnerAdmin = String(context.camper.role || '').toLowerCase() === 'admin'
+  const isCommunityAdmin = canAdministerCommunity(context.camper.role)
   const { data: memberControl, error: controlError } = await context.admin.from('community_member_controls').select('access_level,reason').eq('camper_id', camperId).maybeSingle()
   if (controlError) return NextResponse.json({ error: controlError.message }, { status: 500 })
   const accessLevel = isManager ? 'active' : normalizeCommunityAccess(memberControl?.access_level)
@@ -177,11 +177,11 @@ export async function POST(request: Request) {
     }
     const { data: post, error } = await context.admin.from('community_posts').insert({
       camper_id: camperId,
-      author_name: isOwnerAdmin ? 'Bur Oaks Campground' : camperName(context.camper),
-      lot_number: isOwnerAdmin ? null : context.camper.lot_number || null,
+      author_name: isCommunityAdmin ? 'Bur Oaks Campground' : camperName(context.camper),
+      lot_number: isCommunityAdmin ? null : context.camper.lot_number || null,
       body: text || 'Shared a campground photo.',
       photo_path: photoPath,
-      is_official: isOwnerAdmin || (isManager && body.isOfficial === true),
+      is_official: isCommunityAdmin || (isManager && body.isOfficial === true),
       comments_enabled: body.commentsEnabled !== false,
       request_id: requestId,
     }).select('*').single()
@@ -241,12 +241,12 @@ export async function POST(request: Request) {
     if (!postId || !text) return NextResponse.json({ error: 'Write a comment first.' }, { status: 400 })
     const { data: post, error: postError } = await context.admin.from('community_posts').select('*').eq('id', postId).maybeSingle()
     if (postError || !post || !published(post) || !post.comments_enabled) return NextResponse.json({ error: 'Comments are not available on this post.' }, { status: 400 })
-    const replyAuthor = isOwnerAdmin ? 'Bur Oaks Campground' : camperName(context.camper)
+    const replyAuthor = isCommunityAdmin ? 'Bur Oaks Campground' : camperName(context.camper)
     const { data: comment, error } = await context.admin.from('community_comments').insert({
       post_id: postId,
       camper_id: camperId,
       author_name: replyAuthor,
-      lot_number: isOwnerAdmin ? null : context.camper.lot_number || null,
+      lot_number: isCommunityAdmin ? null : context.camper.lot_number || null,
       body: text,
     }).select('*').single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -339,7 +339,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true })
   }
 
-  if (action === 'delete_content' && isOwnerAdmin) {
+  if (action === 'delete_content' && isCommunityAdmin) {
     const contentType = body.contentType === 'comment' ? 'comment' : 'post'
     const table = contentType === 'comment' ? 'community_comments' : 'community_posts'
     const id = String(body.id || '')
@@ -362,7 +362,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true })
   }
 
-  if (action === 'set_member_access' && isOwnerAdmin) {
+  if (action === 'set_member_access' && isCommunityAdmin) {
     const targetCamperId = String(body.camperId || '')
     const nextAccess = normalizeCommunityAccess(body.accessLevel)
     const reason = String(body.reason || '').trim().slice(0, 300) || null

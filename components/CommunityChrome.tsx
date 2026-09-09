@@ -1,12 +1,13 @@
 'use client'
 
-import { CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, Soup, Sparkles, X } from 'lucide-react'
+import { CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, Soup, Sparkles, UsersRound, X } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const links = [
   { href: '/community', label: 'Community Home', icon: Home },
+  { href: '/community/feed', label: 'Community Feed', icon: UsersRound },
   { href: '/community/birthdays', label: 'Birthdays', icon: CakeSlice },
   { href: '/community/announcements', label: 'Announcements', icon: Megaphone },
   { href: '/community/events', label: 'Events', icon: CalendarDays },

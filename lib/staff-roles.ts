@@ -29,6 +29,10 @@ export function canManageCommunity(role: unknown) {
   return normalized === 'admin' || normalized === EVENT_COORDINATOR_ROLE
 }
 
+export function canAdministerCommunity(role: unknown) {
+  return canManageCommunity(role)
+}
+
 export function portalDestinationForRole(role: unknown) {
   const normalized = normalizedPortalRole(role)
   if (normalized === 'admin') return '/admin'
