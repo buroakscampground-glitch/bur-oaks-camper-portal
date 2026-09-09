@@ -135,6 +135,7 @@ export default function AdminBirthdaysPage() {
         : `${birthday.name} had already received the available greeting, or no deliverable opted-in channel is available.`)
       if (result.office) setOffice(result.office)
       window.dispatchEvent(new Event('admin-attention-changed'))
+      window.dispatchEvent(new Event('community-workspace-changed'))
     }
     setSending('')
   }

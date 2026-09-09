@@ -1,6 +1,6 @@
 'use client'
 
-import { CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, Soup, Sparkles, UsersRound, X } from 'lucide-react'
+import { BellRing, CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, Soup, Sparkles, UsersRound, X } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { syncHomeScreenBadge } from '../lib/home-screen-badge'
@@ -29,6 +29,22 @@ const emptyCounts: CommunityCounts = {
   dinners: 0,
   rsvps: 0,
 }
+
+const badgeHelp = {
+  '/community/feed': { title: 'New Community activity', detail: 'The badge counts new posts, comments, and likes. Opening the feed marks that activity viewed.' },
+  '/community/birthdays': { title: 'Birthday greeting needs attention', detail: 'The badge stays until the birthday greeting or private portal surprise is handled.' },
+  '/community/announcements': { title: 'Announcements to review', detail: 'The badge counts announcements added since Rachel last opened this page. Opening it clears the badge.' },
+  '/community/events': { title: 'Events to review', detail: 'The badge counts upcoming events added since Rachel last opened this page. Opening it clears the badge.' },
+  '/community/dinners': { title: 'New dinner responses', detail: 'The badge counts new or changed responses for the next dinner. Opening this page clears the badge.' },
+  '/community/rsvps': { title: 'New event responses', detail: 'The badge counts event RSVPs received since Rachel last opened this page. Opening it clears the badge.' },
+} as const
+
+const viewedSections = {
+  '/community/announcements': 'announcements',
+  '/community/events': 'events',
+  '/community/dinners': 'dinners',
+  '/community/rsvps': 'rsvps',
+} as const
 
 function active(pathname: string, href: string) {
   return href === '/community' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
@@ -83,10 +99,33 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
     }
   }, [])
 
+  useEffect(() => {
+    const sectionPath = Object.keys(viewedSections).find((path) => pathname === path || pathname.startsWith(`${path}/`)) as keyof typeof viewedSections | undefined
+    if (!sectionPath) return
+    let cancelled = false
+
+    async function markSectionViewed() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token || cancelled) return
+      const response = await fetch('/api/community-workspace-summary', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ section: viewedSections[sectionPath!] }),
+      })
+      if (response.ok && !cancelled) window.dispatchEvent(new Event('community-workspace-changed'))
+    }
+
+    void markSectionViewed()
+    return () => { cancelled = true }
+  }, [pathname])
+
   async function logout() {
     await supabase.auth.signOut()
     window.location.replace('/login')
   }
+
+  const activeHelpPath = Object.keys(badgeHelp).find((path) => pathname === path || pathname.startsWith(`${path}/`)) as keyof typeof badgeHelp | undefined
+  const activeHelp = activeHelpPath ? badgeHelp[activeHelpPath] : null
 
   return (
     <div className={`community-workspace seasonal-theme seasonal-theme-${theme.key}`}>
@@ -110,7 +149,10 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
       </aside>
       <div className="community-main">
         <header><span>BUR OAKS COMMUNITY</span><strong>Events, celebrations, and camper fun.</strong></header>
-        <div className="community-content">{children}</div>
+        <div className="community-content">
+          {activeHelp && <aside className="community-badge-help"><BellRing size={19} /><div><strong>{activeHelp.title}</strong><p>{activeHelp.detail}</p></div></aside>}
+          {children}
+        </div>
         <footer>Event Coordinator Workspace · No billing or maintenance access</footer>
       </div>
     </div>

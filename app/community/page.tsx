@@ -1,5 +1,6 @@
 import { ArrowRight, CakeSlice, CalendarDays, ClipboardList, Megaphone, ShieldCheck, Soup, Sparkles, UsersRound } from 'lucide-react'
 import AppBadgePermission from '../../components/AppBadgePermission'
+import CommunityBadgeOverview from '../../components/CommunityBadgeOverview'
 
 const tools = [
   { href: '/community/feed', title: 'Community Feed', note: 'Post as Bur Oaks, moderate conversations, delete posts, or manage member access.', icon: UsersRound, tone: 'green' },
@@ -18,6 +19,7 @@ export default function CommunityHomePage() {
       </section>
       <section className="community-access-note"><ShieldCheck size={22} /><div><strong>You have full Community administrative authority.</strong><p>You can manage Community posts and member access, but this login cannot open billing, invoices, financial reports, maintenance, camper records, leases, or owner settings.</p></div></section>
       <AppBadgePermission label="your Event Coordinator alerts" />
+      <CommunityBadgeOverview />
       <section className="community-tool-grid">
         {tools.map((tool) => {
           const Icon = tool.icon
