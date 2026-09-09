@@ -153,6 +153,7 @@ export async function continueSignedRenewalRentSchedule({
     camper_id: camperId,
     source_table: 'season_renewals',
     source_id: renewal.id,
+    read_at: schedule.length ? new Date().toISOString() : null,
   })
 
   return { status, created, skipped, scheduleLength: schedule.length, paymentPlan, annualRent }

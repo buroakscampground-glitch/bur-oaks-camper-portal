@@ -409,6 +409,42 @@ export default function AdminRenewalsPage() {
     }
   }
 
+  async function repairRentSchedule(camper: Camper) {
+    const enteredAmount = window.prompt(`Enter the annual lot rent for Lot ${camper.lot_number || '—'}. The system will divide it using the camper's saved payment plan.`)
+    if (enteredAmount === null) return
+
+    const annualRent = Number(enteredAmount.replace(/[$,\s]/g, ''))
+    if (!Number.isFinite(annualRent) || annualRent <= 0) {
+      setSiteDecisionMessage('Enter a valid annual lot-rent amount.')
+      return
+    }
+
+    setSaving(camper.id)
+    setSiteDecisionMessage('Repairing the rent schedule…')
+    try {
+      const sessionResult = await supabase.auth.getSession()
+      const token = sessionResult.data.session?.access_token
+      if (!token) throw new Error('Your login has expired. Please sign in again.')
+
+      const response = await fetch('/api/admin-renewals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: 'repair-rent-schedule', camperId: camper.id, annualRent }),
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok || !result?.renewalRentSchedule) throw new Error(result?.error || 'The rent schedule could not be repaired.')
+
+      const created = Number(result.renewalRentSchedule.created || 0)
+      const skipped = Number(result.renewalRentSchedule.skipped || 0)
+      setSiteDecisionMessage(`Rent schedule fixed. ${created} invoice${created === 1 ? '' : 's'} created${skipped ? ` and ${skipped} existing invoice${skipped === 1 ? '' : 's'} left unchanged` : ''}.`)
+      await loadPage()
+    } catch (error) {
+      setSiteDecisionMessage(error instanceof Error ? error.message : 'The rent schedule could not be repaired.')
+    } finally {
+      setSaving('')
+    }
+  }
+
   async function saveRenewal(camper: Camper, markSent = false) {
     setSaving(camper.id)
     setFeedback('')
@@ -776,6 +812,7 @@ export default function AdminRenewalsPage() {
 
             <div className="site-history-actions">
               <button type="button" onClick={() => openRenewalEditor(selectedSiteId)}><CalendarCheck size={15} /> Update renewal</button>
+              {selectedRow && selectedRenewing && <button type="button" disabled={saving === selectedRow.camper.id} onClick={() => repairRentSchedule(selectedRow.camper)}><CircleDollarSign size={14} /> {saving === selectedRow.camper.id ? 'Repairing…' : 'Repair rent schedule'}</button>}
               {selectedRow?.renewal?.renewal_document_id && <a href={`/documents/view/${selectedRow.renewal.renewal_document_id}`} target="_blank" rel="noreferrer"><FileCheck2 size={14} /> {String(selectedRenewalDocument?.signature_status || '').toLowerCase() === 'signed' ? 'Open signed renewal' : 'Open renewal document'}</a>}
               <a href={`/admin/campers/${selectedSiteId}`}><ExternalLink size={14} /> Full camper profile</a>
               <a href="/admin/site-care"><FileWarning size={14} /> Full infraction list</a>

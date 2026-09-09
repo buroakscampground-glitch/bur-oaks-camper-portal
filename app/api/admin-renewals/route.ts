@@ -87,6 +87,76 @@ export async function POST(request: Request) {
     .eq('camper_id', camperId)
     .maybeSingle()
 
+  if (action === 'repair-rent-schedule') {
+    const annualRent = Number(body.annualRent)
+    if (!Number.isFinite(annualRent) || annualRent <= 0) {
+      return NextResponse.json({ error: 'Enter a valid annual lot-rent amount.' }, { status: 400 })
+    }
+    if (!existing?.renewal_document_id || existing.status !== 'Renewing') {
+      return NextResponse.json({ error: 'A signed renewing record is required before repairing the rent schedule.' }, { status: 409 })
+    }
+    if (!existing.contract_end_date) {
+      return NextResponse.json({ error: 'The annual renewal date must be saved before repairing the rent schedule.' }, { status: 409 })
+    }
+
+    const { data: signedDocument, error: signedDocumentError } = await context.admin
+      .from('documents')
+      .select('signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash')
+      .eq('id', existing.renewal_document_id)
+      .eq('camper_id', camper.id)
+      .maybeSingle()
+    if (signedDocumentError || !signedDocument || !hasSecureRenewalSignature(signedDocument)) {
+      return NextResponse.json({ error: signedDocumentError?.message || 'The signed renewal could not be verified.' }, { status: 409 })
+    }
+
+    const { data: lot, error: lotLookupError } = await context.admin
+      .from('lots')
+      .select('id')
+      .eq('lot_number', camper.lot_number)
+      .limit(1)
+      .maybeSingle()
+    if (lotLookupError) {
+      return NextResponse.json({ error: lotLookupError.message || 'The lot record could not be loaded.' }, { status: 500 })
+    }
+
+    const lotWrite = lot?.id
+      ? await context.admin.from('lots').update({ lot_rent_amount: annualRent }).eq('id', lot.id)
+      : await context.admin.from('lots').insert({ lot_number: camper.lot_number, camper_id: camper.id, lot_rent_amount: annualRent })
+    if (lotWrite.error) {
+      return NextResponse.json({ error: lotWrite.error.message || 'The annual lot rent could not be saved.' }, { status: 500 })
+    }
+
+    try {
+      const renewalRentSchedule = await continueSignedRenewalRentSchedule({
+        client: context.admin,
+        camperId: String(camper.id),
+        documentId: String(existing.renewal_document_id),
+        signedAt: signedDocument.signed_at || new Date().toISOString(),
+      })
+      if (renewalRentSchedule.status !== 'continued') {
+        return NextResponse.json({ error: 'The rent schedule still needs review. No duplicate invoices were created.', renewalRentSchedule }, { status: 409 })
+      }
+
+      await context.admin
+        .from('admin_notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('type', 'renewal_rent_schedule')
+        .eq('camper_id', camper.id)
+        .ilike('title', '%needs a rent schedule%')
+        .is('read_at', null)
+
+      const { data: refreshedRenewal } = await context.admin
+        .from('season_renewals')
+        .select('*')
+        .eq('id', existing.id)
+        .single()
+
+      return NextResponse.json({ success: true, renewal: refreshedRenewal || existing, renewalRentSchedule, annualRent })
+    } catch (error: any) {
+      return NextResponse.json({ error: error?.message || 'The rent schedule could not be repaired.' }, { status: 500 })
+    }
+  }
+
   if (action === 'signed-previous-system') {
     if (body.confirmed !== true) {
       return NextResponse.json({ error: 'Confirm that the camper signed this renewal in the previous system.' }, { status: 400 })
