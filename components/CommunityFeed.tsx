@@ -22,6 +22,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [viewer, setViewer] = useState<any>(null)
   const [preferences, setPreferences] = useState<any>(null)
   const [reports, setReports] = useState<any[]>([])
+  const [activityNotifications, setActivityNotifications] = useState<any[]>([])
   const [members, setMembers] = useState<any[]>([])
   const [memberSearch, setMemberSearch] = useState('')
   const [showMemberControls, setShowMemberControls] = useState(false)
@@ -68,11 +69,14 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     setBlockReason(result.reason || '')
     setPreferences(result.preferences || null)
     setReports(result.reports || [])
+    setActivityNotifications(result.activityNotifications || [])
     setMembers(result.members || [])
     setLoading(false)
     const unreadIds = (result.posts || []).filter((post: any) => !post.read_by_me && post.status === 'published').map((post: any) => post.id)
     if (unreadIds.length || result.directCount) {
-      fetch('/api/community-feed', { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ action: 'mark_read', postIds: unreadIds }) }).catch(() => {})
+      fetch('/api/community-feed', { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ action: 'mark_read', postIds: unreadIds }) })
+        .then(() => window.dispatchEvent(new Event('community-unread-changed')))
+        .catch(() => {})
     }
   }
 
@@ -224,6 +228,18 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
       <section className="campground-community-calm"><ShieldCheck size={18} /><div><strong>No constant community texts.</strong><span>Conversation uses portal badges and your email choices. Emergency text alerts stay separate.</span></div></section>
       {notice && <p className="campground-community-notice" role="status">{notice}</p>}
+
+      {adminMode && activityNotifications.length > 0 && (
+        <section className="campground-community-staff-activity">
+          <header><Bell size={19} /><div><small>STAFF ALERTS</small><h2>Recent Community activity</h2><p>Rachel and administrator accounts receive these immediately by email and in the portal.</p></div></header>
+          <div>{activityNotifications.slice(0, 10).map((item) => (
+            <a href={item.post_id ? `#community-post-${item.post_id}` : undefined} key={item.id}>
+              <span>{item.message}</span>
+              <small>{formatDate(item.created_at)} · {item.email_status === 'sent' ? 'Email sent' : item.email_status === 'failed' ? 'Email needs attention' : 'Portal alert saved'}</small>
+            </a>
+          ))}</div>
+        </section>
+      )}
 
       {adminMode && viewer?.canDelete && (
         <section className="campground-community-owner-controls">

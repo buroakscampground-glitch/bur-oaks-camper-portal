@@ -44,6 +44,7 @@ import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
 import SeasonalThemeCard from './SeasonalThemeCard'
+import CommunityUnreadBadge from './CommunityUnreadBadge'
 
 const pageNames: Record<string, string> = {
   campers: 'Camper Management',
@@ -226,6 +227,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
                     >
                       <Icon size={17} />
                       <span>{link.label}</span>
+                      {link.href === '/admin/community-feed' && <CommunityUnreadBadge />}
                     </a>
                   )
                 })}

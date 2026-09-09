@@ -1,9 +1,10 @@
 import { after, NextResponse } from 'next/server'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
-import { canAdministerCommunity, canManageCommunity } from '../../../lib/staff-roles'
+import { canAdministerCommunity, canManageCommunity, effectivePortalRole } from '../../../lib/staff-roles'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { canParticipateInCommunity, canViewCommunity, communityAccessLabel, normalizeCommunityAccess } from '../../../lib/community-access'
+import { communityActivityMessage, communityStaffRecipients, type CommunityActivityKind } from '../../../lib/community-staff-alerts'
 import {
   camperCommunityEmails,
   defaultCommunityPreferences,
@@ -31,6 +32,77 @@ async function signedPhotoUrl(admin: any, path: unknown) {
   if (!photoPath) return null
   const { data } = await admin.storage.from('community-media').createSignedUrl(photoPath, 60 * 60)
   return data?.signedUrl || null
+}
+
+async function notifyCommunityStaff({
+  admin,
+  request,
+  actor,
+  kind,
+  postId,
+  commentId,
+  detail,
+  excludeCamperIds = [],
+}: {
+  admin: any
+  request: Request
+  actor: any
+  kind: CommunityActivityKind
+  postId?: string | null
+  commentId?: string | null
+  detail?: unknown
+  excludeCamperIds?: unknown[]
+}) {
+  const { data: campers, error: camperError } = await admin
+    .from('campers')
+    .select('id,first_name,last_name,email,secondary_email,lot_number,role,active')
+    .eq('active', true)
+  if (camperError) {
+    console.error('Community staff recipients could not be loaded:', camperError.message)
+    return
+  }
+  const excluded = new Set(excludeCamperIds.map((id) => String(id || '')).filter(Boolean))
+  const recipients = communityStaffRecipients(campers || [], actor?.id).filter((recipient) => !excluded.has(String(recipient.id)))
+  if (!recipients.length) return
+  const message = communityActivityMessage({ kind, actorName: camperName(actor), lotNumber: actor?.lot_number, detail })
+  const { data: notifications, error: notificationError } = await admin.from('community_notifications').insert(recipients.map((recipient: any) => ({
+    camper_id: recipient.id,
+    post_id: postId || null,
+    comment_id: commentId || null,
+    kind: 'reply',
+    message,
+  }))).select('id,camper_id')
+  if (notificationError) {
+    console.error('Community staff notifications could not be saved:', notificationError.message)
+    return
+  }
+
+  after(async () => {
+    const emailed = new Set<string>()
+    for (const notification of notifications || []) {
+      const recipient = recipients.find((item: any) => String(item.id) === String(notification.camper_id))
+      const email = camperCommunityEmails(recipient).find((value) => !emailed.has(value))
+      if (!recipient || !email) {
+        await admin.from('community_notifications').update({ email_status: 'skipped', email_error: 'No unique staff email address is on file.' }).eq('id', notification.id)
+        continue
+      }
+      emailed.add(email)
+      const destination = String(recipient.lot_number || '').toUpperCase() === 'STAFF-EVENTS' ? '/community/feed' : '/admin/community-feed'
+      try {
+        const result: any = await sendCommunityEmail({
+          to: [email],
+          camperName: camperName(recipient),
+          subject: `Community activity: ${kind.replace('_', ' ')}`,
+          heading: 'New Community activity',
+          message,
+          actionUrl: `${new URL(request.url).origin}${destination}${postId ? `?post=${encodeURIComponent(postId)}` : ''}`,
+        })
+        await admin.from('community_notifications').update({ email_status: result?.skipped ? 'skipped' : 'sent', email_provider_id: result?.id || null, email_sent_at: result?.skipped ? null : new Date().toISOString(), email_error: result?.reason || null }).eq('id', notification.id)
+      } catch (error: any) {
+        await admin.from('community_notifications').update({ email_status: 'failed', email_error: String(error?.message || error).slice(0, 500) }).eq('id', notification.id)
+      }
+    }
+  })
 }
 
 export async function GET(request: Request) {
@@ -84,7 +156,7 @@ export async function GET(request: Request) {
     .is('read_at', null)
   if (directError) return NextResponse.json({ error: directError.message }, { status: 500 })
 
-  const unreadPostCount = (posts || []).filter((post: any) => published(post) && !readIds.has(String(post.id))).length
+  const unreadPostCount = isManager ? 0 : (posts || []).filter((post: any) => published(post) && !readIds.has(String(post.id))).length
   if (summaryOnly) {
     return NextResponse.json({ unreadCount: unreadPostCount, directCount: directCount || 0 })
   }
@@ -106,6 +178,10 @@ export async function GET(request: Request) {
     ? await context.admin.from('community_reports').select('*').eq('status', 'open').order('created_at', { ascending: false }).limit(100)
     : { data: [], error: null }
   if (reportResult.error) return NextResponse.json({ error: reportResult.error.message }, { status: 500 })
+  const activityResult = isManager
+    ? await context.admin.from('community_notifications').select('id,message,post_id,comment_id,email_status,read_at,created_at').eq('camper_id', camperId).order('created_at', { ascending: false }).limit(30)
+    : { data: [], error: null }
+  if (activityResult.error) return NextResponse.json({ error: activityResult.error.message }, { status: 500 })
 
   const memberResult = isCommunityAdmin
     ? await context.admin.from('campers').select('id,first_name,last_name,lot_number,active,role').eq('active', true).order('lot_number', { ascending: true })
@@ -135,6 +211,7 @@ export async function GET(request: Request) {
     unreadCount: unreadPostCount,
     directCount: directCount || 0,
     reports: reportResult.data || [],
+    activityNotifications: activityResult.data || [],
     members,
     viewer: {
       id: camperId,
@@ -231,6 +308,7 @@ export async function POST(request: Request) {
         })
       }
     }
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'post', postId: post.id, detail: post.body })
     return NextResponse.json({ success: true, post })
   }
 
@@ -261,10 +339,10 @@ export async function POST(request: Request) {
       }).select('id').single()
 
       const [{ data: owner }, { data: preference }] = await Promise.all([
-        context.admin.from('campers').select('first_name,last_name,email,secondary_email').eq('id', post.camper_id).maybeSingle(),
+        context.admin.from('campers').select('first_name,last_name,email,secondary_email,role,lot_number').eq('id', post.camper_id).maybeSingle(),
         context.admin.from('community_notification_preferences').select('replies_mode').eq('camper_id', post.camper_id).maybeSingle(),
       ])
-      if (owner && normalizeCommunityMode(preference?.replies_mode || 'right_away') === 'right_away') {
+      if (owner && (canAdministerCommunity(effectivePortalRole(owner)) || normalizeCommunityMode(preference?.replies_mode || 'right_away') === 'right_away')) {
         const origin = new URL(request.url).origin
         after(async () => {
           try {
@@ -286,6 +364,7 @@ export async function POST(request: Request) {
         await context.admin.from('community_notifications').update({ email_status: 'skipped' }).eq('id', replyNotification.id)
       }
     }
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'comment', postId, commentId: comment.id, detail: text, excludeCamperIds: [post.camper_id] })
     return NextResponse.json({ success: true, comment })
   }
 
@@ -298,6 +377,7 @@ export async function POST(request: Request) {
       ? await context.admin.from('community_reactions').delete().eq('id', existing.id)
       : await context.admin.from('community_reactions').insert({ post_id: postId, camper_id: camperId })
     if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 })
+    if (!existing) await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'like', postId })
     return NextResponse.json({ success: true, liked: !existing })
   }
 
@@ -336,6 +416,7 @@ export async function POST(request: Request) {
       reason: String(body.reason || 'Please review this content.').trim().slice(0, 300),
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'report', postId, commentId })
     return NextResponse.json({ success: true })
   }
 
@@ -359,6 +440,7 @@ export async function POST(request: Request) {
     if (logError) return NextResponse.json({ error: logError.message }, { status: 500 })
     const { error } = await context.admin.from(table).delete().eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'moderation', detail: `permanently deleted a ${contentType}` })
     return NextResponse.json({ success: true })
   }
 
@@ -367,11 +449,12 @@ export async function POST(request: Request) {
     const nextAccess = normalizeCommunityAccess(body.accessLevel)
     const reason = String(body.reason || '').trim().slice(0, 300) || null
     if (!targetCamperId || targetCamperId === camperId) return NextResponse.json({ error: 'Choose a camper account other than your administrator account.' }, { status: 400 })
-    const { data: target } = await context.admin.from('campers').select('id,role,lot_number').eq('id', targetCamperId).maybeSingle()
+    const { data: target } = await context.admin.from('campers').select('id,first_name,last_name,role,lot_number').eq('id', targetCamperId).maybeSingle()
     if (!target || !isOperationalCamper(target)) return NextResponse.json({ error: 'That camper account cannot be changed here.' }, { status: 400 })
     const { error } = await context.admin.from('community_member_controls').upsert({ camper_id: targetCamperId, access_level: nextAccess, reason, controlled_by: camperId, updated_at: new Date().toISOString() }, { onConflict: 'camper_id' })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     await context.admin.from('community_moderation_log').insert({ admin_camper_id: camperId, action: nextAccess === 'blocked' ? 'set_blocked' : nextAccess === 'read_only' ? 'set_read_only' : 'set_active', target_camper_id: targetCamperId, reason })
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'member_access', detail: `${camperName(target)} is now ${communityAccessLabel(nextAccess)}` })
     return NextResponse.json({ success: true, accessLevel: nextAccess })
   }
 
@@ -384,6 +467,7 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     await context.admin.from('community_moderation_log').insert({ admin_camper_id: camperId, action: status === 'published' ? 'restore' : 'hide', post_id: contentType === 'community_posts' ? id : null, comment_id: contentType === 'community_comments' ? id : null, reason: String(body.reason || '').trim().slice(0, 300) || null })
     if (body.reportId) await context.admin.from('community_reports').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', body.reportId)
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'moderation', postId: contentType === 'community_posts' ? id : null, commentId: contentType === 'community_comments' ? id : null, detail: `${status === 'published' ? 'restored' : 'hid'} a ${contentType === 'community_posts' ? 'post' : 'comment'}` })
     return NextResponse.json({ success: true })
   }
 

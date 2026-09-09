@@ -4,6 +4,7 @@ import { CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, 
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import CommunityUnreadBadge from './CommunityUnreadBadge'
 
 const links = [
   { href: '/community', label: 'Community Home', icon: Home },
@@ -41,7 +42,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
         <nav className={menuOpen ? 'open' : ''}>
           {links.map((link) => {
             const Icon = link.icon
-            return <a className={active(pathname, link.href) ? 'active' : ''} href={link.href} key={link.href}><Icon size={18} /> {link.label}</a>
+            return <a className={active(pathname, link.href) ? 'active' : ''} href={link.href} key={link.href}><Icon size={18} /> <span>{link.label}</span>{link.href === '/community/feed' && <CommunityUnreadBadge />}</a>
           })}
         </nav>
         <button className="community-logout" type="button" onClick={logout}><LogOut size={17} /> Log out</button>
