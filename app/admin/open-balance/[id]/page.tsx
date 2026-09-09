@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, CheckCircle2, ClipboardCopy, Printer, ReceiptText, Trash2, WalletCards } from "lucide-react"
+import { ArrowLeft, CheckCircle2, CircleMinus, ClipboardCopy, Printer, ReceiptText, Trash2, WalletCards } from "lucide-react"
 import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
 import { deleteInvoiceWithCreditRestore } from "../../../../lib/account-credits"
@@ -11,6 +11,7 @@ import { groupInvoicesByDueMonth, isInvoiceDueThroughCurrentMonth, isInvoiceOuts
 import { printPageWithFlag } from '../../../../lib/print-page'
 import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-message'
 import { buildPaymentAllocationPreview, submitManualPayment } from '../../../../lib/manual-payment'
+import { removeAdminInvoiceLateFee } from '../../../../lib/admin-late-fee'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString("en-US", {
@@ -179,6 +180,25 @@ export default function CamperBalancePage() {
     await loadData()
   }
 
+  async function removeLateFee(invoice: any) {
+    const fee = Number(invoice?.late_fee || 0)
+    if (!invoice || fee <= 0) return
+    const newBalance = Math.max(0, Number(invoice.total_due || 0) - fee)
+    if (!window.confirm(`Remove the ${formatMoney(fee)} late fee from invoice #${invoice.invoice_number}?\n\nThe new balance will be ${formatMoney(newBalance)}, and the automatic billing system will not add this fee back.`)) return
+
+    setBusyInvoiceId(invoice.id)
+    setMessage('Removing late fee…')
+    try {
+      const result = await removeAdminInvoiceLateFee(invoice.id)
+      setMessage(result.message)
+      await loadData()
+    } catch (error: any) {
+      setMessage(error.message || 'The late fee could not be removed.')
+    } finally {
+      setBusyInvoiceId('')
+    }
+  }
+
   function sendReminder() {
     const text = `
 Hello ${camper?.first_name || ""},
@@ -286,6 +306,11 @@ Bur Oaks Campground
                     <span>Stripe payment processing — changes locked</span>
                   ) : (
                     <>
+                      {Number(invoice.late_fee || 0) > 0 && (
+                        <button type="button" onClick={() => removeLateFee(invoice)} disabled={busyInvoiceId === invoice.id}>
+                          <CircleMinus size={15} /> Remove late fee
+                        </button>
+                      )}
                       <button type="button" onClick={() => openPaymentForm(invoice.id)} disabled={busyInvoiceId === invoice.id}>
                         <CheckCircle2 size={15} /> Mark paid
                       </button>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, CheckCircle2, CreditCard, FileText, Pencil, Plus, Printer, ReceiptText, Save, Send, Trash2, X } from 'lucide-react'
+import { ArrowLeft, CalendarDays, CheckCircle2, CircleMinus, CreditCard, FileText, Pencil, Plus, Printer, ReceiptText, Save, Send, Trash2, X } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { deleteInvoiceWithCreditRestore, formatCreditMoney, updateInvoiceBundle } from '../../../../lib/account-credits'
 import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
@@ -12,6 +12,7 @@ import { printPageWithFlag } from '../../../../lib/print-page'
 import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-message'
 import { buildPaymentAllocationPreview, submitManualPayment } from '../../../../lib/manual-payment'
 import { isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../../lib/invoice-balance'
+import { removeAdminInvoiceLateFee } from '../../../../lib/admin-late-fee'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -170,6 +171,26 @@ export default function InvoiceDetailPage() {
     )
 
     router.push('/admin/invoices')
+  }
+
+  async function removeLateFee() {
+    const fee = Number(invoice?.late_fee || 0)
+    if (!invoice || fee <= 0) return
+    const newBalance = Math.max(0, Number(invoice.total_due || 0) - fee)
+    if (!window.confirm(`Remove the ${formatMoney(fee)} late fee from invoice #${invoice.invoice_number}?\n\nThe new balance will be ${formatMoney(newBalance)}, and the automatic billing system will not add this fee back.`)) return
+
+    setBusy(true)
+    setMessage('Removing late fee…')
+    try {
+      const result = await removeAdminInvoiceLateFee(invoice.id)
+      setManualPaymentAmount(String(Number(result.totalDue || 0).toFixed(2)))
+      setMessage(result.message)
+      await loadInvoice(false)
+    } catch (error: any) {
+      setMessage(error.message || 'The late fee could not be removed.')
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function recordManualPayment() {
@@ -409,6 +430,11 @@ export default function InvoiceDetailPage() {
             </p>
           </div>
           <div className="admin-invoice-detail-actions">
+            {lateFee > 0 && !isPaid && !isProcessing && !isClosed && !editing && (
+              <button type="button" onClick={removeLateFee} disabled={busy}>
+                <CircleMinus size={16} /> {busy ? 'Working…' : 'Remove late fee'}
+              </button>
+            )}
             {!isPaid && !isProcessing && !isClosed && !editing && (
               <button type="button" onClick={beginEditing} disabled={busy}>
                 <Pencil size={16} /> Edit invoice

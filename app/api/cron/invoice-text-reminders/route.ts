@@ -60,6 +60,18 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const openInvoices = (invoices || []).filter(isInvoiceOutstanding)
+  const invoiceIds = openInvoices.map((invoice) => invoice.id)
+  const { data: waiverRows, error: waiverError } = invoiceIds.length
+    ? await admin
+      .from('text_reminders')
+      .select('invoice_id')
+      .in('invoice_id', invoiceIds)
+      .eq('automation_key', 'invoice-late-fee-waived')
+      .eq('status', 'saved')
+    : { data: [], error: null }
+
+  if (waiverError) return NextResponse.json({ error: waiverError.message }, { status: 500 })
+  const waivedInvoiceIds = new Set((waiverRows || []).map((row: any) => String(row.invoice_id)))
   const summary = {
     checked: openInvoices.length,
     textSent: 0,
@@ -73,9 +85,10 @@ export async function GET(request: Request) {
   for (const invoice of openInvoices) {
     const daysUntilDue = daysUntilDate(String(invoice.due_date), today)
     const daysPastDue = Math.max(0, -daysUntilDue)
+    const lateFeeWaived = waivedInvoiceIds.has(String(invoice.id))
     let lateFeeWarningCompletedBeforeToday = Number(invoice.late_fee || 0) > 0
 
-    if (daysPastDue >= LATE_FEE_WARNING_DAY && Number(invoice.late_fee || 0) <= 0) {
+    if (!lateFeeWaived && daysPastDue >= LATE_FEE_WARNING_DAY && Number(invoice.late_fee || 0) <= 0) {
       const [warningText, warningEmail] = await Promise.all([
         sendInvoiceText({
           client: admin,
@@ -119,6 +132,7 @@ export async function GET(request: Request) {
     }
 
     if (
+      !lateFeeWaived &&
       daysPastDue >= LATE_FEE_ASSESSMENT_DAY &&
       (Number(invoice.late_fee || 0) > 0 || shouldAssessLateFee(daysPastDue, lateFeeWarningCompletedBeforeToday))
     ) {
