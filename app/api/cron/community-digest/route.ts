@@ -7,9 +7,17 @@ import { camperCommunityEmails, normalizeCommunityMode, sendCommunityEmail } fro
 export const dynamic = 'force-dynamic'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mzywctpxnpejglnspyqi.supabase.co'
 
+function centralHour(date = new Date()) {
+  const part = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', hour: '2-digit', hourCycle: 'h23' })
+    .formatToParts(date)
+    .find((item) => item.type === 'hour')
+  return Number(part?.value ?? -1)
+}
+
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  if (centralHour() !== 18) return NextResponse.json({ success: true, skipped: true, reason: 'The daily summary runs at 6 PM Central.' })
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!key) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
   const admin = createClient(supabaseUrl, key)
