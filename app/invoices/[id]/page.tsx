@@ -88,6 +88,7 @@ export default function CamperInvoiceDetailPage() {
       if (token) {
         const response = await fetch(`/api/camper-invoices?invoiceId=${encodeURIComponent(invoiceId)}`, {
           headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
         }).catch(() => null)
 
         if (response?.ok) {
@@ -163,6 +164,7 @@ export default function CamperInvoiceDetailPage() {
         if (!token) return
         const response = await fetch(`/api/authorized-billing?invoiceId=${encodeURIComponent(invoiceId)}`, {
           headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
         }).catch(() => null)
         if (!response?.ok) return
         const familyResult = await response.json()
@@ -178,6 +180,7 @@ export default function CamperInvoiceDetailPage() {
       if (!token) return
       const response = await fetch(`/api/camper-invoices?invoiceId=${encodeURIComponent(invoiceId)}`, {
         headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
       }).catch(() => null)
       if (response?.ok) {
         const result = await response.json()
@@ -188,14 +191,28 @@ export default function CamperInvoiceDetailPage() {
       }
     }
 
-    const timer = window.setInterval(refreshInvoiceStatus, 30_000)
+    const invoiceChannel = supabase
+      .channel(`camper-invoice-live-${invoiceId}`)
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'invoices', filter: `id=eq.${invoiceId}` },
+        refreshInvoiceStatus,
+      )
+      .subscribe()
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshInvoiceStatus()
+    }
+    const timer = window.setInterval(refreshInvoiceStatus, 5_000)
     window.addEventListener('focus', refreshInvoiceStatus)
     window.addEventListener('pageshow', refreshInvoiceStatus)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
 
     return () => {
       window.clearInterval(timer)
       window.removeEventListener('focus', refreshInvoiceStatus)
       window.removeEventListener('pageshow', refreshInvoiceStatus)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      void supabase.removeChannel(invoiceChannel)
     }
   }, [camper?.id, invoiceId, authorizedFamilyBilling])
 

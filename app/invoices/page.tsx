@@ -209,14 +209,28 @@ export default function InvoicesPage() {
       if (data) setInvoices(data)
     }
 
-    const timer = window.setInterval(refreshInvoiceStatuses, 30_000)
+    const invoiceChannel = supabase
+      .channel(`camper-invoice-list-live-${camper.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'invoices', filter: `camper_id=eq.${camper.id}` },
+        refreshInvoiceStatuses,
+      )
+      .subscribe()
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') refreshInvoiceStatuses()
+    }
+    const timer = window.setInterval(refreshInvoiceStatuses, 5_000)
     window.addEventListener('focus', refreshInvoiceStatuses)
     window.addEventListener('pageshow', refreshInvoiceStatuses)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
 
     return () => {
       window.clearInterval(timer)
       window.removeEventListener('focus', refreshInvoiceStatuses)
       window.removeEventListener('pageshow', refreshInvoiceStatuses)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+      void supabase.removeChannel(invoiceChannel)
     }
   }, [camper?.id])
 
