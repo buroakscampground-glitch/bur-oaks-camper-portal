@@ -24,6 +24,7 @@ export default function AppBadgePermission({ label = 'Community counts' }: { lab
     if (permission === 'granted') {
       setAvailable(false)
       window.dispatchEvent(new Event('community-unread-changed'))
+      window.dispatchEvent(new Event('community-workspace-changed'))
       window.dispatchEvent(new Event('portal-attention-changed'))
       return
     }

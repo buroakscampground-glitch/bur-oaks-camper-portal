@@ -2,19 +2,31 @@
 
 import { CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, Soup, Sparkles, UsersRound, X } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { syncHomeScreenBadge } from '../lib/home-screen-badge'
 import { supabase } from '../lib/supabase'
-import CommunityUnreadBadge from './CommunityUnreadBadge'
 
 const links = [
-  { href: '/community', label: 'Community Home', icon: Home },
-  { href: '/community/feed', label: 'Community Feed', icon: UsersRound },
-  { href: '/community/birthdays', label: 'Birthdays', icon: CakeSlice },
-  { href: '/community/announcements', label: 'Announcements', icon: Megaphone },
-  { href: '/community/events', label: 'Events', icon: CalendarDays },
-  { href: '/community/dinners', label: 'Saturday Dinners', icon: Soup },
-  { href: '/community/rsvps', label: 'RSVPs', icon: ClipboardList },
+  { href: '/community', label: 'Community Home', icon: Home, countKey: 'total' },
+  { href: '/community/feed', label: 'Community Feed', icon: UsersRound, countKey: 'feed' },
+  { href: '/community/birthdays', label: 'Birthdays', icon: CakeSlice, countKey: 'birthdays' },
+  { href: '/community/announcements', label: 'Announcements', icon: Megaphone, countKey: 'announcements' },
+  { href: '/community/events', label: 'Events', icon: CalendarDays, countKey: 'events' },
+  { href: '/community/dinners', label: 'Saturday Dinners', icon: Soup, countKey: 'dinners' },
+  { href: '/community/rsvps', label: 'RSVPs', icon: ClipboardList, countKey: 'rsvps' },
 ]
+
+type CommunityCounts = Record<(typeof links)[number]['countKey'], number>
+
+const emptyCounts: CommunityCounts = {
+  total: 0,
+  feed: 0,
+  birthdays: 0,
+  announcements: 0,
+  events: 0,
+  dinners: 0,
+  rsvps: 0,
+}
 
 function active(pathname: string, href: string) {
   return href === '/community' ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
@@ -23,6 +35,50 @@ function active(pathname: string, href: string) {
 export default function CommunityChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [counts, setCounts] = useState<CommunityCounts>(emptyCounts)
+
+  useEffect(() => {
+    let activeRequest = true
+
+    async function loadCounts() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+
+      const response = await fetch('/api/community-workspace-summary', {
+        cache: 'no-store',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!activeRequest || !response.ok) return
+
+      const nextCounts = { ...emptyCounts, ...(result.counts || {}), total: Number(result.total || 0) }
+      setCounts(nextCounts)
+      void syncHomeScreenBadge(nextCounts.total)
+    }
+
+    loadCounts()
+    const interval = window.setInterval(loadCounts, 30_000)
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadCounts()
+    }
+    window.addEventListener('community-unread-changed', loadCounts)
+    window.addEventListener('community-workspace-changed', loadCounts)
+    window.addEventListener('focus', loadCounts)
+    window.addEventListener('online', loadCounts)
+    window.addEventListener('pageshow', loadCounts)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      activeRequest = false
+      window.clearInterval(interval)
+      window.removeEventListener('community-unread-changed', loadCounts)
+      window.removeEventListener('community-workspace-changed', loadCounts)
+      window.removeEventListener('focus', loadCounts)
+      window.removeEventListener('online', loadCounts)
+      window.removeEventListener('pageshow', loadCounts)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [])
 
   async function logout() {
     await supabase.auth.signOut()
@@ -42,7 +98,8 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
         <nav className={menuOpen ? 'open' : ''}>
           {links.map((link) => {
             const Icon = link.icon
-            return <a className={active(pathname, link.href) ? 'active' : ''} href={link.href} key={link.href}><Icon size={18} /> <span>{link.label}</span>{link.href === '/community/feed' && <CommunityUnreadBadge />}</a>
+            const count = counts[link.countKey]
+            return <a className={active(pathname, link.href) ? 'active' : ''} href={link.href} key={link.href}><Icon size={18} /> <span>{link.label}</span>{count > 0 && <b className="camper-community-badge" aria-label={`${count} ${link.label} item${count === 1 ? '' : 's'}`}>{count > 99 ? '99+' : count}</b>}</a>
           })}
         </nav>
         <button className="community-logout" type="button" onClick={logout}><LogOut size={17} /> Log out</button>
