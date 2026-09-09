@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import test from 'node:test'
+
+function source(path: string) {
+  return readFileSync(new URL(path, import.meta.url), 'utf8')
+}
+
+test('Community is prominently linked from both home screens', () => {
+  const camperHome = source('../app/portal/page.tsx')
+  const adminHome = source('../app/admin/page.tsx')
+
+  assert.match(camperHome, /className="portal-community-home-link" href="\/campground-community"/)
+  assert.match(adminHome, /className="admin-community-home-link" href="\/admin\/community-feed"/)
+  assert.match(adminHome, /title: 'Community feed'/)
+})

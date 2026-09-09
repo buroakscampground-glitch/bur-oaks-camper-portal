@@ -1073,6 +1073,16 @@ export default function CamperPortalPage() {
 
         </section>
 
+        <a className="portal-community-home-link" href="/campground-community">
+          <span className="portal-community-home-icon"><UsersRound size={25} /></span>
+          <span>
+            <small>CAMPER COMMUNITY</small>
+            <strong>See what everyone is talking about</strong>
+            <em>Read campground posts, join a conversation, or share an update.</em>
+          </span>
+          <b>Open Community <ArrowRight size={17} /></b>
+        </a>
+
         {urgentAnnouncement && (
           <a className="portal-urgent-announcement" href="/updates" aria-label={`Urgent campground announcement: ${urgentAnnouncement.title}`}>
             <span className="portal-urgent-announcement-icon" aria-hidden="true">

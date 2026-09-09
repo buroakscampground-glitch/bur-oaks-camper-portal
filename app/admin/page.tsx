@@ -535,6 +535,7 @@ export default function AdminPage() {
     {
       label: 'Communication & community',
       items: [
+        { href: '/admin/community-feed', title: 'Community feed', detail: 'Posts, comments & owner controls', icon: UsersRound },
         { href: '/admin/messages', title: 'Office messages', detail: `${stats.messageAlerts} unread`, icon: MessageCircle },
         { href: '/admin/texts', title: 'Text alerts', detail: 'Send camper notices', icon: BellRing },
         { href: '/admin/announcements', title: 'Announcements', detail: `${stats.announcements} active`, icon: Megaphone },
@@ -668,6 +669,16 @@ export default function AdminPage() {
             </button>
           </div>
         </header>
+
+        <a className="admin-community-home-link" href="/admin/community-feed">
+          <span className="admin-community-home-icon"><UsersRound size={25} /></span>
+          <span>
+            <small>CAMPGROUND COMMUNITY</small>
+            <strong>Open the camper conversation</strong>
+            <em>View posts and comments · Post as the office · Manage or block members</em>
+          </span>
+          <b>Open Community <ArrowRight size={17} /></b>
+        </a>
 
         <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
           <header>
