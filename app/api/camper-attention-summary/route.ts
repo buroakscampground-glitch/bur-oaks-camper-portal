@@ -16,28 +16,24 @@ export async function GET(request: Request) {
       .filter((owner, index, all) => all.findIndex((candidate) => String(candidate.id) === String(owner.id)) === index)
       .map((owner) => owner.id)
 
-    const [invoiceResult, documentResult, siteCareResult] = await Promise.all([
+    const [invoiceResult, siteCareResult] = await Promise.all([
       context.admin.from('invoices').select('id,status,due_date,total_due').in('camper_id', ownerIds),
-      context.admin.from('documents').select('id,signature_status').in('camper_id', ownerIds),
       context.admin.from('site_care_notices').select('id,status').eq('camper_id', context.camper.id).neq('status', 'Resolved'),
     ])
 
-    const error = invoiceResult.error || documentResult.error || siteCareResult.error
+    const error = invoiceResult.error || siteCareResult.error
     if (error) throw error
 
     const payments = (invoiceResult.data || []).filter((invoice) =>
       isInvoiceDueNow(invoice) || isInvoiceDueWithinDays(invoice, 30)
-    ).length
-    const documents = (documentResult.data || []).filter((document) =>
-      !['signed', 'not_required', 'declined'].includes(String(document.signature_status || '').toLowerCase())
     ).length
     const siteCare = (siteCareResult.data || []).filter((notice) =>
       !['ready for review', 'resolved'].includes(String(notice.status || '').toLowerCase())
     ).length
 
     return NextResponse.json({
-      count: payments + documents + siteCare,
-      breakdown: { payments, documents, siteCare },
+      count: payments + siteCare,
+      breakdown: { payments, siteCare },
     })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Unable to load portal alerts.' }, { status: 500 })
