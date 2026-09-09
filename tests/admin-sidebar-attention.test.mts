@@ -9,7 +9,8 @@ test('admin navigation shows live red counts for sections needing attention', as
   assert.match(source, /admin-attention-badge/)
   assert.match(source, /setInterval\(loadAttentionCounts, 30_000\)/)
   assert.match(source, /admin-attention-changed/)
-  assert.match(source, /totalAttention/)
+  assert.doesNotMatch(source, /totalAttention/)
+  assert.match(source, /attentionCount > 0/)
 })
 
 test('sidebar attention endpoint counts unresolved work by destination page', async () => {

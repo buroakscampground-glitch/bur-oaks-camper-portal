@@ -206,8 +206,6 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
     }
   }, [])
 
-  const totalAttention = Object.values(attentionCounts).reduce((sum, count) => sum + Number(count || 0), 0)
-
   const section = pathname.split('/')[2] || ''
   const pageTitle = pathname === '/admin' ? 'Operations Dashboard' : pageNames[section] || 'Operations'
   const isDetailPage = pathname.split('/').filter(Boolean).length > 2
@@ -233,7 +231,6 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
             >
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               <span>{mobileMenuOpen ? 'Close' : 'Menu'}</span>
-              {!mobileMenuOpen && totalAttention > 0 && <b className="admin-attention-badge">{totalAttention > 99 ? '99+' : totalAttention}</b>}
             </button>
           </div>
 
