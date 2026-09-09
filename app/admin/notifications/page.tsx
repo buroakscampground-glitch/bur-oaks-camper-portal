@@ -1,16 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BellRing, CheckCheck, CircleDollarSign, ClipboardCheck, Droplets, MessageCircle, MessageSquareWarning, PartyPopper, Search, Soup, UsersRound, Wrench } from 'lucide-react'
+import { BellRing, CheckCheck, ClipboardCheck, MessageCircle, MessageSquareWarning, PartyPopper, Search, UsersRound, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import AdminQuickText from '../../../components/AdminQuickText'
+import { informationalAdminNotificationTypes } from '../../../lib/admin-notification-types'
 
 const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   maintenance_request: { label: 'Maintenance', icon: Wrench, href: '/admin/maintenance' },
-  payment_received: { label: 'Payment', icon: CircleDollarSign, href: '/admin/invoices' },
   event_rsvp: { label: 'RSVP', icon: PartyPopper, href: '/admin/rsvps' },
-  saturday_dinner: { label: 'Saturday Dinner', icon: Soup, href: '/admin/dinners' },
-  sewer_pump_out: { label: 'Sewer Pump-Out', icon: Droplets, href: '/admin/pump-outs' },
   direct_message: { label: 'Camper Message', icon: MessageCircle, href: '/admin/messages' },
   website_waitlist: { label: 'Website Waitlist', icon: UsersRound, href: '/admin/waitlist' },
   site_care: { label: 'Site Care Review', icon: ClipboardCheck, href: '/admin/site-care' },
@@ -30,6 +28,7 @@ export default function AdminNotificationsPage() {
     const { data, error } = await supabase
       .from('admin_notifications')
       .select('*')
+      .not('type', 'in', `(${informationalAdminNotificationTypes.join(',')})`)
       .order('created_at', { ascending: false })
       .limit(200)
 
@@ -42,6 +41,7 @@ export default function AdminNotificationsPage() {
       .from('admin_notifications')
       .update({ read_at: new Date().toISOString() })
       .is('read_at', null)
+      .not('type', 'in', `(${informationalAdminNotificationTypes.join(',')})`)
 
     if (id) query = query.eq('id', id)
 
@@ -74,7 +74,7 @@ export default function AdminNotificationsPage() {
         <div>
           <span><BellRing size={17} /> ADMIN NOTIFICATIONS</span>
           <h1>Everything that needs your attention.</h1>
-          <p>Payments, maintenance requests, camper messages, and operational activity collected into one clean review queue.</p>
+          <p>Maintenance requests, camper messages, site-care reviews, and other items that genuinely need office action.</p>
         </div>
         <button type="button" onClick={() => markSeen()} disabled={unreadCount === 0}>
           <CheckCheck size={17} /> Mark all handled
@@ -84,7 +84,7 @@ export default function AdminNotificationsPage() {
       <section className="admin-notification-stats">
         <article><small>Unread</small><strong>{unreadCount}</strong></article>
         <article><small>Maintenance</small><strong>{notifications.filter((item) => item.type === 'maintenance_request' && !item.read_at).length}</strong></article>
-        <article><small>Payments</small><strong>{notifications.filter((item) => item.type === 'payment_received' && !item.read_at).length}</strong></article>
+        <article><small>Site care</small><strong>{notifications.filter((item) => item.type === 'site_care' && !item.read_at).length}</strong></article>
         <article><small>Camper messages</small><strong>{notifications.filter((item) => item.type === 'direct_message' && !item.read_at).length}</strong></article>
       </section>
 
@@ -102,10 +102,7 @@ export default function AdminNotificationsPage() {
           <option value="unread">Unread</option>
           <option value="all">All</option>
           <option value="maintenance_request">Maintenance</option>
-          <option value="payment_received">Payments</option>
           <option value="event_rsvp">RSVPs</option>
-          <option value="saturday_dinner">Saturday Dinners</option>
-          <option value="sewer_pump_out">Sewer Pump-Outs</option>
           <option value="direct_message">Camper Messages</option>
           <option value="site_care">Site Care Reviews</option>
         </select>
@@ -131,9 +128,7 @@ export default function AdminNotificationsPage() {
               <div className="admin-notification-actions">
                 <a href={config.href}>Open</a>
                 {!notification.read_at && (
-                  <button type="button" onClick={() => markSeen(notification.id)}>
-                    {notification.type === 'sewer_pump_out' ? 'Clear alert' : 'Handled'}
-                  </button>
+                  <button type="button" onClick={() => markSeen(notification.id)}>Handled</button>
                 )}
               </div>
             </article>

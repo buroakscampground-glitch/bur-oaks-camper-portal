@@ -5,6 +5,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { ownerTextAlertConfigured } from '../../../lib/owner-alert-sms'
 import { isCompletedPumpOutWaitingForBilling, isPumpOutWaitingForService } from '../../../lib/pump-out-status'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
+import { requiresAdminAttention } from '../../../lib/admin-notification-types'
 
 export const runtime = 'nodejs'
 
@@ -76,10 +77,8 @@ export async function GET(request: Request) {
   const activeMaintenance = maintenance.filter((ticket) => ticket.status !== 'Completed')
   const emergencyMaintenance = maintenance.filter((ticket) => ticket.priority === 'Emergency' && ticket.status !== 'Completed')
   const unreadMaintenance = notifications.filter((notification) => notification.type === 'maintenance_request')
-  const unreadPayments = notifications.filter((notification) => notification.type === 'payment_received')
   const unreadRsvps = notifications.filter((notification) => notification.type === 'event_rsvp')
-  const unreadDinners = notifications.filter((notification) => notification.type === 'saturday_dinner')
-  const unreadPumpOuts = notifications.filter((notification) => notification.type === 'sewer_pump_out')
+  const actionableNotifications = notifications.filter((notification) => notification.type !== 'event_rsvp' && requiresAdminAttention(notification.type))
   const waitingPumpOuts = pumpOuts.filter(isPumpOutWaitingForService)
   const completedPendingBilling = pumpOuts.filter(isCompletedPumpOutWaitingForBilling)
   const pendingDocuments = documents.filter((document) => {
@@ -128,8 +127,8 @@ export async function GET(request: Request) {
     item({
       id: 'admin-alerts',
       label: 'Admin alert inbox',
-      status: notifications.length ? 'warning' : 'ready',
-      detail: notifications.length ? `${notifications.length} unread alert${notifications.length === 1 ? '' : 's'} waiting.` : 'No unread admin alerts right now.',
+      status: actionableNotifications.length ? 'warning' : 'ready',
+      detail: actionableNotifications.length ? `${actionableNotifications.length} unread alert${actionableNotifications.length === 1 ? '' : 's'} waiting.` : 'No unread admin alerts right now.',
       href: '/admin/notifications',
     }),
     item({
@@ -241,11 +240,11 @@ export async function GET(request: Request) {
     counts,
     alerts: {
       maintenance: unreadMaintenance.length,
-      payments: unreadPayments.length,
+      payments: 0,
       rsvps: unreadRsvps.length,
-      dinners: unreadDinners.length,
-      pumpOuts: unreadPumpOuts.length,
-      total: notifications.length,
+      dinners: 0,
+      pumpOuts: 0,
+      total: actionableNotifications.length,
     },
     groups: [
       { id: 'config', title: 'Core connections', items: configItems },

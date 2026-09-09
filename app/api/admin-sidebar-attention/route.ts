@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { isPumpOutWaitingForService } from '../../../lib/pump-out-status'
+import { requiresAdminAttention } from '../../../lib/admin-notification-types'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
 function isOpen(status: unknown) {
@@ -19,7 +19,6 @@ export async function GET(request: Request) {
     documentResult,
     maintenanceResult,
     supplyResult,
-    pumpResult,
     siteCareResult,
   ] = await Promise.all([
     context.admin.from('admin_notifications').select('id,type').is('read_at', null),
@@ -28,23 +27,21 @@ export async function GET(request: Request) {
     context.admin.from('documents').select('id,signature_status'),
     context.admin.from('maintenance_tickets').select('id,status'),
     context.admin.from('maintenance_supply_requests').select('id,status').in('status', ['Requested', 'Ordered']),
-    context.admin.from('sewer_pump_out_requests').select('id,status,billed_at,completed_at'),
     context.admin.from('site_care_notices').select('id,status').neq('status', 'Resolved'),
   ])
 
-  const results = [notificationResult, messageResult, invoiceResult, documentResult, maintenanceResult, supplyResult, pumpResult, siteCareResult]
+  const results = [notificationResult, messageResult, invoiceResult, documentResult, maintenanceResult, supplyResult, siteCareResult]
   const error = results.find((result) => result.error)?.error
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const notifications = notificationResult.data || []
   const counts: Record<string, number> = {
-    '/admin/notifications': notifications.filter((item: any) => item.type !== 'event_rsvp').length,
+    '/admin/notifications': notifications.filter((item: any) => item.type !== 'event_rsvp' && requiresAdminAttention(item.type)).length,
     '/admin/messages': (messageResult.data || []).length,
     '/admin/open-balance': (invoiceResult.data || []).filter((item: any) => isOpen(item.status)).length,
     '/admin/documents': (documentResult.data || []).filter((item: any) => !['signed', 'not_required', 'declined'].includes(String(item.signature_status || '').toLowerCase())).length,
     '/admin/maintenance': (maintenanceResult.data || []).filter((item: any) => isOpen(item.status)).length,
     '/admin/maintenance/supplies': (supplyResult.data || []).length,
-    '/admin/pump-outs': (pumpResult.data || []).filter(isPumpOutWaitingForService).length,
     '/admin/site-care': (siteCareResult.data || []).length,
   }
 

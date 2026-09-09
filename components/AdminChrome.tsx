@@ -238,7 +238,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
             <Bell size={18} />
             <span>
               <strong>What needs attention?</strong>
-              <small>Supplies, tickets, balances, pump-outs</small>
+              <small>Supplies, tickets, balances, messages</small>
             </span>
             {Number(attentionCounts['/admin/notifications'] || 0) > 0 && <b className="admin-attention-badge">{attentionCounts['/admin/notifications'] > 99 ? '99+' : attentionCounts['/admin/notifications']}</b>}
           </a>

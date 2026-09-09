@@ -55,6 +55,7 @@ import {
   type InvoiceMonthGroup,
 } from '../../lib/invoice-balance'
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
+import { requiresAdminAttention } from '../../lib/admin-notification-types'
 
 type AdminStats = {
   campers: number
@@ -80,11 +81,9 @@ type AdminStats = {
   activeSupplyRequests: number
   activeSiteCare: number
   maintenanceAlerts: number
-  paymentAlerts: number
   documentActions: number
   insuranceMissing: number
   pumpOuts: number
-  pumpOutAlerts: number
   siteServices: number
   messageAlerts: number
   totalUnreadAlerts: number
@@ -92,7 +91,6 @@ type AdminStats = {
   pastDueAmount: number
   dueSoonInvoices: number
   almostDueAmount: number
-  pendingDinnerResponses: number
   nextDinnerGoing: number
   nextDinnerMaybe: number
   nextDinnerGuests: number
@@ -105,7 +103,7 @@ type AdminStats = {
 type CockpitItem = {
   id: string
   href: string
-  type: 'pump' | 'maintenance' | 'supply' | 'site-care' | 'message' | 'billing'
+  type: 'maintenance' | 'supply' | 'site-care' | 'message' | 'billing'
   label: string
   title: string
   detail: string
@@ -138,11 +136,9 @@ const emptyStats: AdminStats = {
   activeSupplyRequests: 0,
   activeSiteCare: 0,
   maintenanceAlerts: 0,
-  paymentAlerts: 0,
   documentActions: 0,
   insuranceMissing: 0,
   pumpOuts: 0,
-  pumpOutAlerts: 0,
   siteServices: 0,
   messageAlerts: 0,
   totalUnreadAlerts: 0,
@@ -150,7 +146,6 @@ const emptyStats: AdminStats = {
   pastDueAmount: 0,
   dueSoonInvoices: 0,
   almostDueAmount: 0,
-  pendingDinnerResponses: 0,
   nextDinnerGoing: 0,
   nextDinnerMaybe: 0,
   nextDinnerGuests: 0,
@@ -336,17 +331,6 @@ export default function AdminPage() {
         tone: request.urgency === 'Urgent' ? 'red' : 'orange',
         createdAt: request.requested_at,
       })),
-      ...pumpOutsNeedingService.map((request: any): CockpitItem => ({
-        id: `pump-${request.id}`,
-        href: '/admin/pump-outs',
-        type: 'pump',
-        label: 'PUMP-OUT REQUEST',
-        title: `Lot ${request.lot_number || 'N/A'} · ${request.camper_name || 'Camper'}`,
-        detail: request.notes || 'Camper requested a sewer pump-out from the portal.',
-        status: 'Needs pumped',
-        tone: 'red',
-        createdAt: request.requested_at,
-      })),
       ...maintenance
         .filter((ticket) => ticket.status !== 'Completed')
         .map((ticket: any): CockpitItem => ({
@@ -431,8 +415,6 @@ export default function AdminPage() {
       activeSupplyRequests: activeSupplyRequests.length,
       activeSiteCare: activeSiteCare.length,
       maintenanceAlerts: notifications.filter((notification) => notification.type === 'maintenance_request').length,
-      paymentAlerts: notifications.filter((notification) => notification.type === 'payment_received').length,
-      pumpOutAlerts: notifications.filter((notification) => notification.type === 'sewer_pump_out').length,
       messageAlerts: unreadMessages.length || notifications.filter((notification) => notification.type === 'direct_message').length,
       documentActions: documents.filter((document) => {
         const status = String(document.signature_status || '').toLowerCase()
@@ -441,12 +423,11 @@ export default function AdminPage() {
       insuranceMissing: campers.filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
       pumpOuts: pumpOutsNeedingService.length,
       siteServices: (siteServiceResult.data || []).filter((charge) => !charge.cancelled_at && !charge.billed_at).length,
-      totalUnreadAlerts: notifications.filter((notification) => notification.type !== 'event_rsvp').length,
+      totalUnreadAlerts: notifications.filter((notification) => notification.type !== 'event_rsvp' && requiresAdminAttention(notification.type)).length,
       pastDueInvoices: pastDueInvoices.length,
       pastDueAmount: pastDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
       dueSoonInvoices: dueSoonInvoices.length,
       almostDueAmount: dueSoonInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
-      pendingDinnerResponses: nextDinner ? Math.max(0, campers.length - nextDinnerSignups.length) : 0,
       nextDinnerGoing: nextDinnerGoing.length,
       nextDinnerMaybe: nextDinnerMaybe.length,
       nextDinnerGuests: nextDinnerGoing.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0),
@@ -462,16 +443,6 @@ export default function AdminPage() {
       ).length,
       billingMonths,
     })
-  }
-
-  async function markAlertsSeen(type: string) {
-    await supabase
-      .from('admin_notifications')
-      .update({ read_at: new Date().toISOString() })
-      .eq('type', type)
-      .is('read_at', null)
-
-    loadStats()
   }
 
   async function handleLogout() {
@@ -589,22 +560,6 @@ export default function AdminPage() {
       count: stats.dueSoonInvoices,
       detail: stats.dueSoonInvoices ? `$${stats.almostDueAmount.toFixed(2)} coming due` : 'Nothing almost due',
       icon: CalendarDays,
-      urgent: false,
-    },
-    {
-      href: '/admin/pump-outs',
-      title: 'Pump-outs to handle',
-      count: stats.pumpOuts,
-      detail: stats.pumpOuts ? 'Still waiting to be pumped' : 'All requested pump-outs are handled',
-      icon: Droplets,
-      urgent: stats.pumpOuts > 0,
-    },
-    {
-      href: '/admin/dinners',
-      title: 'Saturday dinner',
-      count: stats.pendingDinnerResponses,
-      detail: `${stats.nextDinnerGuests} plates · ${stats.nextDinnerDishes} bringing food · ${stats.pendingDinnerResponses} no response`,
-      icon: Soup,
       urgent: false,
     },
     {

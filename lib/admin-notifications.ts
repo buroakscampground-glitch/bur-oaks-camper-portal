@@ -1,4 +1,5 @@
 import { sendOwnerTextAlert } from './owner-alert-sms'
+import { requiresAdminAttention } from './admin-notification-types'
 
 type NotificationInput = {
   type: 'maintenance_request' | 'payment_received' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message' | 'website_waitlist' | 'site_care'
@@ -11,22 +12,26 @@ type NotificationInput = {
 }
 
 export async function createAdminNotification(admin: any, input: NotificationInput) {
-  const { error } = await admin.from('admin_notifications').insert({
-    type: input.type,
-    title: input.title,
-    message: input.message,
-    lot_number: input.lot_number || null,
-    camper_id: input.camper_id || null,
-    source_table: input.source_table || null,
-    source_id: input.source_id || null,
-  })
+  const shouldStoreForAttention = requiresAdminAttention(input.type)
 
-  if (error?.code === '42P01' || error?.code === 'PGRST205') {
-    return { skipped: true, reason: 'admin_notifications table is not installed yet.' }
-  }
+  if (shouldStoreForAttention) {
+    const { error } = await admin.from('admin_notifications').insert({
+      type: input.type,
+      title: input.title,
+      message: input.message,
+      lot_number: input.lot_number || null,
+      camper_id: input.camper_id || null,
+      source_table: input.source_table || null,
+      source_id: input.source_id || null,
+    })
 
-  if (error) {
-    throw error
+    if (error?.code === '42P01' || error?.code === 'PGRST205') {
+      return { skipped: true, reason: 'admin_notifications table is not installed yet.' }
+    }
+
+    if (error) {
+      throw error
+    }
   }
 
   const textAlert = await sendOwnerTextAlert({
@@ -40,5 +45,9 @@ export async function createAdminNotification(admin: any, input: NotificationInp
     return { skipped: true, reason: textError?.message || 'Owner text alert failed.' }
   })
 
-  return { created: true, textAlert }
+  return {
+    created: shouldStoreForAttention,
+    informational: !shouldStoreForAttention,
+    textAlert,
+  }
 }
