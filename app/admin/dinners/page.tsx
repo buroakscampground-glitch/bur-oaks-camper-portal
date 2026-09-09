@@ -130,6 +130,36 @@ export default function AdminDinnersPage() {
         </section>
       )}
 
+      <section className="admin-dinner-season-sides">
+        <div className="admin-dinner-season-sides-heading">
+          <div>
+            <small>ALL MEALS</small>
+            <h2>Side dishes by dinner</h2>
+            <p>Open any meal to see every suggested side and the dishes campers have already chosen.</p>
+          </div>
+          <strong>{saturdayDinners2026.filter((dinner) => !dinner.closed).length} dinners</strong>
+        </div>
+        <div className="admin-dinner-season-sides-list">
+          {saturdayDinners2026.filter((dinner) => !dinner.closed).map((dinner) => {
+            const mealSignups = signups.filter((signup) => signup.dinner_date === dinner.date && signup.attending_status !== 'Not Going')
+            const selectedSides = Array.from(new Set(mealSignups.map((signup) => String(signup.bringing || '').trim()).filter(Boolean)))
+            return (
+              <details key={dinner.id}>
+                <summary>
+                  <span>{dinner.month} {dinner.day}</span>
+                  <strong>{dinner.menu}</strong>
+                  <em>{selectedSides.length} camper dish{selectedSides.length === 1 ? '' : 'es'}</em>
+                </summary>
+                <div>
+                  <p><strong>Suggested sides and supplies:</strong> {dinnerBringSuggestions(dinner.menu).join(', ')}</p>
+                  <p><strong>Camper selections:</strong> {selectedSides.length ? selectedSides.join(', ') : 'Nothing selected yet.'}</p>
+                </div>
+              </details>
+            )
+          })}
+        </div>
+      </section>
+
       <section className="admin-dinner-signup-list">
         {visibleSignups.map((signup) => (
           <article key={signup.id}>

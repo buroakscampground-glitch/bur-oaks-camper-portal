@@ -50,3 +50,12 @@ test('Rachel dinner workspace refreshes responses without a page reload', async 
   assert.match(source, /visibilitychange/)
   assert.match(source, /Live updates are on/)
 })
+
+test('Rachel can review side dishes associated with every dinner', async () => {
+  const source = await readFile(new URL('../app/admin/dinners/page.tsx', import.meta.url), 'utf8')
+  assert.match(source, /ALL MEALS/)
+  assert.match(source, /Side dishes by dinner/)
+  assert.match(source, /Suggested sides and supplies:/)
+  assert.match(source, /Camper selections:/)
+  assert.match(source, /saturdayDinners2026\.filter/)
+})
