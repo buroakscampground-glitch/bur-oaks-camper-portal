@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server'
-import { todayInCentral } from '../../../lib/invoice-texting'
 import { isPumpOutWaitingForService } from '../../../lib/pump-out-status'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
@@ -37,12 +36,11 @@ export async function GET(request: Request) {
   const error = results.find((result) => result.error)?.error
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const today = todayInCentral()
   const notifications = notificationResult.data || []
   const counts: Record<string, number> = {
     '/admin/notifications': notifications.filter((item: any) => item.type !== 'event_rsvp').length,
     '/admin/messages': (messageResult.data || []).length,
-    '/admin/open-balance': (invoiceResult.data || []).filter((item: any) => isOpen(item.status) && item.due_date && item.due_date < today).length,
+    '/admin/open-balance': (invoiceResult.data || []).filter((item: any) => isOpen(item.status)).length,
     '/admin/documents': (documentResult.data || []).filter((item: any) => !['signed', 'not_required', 'declined'].includes(String(item.signature_status || '').toLowerCase())).length,
     '/admin/maintenance': (maintenanceResult.data || []).filter((item: any) => isOpen(item.status)).length,
     '/admin/maintenance/supplies': (supplyResult.data || []).length,

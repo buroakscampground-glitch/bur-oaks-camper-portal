@@ -27,6 +27,7 @@ test('sidebar attention endpoint counts unresolved work by destination page', as
   ]
   destinations.forEach((destination) => assert.match(source, new RegExp(destination.replaceAll('/', '\\/'))))
   assert.match(source, /Cache-Control': 'no-store/)
+  assert.match(source, /'\/admin\/open-balance': \(invoiceResult\.data \|\| \[\]\)\.filter\(\(item: any\) => isOpen\(item\.status\)\)\.length/)
 })
 
 test('handled notifications, opened messages, and birthday greetings refresh badges immediately', async () => {
@@ -43,4 +44,6 @@ test('desktop counts remain visible without requiring hover', async () => {
   assert.doesNotMatch(styles, /admin-sidebar-group a:hover \.admin-attention-badge/)
   assert.doesNotMatch(styles, /admin-sidebar-group a:focus-visible \.admin-attention-badge/)
   assert.doesNotMatch(styles, /admin-sidebar-group a \.admin-attention-badge[\s\S]*?opacity: 0/)
+  assert.equal((styles.match(/^\.admin-attention-badge \{/gm) || []).length, 1)
+  assert.doesNotMatch(styles, /^\.admin-attention-badge \{[^}]*position: absolute/m)
 })
