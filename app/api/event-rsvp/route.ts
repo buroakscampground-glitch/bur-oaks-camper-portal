@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { eventFlyers2026 } from '../../../lib/event-flyers'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
+import { sendStaffWebPush } from '../../../lib/staff-web-push'
 
 export const runtime = 'nodejs'
 
@@ -159,6 +160,15 @@ export async function POST(request: Request) {
     if (error) {
       throw error
     }
+
+    const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'A camper'
+    await sendStaffWebPush(context.admin, {
+      title: 'New event RSVP',
+      body: `${camperName} at Site ${context.camper.lot_number || 'Unknown'} answered ${response} for ${flyer.title}.`,
+      urlByRole: { admin: '/admin/rsvps', event_coordinator: '/community/rsvps' },
+      tag: 'event-rsvp',
+      roles: ['event_coordinator'],
+    }).catch((pushError) => console.error('RSVP app alert failed:', pushError))
 
     const status = await getEventStatus(context, slug)
 

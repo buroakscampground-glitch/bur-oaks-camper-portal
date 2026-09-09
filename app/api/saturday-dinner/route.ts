@@ -3,6 +3,7 @@ import { createAdminNotification } from '../../../lib/admin-notifications'
 import { saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { isUnchangedDinnerSignup } from '../../../lib/saturday-dinner-signup-state'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { sendStaffWebPush } from '../../../lib/staff-web-push'
 
 export const runtime = 'nodejs'
 
@@ -132,6 +133,14 @@ export async function POST(request: Request) {
     source_table: 'saturday_dinner_signups',
     source_id: signup?.id ? String(signup.id) : dinnerDate,
   }).catch((notificationError) => console.error('Dinner notification failed:', notificationError))
+
+  await sendStaffWebPush(context.admin, {
+    title: 'New Saturday dinner response',
+    body: message,
+    urlByRole: { admin: '/admin/dinners', event_coordinator: '/community/dinners' },
+    tag: 'saturday-dinner-response',
+    roles: ['event_coordinator'],
+  }).catch((pushError) => console.error('Dinner app alert failed:', pushError))
 
   return NextResponse.json({
     success: true,

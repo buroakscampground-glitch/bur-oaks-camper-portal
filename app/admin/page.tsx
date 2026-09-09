@@ -47,6 +47,7 @@ import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { isOperationalCamper } from '../../lib/camper-records'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
+import { removeStaffPushFromThisPhone } from '../../lib/staff-push-client'
 import {
   groupInvoicesByDueMonth,
   invoiceRecordedTotal,
@@ -449,6 +450,7 @@ export default function AdminPage() {
   }
 
   async function handleLogout() {
+    await removeStaffPushFromThisPhone()
     await supabase.auth.signOut()
     window.location.href = '/login'
   }
@@ -640,7 +642,7 @@ export default function AdminPage() {
             Open Community <ArrowRight size={17} /> <CommunityUnreadBadge syncHomeScreen={false} />
           </span>
         </a>
-        <AppBadgePermission label="all office alerts" />
+        <AppBadgePermission label="important office alerts" staffBackground />
 
         <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
           <header>

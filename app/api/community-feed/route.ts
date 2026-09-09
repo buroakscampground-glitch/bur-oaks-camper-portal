@@ -6,6 +6,7 @@ import { isOperationalCamper } from '../../../lib/camper-records'
 import { communityActorAuthor, communityVisibleAuthorName, communityVisibleText, OFFICIAL_COMMUNITY_NAME } from '../../../lib/community-branding'
 import { canParticipateInCommunity, canViewCommunity, communityAccessLabel, normalizeCommunityAccess } from '../../../lib/community-access'
 import { communityActivityMessage, communityStaffRecipients, type CommunityActivityKind } from '../../../lib/community-staff-alerts'
+import { sendStaffWebPush } from '../../../lib/staff-web-push'
 import {
   camperCommunityEmails,
   defaultCommunityPreferences,
@@ -77,6 +78,18 @@ async function notifyCommunityStaff({
     console.error('Community staff notifications could not be saved:', notificationError.message)
     return
   }
+
+  await sendStaffWebPush(admin, {
+    title: kind === 'report' ? 'Community report needs review' : 'New Community activity',
+    body: message,
+    urlByRole: {
+      admin: `/admin/community-feed${postId ? `?post=${encodeURIComponent(postId)}` : ''}`,
+      event_coordinator: `/community/feed${postId ? `?post=${encodeURIComponent(postId)}` : ''}`,
+    },
+    tag: kind === 'report' ? 'community-report' : 'community-activity',
+    camperIds: recipients.map((recipient: any) => String(recipient.id)),
+    excludeCamperId: actor?.id ? String(actor.id) : null,
+  }).catch((pushError) => console.error('Community app alert failed:', pushError))
 
   // Routine activity stays visible in the portal and is collected into the
   // evening office summary. A camper report remains immediate so staff can

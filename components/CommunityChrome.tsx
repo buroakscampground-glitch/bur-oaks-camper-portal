@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { syncHomeScreenBadge } from '../lib/home-screen-badge'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
 import { supabase } from '../lib/supabase'
+import { removeStaffPushFromThisPhone } from '../lib/staff-push-client'
 import SeasonalThemeCard from './SeasonalThemeCard'
 
 const links = [
@@ -120,6 +121,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
   }, [pathname])
 
   async function logout() {
+    await removeStaffPushFromThisPhone()
     await supabase.auth.signOut()
     window.location.replace('/login')
   }

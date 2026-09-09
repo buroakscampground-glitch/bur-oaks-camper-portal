@@ -1,5 +1,6 @@
 import { sendOwnerTextAlert } from './owner-alert-sms'
 import { requiresAdminAttention } from './admin-notification-types'
+import { sendStaffWebPush } from './staff-web-push'
 
 type NotificationInput = {
   type: 'maintenance_request' | 'payment_received' | 'payment_problem' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message' | 'website_waitlist' | 'site_care'
@@ -47,9 +48,32 @@ export async function createAdminNotification(admin: any, input: NotificationInp
       })
     : { skipped: true, reason: 'Routine activity is included in the daily office summary.' }
 
+  const destination = input.type === 'direct_message'
+    ? '/admin/messages'
+    : input.type === 'maintenance_request'
+      ? '/admin/maintenance'
+      : input.type === 'site_care'
+        ? '/admin/site-care'
+        : input.type === 'website_waitlist'
+          ? '/admin/waitlist'
+          : '/admin/notifications'
+  const pushAlert = shouldStoreForAttention
+    ? await sendStaffWebPush(admin, {
+        title: input.title,
+        body: input.message.slice(0, 180),
+        urlByRole: { admin: destination, event_coordinator: '/community' },
+        tag: `admin-${input.type}`,
+        roles: ['admin'],
+      }).catch((pushError) => {
+        console.error('Staff app alert failed:', pushError)
+        return { sent: 0, skipped: true }
+      })
+    : { sent: 0, skipped: true, reason: 'Routine activity stays in its normal section.' }
+
   return {
     created: shouldStoreForAttention,
     informational: !shouldStoreForAttention,
     textAlert,
+    pushAlert,
   }
 }

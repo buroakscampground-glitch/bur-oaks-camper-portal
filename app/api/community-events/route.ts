@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { canManageCommunity } from '../../../lib/staff-roles'
+import { sendStaffWebPush } from '../../../lib/staff-web-push'
 
 async function authorized(request: Request) {
   const context = await getAuthenticatedContext(request)
@@ -32,6 +33,13 @@ export async function POST(request: Request) {
   if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(eventDate)) return NextResponse.json({ error: 'Add an event title and valid date.' }, { status: 400 })
   const { error } = await context.admin.from('events').insert({ title, event_date: eventDate, description })
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  await sendStaffWebPush(context.admin, {
+    title: 'Community calendar updated',
+    body: `${title} was added for ${eventDate}.`,
+    urlByRole: { admin: '/admin/events', event_coordinator: '/community/events' },
+    tag: 'community-event',
+    excludeCamperId: String(context.camper.id),
+  }).catch((pushError) => console.error('Event app alert failed:', pushError))
   return NextResponse.json({ success: true })
 }
 

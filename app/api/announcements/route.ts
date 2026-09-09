@@ -8,6 +8,7 @@ import { campgroundUpdateSms } from '../../../lib/sms-segments'
 import { uniqueSmsBroadcastRecipients, validSmsBroadcastRequestId } from '../../../lib/sms-broadcast'
 import { canManageCommunity } from '../../../lib/staff-roles'
 import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
+import { sendStaffWebPush } from '../../../lib/staff-web-push'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -108,6 +109,14 @@ export async function POST(request: Request) {
   if (insertError || !announcement) {
     return NextResponse.json({ error: insertError?.message || 'Unable to post this announcement.' }, { status: 500 })
   }
+
+  await sendStaffWebPush(context.admin, {
+    title: 'Community announcement posted',
+    body: title,
+    urlByRole: { admin: '/admin/announcements', event_coordinator: '/community/announcements' },
+    tag: 'community-announcement',
+    excludeCamperId: String(context.camper.id),
+  }).catch((pushError) => console.error('Announcement app alert failed:', pushError))
 
   if (!sendText) {
     return NextResponse.json({ success: true, announcement, textStatus: 'not_requested' })
