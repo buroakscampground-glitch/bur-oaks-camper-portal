@@ -43,14 +43,15 @@ export async function GET(request: Request) {
     '/admin/notifications': notifications.filter((item: any) => item.type !== 'event_rsvp' && requiresAdminAttention(item.type)).length,
     '/admin/messages': (messageResult.data || []).length,
     '/admin/open-balance': (invoiceResult.data || []).filter((item: any) => isOpen(item.status)).length,
-    '/admin/documents': (documentResult.data || []).filter((item: any) => !['signed', 'not_required', 'declined'].includes(String(item.signature_status || '').toLowerCase())).length,
+    // Unsigned documents stay prominent on the admin dashboard, but they are
+    // camper action items and should not create an admin badge.
+    '/admin/documents': 0,
     '/admin/maintenance': (maintenanceResult.data || []).filter((item: any) => isOpen(item.status)).length,
     '/admin/maintenance/supplies': (supplyResult.data || []).length,
     '/admin/site-care': (siteCareResult.data || []).length,
   }
   const appBadgeCount = standaloneNotifications
     + counts['/admin/messages']
-    + counts['/admin/documents']
     + counts['/admin/maintenance']
     + counts['/admin/maintenance/supplies']
     + counts['/admin/site-care']
