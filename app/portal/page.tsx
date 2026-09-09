@@ -34,6 +34,7 @@ import {
   X,
   Zap,
 } from 'lucide-react'
+import CommunityHomeCard from '../../components/CommunityHomeCard'
 import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
@@ -1348,6 +1349,7 @@ export default function CamperPortalPage() {
               <strong>{unreadOfficeMessages > 0 ? `${unreadOfficeMessages} unread` : 'Contact office'}</strong>
             </span>
           </a>
+          <CommunityHomeCard />
           <a className="portal-dinner-action" href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>
             <Soup size={20} />
             <span>

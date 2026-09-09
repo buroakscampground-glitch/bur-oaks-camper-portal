@@ -79,6 +79,7 @@ const pageNames: Record<string, string> = {
   renewals: 'Season Renewal Forecast',
   'site-availability': 'Site Availability',
   'system-health': 'System Health & Search',
+  'community-feed': 'Community Feed',
 }
 
 const navGroups = [
@@ -132,6 +133,7 @@ const navGroups = [
   {
     label: 'Community',
     links: [
+      { href: '/admin/community-feed', label: 'Community Feed', icon: Users },
       { href: '/admin/dinners', label: 'Saturday Dinners', icon: Utensils },
       { href: '/admin/events', label: 'Events', icon: CalendarDays },
       { href: '/admin/birthdays', label: 'Birthday Office', icon: CakeSlice },

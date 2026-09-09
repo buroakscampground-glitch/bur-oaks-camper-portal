@@ -20,8 +20,9 @@ import {
   Zap,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
+import { supabase } from '../lib/supabase'
 import OfficeChatLauncher from './OfficeChatLauncher'
 import SeasonalThemeCard from './SeasonalThemeCard'
 
@@ -30,6 +31,7 @@ const camperPages: Record<string, string> = {
   '/invoices': 'Invoices & AutoPay',
   '/profile': 'Camper Profile',
   '/messages': 'Chat with the Office',
+  '/campground-community': 'Campground Community',
   '/updates': 'Campground Updates',
   '/documents': 'My Documents',
   '/electric': 'Electric Usage',
@@ -46,6 +48,7 @@ const camperNav = [
   { href: '/portal', label: 'Portal Home', note: 'Weekend snapshot', icon: Home },
   { href: '/invoices', label: 'Invoices', note: 'Pay or AutoPay', icon: ReceiptText },
   { href: '/messages', label: 'Chat with the Office', note: 'Private messages', icon: MessageCircle },
+  { href: '/campground-community', label: 'Community', note: 'Campground conversations', icon: UsersRound },
   { href: '/updates', label: 'Updates & Notices', note: 'Official bulletin board', icon: Megaphone },
   { href: '/maintenance', label: 'Maintenance', note: 'Requests & status', icon: Wrench },
   { href: '/documents', label: 'Documents', note: 'Leases & files', icon: FileText },
@@ -65,8 +68,21 @@ function isActiveLink(pathname: string, href: string) {
 export default function CamperChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [communityUnread, setCommunityUnread] = useState(0)
   const title = camperPages[pathname]
   const theme = getSeasonalTheme()
+
+  useEffect(() => {
+    async function loadCommunityBadge() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) return
+      const response = await fetch('/api/community-feed?mode=summary', { headers: { Authorization: `Bearer ${session.access_token}` } })
+      if (!response.ok) return
+      const result = await response.json().catch(() => ({}))
+      setCommunityUnread(Number(result.unreadCount || 0) + Number(result.directCount || 0))
+    }
+    loadCommunityBadge()
+  }, [pathname])
 
   if (!title) return <>{children}</>
 
@@ -120,6 +136,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
                     <strong>{link.label}</strong>
                     <small>{link.note}</small>
                   </span>
+                  {link.href === '/campground-community' && communityUnread > 0 && <b className="camper-community-badge">{communityUnread > 99 ? '99+' : communityUnread}</b>}
                 </a>
               )
             })}

@@ -1,6 +1,7 @@
 const camperPaths = [
   '/portal',
   '/messages',
+  '/campground-community',
   '/invoices',
   '/documents',
   '/calendar',
