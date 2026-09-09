@@ -33,6 +33,10 @@ export function canAdministerCommunity(role: unknown) {
   return canManageCommunity(role)
 }
 
+export function canPublishOfficialCommunityPosts(role: unknown) {
+  return isAdminRole(role)
+}
+
 export function portalDestinationForRole(role: unknown) {
   const normalized = normalizedPortalRole(role)
   if (normalized === 'admin') return '/admin'

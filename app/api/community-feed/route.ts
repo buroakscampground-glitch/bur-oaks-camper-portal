@@ -1,8 +1,9 @@
 import { after, NextResponse } from 'next/server'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
-import { canAdministerCommunity, canManageCommunity, effectivePortalRole } from '../../../lib/staff-roles'
+import { canAdministerCommunity, canManageCommunity, canPublishOfficialCommunityPosts, effectivePortalRole } from '../../../lib/staff-roles'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import { communityActorAuthor, OFFICIAL_COMMUNITY_NAME } from '../../../lib/community-branding'
 import { canParticipateInCommunity, canViewCommunity, communityAccessLabel, normalizeCommunityAccess } from '../../../lib/community-access'
 import { communityActivityMessage, communityStaffRecipients, type CommunityActivityKind } from '../../../lib/community-staff-alerts'
 import {
@@ -128,7 +129,7 @@ export async function GET(request: Request) {
       unreadCount: 0,
       directCount: 0,
       reason: memberControl?.reason || 'The office has paused this account’s Community access.',
-      viewer: { id: camperId, name: camperName(context.camper), lotNumber: context.camper.lot_number || '', canManage: false, canDelete: false, accessLevel },
+      viewer: { id: camperId, name: camperName(context.camper), postingName: communityActorAuthor(context.camper), lotNumber: context.camper.lot_number || '', canManage: false, canDelete: false, canPostOfficial: false, accessLevel },
     })
   }
 
@@ -216,9 +217,11 @@ export async function GET(request: Request) {
     viewer: {
       id: camperId,
       name: camperName(context.camper),
+      postingName: communityActorAuthor(context.camper),
       lotNumber: context.camper.lot_number || '',
       canManage: isManager,
       canDelete: isCommunityAdmin,
+      canPostOfficial: canPublishOfficialCommunityPosts(context.camper.role),
       accessLevel,
       canParticipate: canParticipateInCommunity(accessLevel),
     },
@@ -236,6 +239,7 @@ export async function POST(request: Request) {
   const camperId = String(context.camper.id)
   const isManager = canManageCommunity(context.camper.role)
   const isCommunityAdmin = canAdministerCommunity(context.camper.role)
+  const canPostOfficial = canPublishOfficialCommunityPosts(context.camper.role)
   const { data: memberControl, error: controlError } = await context.admin.from('community_member_controls').select('access_level,reason').eq('camper_id', camperId).maybeSingle()
   if (controlError) return NextResponse.json({ error: controlError.message }, { status: 500 })
   const accessLevel = isManager ? 'active' : normalizeCommunityAccess(memberControl?.access_level)
@@ -254,11 +258,11 @@ export async function POST(request: Request) {
     }
     const { data: post, error } = await context.admin.from('community_posts').insert({
       camper_id: camperId,
-      author_name: isCommunityAdmin ? 'Bur Oaks Campground' : camperName(context.camper),
-      lot_number: isCommunityAdmin ? null : context.camper.lot_number || null,
+      author_name: canPostOfficial ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper),
+      lot_number: isManager ? null : context.camper.lot_number || null,
       body: text || 'Shared a campground photo.',
       photo_path: photoPath,
-      is_official: isCommunityAdmin || (isManager && body.isOfficial === true),
+      is_official: canPostOfficial,
       comments_enabled: body.commentsEnabled !== false,
       request_id: requestId,
     }).select('*').single()
@@ -319,12 +323,12 @@ export async function POST(request: Request) {
     if (!postId || !text) return NextResponse.json({ error: 'Write a comment first.' }, { status: 400 })
     const { data: post, error: postError } = await context.admin.from('community_posts').select('*').eq('id', postId).maybeSingle()
     if (postError || !post || !published(post) || !post.comments_enabled) return NextResponse.json({ error: 'Comments are not available on this post.' }, { status: 400 })
-    const replyAuthor = isCommunityAdmin ? 'Bur Oaks Campground' : camperName(context.camper)
+    const replyAuthor = canPostOfficial ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper)
     const { data: comment, error } = await context.admin.from('community_comments').insert({
       post_id: postId,
       camper_id: camperId,
       author_name: replyAuthor,
-      lot_number: isCommunityAdmin ? null : context.camper.lot_number || null,
+      lot_number: isManager ? null : context.camper.lot_number || null,
       body: text,
     }).select('*').single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -108,12 +108,12 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         if (!response.ok) throw new Error(result.error || 'The photo could not be uploaded.')
         photoPath = result.path
       }
-      await communityAction({ action: 'create_post', requestId: postRequestId.current, body: draft, photoPath, isOfficial: adminMode, commentsEnabled })
+      await communityAction({ action: 'create_post', requestId: postRequestId.current, body: draft, photoPath, commentsEnabled })
       setDraft('')
       postRequestId.current = ''
       choosePhoto()
       setShowComposer(false)
-      setNotice(adminMode ? 'The official Bur Oaks Community post is live.' : 'Your post is now in the Community.')
+      setNotice(viewer?.canPostOfficial ? 'The official Bur Oaks Community post is live.' : `${viewer?.postingName || 'Your'} post is now in the Community.`)
       await loadFeed(true)
     } catch (error: any) {
       setNotice(error.message)
@@ -221,7 +221,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         <div>
           <span>{adminMode ? 'COMMUNITY MODERATION' : 'BUR OAKS COMMUNITY'}</span>
           <h1>{adminMode ? 'Keep campground conversation friendly and useful.' : 'The campground conversation, all in one calm place.'}</h1>
-          <p>{adminMode ? 'Post official news, join conversations, and review anything campers report.' : 'Share updates, photos, questions, and friendly conversation with your Bur Oaks neighbors.'}</p>
+          <p>{adminMode ? viewer?.canPostOfficial ? 'Post official news, join conversations, and review anything campers report.' : `Post as ${viewer?.postingName || 'yourself'}, join conversations, and use the same Community moderation controls as the office.` : 'Share updates, photos, questions, and friendly conversation with your Bur Oaks neighbors.'}</p>
         </div>
         <button className="campground-community-settings" type="button" onClick={() => setShowSettings(true)}><Bell size={18} /> Alerts</button>
       </section>
@@ -280,7 +280,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         <div className="campground-community-feed">
           <button className="campground-community-compose-open" type="button" onClick={() => setShowComposer(true)}>
             <span>{String(viewer?.name || 'You').split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>
-            <strong>{adminMode ? 'Share an official update or join the conversation…' : 'Share something with the campground…'}</strong>
+            <strong>{adminMode ? viewer?.canPostOfficial ? 'Share an official update or join the conversation…' : `Share as ${viewer?.postingName || 'yourself'} or join the conversation…` : 'Share something with the campground…'}</strong>
             <Camera size={19} />
           </button>
 
@@ -328,14 +328,14 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       {showComposer && (
         <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create Community post">
           <section className="campground-community-modal">
-            <header><div><small>{adminMode ? 'OFFICIAL BUR OAKS POST' : 'NEW COMMUNITY POST'}</small><h2>Create a post</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
+            <header><div><small>{viewer?.canPostOfficial ? 'OFFICIAL BUR OAKS POST' : adminMode ? `${viewer?.postingName || 'STAFF'} COMMUNITY POST` : 'NEW COMMUNITY POST'}</small><h2>Create a post</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
             <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={6} maxLength={2000} placeholder="What would you like the campground to know?" autoFocus />
             {photoPreview && <div className="campground-community-photo-preview"><img src={photoPreview} alt="Selected upload preview" /><button type="button" onClick={() => choosePhoto()}><X size={16} /> Remove</button></div>}
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => choosePhoto(event.target.files?.[0])} />
             <div className="campground-community-compose-options">
               <button type="button" onClick={() => fileRef.current?.click()}><ImageIcon size={17} /> Add photo</button>
               <label><input type="checkbox" checked={commentsEnabled} onChange={(event) => setCommentsEnabled(event.target.checked)} /> Allow comments</label>
-              {adminMode && <span className="campground-community-official-compose-note"><ShieldCheck size={17} /> Campers will see this from Bur Oaks Campground</span>}
+              {adminMode && <span className="campground-community-official-compose-note"><ShieldCheck size={17} /> Campers will see this from {viewer?.canPostOfficial ? 'Bur Oaks Campground as an official post' : viewer?.postingName || 'this staff account'}</span>}
             </div>
             <button className="campground-community-primary" type="button" onClick={publishPost} disabled={working === 'post' || (!draft.trim() && !photo)}>{working === 'post' ? 'Posting…' : 'Post to the Community'}</button>
           </section>
