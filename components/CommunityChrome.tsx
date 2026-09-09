@@ -4,7 +4,9 @@ import { CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, 
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { syncHomeScreenBadge } from '../lib/home-screen-badge'
+import { getSeasonalTheme } from '../lib/seasonal-theme'
 import { supabase } from '../lib/supabase'
+import SeasonalThemeCard from './SeasonalThemeCard'
 
 const links = [
   { href: '/community', label: 'Community Home', icon: Home, countKey: 'total' },
@@ -36,6 +38,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [counts, setCounts] = useState<CommunityCounts>(emptyCounts)
+  const theme = getSeasonalTheme()
 
   useEffect(() => {
     let activeRequest = true
@@ -86,7 +89,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="community-workspace">
+    <div className={`community-workspace seasonal-theme seasonal-theme-${theme.key}`}>
       <aside className="community-sidebar" aria-label="Event coordinator navigation">
         <div className="community-sidebar-head">
           <a href="/community"><img src="/bur-oaks-logo.png" alt="" /><span><strong>Bur Oaks</strong><small>Community Center</small></span></a>
@@ -95,6 +98,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
           </button>
         </div>
         <div className="community-role-card"><Sparkles size={20} /><span><strong>Event Coordinator</strong><small>Community tools only</small></span></div>
+        <SeasonalThemeCard theme={theme} />
         <nav className={menuOpen ? 'open' : ''}>
           {links.map((link) => {
             const Icon = link.icon

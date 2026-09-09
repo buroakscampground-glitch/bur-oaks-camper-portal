@@ -5151,22 +5151,26 @@ button:hover {
   white-space: nowrap;
 }
 
-.admin-sidebar .seasonal-theme-card {
+.admin-sidebar .seasonal-theme-card,
+.community-sidebar .seasonal-theme-card {
   border-color: color-mix(in srgb, var(--season-accent) 28%, transparent);
   background: linear-gradient(135deg, rgba(255,255,255,.13), rgba(255,255,255,.05));
   color: #fff;
 }
 
-.admin-sidebar .seasonal-theme-card>span {
+.admin-sidebar .seasonal-theme-card>span,
+.community-sidebar .seasonal-theme-card>span {
   background: color-mix(in srgb, var(--season-accent) 24%, transparent);
   color: var(--season-accent);
 }
 
-.admin-sidebar .seasonal-theme-card small {
+.admin-sidebar .seasonal-theme-card small,
+.community-sidebar .seasonal-theme-card small {
   color: rgba(255,255,255,.62);
 }
 
-.admin-sidebar .seasonal-theme-card::after {
+.admin-sidebar .seasonal-theme-card::after,
+.community-sidebar .seasonal-theme-card::after {
   color: color-mix(in srgb, var(--season-accent) 88%, #fff);
 }
 
