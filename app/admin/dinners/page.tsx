@@ -151,7 +151,7 @@ export default function AdminDinnersPage() {
                   <em>{selectedSides.length} camper dish{selectedSides.length === 1 ? '' : 'es'}</em>
                 </summary>
                 <div>
-                  <p><strong>Suggested sides and supplies:</strong> {dinnerBringSuggestions(dinner.menu).join(', ')}</p>
+                  <p><strong>Suggested side dishes:</strong> {dinnerBringSuggestions(dinner.menu).join(', ')}</p>
                   <p><strong>Camper selections:</strong> {selectedSides.length ? selectedSides.join(', ') : 'Nothing selected yet.'}</p>
                 </div>
               </details>

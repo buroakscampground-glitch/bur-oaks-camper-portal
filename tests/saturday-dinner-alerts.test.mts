@@ -55,7 +55,17 @@ test('Rachel can review side dishes associated with every dinner', async () => {
   const source = await readFile(new URL('../app/admin/dinners/page.tsx', import.meta.url), 'utf8')
   assert.match(source, /ALL MEALS/)
   assert.match(source, /Side dishes by dinner/)
-  assert.match(source, /Suggested sides and supplies:/)
+  assert.match(source, /Suggested side dishes:/)
   assert.match(source, /Camper selections:/)
   assert.match(source, /saturdayDinners2026\.filter/)
+})
+
+test('dinner bring choices contain food only and never include ice', async () => {
+  const { dinnerBringSuggestions } = await import('../lib/saturday-dinners.ts')
+  const menus = ['Burger Bar', 'Lasagna', 'Crock Pot Night', 'Jambalaya', 'Fish Fry', 'Chili']
+  const excluded = ['Drinks', 'Ice', 'Paper plates', 'Napkins', 'Plastic silverware', 'Cups', 'Paper bowls', 'Spoons']
+  menus.forEach((menu) => {
+    const choices = dinnerBringSuggestions(menu)
+    excluded.forEach((item) => assert.equal(choices.includes(item), false, `${menu} should not offer ${item}`))
+  })
 })
