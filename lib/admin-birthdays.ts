@@ -23,7 +23,7 @@ function dayNumber(year: number, month: number, day: number) {
 export function birthdayOccurrence(
   value: unknown,
   today: CentralDay,
-  range = { pastDays: 30, futureDays: 45 }
+  range = { pastDays: 3, futureDays: 45 }
 ) {
   const birthday = parseBirthday(value)
   if (!birthday) return null

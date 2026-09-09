@@ -140,7 +140,7 @@ export default function AdminBirthdaysPage() {
 
   const groups = [
     { key: 'today', eyebrow: 'CELEBRATE TODAY', title: 'Today’s birthdays', note: 'These should feel special today.', icon: PartyPopper },
-    { key: 'missed', eyebrow: 'CATCH UP', title: 'Recently missed', note: 'The last 30 days, so nobody quietly slips through.', icon: Clock3 },
+    { key: 'missed', eyebrow: 'CATCH UP', title: 'Recently missed', note: 'Birthdays stay here for three days, then return next year.', icon: Clock3 },
     { key: 'upcoming', eyebrow: 'PLAN AHEAD', title: 'Coming up', note: 'The next 45 days—plenty of time for a card, post, or campground surprise.', icon: CalendarDays },
   ] as const
 

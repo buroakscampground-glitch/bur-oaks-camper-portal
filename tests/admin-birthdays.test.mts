@@ -10,6 +10,12 @@ test('birthday office window includes missed, today, and upcoming birthdays', ()
   assert.equal(birthdayOccurrence('1980-06-15', today), null)
 })
 
+test('a passed birthday disappears after three days until next year', () => {
+  const today = { year: 2026, month: 9, day: 5 }
+  assert.equal(birthdayOccurrence('1980-09-02', today)?.offsetDays, -3)
+  assert.equal(birthdayOccurrence('1980-09-01', today), null)
+})
+
 test('birthday office window crosses the new year and handles leap birthdays', () => {
   assert.deepEqual(
     birthdayOccurrence('1980-01-03', { year: 2026, month: 12, day: 31 })?.iso,

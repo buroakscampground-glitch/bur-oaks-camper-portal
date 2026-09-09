@@ -157,10 +157,10 @@ export async function POST(request: Request) {
     if (!camper || !isOperationalCamper(camper)) return NextResponse.json({ error: 'Camper not found.' }, { status: 404 })
     const today = centralDate()
     const birthdayValue = profile === 'secondary' ? camper.second_profile_birthday : camper.birthday
-    const occurrence = birthdayOccurrence(birthdayValue, today, { pastDays: 30, futureDays: 0 })
+    const occurrence = birthdayOccurrence(birthdayValue, today, { pastDays: 3, futureDays: 0 })
     const name = profileName(camper, profile)
     if (!occurrence || !name) {
-      return NextResponse.json({ error: 'This birthday is not today or within the last 30 days.' }, { status: 400 })
+      return NextResponse.json({ error: 'This birthday is not today or within the last 3 days.' }, { status: 400 })
     }
 
     const delivery = await sendCamperCelebration({

@@ -35,3 +35,11 @@ test('the dinner form politely explains one RSVP and a total head count', async 
   assert.match(source, /Please enter your total head count below/)
   assert.doesNotMatch(source, /Do not submit/)
 })
+
+test('Rachel dinner workspace shows every bring option and camper selection', async () => {
+  const source = await readFile(new URL('../app/admin/dinners/page.tsx', import.meta.url), 'utf8')
+  assert.match(source, /dinnerBringSuggestions/)
+  assert.match(source, /AVAILABLE CHOICES/)
+  assert.match(source, /who selected it/)
+  assert.match(source, /CAMPER ADDED/)
+})

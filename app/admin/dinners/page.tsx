@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Search, Soup, UsersRound } from 'lucide-react'
-import { saturdayDinners2026 } from '../../../lib/saturday-dinners'
+import { dinnerBringSuggestions, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { supabase } from '../../../lib/supabase'
 
 export default function AdminDinnersPage() {
@@ -42,6 +42,15 @@ export default function AdminDinnersPage() {
   const going = dinnerSignups.filter((signup) => signup.attending_status === 'Going')
   const maybe = dinnerSignups.filter((signup) => signup.attending_status === 'Maybe')
   const totalGuests = going.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0)
+  const activeSignups = dinnerSignups.filter((signup) => signup.attending_status !== 'Not Going')
+  const suggestedBringItems = dinnerBringSuggestions(selectedDinner?.menu || '')
+  const bringOptions = [
+    ...suggestedBringItems.map((label) => ({ label, custom: false })),
+    ...Array.from(new Set(activeSignups
+      .map((signup) => String(signup.bringing || '').trim())
+      .filter((item) => item && !suggestedBringItems.some((suggestion) => suggestion.toLowerCase() === item.toLowerCase()))))
+      .map((label) => ({ label, custom: true })),
+  ]
 
   return (
     <main className="admin-dinners-page">
@@ -77,6 +86,31 @@ export default function AdminDinnersPage() {
             <small>{selectedDinner.month} {selectedDinner.day} · 6:00 PM</small>
             <h2>{selectedDinner.menu}</h2>
             {selectedDinner.theme && <p>{selectedDinner.theme}</p>}
+          </div>
+        </section>
+      )}
+
+      {selectedDinner && (
+        <section className="saturday-dinner-bringing-board">
+          <div>
+            <small>AVAILABLE CHOICES</small>
+            <h3>What campers can bring</h3>
+            <p>Rachel and the office can see every suggested choice, who selected it, and any custom item a camper added.</p>
+          </div>
+          <div className="saturday-dinner-bringing-list">
+            {bringOptions.map((option) => {
+              const selectedBy = activeSignups.filter((signup) => String(signup.bringing || '').trim().toLowerCase() === option.label.toLowerCase())
+              return (
+                <article key={`${option.custom ? 'custom' : 'suggested'}:${option.label}`}>
+                  <span>{option.custom ? 'CAMPER ADDED' : selectedBy.length ? 'SELECTED' : 'AVAILABLE'}</span>
+                  <strong>{option.label}</strong>
+                  <p>{selectedBy.length
+                    ? selectedBy.map((signup) => `${signup.camper_name} · Lot ${signup.lot_number || 'N/A'}`).join(', ')
+                    : 'No one has selected this yet.'}</p>
+                  {selectedBy.length > 0 && <em>{selectedBy.length} campsite{selectedBy.length === 1 ? '' : 's'}</em>}
+                </article>
+              )
+            })}
           </div>
         </section>
       )}
