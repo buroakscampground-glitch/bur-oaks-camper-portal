@@ -35,6 +35,8 @@ import {
   Zap,
 } from 'lucide-react'
 import CommunityHomeCard from '../../components/CommunityHomeCard'
+import AppBadgePermission from '../../components/AppBadgePermission'
+import CommunityUnreadBadge from '../../components/CommunityUnreadBadge'
 import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
@@ -1080,8 +1082,9 @@ export default function CamperPortalPage() {
             <strong>See what everyone is talking about</strong>
             <em>Read campground posts, join a conversation, or share an update.</em>
           </span>
-          <b>Open Community <ArrowRight size={17} /></b>
+          <span className="portal-community-home-cta">Open Community <ArrowRight size={17} /> <CommunityUnreadBadge /></span>
         </a>
+        <AppBadgePermission />
 
         {urgentAnnouncement && (
           <a className="portal-urgent-announcement" href="/updates" aria-label={`Urgent campground announcement: ${urgentAnnouncement.title}`}>

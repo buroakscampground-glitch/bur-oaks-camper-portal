@@ -20,9 +20,9 @@ import {
   Zap,
 } from 'lucide-react'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
-import { supabase } from '../lib/supabase'
+import CommunityUnreadBadge from './CommunityUnreadBadge'
 import OfficeChatLauncher from './OfficeChatLauncher'
 import SeasonalThemeCard from './SeasonalThemeCard'
 
@@ -68,21 +68,8 @@ function isActiveLink(pathname: string, href: string) {
 export default function CamperChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [communityUnread, setCommunityUnread] = useState(0)
   const title = camperPages[pathname]
   const theme = getSeasonalTheme()
-
-  useEffect(() => {
-    async function loadCommunityBadge() {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session?.access_token) return
-      const response = await fetch('/api/community-feed?mode=summary', { headers: { Authorization: `Bearer ${session.access_token}` } })
-      if (!response.ok) return
-      const result = await response.json().catch(() => ({}))
-      setCommunityUnread(Number(result.unreadCount || 0) + Number(result.directCount || 0))
-    }
-    loadCommunityBadge()
-  }, [pathname])
 
   if (!title) return <>{children}</>
 
@@ -136,7 +123,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
                     <strong>{link.label}</strong>
                     <small>{link.note}</small>
                   </span>
-                  {link.href === '/campground-community' && communityUnread > 0 && <b className="camper-community-badge">{communityUnread > 99 ? '99+' : communityUnread}</b>}
+                  {link.href === '/campground-community' && <CommunityUnreadBadge />}
                 </a>
               )
             })}
