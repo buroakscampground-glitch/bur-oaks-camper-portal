@@ -15,15 +15,9 @@ export default function CamperAttentionBadge() {
       if (!session?.access_token) return
 
       const headers = { Authorization: `Bearer ${session.access_token}` }
-      const [portalResponse, communityResponse] = await Promise.all([
-        fetch('/api/camper-attention-summary', { headers }),
-        fetch('/api/community-feed?mode=summary', { headers }),
-      ])
+      const portalResponse = await fetch('/api/camper-attention-summary', { headers })
       const portal = await portalResponse.json().catch(() => ({}))
-      const community = await communityResponse.json().catch(() => ({}))
-      const nextCount =
-        (portalResponse.ok ? Number(portal.count || 0) : 0) +
-        (communityResponse.ok ? Number(community.unreadCount || 0) + Number(community.directCount || 0) : 0)
+      const nextCount = portalResponse.ok ? Number(portal.count || 0) : 0
 
       if (active) {
         setCount(nextCount)
@@ -37,7 +31,6 @@ export default function CamperAttentionBadge() {
       if (document.visibilityState === 'visible') load()
     }
     window.addEventListener('portal-attention-changed', load)
-    window.addEventListener('community-unread-changed', load)
     window.addEventListener('focus', load)
     window.addEventListener('online', load)
     window.addEventListener('pageshow', load)
@@ -47,7 +40,6 @@ export default function CamperAttentionBadge() {
       active = false
       window.clearInterval(interval)
       window.removeEventListener('portal-attention-changed', load)
-      window.removeEventListener('community-unread-changed', load)
       window.removeEventListener('focus', load)
       window.removeEventListener('online', load)
       window.removeEventListener('pageshow', load)
