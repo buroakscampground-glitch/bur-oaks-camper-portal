@@ -29,7 +29,7 @@ export async function alertStripePayoutProblem({
   const message = `${failure} Open Stripe deposits and correct the bank payout before relying on this money as deposited.`
 
   await createAdminNotification(admin, {
-    type: 'payment_received',
+    type: 'payment_problem',
     title,
     message,
     source_table: 'stripe_payouts',

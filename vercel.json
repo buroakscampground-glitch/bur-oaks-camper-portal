@@ -9,6 +9,14 @@
       "schedule": "0 0 * * *"
     },
     {
+      "path": "/api/cron/daily-office-summary",
+      "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/cron/daily-office-summary",
+      "schedule": "0 0 * * *"
+    },
+    {
       "path": "/api/cron/expire-announcements",
       "schedule": "10 11 * * *"
     },
@@ -25,11 +33,11 @@
       "schedule": "1 5 * * *"
     },
     {
-      "path": "/api/cron/monday-pump-out-list",
+      "path": "/api/cron/daily-morning-operations",
       "schedule": "0 12 * * *"
     },
     {
-      "path": "/api/cron/monday-pump-out-list-retry",
+      "path": "/api/cron/daily-morning-operations",
       "schedule": "0 13 * * *"
     },
     {
@@ -39,18 +47,6 @@
     {
       "path": "/api/cron/daily-maintenance-work-orders-retry",
       "schedule": "0 13 * * *"
-    },
-    {
-      "path": "/api/cron/daily-payment-report",
-      "schedule": "15 12 * * *"
-    },
-    {
-      "path": "/api/cron/daily-payment-report-retry",
-      "schedule": "15 13 * * *"
-    },
-    {
-      "path": "/api/cron/daily-payment-report-retry-late",
-      "schedule": "15 14 * * *"
     },
     {
       "path": "/api/cron/stripe-payout-reconciliation",

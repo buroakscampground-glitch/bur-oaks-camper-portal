@@ -1,5 +1,4 @@
 import { createAdminNotification } from './admin-notifications'
-import { sendAdminAlertEmail } from './admin-alert-email'
 
 type PaymentAlertInput = {
   admin: any
@@ -10,24 +9,12 @@ type PaymentAlertInput = {
   origin?: string | null
 }
 
-function paymentAlertRecipients() {
-  const raw =
-    process.env.PAYMENT_ALERT_EMAILS ||
-    'buroakscampground@gmail.com,dlfinlee@gmail.com'
-
-  return raw
-    .split(',')
-    .map((email) => email.trim())
-    .filter(Boolean)
-}
-
 export async function sendPaymentReceivedAlert({
   admin,
   invoiceIds,
   camperId,
   amountPaid,
   paymentType,
-  origin,
 }: PaymentAlertInput) {
   const { data: camper } = camperId
     ? await admin
@@ -60,35 +47,8 @@ export async function sendPaymentReceivedAlert({
     source_id: invoiceIds.join(','),
   }).catch((error) => console.error('Admin payment notification failed:', error))
 
-  let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
-  let emailMessage = ''
-
-  try {
-    const emailResult = await sendAdminAlertEmail({
-      subject: title,
-      heading: title,
-      message,
-      details: [
-        { label: 'Site', value: lotNumber },
-        { label: 'Camper', value: camperName },
-        { label: 'Amount', value: `$${amountPaid.toFixed(2)}` },
-        { label: 'Invoices', value: String(invoiceIds.length) },
-        { label: 'Payment type', value: paymentType },
-      ],
-      actionUrl: `${origin || process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com'}/admin/invoices`,
-      actionLabel: 'View invoices',
-      recipients: paymentAlertRecipients(),
-    })
-
-    if ((emailResult as any)?.skipped) {
-      emailStatus = 'skipped'
-      emailMessage = (emailResult as any)?.reason || 'Email alert is not configured.'
-    }
-  } catch (error: any) {
-    emailStatus = 'failed'
-    emailMessage = error?.message || 'Admin payment alert email failed.'
-    console.error('Admin payment alert email failed:', error)
+  return {
+    emailStatus: 'daily_summary' as const,
+    emailMessage: 'Payment received activity is included in the daily office summary.',
   }
-
-  return { emailStatus, emailMessage }
 }

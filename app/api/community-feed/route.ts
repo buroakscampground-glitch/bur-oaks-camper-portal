@@ -78,6 +78,11 @@ async function notifyCommunityStaff({
     return
   }
 
+  // Routine activity stays visible in the portal and is collected into the
+  // evening office summary. A camper report remains immediate so staff can
+  // respond quickly to content that may need moderation.
+  if (kind !== 'report') return
+
   after(async () => {
     const emailed = new Set<string>()
     for (const notification of notifications || []) {

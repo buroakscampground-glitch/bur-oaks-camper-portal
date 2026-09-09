@@ -2,7 +2,7 @@ import { sendOwnerTextAlert } from './owner-alert-sms'
 import { requiresAdminAttention } from './admin-notification-types'
 
 type NotificationInput = {
-  type: 'maintenance_request' | 'payment_received' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message' | 'website_waitlist' | 'site_care'
+  type: 'maintenance_request' | 'payment_received' | 'payment_problem' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message' | 'website_waitlist' | 'site_care'
   title: string
   message: string
   lot_number?: string | null
@@ -34,16 +34,18 @@ export async function createAdminNotification(admin: any, input: NotificationInp
     }
   }
 
-  const textAlert = await sendOwnerTextAlert({
-    type: input.type,
-    title: input.title,
-    message: input.message,
-    lotNumber: input.lot_number,
-    camperId: input.camper_id,
-  }).catch((textError) => {
-    console.error('Owner text alert failed:', textError)
-    return { skipped: true, reason: textError?.message || 'Owner text alert failed.' }
-  })
+  const textAlert = shouldStoreForAttention
+    ? await sendOwnerTextAlert({
+        type: input.type,
+        title: input.title,
+        message: input.message,
+        lotNumber: input.lot_number,
+        camperId: input.camper_id,
+      }).catch((textError) => {
+        console.error('Owner text alert failed:', textError)
+        return { skipped: true, reason: textError?.message || 'Owner text alert failed.' }
+      })
+    : { skipped: true, reason: 'Routine activity is included in the daily office summary.' }
 
   return {
     created: shouldStoreForAttention,

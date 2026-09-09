@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
-import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { isUnchangedDinnerSignup } from '../../../lib/saturday-dinner-signup-state'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
-import { getSiteUrl } from '../../../lib/site-url'
 
 export const runtime = 'nodejs'
 
@@ -125,8 +123,6 @@ export async function POST(request: Request) {
   const title = `Saturday dinner: Site ${context.camper.lot_number || 'Unknown'} ${status}`
   const guestLabel = `${guestCount} ${guestCount === 1 ? 'guest' : 'guests'}`
   const message = `${camperName} marked ${status} for ${dinner.month} ${dinner.day} ${dinner.menu} with ${guestLabel}${bringing ? ` and is bringing ${bringing}` : ''}.`
-  const origin = getSiteUrl()
-
   await createAdminNotification(context.admin, {
     type: 'saturday_dinner',
     title,
@@ -137,35 +133,11 @@ export async function POST(request: Request) {
     source_id: signup?.id ? String(signup.id) : dinnerDate,
   }).catch((notificationError) => console.error('Dinner notification failed:', notificationError))
 
-  let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
-  let emailMessage = ''
-
-  try {
-    const result = await sendAdminAlertEmail({
-      subject: title,
-      heading: title,
-      message,
-      details: [
-        { label: 'Dinner', value: `${dinner.month} ${dinner.day} — ${dinner.menu}` },
-        { label: 'Time', value: '6:00 PM' },
-        { label: 'Camper', value: camperName },
-        { label: 'Site', value: context.camper.lot_number },
-        { label: 'Response', value: status },
-        { label: 'Guests', value: guestCount },
-        { label: 'Bringing', value: bringing || 'Nothing listed' },
-      ],
-      actionUrl: `${origin}/admin/dinners`,
-      actionLabel: 'Open dinner signups',
-    })
-
-    if ((result as any)?.skipped) {
-      emailStatus = 'skipped'
-      emailMessage = (result as any)?.reason || 'Email alert is not configured.'
-    }
-  } catch (emailError: any) {
-    emailStatus = 'failed'
-    emailMessage = emailError?.message || 'Dinner alert email failed.'
-  }
-
-  return NextResponse.json({ success: true, signup, notificationStatus: 'sent', emailStatus, emailMessage })
+  return NextResponse.json({
+    success: true,
+    signup,
+    notificationStatus: 'daily_summary',
+    emailStatus: 'daily_summary',
+    emailMessage: 'Dinner responses are included in the daily office summary.',
+  })
 }

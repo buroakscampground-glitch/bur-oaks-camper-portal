@@ -136,7 +136,7 @@ export async function POST(request: Request) {
     if (existingAlerts?.length) return
 
     await createAdminNotification(supabaseAdmin, {
-      type: 'payment_received',
+      type: 'payment_problem',
       title: 'Payment review needed — possible duplicate',
       message: `Stripe reported ${amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} for invoice ${invoiceNumbers}, which was already marked paid. Earlier reference: ${earlierReference}. New reference: ${paymentReference}. Verify two successful payments in Stripe before issuing any refund.`,
       camper_id: firstInvoice?.camper_id || null,

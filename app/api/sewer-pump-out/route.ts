@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
-import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge, isHoldingTankPumpOutLot } from '../../../lib/sewer-pump-fees'
-import { getSiteUrl } from '../../../lib/site-url'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { allowedPumpOutServiceLot, pumpOutServiceLotsForAccount } from '../../../lib/multi-site-pump-outs'
 
@@ -114,8 +112,6 @@ export async function POST(request: Request) {
     ? ` The charge will be billed to ${camperName} at Lot ${context.camper.lot_number}.`
     : ''
   const message = `${camperName} requested a sewer pump-out at Site ${requestedServiceLot}. This records ${gallonsUsed} gallons and a $${pumpCharge.toFixed(2)} charge is pending for the next electric bill.${billingDetail}${holdingTankNote}${notes ? ` Note: ${notes}` : ''}`
-  const origin = getSiteUrl()
-
   await createAdminNotification(context.admin, {
     type: 'sewer_pump_out',
     title,
@@ -126,41 +122,11 @@ export async function POST(request: Request) {
     source_id: String(requestRow.id),
   }).catch((notificationError) => console.error('Sewer pump notification failed:', notificationError))
 
-  let emailStatus: 'sent' | 'skipped' | 'failed' = 'sent'
-  let emailMessage = ''
-
-  try {
-    const result = await sendAdminAlertEmail({
-      subject: title,
-      heading: title,
-      message,
-      details: [
-        { label: 'Service site', value: requestedServiceLot || 'Unknown' },
-        { label: 'Billing site', value: context.camper.lot_number || 'Unknown' },
-        { label: 'Camper', value: camperName },
-        { label: 'Pending charge', value: `$${pumpCharge.toFixed(2)}` },
-        { label: 'Gallons recorded', value: `${gallonsUsed} gallons` },
-        { label: 'Rate type', value: isHoldingTankPumpOutLot(requestedServiceLot) ? 'Holding-tank site' : 'Standard site' },
-        { label: 'Notes', value: notes || 'None' },
-      ],
-      actionUrl: `${origin}/admin/pump-outs`,
-      actionLabel: 'Open pump-out queue',
-    })
-
-    if ((result as any)?.skipped) {
-      emailStatus = 'skipped'
-      emailMessage = (result as any)?.reason || 'Email alert is not configured.'
-    }
-  } catch (emailError: any) {
-    emailStatus = 'failed'
-    emailMessage = emailError?.message || 'Sewer pump-out alert email failed.'
-  }
-
   return NextResponse.json({
     success: true,
     request: requestRow,
-    emailStatus,
-    emailMessage,
+    emailStatus: 'daily_summary',
+    emailMessage: 'The office receives pump-out activity in the daily report.',
     serviceLot: requestedServiceLot,
     billingLot: context.camper.lot_number,
     chargeAmount: pumpCharge,

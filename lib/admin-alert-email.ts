@@ -9,6 +9,7 @@ type AdminAlertEmailInput = {
   actionUrl?: string
   actionLabel?: string
   recipients?: string[]
+  attachments?: Array<{ filename: string; content: Uint8Array; type?: string }>
 }
 
 type EmailProvider = 'sendgrid' | 'resend'
@@ -122,6 +123,7 @@ export async function sendAdminAlertEmail({
   actionUrl,
   actionLabel = 'Open admin portal',
   recipients,
+  attachments = [],
 }: AdminAlertEmailInput) {
   const providerStatus = adminAlertEmailProviderStatus()
 
@@ -195,6 +197,12 @@ export async function sendAdminAlertEmail({
       </div>
     </div>
   `
+  const encodedAttachments = attachments.map((attachment) => ({
+    content: Buffer.from(attachment.content).toString('base64'),
+    filename: attachment.filename,
+    type: attachment.type || 'application/pdf',
+    disposition: 'attachment',
+  }))
 
   if (providerStatus.provider === 'sendgrid') {
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
@@ -216,6 +224,7 @@ export async function sendAdminAlertEmail({
           { type: 'text/plain', value: text },
           { type: 'text/html', value: html },
         ],
+        ...(encodedAttachments.length ? { attachments: encodedAttachments } : {}),
       }),
     })
 
@@ -252,6 +261,9 @@ export async function sendAdminAlertEmail({
       subject,
       html,
       text,
+      ...(encodedAttachments.length
+        ? { attachments: encodedAttachments.map(({ filename, content }) => ({ filename, content })) }
+        : {}),
     }),
   })
 
