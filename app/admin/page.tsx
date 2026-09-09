@@ -58,6 +58,7 @@ import {
 } from '../../lib/invoice-balance'
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 import { requiresAdminAttention } from '../../lib/admin-notification-types'
+import { isCompletedTicketStatus } from '../../lib/maintenance-status'
 
 type AdminStats = {
   campers: number
@@ -244,6 +245,7 @@ export default function AdminPage() {
       String(invoice.paid_at || '').slice(0, 7) === currentPaidMonth
     )
     const maintenance = maintenanceResult.data || []
+    const activeMaintenance = maintenance.filter((ticket) => !isCompletedTicketStatus(ticket.status))
     const notifications = notificationResult.data || []
     const documents = documentResult.data || []
     const campers = (campersResult.data || []).filter(isOperationalCamper)
@@ -333,8 +335,7 @@ export default function AdminPage() {
         tone: request.urgency === 'Urgent' ? 'red' : 'orange',
         createdAt: request.requested_at,
       })),
-      ...maintenance
-        .filter((ticket) => ticket.status !== 'Completed')
+      ...activeMaintenance
         .map((ticket: any): CockpitItem => ({
           id: `maintenance-${ticket.id}`,
           href: `/admin/maintenance/${ticket.id}`,
@@ -407,13 +408,13 @@ export default function AdminPage() {
       inProgressMaintenance: maintenance.filter(
         (ticket) => ticket.status === 'In Progress' && ticket.admin_approved === true
       ).length,
-      emergencyMaintenance: maintenance.filter(
+      emergencyMaintenance: activeMaintenance.filter(
         (ticket) => ticket.priority === 'Emergency'
       ).length,
       completedMaintenance: maintenance.filter(
         (ticket) => ticket.status === 'Completed'
       ).length,
-      pendingMaintenance: maintenance.filter((ticket) => ticket.admin_approved !== true).length,
+      pendingMaintenance: activeMaintenance.filter((ticket) => ticket.admin_approved !== true).length,
       activeSupplyRequests: activeSupplyRequests.length,
       activeSiteCare: activeSiteCare.length,
       maintenanceAlerts: notifications.filter((notification) => notification.type === 'maintenance_request').length,
@@ -568,9 +569,9 @@ export default function AdminPage() {
       href: '/admin/documents',
       title: 'Documents to sign',
       count: stats.documentActions,
-      detail: 'Leases, renewals, forms waiting',
+      detail: `${stats.documentActions} camper document${stats.documentActions === 1 ? '' : 's'} waiting for signature`,
       icon: FileText,
-      urgent: stats.documentActions > 0,
+      urgent: false,
     },
     {
       href: '/admin/messages',
@@ -593,6 +594,7 @@ export default function AdminPage() {
   ]
 
   const activeAttentionItems = toDoItems.filter((item) => item.urgent && item.count > 0)
+  const visiblePriorityItems = toDoItems.filter((item) => item.count > 0 && (item.urgent || item.title === 'Documents to sign'))
   const attentionTotal = activeAttentionItems.reduce((total, item) => total + item.count, 0)
   const attentionBreakdown = activeAttentionItems
     .slice(0, 3)
@@ -712,9 +714,9 @@ export default function AdminPage() {
               <strong>{attentionTotal}</strong>
             </div>
 
-            {activeAttentionItems.length ? (
+            {visiblePriorityItems.length ? (
               <div className="admin-desk-attention-list">
-                {activeAttentionItems.map((item) => {
+                {visiblePriorityItems.map((item) => {
                   const Icon = item.icon
                   return (
                     <a href={item.href} key={item.title}>
@@ -723,7 +725,7 @@ export default function AdminPage() {
                         <strong>{item.title}</strong>
                         <small>{item.detail}</small>
                       </span>
-                      <em>{item.count}</em>
+                      {item.urgent && <em>{item.count}</em>}
                       <ArrowRight size={17} />
                     </a>
                   )
