@@ -41,7 +41,6 @@ import {
   Zap,
 } from 'lucide-react'
 import AdminWeather, { AdminWeatherNow } from '../../components/AdminWeather'
-import AppBadgePermission from '../../components/AppBadgePermission'
 import CommunityUnreadBadge from '../../components/CommunityUnreadBadge'
 import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { isOperationalCamper } from '../../lib/camper-records'
@@ -642,8 +641,6 @@ export default function AdminPage() {
             Open Community <ArrowRight size={17} /> <CommunityUnreadBadge syncHomeScreen={false} />
           </span>
         </a>
-        <AppBadgePermission label="important office alerts" staffApp="admin" />
-
         <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
           <header>
             <div>

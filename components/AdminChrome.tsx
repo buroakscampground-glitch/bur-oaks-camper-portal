@@ -49,6 +49,7 @@ import { syncHomeScreenBadge } from '../lib/home-screen-badge'
 import { supabase } from '../lib/supabase'
 import SeasonalThemeCard from './SeasonalThemeCard'
 import CommunityUnreadBadge from './CommunityUnreadBadge'
+import AppBadgePermission from './AppBadgePermission'
 
 const pageNames: Record<string, string> = {
   campers: 'Camper Management',
@@ -332,6 +333,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
                 {mobileAlertItems.length === 0 && !showBirthdayToday && (
                   <p><ShieldCheck size={17} /> You’re all caught up.</p>
                 )}
+                <AppBadgePermission label="automatic Home Screen alerts" staffApp="admin" />
               </div>
             )}
           </div>

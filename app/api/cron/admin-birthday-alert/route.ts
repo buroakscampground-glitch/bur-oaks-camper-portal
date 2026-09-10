@@ -31,8 +31,8 @@ export async function GET(request: Request) {
   }
 
   const hour = centralHour()
-  if (hour !== 6) {
-    return NextResponse.json({ success: true, skipped: true, reason: 'Not the 6 a.m. Central alert window.', hour })
+  if (hour < 6 || hour > 11) {
+    return NextResponse.json({ success: true, skipped: true, reason: 'Outside the 6–11 a.m. Central alert window.', hour })
   }
 
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -40,14 +40,36 @@ export async function GET(request: Request) {
   const admin = createClient(supabaseUrl, key)
   const today = centralDate()
   const reportKey = 'admin-birthday-alert'
-  const { data: reservation, error: reserveError } = await admin
+  let { data: reservation, error: reserveError } = await admin
     .from('scheduled_reports')
     .insert({ report_key: reportKey, report_date: today.iso, status: 'running' })
     .select('id')
     .single()
 
   if (reserveError?.code === '23505') {
-    return NextResponse.json({ success: true, skipped: true, reason: 'Today\'s birthday alert was already sent.' })
+    const { data: existing, error: existingError } = await admin
+      .from('scheduled_reports')
+      .select('id,status')
+      .eq('report_key', reportKey)
+      .eq('report_date', today.iso)
+      .maybeSingle()
+    if (existingError || !existing) {
+      return NextResponse.json({ error: existingError?.message || 'Unable to check today\'s birthday alert.' }, { status: 500 })
+    }
+    if (existing.status === 'sent') {
+      return NextResponse.json({ success: true, skipped: true, reason: 'Today\'s birthday alert was already sent.' })
+    }
+    const { data: retryReservation, error: retryError } = await admin
+      .from('scheduled_reports')
+      .update({ status: 'running', error_message: null, completed_at: null, updated_at: new Date().toISOString() })
+      .eq('id', existing.id)
+      .select('id')
+      .single()
+    if (retryError || !retryReservation) {
+      return NextResponse.json({ error: retryError?.message || 'Unable to retry today\'s birthday alert.' }, { status: 500 })
+    }
+    reservation = retryReservation
+    reserveError = null
   }
   if (reserveError || !reservation) {
     return NextResponse.json({ error: reserveError?.message || 'Unable to reserve the birthday alert.' }, { status: 500 })
@@ -95,17 +117,18 @@ export async function GET(request: Request) {
       })
     }
 
+    const delivered = birthdays.length === 0 || push.sent > 0
     await admin.from('scheduled_reports').update({
-      status: 'sent',
+      status: delivered ? 'sent' : 'failed',
       item_count: birthdays.length,
       office_email_status: push.sent > 0 ? 'sent' : 'skipped',
       printer_email_status: 'skipped',
-      error_message: push.reason || null,
+      error_message: delivered ? push.reason || null : push.reason || 'No administrator phone received the background alert.',
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq('id', reservation.id)
 
-    return NextResponse.json({ success: true, birthdayCount: birthdays.length, push })
+    return NextResponse.json({ success: delivered, retryLater: !delivered, birthdayCount: birthdays.length, push }, { status: delivered ? 200 : 503 })
   } catch (error: any) {
     await admin.from('scheduled_reports').update({
       status: 'failed',

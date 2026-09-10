@@ -46,7 +46,9 @@ test('birthday alerts can reach the Admin Home Screen while the app is closed', 
   assert.match(route, /sendStaffWebPush/)
   assert.match(route, /admin-birthdays-/)
   assert.match(route, /admin: '\/admin\/birthdays'/)
-  assert.match(route, /hour !== 6/)
+  assert.match(route, /hour < 6 \|\| hour > 11/)
+  assert.match(route, /retryLater: !delivered/)
+  assert.equal((schedule.match(/\/api\/cron\/admin-birthday-alert/g) || []).length, 7)
   assert.match(schedule, /\/api\/cron\/admin-birthday-alert/)
 })
 

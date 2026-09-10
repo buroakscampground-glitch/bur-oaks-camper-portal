@@ -4486,6 +4486,35 @@ button:hover {
     font-weight: 850;
   }
 
+  .admin-mobile-alert-list .admin-app-badge-permission {
+    margin: 0;
+    padding: 11px 12px;
+    border-color: rgba(230,202,127,.24);
+    border-radius: 13px;
+    background: rgba(230,202,127,.09);
+    color: #fff;
+    box-shadow: none;
+  }
+
+  .admin-mobile-alert-list .admin-app-badge-permission.enabled {
+    border-color: rgba(144,214,163,.3);
+    background: rgba(95,178,118,.11);
+  }
+
+  .admin-mobile-alert-list .admin-app-badge-permission span {
+    color: rgba(255,255,255,.8);
+    font-size: 11px;
+  }
+
+  .admin-mobile-alert-list .admin-app-badge-permission button {
+    min-height: 38px;
+    border-color: rgba(230,202,127,.36);
+    background: #f7f1df;
+    color: #24492f;
+    font-size: 11px;
+    box-shadow: none;
+  }
+
   .admin-sidebar-nav {
     display: none;
     grid-template-columns: repeat(2, minmax(0, 1fr));

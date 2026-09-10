@@ -73,6 +73,26 @@
       "schedule": "0 12 * * *"
     },
     {
+      "path": "/api/cron/admin-birthday-alert",
+      "schedule": "0 13 * * *"
+    },
+    {
+      "path": "/api/cron/admin-birthday-alert",
+      "schedule": "0 14 * * *"
+    },
+    {
+      "path": "/api/cron/admin-birthday-alert",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/admin-birthday-alert",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "path": "/api/cron/admin-birthday-alert",
+      "schedule": "0 17 * * *"
+    },
+    {
       "path": "/api/cron/camper-celebrations",
       "schedule": "30 14 * * *"
     },
