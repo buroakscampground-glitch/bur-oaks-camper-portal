@@ -24,3 +24,14 @@ test('the Event Coordinator workspace includes the administrative Community Feed
   assert.match(coordinatorNavigation, /href: '\/community\/feed'/)
   assert.match(coordinatorFeed, /<CommunityFeed adminMode \/>/)
 })
+
+test('Community photos show completely and open in a full-size viewer', () => {
+  const feed = source('../components/CommunityFeed.tsx')
+  const styles = source('../app/globals.css')
+
+  assert.match(feed, /setExpandedPhoto\(\{ url: post\.photo_url, alt \}\)/)
+  assert.match(feed, /View full picture/)
+  assert.match(feed, /aria-label="Full-size Community photo"/)
+  assert.match(styles, /\.campground-community-photo\{[^}]*object-fit:contain/)
+  assert.match(styles, /\.campground-community-photo-lightbox/)
+})

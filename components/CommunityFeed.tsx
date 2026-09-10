@@ -1,6 +1,6 @@
 'use client'
 
-import { Ban, Bell, Camera, Check, Eye, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X } from 'lucide-react'
+import { Ban, Bell, Camera, Check, Eye, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X, ZoomIn } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { communityPostAuthor, communityPostLocation } from '../lib/community-branding'
 import { supabase } from '../lib/supabase'
@@ -36,6 +36,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
   const [showComposer, setShowComposer] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; alt: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState('')
   const [notice, setNotice] = useState('')
@@ -44,6 +45,19 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
   useEffect(() => { loadFeed() }, [])
   useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview) }, [photoPreview])
+  useEffect(() => {
+    if (!expandedPhoto) return
+    const previousOverflow = document.body.style.overflow
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setExpandedPhoto(null)
+    }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [expandedPhoto])
 
   async function authHeaders(json = true): Promise<Record<string, string>> {
     const { data: { session } } = await supabase.auth.getSession()
@@ -295,7 +309,10 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               </header>
               {post.status === 'hidden' && <em className="campground-community-hidden-label">Hidden from campers</em>}
               <p>{post.body}</p>
-              {post.photo_url && <img className="campground-community-photo" src={post.photo_url} alt={`Shared by ${communityPostAuthor(post)}`} />}
+              {post.photo_url && (() => {
+                const alt = `Shared by ${communityPostAuthor(post)}`
+                return <button className="campground-community-photo-button" type="button" onClick={() => setExpandedPhoto({ url: post.photo_url, alt })} aria-label={`Open full-size photo ${alt}`}><img className="campground-community-photo" src={post.photo_url} alt={alt} /><span><ZoomIn size={16} /> View full picture</span></button>
+              })()}
               <div className="campground-community-actions">
                 <button type="button" className={post.liked_by_me ? 'liked' : ''} onClick={() => toggleLike(post)}><Heart size={17} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.liked_by_me ? 'Liked' : 'Like'} <span>{post.reaction_count || ''}</span></button>
                 <span><MessageCircle size={17} /> {(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length} comment{(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length === 1 ? '' : 's'}</span>
@@ -324,6 +341,13 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
           <button type="button" onClick={() => setShowSettings(true)}><Bell size={16} /> Choose my alerts</button>
         </aside>
       </section>
+
+      {expandedPhoto && (
+        <div className="campground-community-photo-lightbox" role="dialog" aria-modal="true" aria-label="Full-size Community photo" onClick={() => setExpandedPhoto(null)}>
+          <button type="button" onClick={() => setExpandedPhoto(null)} aria-label="Close full-size photo"><X size={21} /> Close</button>
+          <img src={expandedPhoto.url} alt={expandedPhoto.alt} onClick={(event) => event.stopPropagation()} />
+        </div>
+      )}
 
       {showComposer && (
         <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create Community post">
