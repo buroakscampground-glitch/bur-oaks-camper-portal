@@ -203,7 +203,12 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
     }
 
     loadAttentionCounts()
-    const refresh = window.setInterval(loadAttentionCounts, 30_000)
+    const refresh = window.setInterval(loadAttentionCounts, 15_000)
+    const liveChanges = supabase
+      .channel('admin-attention-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_notifications' }, loadAttentionCounts)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'waitlist' }, loadAttentionCounts)
+      .subscribe()
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') loadAttentionCounts()
     }
@@ -216,6 +221,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
     return () => {
       active = false
       window.clearInterval(refresh)
+      supabase.removeChannel(liveChanges)
       window.removeEventListener('focus', loadAttentionCounts)
       window.removeEventListener('online', loadAttentionCounts)
       window.removeEventListener('pageshow', loadAttentionCounts)
