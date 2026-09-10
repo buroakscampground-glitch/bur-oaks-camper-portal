@@ -74,6 +74,17 @@ test('opening pump-outs clears only its unseen alerts while service requests rem
   assert.doesNotMatch(endpoint, /isPumpOutWaitingForService/)
 })
 
+test('opening maintenance clears only unseen alerts while active tickets remain available', async () => {
+  const [page, endpoint] = await Promise.all([
+    readFile(new URL('../app/admin/maintenance/page.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../app/api/admin-sidebar-attention/route.ts', import.meta.url), 'utf8'),
+  ])
+  assert.match(page, /markAdminAlertsSeen\(supabase, 'maintenance_request'\)/)
+  assert.match(page, /dispatchEvent\(new Event\('admin-attention-changed'\)\)/)
+  assert.match(endpoint, /'\/admin\/maintenance': notifications\.filter\(\(item: any\) => item\.type === 'maintenance_request'\)\.length/)
+  assert.doesNotMatch(endpoint, /'\/admin\/maintenance': \(maintenanceResult\.data/)
+})
+
 test('desktop counts remain visible without requiring hover', async () => {
   const styles = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8')
   assert.doesNotMatch(styles, /admin-sidebar-group a:hover \.admin-attention-badge/)

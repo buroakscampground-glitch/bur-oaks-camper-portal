@@ -56,6 +56,7 @@ export default function MaintenancePage() {
 
   async function loadTickets() {
     await markAdminAlertsSeen(supabase, 'maintenance_request')
+    window.dispatchEvent(new Event('admin-attention-changed'))
 
     const { data } = await supabase
       .from('maintenance_tickets')

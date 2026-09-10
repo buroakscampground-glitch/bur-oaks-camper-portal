@@ -17,7 +17,6 @@ export async function GET(request: Request) {
     messageResult,
     invoiceResult,
     documentResult,
-    maintenanceResult,
     supplyResult,
     siteCareResult,
   ] = await Promise.all([
@@ -25,12 +24,11 @@ export async function GET(request: Request) {
     context.admin.from('office_messages').select('id').eq('sender_role', 'camper').is('read_by_admin_at', null),
     context.admin.from('invoices').select('id,due_date,status'),
     context.admin.from('documents').select('id,signature_status'),
-    context.admin.from('maintenance_tickets').select('id,status'),
     context.admin.from('maintenance_supply_requests').select('id,status').in('status', ['Requested', 'Ordered']),
     context.admin.from('site_care_notices').select('id,status').neq('status', 'Resolved'),
   ])
 
-  const results = [notificationResult, messageResult, invoiceResult, documentResult, maintenanceResult, supplyResult, siteCareResult]
+  const results = [notificationResult, messageResult, invoiceResult, documentResult, supplyResult, siteCareResult]
   const error = results.find((result) => result.error)?.error
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -47,7 +45,7 @@ export async function GET(request: Request) {
     // camper action items and should not create an admin badge.
     '/admin/documents': 0,
     '/admin/waitlist': notifications.filter((item: any) => item.type === 'website_waitlist').length,
-    '/admin/maintenance': (maintenanceResult.data || []).filter((item: any) => isOpen(item.status)).length,
+    '/admin/maintenance': notifications.filter((item: any) => item.type === 'maintenance_request').length,
     '/admin/maintenance/supplies': (supplyResult.data || []).length,
     '/admin/pump-outs': notifications.filter((item: any) => item.type === 'sewer_pump_out').length,
     '/admin/site-care': (siteCareResult.data || []).length,
