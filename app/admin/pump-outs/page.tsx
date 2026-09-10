@@ -37,7 +37,18 @@ export default function AdminPumpOutsPage() {
   useEffect(() => {
     loadRequests()
     loadManualEntryOptions()
+    markPumpOutAlertsViewed()
   }, [])
+
+  async function markPumpOutAlertsViewed() {
+    const { error } = await supabase
+      .from('admin_notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('type', 'sewer_pump_out')
+      .is('read_at', null)
+
+    if (!error) window.dispatchEvent(new Event('admin-attention-changed'))
+  }
 
   async function loadManualEntryOptions() {
     const [{ data, error }, settings] = await Promise.all([

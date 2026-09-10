@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server'
 import { requiresAdminAttention } from '../../../lib/admin-notification-types'
-import { isPumpOutWaitingForService } from '../../../lib/pump-out-status'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
 function isOpen(status: unknown) {
@@ -21,7 +20,6 @@ export async function GET(request: Request) {
     maintenanceResult,
     supplyResult,
     siteCareResult,
-    pumpOutResult,
   ] = await Promise.all([
     context.admin.from('admin_notifications').select('id,type').is('read_at', null),
     context.admin.from('office_messages').select('id').eq('sender_role', 'camper').is('read_by_admin_at', null),
@@ -30,10 +28,9 @@ export async function GET(request: Request) {
     context.admin.from('maintenance_tickets').select('id,status'),
     context.admin.from('maintenance_supply_requests').select('id,status').in('status', ['Requested', 'Ordered']),
     context.admin.from('site_care_notices').select('id,status').neq('status', 'Resolved'),
-    context.admin.from('sewer_pump_out_requests').select('id,status,requested_at,completed_at,billed_at'),
   ])
 
-  const results = [notificationResult, messageResult, invoiceResult, documentResult, maintenanceResult, supplyResult, siteCareResult, pumpOutResult]
+  const results = [notificationResult, messageResult, invoiceResult, documentResult, maintenanceResult, supplyResult, siteCareResult]
   const error = results.find((result) => result.error)?.error
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
@@ -52,7 +49,7 @@ export async function GET(request: Request) {
     '/admin/waitlist': notifications.filter((item: any) => item.type === 'website_waitlist').length,
     '/admin/maintenance': (maintenanceResult.data || []).filter((item: any) => isOpen(item.status)).length,
     '/admin/maintenance/supplies': (supplyResult.data || []).length,
-    '/admin/pump-outs': (pumpOutResult.data || []).filter(isPumpOutWaitingForService).length,
+    '/admin/pump-outs': notifications.filter((item: any) => item.type === 'sewer_pump_out').length,
     '/admin/site-care': (siteCareResult.data || []).length,
   }
   const appBadgeCount = standaloneNotifications

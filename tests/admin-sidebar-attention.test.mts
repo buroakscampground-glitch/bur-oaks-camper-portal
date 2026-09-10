@@ -39,8 +39,21 @@ test('handled notifications, opened messages, and birthday greetings refresh bad
     '../app/admin/notifications/page.tsx',
     '../app/admin/messages/page.tsx',
     '../app/admin/birthdays/page.tsx',
+    '../app/admin/pump-outs/page.tsx',
   ].map((path) => readFile(new URL(path, import.meta.url), 'utf8')))
   sources.forEach((source) => assert.match(source, /dispatchEvent\(new Event\('admin-attention-changed'\)\)/))
+})
+
+test('opening pump-outs clears only its unseen alerts while service requests remain in the queue', async () => {
+  const [page, endpoint] = await Promise.all([
+    readFile(new URL('../app/admin/pump-outs/page.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../app/api/admin-sidebar-attention/route.ts', import.meta.url), 'utf8'),
+  ])
+  assert.match(page, /markPumpOutAlertsViewed\(\)/)
+  assert.match(page, /\.eq\('type', 'sewer_pump_out'\)/)
+  assert.match(page, /\.is\('read_at', null\)/)
+  assert.match(endpoint, /'\/admin\/pump-outs': notifications\.filter\(\(item: any\) => item\.type === 'sewer_pump_out'\)\.length/)
+  assert.doesNotMatch(endpoint, /isPumpOutWaitingForService/)
 })
 
 test('desktop counts remain visible without requiring hover', async () => {
