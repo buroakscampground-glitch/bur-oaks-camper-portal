@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
+  Activity,
   BarChart3,
+  BrainCircuit,
   CalendarRange,
   CircleDollarSign,
   Download,
@@ -13,6 +15,7 @@ import {
   Printer,
   TrendingDown,
   TrendingUp,
+  Zap,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
@@ -54,18 +57,20 @@ export default function AdminIncomeProjectionPage() {
   const [message, setMessage] = useState('')
 
   const loadProjectionData = useCallback(async (initialLoad = false) => {
-      if (initialLoad) setLoading(true)
-      else setRefreshing(true)
+    if (initialLoad) setLoading(true)
+    else setRefreshing(true)
+    try {
       const [camperResult, lotResult, readingResult, invoiceResult, renewalResult] = await Promise.all([
         supabase.from('campers').select('id,lot_number,first_name,last_name,role,active').eq('active', true),
         supabase.from('lots').select('lot_number,lot_rent_amount'),
-        supabase.from('electric_readings').select('camper_id,reading_date,amount_due'),
-        supabase.from('invoices').select('camper_id,invoice_type,due_date,created_at,total_due,status'),
+        supabase.from('electric_readings').select('camper_id,reading_date,kwh_used,amount_due'),
+        supabase.from('invoices').select('camper_id,invoice_type,due_date,created_at,total_due,status,paid_at'),
         supabase.from('season_renewals').select('camper_id,lot_number,contract_end_date,status'),
       ])
 
       const errors = [camperResult.error, lotResult.error, readingResult.error, invoiceResult.error, renewalResult.error].filter(Boolean)
       setMessage(errors.map((error) => error?.message).join(' '))
+      if (errors.length) return
 
       const activeCampers = (camperResult.data || []).filter(isOperationalCamper)
       const rentByLot = new Map(
@@ -91,18 +96,36 @@ export default function AdminIncomeProjectionPage() {
       setInvoices(invoiceResult.data || [])
       setRenewals(renewalResult.data || [])
       setLastUpdated(new Date())
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The forecast could not refresh. The last healthy projection is still shown.')
+    } finally {
       setLoading(false)
       setRefreshing(false)
+    }
   }, [])
 
   useEffect(() => {
     loadProjectionData(true)
     const timer = window.setInterval(() => loadProjectionData(), 30_000)
     const refresh = () => loadProjectionData()
+    let refreshDelay: number | undefined
+    const refreshFromLiveChange = () => {
+      window.clearTimeout(refreshDelay)
+      refreshDelay = window.setTimeout(() => loadProjectionData(), 250)
+    }
+    const liveChanges = supabase
+      .channel('income-projection-learning-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, refreshFromLiveChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'electric_readings' }, refreshFromLiveChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lots' }, refreshFromLiveChange)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'season_renewals' }, refreshFromLiveChange)
+      .subscribe()
     window.addEventListener('focus', refresh)
     window.addEventListener('pageshow', refresh)
     return () => {
       window.clearInterval(timer)
+      window.clearTimeout(refreshDelay)
+      void supabase.removeChannel(liveChanges)
       window.removeEventListener('focus', refresh)
       window.removeEventListener('pageshow', refresh)
     }
@@ -137,13 +160,21 @@ export default function AdminIncomeProjectionPage() {
   const electricCoverage = projection.totalElectricSiteMonths
     ? Math.round((projection.exactElectricSiteMonths / projection.totalElectricSiteMonths) * 100)
     : 0
+  const learnedCollectionPercent = projection.annualGrossPotential
+    ? Math.round((projection.annualTotal / projection.annualGrossPotential) * 100)
+    : 100
+  const learningHealth = message
+    ? 'Refresh issue'
+    : projection.paymentsLearned >= 10 && projection.electricReadingsLearned >= 24
+      ? 'Healthy & learning'
+      : 'Learning started'
 
   function exportProjection() {
     const rows = [
       ['Bur Oaks projected income', projectionYear],
-      ['Month', 'Projected Lot Rent', 'Projected Association', 'Projected Electric', 'Projected Total', 'Actual Lot Rent', 'Actual Association', 'Actual Electric Entered', 'Actual Total', 'Variance'],
-      ...projection.months.map((month) => [month.label, month.lotRent, month.association, month.electric, month.total, month.actualLotRent, month.actualAssociation, month.actualElectric, month.actualTotal, month.variance]),
-      ['YEAR TOTAL', projection.annualLotRent, projection.annualAssociation, projection.annualElectric, projection.annualTotal, projection.actualLotRent, projection.actualAssociation, projection.actualElectric, projection.actualTotal, projection.actualTotal - projection.annualTotal],
+      ['Month', 'Expected Lot Rent', 'Expected Association', 'Expected Electric', 'Expected Collected Total', 'Gross Income Potential', 'Cash Collected Rent', 'Cash Collected Association', 'Cash Collected Electric', 'Cash Collected Total', 'Variance'],
+      ...projection.months.map((month) => [month.label, month.lotRent, month.association, month.electric, month.total, month.grossTotal, month.actualLotRent, month.actualAssociation, month.actualElectric, month.actualTotal, month.variance]),
+      ['YEAR TOTAL', projection.annualLotRent, projection.annualAssociation, projection.annualElectric, projection.annualTotal, projection.annualGrossPotential, projection.actualLotRent, projection.actualAssociation, projection.actualElectric, projection.actualTotal, projection.actualTotal - projection.annualTotal],
     ]
     const csv = rows.map((row) => row.map(csvCell).join(',')).join('\r\n')
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
@@ -167,7 +198,7 @@ export default function AdminIncomeProjectionPage() {
           <div>
             <span><CalendarRange size={16} /> INCOME PLANNING</span>
             <h1>See the strong months—and the slim ones.</h1>
-            <p>A month-by-month planning forecast built from active campsites, annual lot rent, association fees, and seasonal electric history.</p>
+            <p>An adaptive month-by-month income forecast that learns from successful payments, payment behavior, and changing electric usage.</p>
           </div>
           <div className="income-projection-actions">
             <button type="button" onClick={() => window.print()}><Printer size={16} /> Print</button>
@@ -181,7 +212,7 @@ export default function AdminIncomeProjectionPage() {
           <div>
             <small>PLANNING ASSUMPTIONS</small>
             <h2>Adjust the forecast</h2>
-            <p>Live forecast · refreshes every 30 seconds{lastUpdated ? ` · Updated ${lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}{refreshing ? ' · Refreshing…' : ''}</p>
+            <p>Live learning · updates when payments or meter readings change · 30-second safety refresh{lastUpdated ? ` · Updated ${lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}{refreshing ? ' · Refreshing…' : ''}</p>
           </div>
           <label><span>Projection year</span><input type="number" min="2026" max="2100" value={projectionYear} onChange={(event) => setProjectionYear(Number(event.target.value || new Date().getFullYear()))} /></label>
           <label><span>Association fee per site</span><div><i>$</i><input type="number" min="0" step="1" value={associationFee} onChange={(event) => setAssociationFee(Number(event.target.value || 0))} /></div></label>
@@ -190,15 +221,27 @@ export default function AdminIncomeProjectionPage() {
         </section>
 
         <section className="income-projection-kpis">
-          <article><span><CircleDollarSign size={21} /></span><div><small>{projectionYear} PROJECTED INCOME</small><strong>{formatMoney(projection.annualTotal)}</strong><em>Rent + association + estimated electric</em></div></article>
-          <article><span><Gauge size={21} /></span><div><small>{projectionYear} ACTUAL ENTERED</small><strong>{formatMoney(projection.actualTotal)}</strong><em>Updates from invoices and electric readings</em></div></article>
+          <article><span><BrainCircuit size={21} /></span><div><small>{projectionYear} LEARNED FORECAST</small><strong>{formatMoney(projection.annualTotal)}</strong><em>{formatMoney(projection.annualGrossPotential)} gross potential · {learnedCollectionPercent}% expected</em></div></article>
+          <article><span><CircleDollarSign size={21} /></span><div><small>{projectionYear} CASH COLLECTED</small><strong>{formatMoney(projection.actualTotal)}</strong><em>Only successfully paid invoices</em></div></article>
           <article><span><TrendingUp size={21} /></span><div><small>STRONGEST MONTH</small><strong>{strongestMonth.label}</strong><em>{formatMoney(strongestMonth.total)} projected</em></div></article>
           <article><span><TrendingDown size={21} /></span><div><small>SLIMMEST MONTH</small><strong>{slimmestMonth.label}</strong><em>{formatMoney(slimmestMonth.total)} projected</em></div></article>
         </section>
 
+        <section className="income-projection-panel income-projection-learning">
+          <header>
+            <div><small>ADAPTIVE LEARNING ENGINE</small><h2>The forecast improves as Bur Oaks operates</h2></div>
+            <span className={message ? 'degraded' : ''}><Activity size={15} /> {learningHealth}</span>
+          </header>
+          <div>
+            <article><BrainCircuit size={21} /><span><strong>{projection.paymentsLearned} successful payments learned</strong><small>{projection.paymentObservations} mature payment outcomes shape expected collection; new ACH and card results update the model automatically.</small></span></article>
+            <article><Zap size={21} /><span><strong>{projection.electricReadingsLearned} electric readings · {Number(projection.electricKwhLearned).toLocaleString()} kWh</strong><small>Recent seasons receive more weight, while missing site-months use Bur Oaks' learned seasonal pattern.</small></span></article>
+            <article><Gauge size={21} /><span><strong>{formatMoney(projection.processingIncome)} still processing</strong><small>Pending ACH is watched, but it is not counted as cash collected until Stripe confirms payment.</small></span></article>
+          </div>
+        </section>
+
         <section className="income-projection-main-grid">
           <article className="income-projection-panel income-projection-month-chart">
-            <header><div><small>PROJECTED VS. ACTUAL</small><h2>Month-by-month income flow</h2></div><span>The white line is actual entered</span></header>
+            <header><div><small>FORECAST VS. CASH</small><h2>Month-by-month income flow</h2></div><span>The white line is cash collected</span></header>
             <div className="income-projection-bars" aria-label={`${projectionYear} projected income by month`}>
               {projection.months.map((month) => (
                 <div key={month.label}>
@@ -207,7 +250,7 @@ export default function AdminIncomeProjectionPage() {
                     <b className="electric" style={{ height: `${(month.electric / maxMonthTotal) * 100}%` }} />
                     <b className="association" style={{ height: `${(month.association / maxMonthTotal) * 100}%` }} />
                     <b className="rent" style={{ height: `${(month.lotRent / maxMonthTotal) * 100}%` }} />
-                    {month.actualTotal > 0 && <em style={{ bottom: `${(month.actualTotal / maxMonthTotal) * 100}%` }} title={`Actual entered: ${formatMoney(month.actualTotal)}`} />}
+                    {month.actualTotal > 0 && <em style={{ bottom: `${(month.actualTotal / maxMonthTotal) * 100}%` }} title={`Cash collected: ${formatMoney(month.actualTotal)}`} />}
                   </i>
                   <small>{month.label.slice(0, 3)}</small>
                 </div>
@@ -217,7 +260,7 @@ export default function AdminIncomeProjectionPage() {
               <span><i style={{ background: categoryColors.lotRent }} /> Lot rent</span>
               <span><i style={{ background: categoryColors.association }} /> Association</span>
               <span><i style={{ background: categoryColors.electric }} /> Estimated electric</span>
-              <span><i className="actual-line" /> Actual entered</span>
+              <span><i className="actual-line" /> Cash collected</span>
             </footer>
           </article>
 
@@ -246,7 +289,7 @@ export default function AdminIncomeProjectionPage() {
             </div>
             <div className="income-projection-legend">
               {categoryRows.map((category) => (
-                <p key={category.key}><i style={{ background: category.color }} /><span><strong>{category.label}</strong><small>{projection.annualTotal ? Math.round((category.total / projection.annualTotal) * 100) : 0}% · Actual entered {formatMoney(category.actual)}</small></span><b>{formatMoney(category.total)}</b></p>
+                <p key={category.key}><i style={{ background: category.color }} /><span><strong>{category.label}</strong><small>{projection.annualTotal ? Math.round((category.total / projection.annualTotal) * 100) : 0}% · Cash collected {formatMoney(category.actual)}</small></span><b>{formatMoney(category.total)}</b></p>
               ))}
             </div>
           </article>
@@ -257,7 +300,7 @@ export default function AdminIncomeProjectionPage() {
           <div>
             <article><Landmark size={20} /><span><strong>{projection.configuredRentSites} of {sites.length}</strong><small>{projection.savedRentSites} use saved annual rent; {projection.inferredRentSites} use the latest lot-rent invoice</small></span></article>
             <article><CalendarRange size={20} /><span><strong>{lotRentTiming === 'contract' ? `${projection.contractDateMatches} actual contract dates` : lotRentTiming === 'spread' ? 'Even monthly planning' : `${projection.rentHistoryMatches} invoice-timed sites`}</strong><small>{lotRentTiming === 'contract' ? 'Annual rent is divided into four payments beginning in the actual 12-month contract month, then every three months; the nine-month renewal notice date is never used' : lotRentTiming === 'spread' ? `${projection.configuredRentSites} saved annual rent amounts are divided across all 12 months` : 'saved invoice history determines timing; unmatched rent is spread evenly'}</small></span></article>
-            <article><Gauge size={20} /><span><strong>{electricCoverage}% exact seasonal coverage</strong><small>{projection.readingYears} year{projection.readingYears === 1 ? '' : 's'} of electric history found{projection.latestElectricYear ? `; ${projection.latestElectricYear} is weighted most heavily` : ''}; missing months use the campground seasonal average</small></span></article>
+            <article><Gauge size={20} /><span><strong>{electricCoverage}% exact seasonal coverage</strong><small>{projection.readingYears} year{projection.readingYears === 1 ? '' : 's'} of electric usage found{projection.latestElectricYear ? `; ${projection.latestElectricYear} is weighted most heavily` : ''}; missing months use the campground seasonal average</small></span></article>
           </div>
           {projection.missingRentSites > 0 && <p><strong>{projection.missingRentSites} active campsite{projection.missingRentSites === 1 ? '' : 's'} need an annual lot-rent amount.</strong> Their rent is not guessed or included until it is entered in Camper Management or Lots.</p>}
         </section>
@@ -266,7 +309,7 @@ export default function AdminIncomeProjectionPage() {
           <header><div><small>12-MONTH DETAIL</small><h2>{projectionYear} projection table</h2></div></header>
           <div className="income-projection-table-wrap">
             <table>
-              <thead><tr><th>Month</th><th>Projected total</th><th>Actual rent</th><th>Actual association</th><th>Actual electric</th><th>Actual total</th><th>Difference</th></tr></thead>
+              <thead><tr><th>Month</th><th>Learned forecast</th><th>Cash rent</th><th>Cash association</th><th>Cash electric</th><th>Cash total</th><th>Difference</th></tr></thead>
               <tbody>
                 {projection.months.map((month) => {
                   const strength = month.monthIndex === strongestMonth.monthIndex ? 'Strongest' : month.monthIndex === slimmestMonth.monthIndex ? 'Slimmest' : 'Typical'
@@ -278,7 +321,7 @@ export default function AdminIncomeProjectionPage() {
           </div>
         </section>
 
-        <p className="income-projection-note">Projected quarterly rent uses the actual 12-month contract anniversary—not the earlier renewal-notice date. The Association Fee is counted once per site in the selected annual fee month and is never spread across contract months. Actual means charges entered into the portal, not necessarily cash collected.</p>
+        <p className="income-projection-note">The adaptive forecast is explainable: recent electric seasons carry more weight, mature payment outcomes adjust expected collection only after enough history exists, and pending ACH remains separate until it clears. Quarterly rent uses the actual 12-month contract anniversary; the Association Fee is counted once per site in the selected month.</p>
       </div>
     </main>
   )

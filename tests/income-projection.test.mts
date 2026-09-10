@@ -65,7 +65,7 @@ test('latest lot-rent invoice fills a missing saved annual rent amount', () => {
   assert.equal(result.missingRentSites, 0)
 })
 
-test('actual monthly income updates from entered readings and campground invoices', () => {
+test('actual monthly income only counts successfully paid invoices on the paid date', () => {
   const result = buildIncomeProjection({
     sites: [{ lotNumber: '12', camperIds: ['camper-12'], annualLotRent: 2_000 }],
     readings: [
@@ -73,9 +73,11 @@ test('actual monthly income updates from entered readings and campground invoice
       { camper_id: 'camper-12', reading_date: '2025-08-20', amount_due: 75 },
     ],
     invoices: [
-      { camper_id: 'camper-12', invoice_type: 'Lot Rent', due_date: '2026-04-01', total_due: 2_000, status: 'paid' },
+      { camper_id: 'camper-12', invoice_type: 'Lot Rent', due_date: '2026-04-01', paid_at: '2026-04-05T12:00:00Z', total_due: 2_000, status: 'paid' },
       { camper_id: 'camper-12', invoice_type: 'Association Fee', due_date: '2026-03-01', total_due: 250, status: 'open' },
       { camper_id: 'camper-12', invoice_type: 'Association Fee', due_date: '2026-03-01', total_due: 250, status: 'cancelled' },
+      { camper_id: 'camper-12', invoice_type: 'Electric + Water/Trash', due_date: '2026-08-20', paid_at: '2026-09-02T12:00:00Z', total_due: 85, status: 'paid' },
+      { camper_id: 'camper-12', invoice_type: 'Electric + Water/Trash', due_date: '2026-09-01', total_due: 95, status: 'processing' },
     ],
     associationFee: 250,
     fallbackAssociationMonth: 2,
@@ -83,10 +85,11 @@ test('actual monthly income updates from entered readings and campground invoice
     lotRentTiming: 'history',
   })
 
-  assert.equal(result.months[7].actualElectric, 85)
+  assert.equal(result.months[8].actualElectric, 85)
   assert.equal(result.months[3].actualLotRent, 2_000)
-  assert.equal(result.months[2].actualAssociation, 250)
-  assert.equal(result.actualTotal, 2_335)
+  assert.equal(result.months[2].actualAssociation, 0)
+  assert.equal(result.actualTotal, 2_085)
+  assert.equal(result.processingIncome, 95)
 })
 
 test('default planning mode spreads annual lot rent instead of creating an artificial April spike', () => {
@@ -138,4 +141,34 @@ test('newest electric season receives more weight as current readings are entere
 
   assert.equal(result.latestElectricYear, 2026)
   assert.equal(result.months[6].electric, 100)
+})
+
+test('mature payment outcomes gently teach the expected collection forecast', () => {
+  const invoices = [
+    ...Array.from({ length: 5 }, (_, index) => ({
+      camper_id: 'camper-30',
+      invoice_type: 'Lot Rent',
+      due_date: `2025-0${index + 1}-01`,
+      paid_at: `2025-0${index + 1}-03T12:00:00Z`,
+      total_due: 100,
+      status: 'paid',
+    })),
+    { camper_id: 'camper-30', invoice_type: 'Lot Rent', due_date: '2025-06-01', total_due: 100, status: 'open' },
+  ]
+  const result = buildIncomeProjection({
+    sites: [{ lotNumber: '30', camperIds: ['camper-30'], annualLotRent: 1_200 }],
+    readings: [{ camper_id: 'camper-30', reading_date: '2026-07-15', kwh_used: 450, amount_due: 90 }],
+    invoices,
+    associationFee: 0,
+    fallbackAssociationMonth: 2,
+    lotRentTiming: 'spread',
+    asOfDate: '2026-09-10T12:00:00Z',
+  })
+
+  assert.ok(result.collectionRates.lotRent < 1)
+  assert.ok(result.collectionRates.lotRent >= .75)
+  assert.ok(result.annualTotal < result.annualGrossPotential)
+  assert.equal(result.paymentsLearned, 5)
+  assert.equal(result.electricReadingsLearned, 1)
+  assert.equal(result.electricKwhLearned, 450)
 })
