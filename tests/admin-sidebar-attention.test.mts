@@ -7,6 +7,9 @@ test('admin navigation shows live red counts for sections needing attention', as
   assert.match(source, /\/api\/admin-sidebar-attention/)
   assert.match(source, /\/api\/admin-birthdays/)
   assert.match(source, /admin-attention-badge/)
+  assert.match(source, /admin-mobile-alerts/)
+  assert.match(source, /Tap to see exactly what the red badge means/)
+  assert.match(source, /birthdayPreview/)
   assert.match(source, /setInterval\(loadAttentionCounts, 15_000\)/)
   assert.match(source, /table: 'admin_notifications'/)
   assert.match(source, /table: 'waitlist'/)
@@ -31,7 +34,20 @@ test('sidebar attention endpoint counts unresolved work by destination page', as
   ]
   destinations.forEach((destination) => assert.match(source, new RegExp(destination.replaceAll('/', '\\/'))))
   assert.match(source, /Cache-Control': 'no-store/)
+  assert.match(source, /standaloneNotificationCount/)
   assert.match(source, /'\/admin\/open-balance': \(invoiceResult\.data \|\| \[\]\)\.filter\(\(item: any\) => isOpen\(item\.status\)\)\.length/)
+})
+
+test('birthday alerts can reach the Admin Home Screen while the app is closed', async () => {
+  const [route, schedule] = await Promise.all([
+    readFile(new URL('../app/api/cron/admin-birthday-alert/route.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../vercel.json', import.meta.url), 'utf8'),
+  ])
+  assert.match(route, /sendStaffWebPush/)
+  assert.match(route, /admin-birthdays-/)
+  assert.match(route, /admin: '\/admin\/birthdays'/)
+  assert.match(route, /hour !== 6/)
+  assert.match(schedule, /\/api\/cron\/admin-birthday-alert/)
 })
 
 test('handled notifications, opened messages, and birthday greetings refresh badges immediately', async () => {

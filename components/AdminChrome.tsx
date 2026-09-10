@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CalendarClock,
   CircleDollarSign,
+  ChevronRight,
   ClipboardCheck,
   ClipboardList,
   DoorOpen,
@@ -40,6 +41,7 @@ import {
   X,
   Zap,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
@@ -172,7 +174,12 @@ function isActiveLink(pathname: string, href: string) {
 export default function AdminChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileAlertsOpen, setMobileAlertsOpen] = useState(false)
   const [attentionCounts, setAttentionCounts] = useState<Record<string, number>>({})
+  const [homeBadgeCount, setHomeBadgeCount] = useState(0)
+  const [standaloneNotificationCount, setStandaloneNotificationCount] = useState(0)
+  const [birthdayTodayCount, setBirthdayTodayCount] = useState(0)
+  const [birthdayPreview, setBirthdayPreview] = useState('')
   const theme = getSeasonalTheme()
 
   useEffect(() => {
@@ -194,11 +201,23 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
         const communityCount = communityResponse.ok
           ? Number(community.unreadCount || 0) + Number(community.directCount || 0)
           : 0
+        const appBadgeCount = (sidebarResponse.ok ? Number(sidebar.appBadgeCount || 0) : 0) + birthdayCount + communityCount
+        const birthdayToday = birthdayResponse.ok ? Number(birthdays.counts?.today || 0) : 0
+        const firstBirthday = Array.isArray(birthdays.birthdays)
+          ? birthdays.birthdays.find((birthday: any) => birthday.window === 'today')
+          : null
         setAttentionCounts({
           ...(sidebarResponse.ok ? sidebar.counts || {} : {}),
           '/admin/birthdays': birthdayCount,
+          '/admin/community-feed': communityCount,
         })
-        void syncHomeScreenBadge((sidebarResponse.ok ? Number(sidebar.appBadgeCount || 0) : 0) + birthdayCount + communityCount)
+        setHomeBadgeCount(appBadgeCount)
+        setStandaloneNotificationCount(sidebarResponse.ok ? Number(sidebar.standaloneNotificationCount || 0) : 0)
+        setBirthdayTodayCount(birthdayToday)
+        setBirthdayPreview(firstBirthday
+          ? `${firstBirthday.name}${firstBirthday.lotNumber ? ` · Lot ${firstBirthday.lotNumber}` : ''}`
+          : '')
+        void syncHomeScreenBadge(appBadgeCount)
       }
     }
 
@@ -234,6 +253,17 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
   const section = pathname.split('/')[2] || ''
   const pageTitle = pathname === '/admin' ? 'Operations Dashboard' : pageNames[section] || 'Operations'
   const isDetailPage = pathname.split('/').filter(Boolean).length > 2
+  const mobileAlertItems: Array<{ href: string; label: string; count: number; icon: LucideIcon; detail?: string }> = [
+    { href: '/admin/notifications', label: 'Needs Attention', count: standaloneNotificationCount, icon: Bell },
+    { href: '/admin/messages', label: 'Office Inbox', count: Number(attentionCounts['/admin/messages'] || 0), icon: MessageCircle },
+    { href: '/admin/maintenance', label: 'Maintenance', count: Number(attentionCounts['/admin/maintenance'] || 0), icon: Wrench },
+    { href: '/admin/maintenance/supplies', label: 'Supply Requests', count: Number(attentionCounts['/admin/maintenance/supplies'] || 0), icon: ShoppingBasket },
+    { href: '/admin/pump-outs', label: 'Pump-Outs', count: Number(attentionCounts['/admin/pump-outs'] || 0), icon: Hammer },
+    { href: '/admin/site-care', label: 'Site Care', count: Number(attentionCounts['/admin/site-care'] || 0), icon: ClipboardCheck },
+    { href: '/admin/birthdays', label: 'Birthday Office', count: Number(attentionCounts['/admin/birthdays'] || 0), icon: CakeSlice, detail: birthdayPreview || undefined },
+    { href: '/admin/community-feed', label: 'Community', count: Number(attentionCounts['/admin/community-feed'] || 0), icon: Users },
+  ].filter((item) => item.count > 0)
+  const showBirthdayToday = birthdayTodayCount > 0 && !mobileAlertItems.some((item) => item.href === '/admin/birthdays')
 
   return (
     <div className={`admin-workspace-page seasonal-theme seasonal-theme-${theme.key}`}>
@@ -257,6 +287,53 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
               <span>{mobileMenuOpen ? 'Close' : 'Menu'}</span>
             </button>
+          </div>
+
+          <div className={`admin-mobile-alerts${mobileAlertsOpen ? ' open' : ''}`}>
+            <button
+              type="button"
+              className="admin-mobile-alerts-toggle"
+              aria-expanded={mobileAlertsOpen}
+              aria-controls="admin-mobile-alert-list"
+              onClick={() => setMobileAlertsOpen((open) => !open)}
+            >
+              <span className="admin-mobile-alerts-icon"><Bell size={18} /></span>
+              <span className="admin-mobile-alerts-copy">
+                <strong>{homeBadgeCount > 0 ? `${homeBadgeCount} alert${homeBadgeCount === 1 ? '' : 's'} need attention` : 'Alerts are clear'}</strong>
+                <small>{homeBadgeCount > 0 ? 'Tap to see exactly what the red badge means' : birthdayTodayCount > 0 ? `${birthdayTodayCount} birthday${birthdayTodayCount === 1 ? '' : 's'} today` : 'Nothing new is waiting'}</small>
+              </span>
+              {homeBadgeCount > 0 && <b>{homeBadgeCount > 99 ? '99+' : homeBadgeCount}</b>}
+              <ChevronRight className="admin-mobile-alerts-chevron" size={18} />
+            </button>
+
+            {mobileAlertsOpen && (
+              <div className="admin-mobile-alert-list" id="admin-mobile-alert-list">
+                {mobileAlertItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <a href={item.href} key={item.href}>
+                      <span><Icon size={17} /></span>
+                      <span>
+                        <strong>{item.label}</strong>
+                        <small>{item.detail || `${item.count} item${item.count === 1 ? '' : 's'} waiting`}</small>
+                      </span>
+                      <b>{item.count}</b>
+                      <ChevronRight size={16} />
+                    </a>
+                  )
+                })}
+                {showBirthdayToday && (
+                  <a href="/admin/birthdays" className="today">
+                    <span><CakeSlice size={17} /></span>
+                    <span><strong>Birthday today</strong><small>{birthdayPreview || `${birthdayTodayCount} camper birthday${birthdayTodayCount === 1 ? '' : 's'}`}</small></span>
+                    <ChevronRight size={16} />
+                  </a>
+                )}
+                {mobileAlertItems.length === 0 && !showBirthdayToday && (
+                  <p><ShieldCheck size={17} /> You’re all caught up.</p>
+                )}
+              </div>
+            )}
           </div>
 
           <a className="admin-sidebar-create" href="/admin/notifications">

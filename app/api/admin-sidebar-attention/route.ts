@@ -59,5 +59,5 @@ export async function GET(request: Request) {
     + counts['/admin/pump-outs']
     + counts['/admin/site-care']
 
-  return NextResponse.json({ counts, appBadgeCount }, { headers: { 'Cache-Control': 'no-store' } })
+  return NextResponse.json({ counts, appBadgeCount, standaloneNotificationCount: standaloneNotifications }, { headers: { 'Cache-Control': 'no-store' } })
 }
