@@ -39,6 +39,8 @@ export default function SystemHealthPage() {
   const [view, setView] = useState<View>('health')
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [auditingElectric, setAuditingElectric] = useState(false)
+  const [electricAudit, setElectricAudit] = useState<any>(null)
   const [message, setMessage] = useState('')
 
   async function load() {
@@ -87,6 +89,22 @@ export default function SystemHealthPage() {
     link.click()
     URL.revokeObjectURL(url)
     setMessage('Monthly operations backup downloaded.')
+  }
+
+  async function verifyElectricTexts() {
+    setAuditingElectric(true)
+    setMessage('')
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) {
+      window.location.href = '/login'
+      return
+    }
+    const response = await fetch('/api/admin-electric-text-audit', { headers: { Authorization: `Bearer ${token}` } })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) setMessage(result.error || 'Electric text delivery could not be verified.')
+    else setElectricAudit(result)
+    setAuditingElectric(false)
   }
 
   const normalizedQuery = query.trim().toLowerCase()
@@ -171,8 +189,15 @@ export default function SystemHealthPage() {
 
       {view === 'delivery' && (
         <section className="operations-health-panel" id="delivery">
-          <header><div><span>COMMUNICATION & PRINTING</span><h2>Delivery history</h2></div><a href="/admin/texts">Open full text history <ArrowRight size={15} /></a></header>
+          <header><div><span>COMMUNICATION & PRINTING</span><h2>Delivery history</h2></div><div className="operations-delivery-header-actions"><button type="button" onClick={verifyElectricTexts} disabled={auditingElectric}>{auditingElectric ? 'Checking carriers…' : 'Verify electric texts'}</button><a href="/admin/texts">Open full text history <ArrowRight size={15} /></a></div></header>
           {snapshot?.failures.length > 0 && <div className="operations-delivery-warning"><AlertTriangle size={18} /><strong>{snapshot.failures.length} recent delivery failure{snapshot.failures.length === 1 ? '' : 's'} need review.</strong></div>}
+          {electricAudit && (
+            <section className="operations-electric-audit">
+              <header><div><span>LIVE ELECTRIC CHECK</span><h3>{electricAudit.invoices} unpaid electric invoice{electricAudit.invoices === 1 ? '' : 's'} · {money(electricAudit.amountDue)}</h3><p>Checked against Twilio at {shortDate(electricAudit.generatedAt)}. “Delivered” is carrier-confirmed; “Carrier sent” reached the phone carrier but has no final receipt.</p></div></header>
+              <div className="operations-electric-audit-counts"><span className="delivered"><b>{electricAudit.delivered}</b> Delivered</span><span><b>{electricAudit.carrierSent}</b> Carrier sent</span><span className={electricAudit.pending ? 'attention' : ''}><b>{electricAudit.pending}</b> Pending</span><span className={electricAudit.failed ? 'failed' : ''}><b>{electricAudit.failed}</b> Failed</span><span className={electricAudit.missing ? 'failed' : ''}><b>{electricAudit.missing}</b> Missing</span><span className={electricAudit.noRecipient ? 'failed' : ''}><b>{electricAudit.noRecipient}</b> No phone</span></div>
+              <div className="operations-electric-audit-list">{electricAudit.records.map((item: any, index: number) => <article className={item.status} key={`${item.invoiceId}-${item.phone}-${index}`}><div><strong>Lot {item.lot} · {item.camper}</strong><small>{item.invoiceNumber} · {money(item.amount)} due {item.dueDate} · {item.reminderType}</small></div><span>{item.phone}</span><em>{String(item.status).replace('_', ' ')}</em>{item.error && <small>{item.error}</small>}</article>)}</div>
+            </section>
+          )}
           {snapshot?.deliveryHistory.length ? <div className="operations-delivery-list">{snapshot.deliveryHistory.map((item: any) => <article className={['failed', 'partial'].includes(String(item.status).toLowerCase()) ? 'failed' : 'success'} key={item.id}><span>{item.channel}</span><div><strong>{item.recipient || 'Scheduled system job'}{item.lot ? ` · Lot ${item.lot}` : ''}</strong><small>{item.detail}</small></div><em>{item.status}</em><time>{shortDate(item.date)}</time></article>)}</div> : <div className="operations-health-empty success"><CheckCircle2 size={30} /><strong>No recent delivery activity.</strong></div>}
         </section>
       )}
