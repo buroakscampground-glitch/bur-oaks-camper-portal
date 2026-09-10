@@ -161,29 +161,70 @@ export async function POST(request: Request) {
     if (body.confirmed !== true) {
       return NextResponse.json({ error: 'Confirm that the camper signed this renewal in the previous system.' }, { status: 400 })
     }
-    if (!existing?.renewal_document_id) {
-      return NextResponse.json({ error: 'There is no linked portal renewal to close for this camper.' }, { status: 409 })
+    if (!existing) {
+      return NextResponse.json({ error: 'There is no renewal record for this camper.' }, { status: 409 })
     }
     if (existing.status === 'Campground Not Renewing' || existing.status === 'Camper Leaving') {
       return NextResponse.json({ error: 'This renewal has a conflicting non-renewal decision. Clear that decision before recording an older signature.' }, { status: 409 })
     }
 
+    const requestedDocumentId = cleanText(body.documentId, 80)
+    const documentId = requestedDocumentId || existing.renewal_document_id
+    if (!documentId) {
+      return NextResponse.json({ error: 'Choose the signed renewal already saved on this camper account.' }, { status: 409 })
+    }
+
     const { data: linkedDocument, error: documentLoadError } = await context.admin
       .from('documents')
-      .select('id,signature_status')
-      .eq('id', existing.renewal_document_id)
+      .select('id,document_name,document_type,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash')
+      .eq('id', documentId)
       .eq('camper_id', camper.id)
       .maybeSingle()
 
     if (documentLoadError || !linkedDocument) {
       return NextResponse.json({ error: documentLoadError?.message || 'The linked portal renewal could not be found.' }, { status: 404 })
     }
-    if (String(linkedDocument.signature_status || '').toLowerCase() === 'signed') {
-      return NextResponse.json({ error: 'This portal renewal is already signed and does not need to be closed.' }, { status: 409 })
-    }
-
     const now = new Date().toISOString()
     const today = todayInCentral()
+    if (hasSecureRenewalSignature(linkedDocument)) {
+      const cycleYear = String(existing.contract_end_date || '').slice(0, 4)
+      const documentLabel = `${linkedDocument.document_name || ''} ${linkedDocument.document_type || ''}`
+      if (!/renewal/i.test(documentLabel) || (cycleYear && !documentLabel.includes(cycleYear))) {
+        return NextResponse.json({ error: 'The saved signature does not match this renewal cycle.' }, { status: 409 })
+      }
+
+      const auditNote = `Existing signed renewal linked by ${cleanText(context.camper.first_name, 80) || 'admin'} on ${today}; no new renewal or rent invoices were created.`
+      const existingNotes = cleanText(existing.notes, 2600)
+      const notes = existingNotes.includes('Existing signed renewal linked')
+        ? existingNotes
+        : [existingNotes, auditNote].filter(Boolean).join('\n')
+      const { data: renewal, error: renewalUpdateError } = await context.admin
+        .from('season_renewals')
+        .update({
+          status: 'Renewing',
+          renewal_document_id: linkedDocument.id,
+          decision_recorded_at: String(linkedDocument.signed_at || '').slice(0, 10) || today,
+          auto_send_approved: false,
+          auto_send_approved_at: null,
+          automation_error: null,
+          last_automation_at: now,
+          notes,
+        })
+        .eq('id', existing.id)
+        .select('*')
+        .single()
+
+      if (renewalUpdateError || !renewal) {
+        return NextResponse.json({ error: renewalUpdateError?.message || 'The signed renewal could not be linked.' }, { status: 500 })
+      }
+      return NextResponse.json({
+        success: true,
+        renewal,
+        documentStatus: 'signed',
+        renewalRentSchedule: { status: 'preserved-existing', created: 0, skipped: 0 },
+      })
+    }
+
     const auditNote = `Signed in previous system; duplicate unsigned portal renewal closed by ${cleanText(context.camper.first_name, 80) || 'admin'} on ${today}.`
     const existingNotes = cleanText(existing.notes, 2600)
     const notes = existingNotes.includes('Signed in previous system')

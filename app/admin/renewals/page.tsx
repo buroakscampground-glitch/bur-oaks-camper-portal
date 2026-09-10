@@ -72,6 +72,7 @@ type SavedRenewal = Renewal & {
 
 type RenewalDocument = {
   id: string
+  camper_id?: string | null
   document_name?: string | null
   document_type?: string | null
   signature_status?: string | null
@@ -295,7 +296,7 @@ export default function AdminRenewalsPage() {
     const [camperResult, renewalResult, documentResult] = await Promise.all([
       supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,role,rent_payment_plan').eq('active', true).order('lot_number', { ascending: true }),
       supabase.from('season_renewals').select('*').order('contract_end_date', { ascending: true, nullsFirst: false }),
-      supabase.from('documents').select('id,document_name,document_type,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash'),
+      supabase.from('documents').select('id,camper_id,document_name,document_type,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash'),
     ])
 
     if (camperResult.error || renewalResult.error || documentResult.error) {
@@ -366,7 +367,7 @@ export default function AdminRenewalsPage() {
     }))
   }
 
-  async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'clear' | 'mark-sent' | 'send-nonrenewal' | 'signed-previous-system') {
+  async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'clear' | 'mark-sent' | 'send-nonrenewal' | 'signed-previous-system', documentId = '') {
     const existing = renewals.find((record) => record.camper_id === camper.id)
     const draft = drafts[camper.id] || draftFrom(existing)
     const sessionResult = await Promise.race([
@@ -392,6 +393,7 @@ export default function AdminRenewalsPage() {
           notes: draft.notes,
           rentPaymentPlan: camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual',
           ...(action === 'signed-previous-system' ? { confirmed: true } : {}),
+          ...(documentId ? { documentId } : {}),
         }),
         signal: controller.signal,
       })
@@ -462,7 +464,13 @@ export default function AdminRenewalsPage() {
 
   async function recordPreviousSystemSignature(camper: Camper) {
     const renewal = renewals.find((record) => record.camper_id === camper.id)
-    const linkedDocument = renewalDocuments.find((document) => document.id === renewal?.renewal_document_id)
+    const cycleYear = String(renewal?.contract_end_date || '').slice(0, 4)
+    const signedRenewalOnFile = renewalDocuments.find((document) => document.camper_id === camper.id
+        && hasSecureRenewalSignature(document)
+        && /renewal/i.test(`${document.document_name || ''} ${document.document_type || ''}`)
+        && (!cycleYear || `${document.document_name || ''} ${document.document_type || ''}`.includes(cycleYear)))
+    const linkedDocument = signedRenewalOnFile
+      || renewalDocuments.find((document) => document.id === renewal?.renewal_document_id)
     if (!linkedDocument) {
       setFeedback('The linked portal renewal could not be found.')
       return
@@ -476,13 +484,15 @@ export default function AdminRenewalsPage() {
     setSaving(camper.id)
     setFeedback('')
     try {
-      const saved = await saveThroughAdminApi(camper, 'signed-previous-system')
+      const saved = await saveThroughAdminApi(camper, 'signed-previous-system', linkedDocument.id)
       setRenewals((current) => [...current.filter((record) => record.camper_id !== camper.id), saved])
-      setRenewalDocuments((current) => current.map((document) => document.id === linkedDocument.id ? { ...document, signature_status: 'not_required' } : document))
+      setRenewalDocuments((current) => current.map((document) => document.id === linkedDocument.id && document.signature_status !== 'signed' ? { ...document, signature_status: 'not_required' } : document))
       setDrafts((current) => ({ ...current, [camper.id]: draftFrom(saved) }))
       const schedule = saved.renewalRentSchedule
       const scheduleMessage = schedule?.status === 'continued'
         ? ` ${schedule.created || 0} future ${schedule.paymentPlan === 'quarterly' ? 'quarterly' : 'half-payment'} invoice${schedule.created === 1 ? '' : 's'} created; ${schedule.skipped || 0} already existed.`
+        : schedule?.status === 'preserved-existing'
+          ? ' The signed renewal already on file is linked; no new form or rent invoices were created.'
         : schedule?.status === 'no-prior-schedule'
           ? ' The payment schedule needs office review because annual rent is missing and prior invoices were incomplete.'
           : schedule?.status === 'failed'
@@ -714,6 +724,10 @@ export default function AdminRenewalsPage() {
           {visibleRows.map((row) => {
             const draft = drafts[row.camper.id] || draftFrom(row.renewal)
             const renewalDocument = renewalDocuments.find((document) => document.id === row.renewal?.renewal_document_id)
+            const signedRenewalOnFile = renewalDocuments.find((document) => document.camper_id === row.camper.id
+              && hasSecureRenewalSignature(document)
+              && /renewal/i.test(`${document.document_name || ''} ${document.document_type || ''}`)
+              && (!String(row.contractEnd || '').slice(0, 4) || `${document.document_name || ''} ${document.document_type || ''}`.includes(String(row.contractEnd).slice(0, 4))))
             const annualPreview = nextAnnualDate(draft.annual_month, draft.annual_day)
             const isExpanded = expanded === row.camper.id
             const attention = row.responseOverdue || row.needsReview || row.sendOverdue || row.sendSoon || row.needsSetup || row.automationError || row.nonRenewalLetterDue
@@ -761,7 +775,7 @@ export default function AdminRenewalsPage() {
                 </section>}
                 <label className="notes">Private notes<textarea value={draft.notes} onChange={(event) => updateDraft(row.camper.id, 'notes', event.target.value)} placeholder="Calls, conversations, special circumstances…" /></label>
                 <div className="renewal-edit-actions">
-                  {row.renewal?.renewal_document_id && ['Not Started', 'Awaiting Response'].includes(row.renewal.status) && !['signed', 'not_required', 'declined'].includes(String(renewalDocument?.signature_status || '').toLowerCase()) && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => recordPreviousSystemSignature(row.camper)}><FileCheck2 size={15} /> {previousSystemConfirmId === row.camper.id ? 'Confirm old-system signature' : 'Signed in previous system'}</button>}
+                  {row.renewal && ['Not Started', 'Awaiting Response'].includes(row.renewal.status) && ((row.renewal.renewal_document_id && !['signed', 'not_required', 'declined'].includes(String(renewalDocument?.signature_status || '').toLowerCase())) || signedRenewalOnFile) && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => recordPreviousSystemSignature(row.camper)}><FileCheck2 size={15} /> {previousSystemConfirmId === row.camper.id ? 'Confirm signed renewal' : signedRenewalOnFile ? 'Use signed renewal on file' : 'Signed in previous system'}</button>}
                   {previousSystemConfirmId === row.camper.id && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => { setPreviousSystemConfirmId(''); setFeedback('') }}>Cancel</button>}
                   {!draft.renewal_sent_at && ['Not Started', 'Awaiting Response'].includes(draft.status) && <button className="mark-sent" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper, true)}><Send size={15} /> Mark renewal sent today</button>}
                   <button className="save" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper)}>{saving === row.camper.id ? <Clock3 size={15} /> : <Save size={15} />} {saving === row.camper.id ? 'Saving…' : 'Save renewal record'}</button>
