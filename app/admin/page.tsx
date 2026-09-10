@@ -169,6 +169,29 @@ export default function AdminPage() {
     checkAdmin()
   }, [])
 
+  useEffect(() => {
+    if (checkingAuth) return
+
+    const refreshDashboard = () => {
+      if (!document.hidden) loadStats()
+    }
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') loadStats()
+    }
+    const timer = window.setInterval(refreshDashboard, 30_000)
+
+    window.addEventListener('focus', refreshDashboard)
+    window.addEventListener('pageshow', refreshDashboard)
+    document.addEventListener('visibilitychange', refreshWhenVisible)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshDashboard)
+      window.removeEventListener('pageshow', refreshDashboard)
+      document.removeEventListener('visibilitychange', refreshWhenVisible)
+    }
+  }, [checkingAuth])
+
   async function checkAdmin() {
     const {
       data: { user },
