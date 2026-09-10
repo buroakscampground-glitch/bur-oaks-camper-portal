@@ -29,6 +29,7 @@ import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { effectiveRenewalStatus } from '../../../lib/renewal-document-status'
 import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
+import { isDocumentDeliveryExcluded } from '../../../lib/document-delivery-exemptions'
 
 type Camper = {
   id: string
@@ -367,7 +368,7 @@ export default function AdminRenewalsPage() {
     }))
   }
 
-  async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'clear' | 'mark-sent' | 'send-nonrenewal' | 'signed-previous-system', documentId = '') {
+  async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'clear' | 'mark-sent' | 'send-nonrenewal' | 'signed-previous-system' | 'confirm-signature-exempt', documentId = '') {
     const existing = renewals.find((record) => record.camper_id === camper.id)
     const draft = drafts[camper.id] || draftFrom(existing)
     const sessionResult = await Promise.race([
@@ -410,6 +411,21 @@ export default function AdminRenewalsPage() {
       throw error
     } finally {
       window.clearTimeout(timer)
+    }
+  }
+
+  async function recordSignatureExemptRenewal(camper: Camper) {
+    setSaving(camper.id)
+    setFeedback('')
+    try {
+      const saved = await saveThroughAdminApi(camper, 'confirm-signature-exempt')
+      setRenewals((current) => [...current.filter((record) => record.camper_id !== camper.id), saved])
+      setDrafts((current) => ({ ...current, [camper.id]: draftFrom(saved) }))
+      setFeedback(`Lot ${camper.lot_number || '—'} is recorded as renewing without a signature. No document or rent invoices were created.`)
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'The signature-exempt renewal could not be saved.')
+    } finally {
+      setSaving('')
     }
   }
 
@@ -723,6 +739,7 @@ export default function AdminRenewalsPage() {
         <div className="renewal-list">
           {visibleRows.map((row) => {
             const draft = drafts[row.camper.id] || draftFrom(row.renewal)
+            const signatureExempt = isDocumentDeliveryExcluded(row.camper)
             const renewalDocument = renewalDocuments.find((document) => document.id === row.renewal?.renewal_document_id)
             const signedRenewalOnFile = renewalDocuments.find((document) => document.camper_id === row.camper.id
               && hasSecureRenewalSignature(document)
@@ -752,7 +769,7 @@ export default function AdminRenewalsPage() {
               {isExpanded && <div className="renewal-edit">
                 <label>Annual contract month<select value={draft.annual_month} onChange={(event) => updateDraft(row.camper.id, 'annual_month', event.target.value)}><option value="">Choose month</option>{months.map((month, index) => <option key={month} value={index + 1}>{month}</option>)}</select></label>
                 <label>Day<select value={draft.annual_day} onChange={(event) => updateDraft(row.camper.id, 'annual_day', event.target.value)}><option value="">Choose day</option>{Array.from({ length: 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}</select></label>
-                <label>Decision<select value={draft.status} onChange={(event) => updateDraft(row.camper.id, 'status', event.target.value)}>{statuses.map((status) => <option key={status} value={status} disabled={status === 'Renewing' && row.renewal?.status !== 'Renewing'}>{statusLabels[status]}</option>)}</select><small>“Camper Renewing” is assigned automatically only after the camper completes the required signature.</small></label>
+                <label>Decision<select value={draft.status} onChange={(event) => updateDraft(row.camper.id, 'status', event.target.value)}>{statuses.map((status) => <option key={status} value={status} disabled={status === 'Renewing' && row.renewal?.status !== 'Renewing'}>{statusLabels[status]}</option>)}</select><small>{signatureExempt ? 'This camper is signature-exempt and receives no renewal documents.' : '“Camper Renewing” is assigned automatically only after the camper completes the required signature.'}</small></label>
                 <label>Rent payment plan<select value={row.camper.rent_payment_plan || 'semiannual'} onChange={(event) => setCampers((current) => current.map((camper) => camper.id === row.camper.id ? { ...camper, rent_payment_plan: event.target.value === 'quarterly' ? 'quarterly' : 'semiannual' } : camper))}><option value="semiannual">Half-and-half · 2 payments</option><option value="quarterly">Grandfathered quarterly · 4 payments</option></select><small>Saved with this renewal record and used when the camper signs.</small></label>
                 <div className="renewal-annual-help"><strong>Enter this once.</strong><span>The year does not matter. Every renewal is for 12 months, so the system automatically moves this date forward each year.</span></div>
                 {annualPreview && <div className="renewal-edit-dates"><span>Annual date <strong>{formatAnnualDate(annualPreview)}</strong></span><span>Next automatic send <strong>{formatDate(shiftDate(annualPreview, -4))}</strong></span><span>Camper reply due <strong>{formatDate(shiftDate(annualPreview, -3))}</strong></span><span>Possible opening <strong>{formatDate(shiftDate(annualPreview, 0, 1))}</strong></span>{row.renewal?.automation_error && <span><strong>Needs attention:</strong> {row.renewal.automation_error}</span>}</div>}
@@ -775,6 +792,7 @@ export default function AdminRenewalsPage() {
                 </section>}
                 <label className="notes">Private notes<textarea value={draft.notes} onChange={(event) => updateDraft(row.camper.id, 'notes', event.target.value)} placeholder="Calls, conversations, special circumstances…" /></label>
                 <div className="renewal-edit-actions">
+                  {signatureExempt && row.renewal?.status !== 'Renewing' && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => recordSignatureExemptRenewal(row.camper)}><CheckCircle2 size={15} /> Record exempt renewal</button>}
                   {row.renewal && ['Not Started', 'Awaiting Response'].includes(row.renewal.status) && ((row.renewal.renewal_document_id && !['signed', 'not_required', 'declined'].includes(String(renewalDocument?.signature_status || '').toLowerCase())) || signedRenewalOnFile) && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => recordPreviousSystemSignature(row.camper)}><FileCheck2 size={15} /> {previousSystemConfirmId === row.camper.id ? 'Confirm signed renewal' : signedRenewalOnFile ? 'Use signed renewal on file' : 'Signed in previous system'}</button>}
                   {previousSystemConfirmId === row.camper.id && <button className="previous-system" type="button" disabled={saving === row.camper.id} onClick={() => { setPreviousSystemConfirmId(''); setFeedback('') }}>Cancel</button>}
                   {!draft.renewal_sent_at && ['Not Started', 'Awaiting Response'].includes(draft.status) && <button className="mark-sent" type="button" disabled={saving === row.camper.id} onClick={() => saveRenewal(row.camper, true)}><Send size={15} /> Mark renewal sent today</button>}

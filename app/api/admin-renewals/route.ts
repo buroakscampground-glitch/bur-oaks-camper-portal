@@ -5,6 +5,7 @@ import { sendNonRenewalLetter } from '../../../lib/nonrenewal-letter'
 import { reconcileRenewalsWithDocuments } from '../../../lib/renewal-document-reconciliation'
 import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
 import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-schedule-service'
+import { isDocumentDeliveryExcluded } from '../../../lib/document-delivery-exemptions'
 
 export const runtime = 'nodejs'
 
@@ -86,6 +87,46 @@ export async function POST(request: Request) {
     .select('*')
     .eq('camper_id', camperId)
     .maybeSingle()
+
+  if (action === 'confirm-signature-exempt') {
+    if (!isDocumentDeliveryExcluded(camper)) {
+      return NextResponse.json({ error: 'This camper is not configured as signature-exempt.' }, { status: 409 })
+    }
+    if (!existing) {
+      return NextResponse.json({ error: 'There is no renewal record for this camper.' }, { status: 409 })
+    }
+
+    const today = todayInCentral()
+    const auditNote = `Signature-exempt renewal recorded by ${cleanText(context.camper.first_name, 80) || 'admin'} on ${today}; no document or rent invoices were created.`
+    const existingNotes = cleanText(existing.notes, 2600)
+    const notes = existingNotes.includes('Signature-exempt renewal recorded')
+      ? existingNotes
+      : [existingNotes, auditNote].filter(Boolean).join('\n')
+    const { data: renewal, error: renewalError } = await context.admin
+      .from('season_renewals')
+      .update({
+        status: 'Renewing',
+        renewal_document_id: null,
+        decision_recorded_at: today,
+        auto_send_approved: false,
+        auto_send_approved_at: null,
+        automation_error: null,
+        last_automation_at: new Date().toISOString(),
+        notes,
+      })
+      .eq('id', existing.id)
+      .select('*')
+      .single()
+
+    if (renewalError || !renewal) {
+      return NextResponse.json({ error: renewalError?.message || 'The signature-exempt renewal could not be saved.' }, { status: 500 })
+    }
+    return NextResponse.json({
+      success: true,
+      renewal,
+      renewalRentSchedule: { status: 'no-billing-site', created: 0, skipped: 0 },
+    })
+  }
 
   if (action === 'repair-rent-schedule') {
     const annualRent = Number(body.annualRent)
