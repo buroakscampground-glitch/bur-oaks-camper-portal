@@ -32,6 +32,7 @@ export default function AdminTextsPage() {
   const [sending, setSending] = useState(false)
   const [twilioConfigured, setTwilioConfigured] = useState(false)
   const [sendResults, setSendResults] = useState<any[]>([])
+  const [recentBroadcasts, setRecentBroadcasts] = useState<any[]>([])
   const sendingRef = useRef(false)
   const requestIdRef = useRef('')
 
@@ -65,6 +66,7 @@ export default function AdminTextsPage() {
     if (configResponse?.ok) {
       const config = await configResponse.json()
       setTwilioConfigured(Boolean(config.twilioConfigured))
+      setRecentBroadcasts(config.recentBroadcasts || [])
     }
   }
 
@@ -280,6 +282,14 @@ export default function AdminTextsPage() {
             <p className="admin-texts-warning">Add the three Twilio environment variables in Vercel before texts can send.</p>
           )}
           {status && <p className="admin-texts-status">{status}</p>}
+          {recentBroadcasts[0] && (
+            <section className="admin-texts-latest-campaign">
+              <small>LATEST CAMPAIGN · {formatDateTime(recentBroadcasts[0].created_at)}</small>
+              <strong>{recentBroadcasts[0].reminder_type}</strong>
+              <p><b>{recentBroadcasts[0].sent_count}</b> accepted · <b>{recentBroadcasts[0].failed_count}</b> failed · <b>{recentBroadcasts[0].pending_count}</b> still processing</p>
+              <em>{recentBroadcasts[0].message}</em>
+            </section>
+          )}
           {sendResults.length > 0 && (
             <div className="admin-texts-send-results">
               {sendResults.map((result) => (

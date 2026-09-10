@@ -12,6 +12,9 @@ import {
 } from '../../../lib/sms-broadcast'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
 
+export const runtime = 'nodejs'
+export const maxDuration = 300
+
 function camperName(camper: any) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
 }
@@ -38,9 +41,38 @@ export async function GET(request: Request) {
   const context = await requireAdmin(request)
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { data: broadcasts, error: broadcastError } = await context.admin
+    .from('sms_broadcasts')
+    .select('id,reminder_type,message,status,recipient_count,duplicate_recipient_count,sent_count,failed_count,created_at,completed_at')
+    .order('created_at', { ascending: false })
+    .limit(10)
+  if (broadcastError && !['42P01', 'PGRST205'].includes(broadcastError.code || '')) {
+    return NextResponse.json({ error: broadcastError.message }, { status: 500 })
+  }
+
+  const broadcastIds = (broadcasts || []).map((broadcast: any) => broadcast.id)
+  const { data: deliveries, error: deliveryError } = broadcastIds.length
+    ? await context.admin
+      .from('sms_broadcast_deliveries')
+      .select('broadcast_id,status')
+      .in('broadcast_id', broadcastIds)
+    : { data: [], error: null }
+  if (deliveryError && !['42P01', 'PGRST205'].includes(deliveryError.code || '')) {
+    return NextResponse.json({ error: deliveryError.message }, { status: 500 })
+  }
+
+  const recentBroadcasts = (broadcasts || []).map((broadcast: any) => {
+    const rows = (deliveries || []).filter((delivery: any) => String(delivery.broadcast_id) === String(broadcast.id))
+    const sentCount = rows.filter((delivery: any) => delivery.status === 'sent').length
+    const failedCount = rows.filter((delivery: any) => delivery.status === 'failed').length
+    const pendingCount = Math.max(0, Number(broadcast.recipient_count || 0) - sentCount - failedCount)
+    return { ...broadcast, sent_count: sentCount, failed_count: failedCount, pending_count: pendingCount }
+  })
+
   return NextResponse.json({
     success: true,
     twilioConfigured: isTwilioConfigured(),
+    recentBroadcasts,
   })
 }
 
@@ -188,34 +220,34 @@ export async function POST(request: Request) {
   }
 
   const campaign = campaignInsert.data
-  const results: any[] = []
-
-  for (const recipient of recipientPlan.recipients) {
+  const admin = context.admin
+  const userEmail = context.user.email
+  async function deliverRecipient(recipient: (typeof recipientPlan.recipients)[number]) {
     const camper = recipient.camper
     const phone = recipient.phone
-    const reservation = await context.admin.from('sms_broadcast_deliveries').insert({
+    const reservation = await admin.from('sms_broadcast_deliveries').insert({
       broadcast_id: campaign.id,
       camper_id: camper.id,
       recipient_phone: phone,
     }).select('id').single()
 
-    if (reservation.error || !reservation.data) continue
+    if (reservation.error || !reservation.data) return null
 
     const result = await sendTwilioSms({
       to: phone,
       body: finalMessage,
-      client: context.admin,
+      client: admin,
       camperId: camper.id,
     })
 
-    await context.admin.from('sms_broadcast_deliveries').update({
+    await admin.from('sms_broadcast_deliveries').update({
       status: result.sent ? 'sent' : 'failed',
       provider_message_id: result.sent ? result.providerMessageId : null,
       error_message: result.sent ? null : result.error,
       completed_at: new Date().toISOString(),
     }).eq('id', reservation.data.id)
 
-    await context.admin.from('text_reminders').insert({
+    await admin.from('text_reminders').insert({
       camper_id: camper.id,
       invoice_id: null,
       reminder_type: reminderType,
@@ -226,11 +258,11 @@ export async function POST(request: Request) {
       provider: 'twilio',
       provider_message_id: result.sent ? result.providerMessageId : null,
       error_message: result.sent ? null : result.error,
-      sent_by: context.user.email,
+      sent_by: userEmail,
       broadcast_id: campaign.id,
     })
 
-    results.push({
+    return {
       camperId: camper.id,
       lotNumber: camper.lot_number,
       camperName: camperName(camper),
@@ -238,7 +270,14 @@ export async function POST(request: Request) {
       status: result.sent ? 'sent' : 'failed',
       providerMessageId: result.sent ? result.providerMessageId : null,
       error: result.sent ? null : result.error,
-    })
+    }
+  }
+
+  const results: any[] = []
+  for (let index = 0; index < recipientPlan.recipients.length; index += 12) {
+    const batch = recipientPlan.recipients.slice(index, index + 12)
+    const completed = await Promise.all(batch.map(deliverRecipient))
+    results.push(...completed.filter(Boolean))
   }
 
   const sentCount = results.filter((result) => result.status === 'sent').length
