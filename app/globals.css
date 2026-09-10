@@ -5503,6 +5503,109 @@ button:hover {
   .seasonal-theme-fall.admin-workspace-page::after { animation: none; }
 }
 
+/* SEASONAL POLISH
+   Keep operational colors semantic while the surrounding shell changes with the season. */
+.seasonal-theme {
+  --season-line: color-mix(in srgb, var(--season-accent) 58%, #fff);
+  --season-glow: color-mix(in srgb, var(--season-accent) 14%, transparent);
+  --season-card-shadow: color-mix(in srgb, var(--season-deep) 10%, transparent);
+}
+
+.seasonal-theme .admin-monthly-billing,
+.seasonal-theme .admin-desk-attention,
+.seasonal-theme .admin-desk-directory,
+.seasonal-theme .portal-weekend-brief,
+.seasonal-theme .portal-today-panel,
+.seasonal-theme .portal-announcements-panel {
+  position: relative;
+  box-shadow: 0 12px 32px var(--season-card-shadow);
+}
+
+.seasonal-theme .admin-monthly-billing::before,
+.seasonal-theme .admin-desk-attention::before,
+.seasonal-theme .admin-desk-directory::before,
+.seasonal-theme .portal-weekend-brief::before,
+.seasonal-theme .portal-today-panel::before,
+.seasonal-theme .portal-announcements-panel::before {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  inset: 0 18px auto;
+  height: 3px;
+  border-radius: 0 0 999px 999px;
+  background: linear-gradient(90deg, transparent, var(--season-line) 22%, var(--season-accent) 50%, var(--season-line) 78%, transparent);
+  pointer-events: none;
+}
+
+.seasonal-theme .admin-monthly-billing > header,
+.seasonal-theme .admin-desk-section-heading,
+.seasonal-theme .admin-desk-directory-head,
+.seasonal-theme .portal-section-heading {
+  background:
+    radial-gradient(circle at 94% 0%, var(--season-glow), transparent 38%),
+    linear-gradient(110deg, color-mix(in srgb, var(--season-paper) 72%, #fff), #fff 66%);
+}
+
+.seasonal-theme .admin-monthly-billing > header span,
+.seasonal-theme .admin-desk-group h3,
+.seasonal-theme .portal-section-heading > span {
+  color: color-mix(in srgb, var(--season-main) 68%, #725c2b);
+}
+
+.seasonal-theme .admin-desk-group > div {
+  border-top-color: color-mix(in srgb, var(--season-accent) 32%, #e6e7e2);
+}
+
+.seasonal-theme .admin-desk-group a:hover,
+.seasonal-theme .portal-quick-actions a:hover {
+  background: color-mix(in srgb, var(--season-soft) 42%, #fff);
+}
+
+.seasonal-theme .admin-desk-group a:hover strong {
+  color: var(--season-main);
+}
+
+.seasonal-theme .admin-desk-date-weather {
+  border-color: color-mix(in srgb, var(--season-accent) 42%, transparent);
+  background: color-mix(in srgb, var(--season-paper) 11%, transparent);
+}
+
+.seasonal-theme .admin-desk-date-weather .admin-weather-nowline {
+  color: color-mix(in srgb, var(--season-accent) 82%, #fff);
+}
+
+/* The edge leaves remain a quiet frame instead of moving over working screens. */
+.seasonal-theme-fall.camper-workspace-page::before,
+.seasonal-theme-fall.camper-workspace-page::after,
+.seasonal-theme-fall.admin-workspace-page::before,
+.seasonal-theme-fall.admin-workspace-page::after,
+.seasonal-theme-fall.community-workspace::before,
+.seasonal-theme-fall.community-workspace::after {
+  animation: none;
+  opacity: .58;
+}
+
+@media(max-width:700px) {
+  .seasonal-theme .admin-monthly-billing::before,
+  .seasonal-theme .admin-desk-attention::before,
+  .seasonal-theme .admin-desk-directory::before,
+  .seasonal-theme .portal-weekend-brief::before,
+  .seasonal-theme .portal-today-panel::before,
+  .seasonal-theme .portal-announcements-panel::before {
+    inset-inline: 13px;
+    height: 2px;
+  }
+
+  .seasonal-theme-fall.camper-workspace-page::before,
+  .seasonal-theme-fall.camper-workspace-page::after,
+  .seasonal-theme-fall.admin-workspace-page::before,
+  .seasonal-theme-fall.admin-workspace-page::after,
+  .seasonal-theme-fall.community-workspace::before,
+  .seasonal-theme-fall.community-workspace::after {
+    opacity: .46;
+  }
+}
+
 /* ADMIN BILLING WORKSPACE */
 .admin-workspace-content>main.admin-billing-page { padding:0!important; border:0; background:transparent!important; box-shadow:none; }
 .admin-billing-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); overflow:hidden; margin-bottom:22px; border:1px solid #dcd9ce; border-radius:19px; background:rgba(255,255,255,.97); box-shadow:0 12px 32px rgba(39,52,43,.07); }
