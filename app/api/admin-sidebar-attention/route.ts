@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requiresAdminAttention } from '../../../lib/admin-notification-types'
+import { isInvoiceDueNow } from '../../../lib/invoice-balance'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
-
-function isOpen(status: unknown) {
-  return !['paid', 'cancelled', 'canceled', 'void', 'refunded', 'completed', 'closed', 'resolved'].includes(String(status || '').toLowerCase())
-}
 
 export async function GET(request: Request) {
   const context = await getAuthenticatedContext(request)
@@ -40,7 +37,7 @@ export async function GET(request: Request) {
   const counts: Record<string, number> = {
     '/admin/notifications': notifications.filter((item: any) => item.type !== 'event_rsvp' && requiresAdminAttention(item.type)).length,
     '/admin/messages': (messageResult.data || []).length,
-    '/admin/open-balance': (invoiceResult.data || []).filter((item: any) => isOpen(item.status)).length,
+    '/admin/open-balance': (invoiceResult.data || []).filter((item: any) => isInvoiceDueNow(item)).length,
     // Unsigned documents stay prominent on the admin dashboard, but they are
     // camper action items and should not create an admin badge.
     '/admin/documents': 0,

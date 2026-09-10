@@ -35,7 +35,9 @@ test('sidebar attention endpoint counts unresolved work by destination page', as
   destinations.forEach((destination) => assert.match(source, new RegExp(destination.replaceAll('/', '\\/'))))
   assert.match(source, /Cache-Control': 'no-store/)
   assert.match(source, /standaloneNotificationCount/)
-  assert.match(source, /'\/admin\/open-balance': \(invoiceResult\.data \|\| \[\]\)\.filter\(\(item: any\) => isOpen\(item\.status\)\)\.length/)
+  assert.match(source, /import \{ isInvoiceDueNow \} from '\.\.\/\.\.\/\.\.\/lib\/invoice-balance'/)
+  assert.match(source, /'\/admin\/open-balance': \(invoiceResult\.data \|\| \[\]\)\.filter\(\(item: any\) => isInvoiceDueNow\(item\)\)\.length/)
+  assert.doesNotMatch(source, /isOpen\(item\.status\)/)
 })
 
 test('birthday alerts can reach the Admin Home Screen while the app is closed', async () => {
