@@ -43,7 +43,7 @@ function buildInvoiceSms(invoice: any, kind: InvoiceTextKind, camper: any) {
   const invoiceNumber = invoice.invoice_number || 'new invoice'
   const total = money(invoice.total_due)
   const due = prettyDate(invoice.due_date)
-  const invoiceUrl = portalSmsUrl('/invoices')
+  const invoiceUrl = portalSmsUrl(`/invoices/${encodeURIComponent(String(invoice.id))}`)
   const site = camper?.lot_number ? `, Lot ${camper.lot_number}` : ''
 
   const compact = (message: string) => singleSegmentSms({

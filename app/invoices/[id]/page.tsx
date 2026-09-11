@@ -75,7 +75,8 @@ export default function CamperInvoiceDetailPage() {
       const camperData = await getCurrentCamper()
 
       if (!camperData) {
-        window.location.href = '/login'
+        const returnTo = `/invoices/${invoiceId}`
+        window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`
         return
       }
 
