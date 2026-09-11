@@ -166,6 +166,7 @@ export default function AdminPumpOutsPage() {
       const matchesFilter =
         filter === 'all' ||
         (filter === 'active' ? active : request.status === filter)
+        || (filter === 'completed_unbilled' && isCompletedPumpOutWaitingForBilling(request))
       const matchesSearch =
         !term ||
         `${request.camper_name} ${request.lot_number} ${request.notes || ''}`
@@ -191,6 +192,12 @@ export default function AdminPumpOutsPage() {
   const selectedManualServiceLot = manualServiceLot || manualServiceLots[0] || selectedManualCamper?.lot_number
   const selectedManualCharge = getSewerPumpOutFeeForLot(selectedManualServiceLot, defaultPumpOutFee)
 
+  function showWaitingForBilling() {
+    setSearch('')
+    setFilter('completed_unbilled')
+    window.requestAnimationFrame(() => document.getElementById('pump-out-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
   return (
     <main className="admin-pump-page">
       <section className="admin-pump-hero">
@@ -202,7 +209,9 @@ export default function AdminPumpOutsPage() {
 
       <section className="admin-pump-stats">
         <article><small>Needs pumped</small><strong>{needsPumping.length}</strong></article>
-        <article><small>Pumped, not billed</small><strong>{completedUnbilled.length}</strong></article>
+        <button type="button" onClick={showWaitingForBilling} aria-label={`View ${completedUnbilled.length} pumped service${completedUnbilled.length === 1 ? '' : 's'} waiting for electric billing`}>
+          <small>Pumped, not billed</small><strong>{completedUnbilled.length}</strong><span>View campers →</span>
+        </button>
         <article><small>Pending charges</small><strong>${pendingChargeTotal.toFixed(2)}</strong></article>
         <article><small>Gallons on active list</small><strong>{pendingGallons.toLocaleString()}</strong></article>
       </section>
@@ -249,6 +258,7 @@ export default function AdminPumpOutsPage() {
         <select value={filter} onChange={(event) => setFilter(event.target.value)}>
           <option value="requested">Needs Pumped</option>
           <option value="completed">Pumped</option>
+          <option value="completed_unbilled">Pumped, waiting for next electric bill</option>
           <option value="active">All current / unbilled</option>
           <option value="cancelled">Cancelled</option>
           <option value="all">Complete pump-out history</option>
@@ -258,7 +268,7 @@ export default function AdminPumpOutsPage() {
         </button>
       </section>
 
-      <section className="admin-pump-list">
+      <section className="admin-pump-list" id="pump-out-list">
         {visibleRequests.map((request) => {
           const isBilled = Boolean(request.billed_at)
           const origin = pumpOutOrigin(request.notes)
@@ -269,7 +279,7 @@ export default function AdminPumpOutsPage() {
             <article className={`${request.status} ${isBilled ? 'billed' : ''}`} key={request.id}>
               <span>{statusLabels[request.status] || request.status}</span>
               <div className="admin-pump-details">
-                <small>Service site {request.lot_number || 'N/A'} · requested {new Date(request.requested_at).toLocaleString()}</small>
+                <small>{isCompletedPumpOutWaitingForBilling(request) && request.completed_at ? `Pumped ${new Date(request.completed_at).toLocaleString()} · ` : ''}Service site {request.lot_number || 'N/A'} · requested {new Date(request.requested_at).toLocaleString()}</small>
                 <h2>{request.camper_name}</h2>
                 <p><strong>{origin.label}</strong> · {origin.initiatedBy}{billingLot && billingLot !== request.lot_number ? ` · billed to Lot ${billingLot}` : ''}</p>
                 <p>{displayNotes || 'No additional notes.'}</p>
