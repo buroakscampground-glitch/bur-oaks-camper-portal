@@ -1,6 +1,6 @@
 'use client'
 
-import { ArrowRight, CalendarDays, CakeSlice, LockKeyhole, Mail, MessageCircle, ShieldCheck, Soup } from 'lucide-react'
+import { ArrowRight, Camera, LockKeyhole, Mail, MessageCircle, ShieldCheck, UsersRound } from 'lucide-react'
 import { useState } from 'react'
 import { safeLoginReturnPath } from '../../lib/login-return-path'
 import { portalLoginEmail } from '../../lib/phone-portal-login'
@@ -39,7 +39,7 @@ export default function CommunityLoginPage() {
       }
 
       const requested = new URLSearchParams(window.location.search).get('returnTo')
-      window.location.href = safeLoginReturnPath(requested, role) || '/community'
+      window.location.href = safeLoginReturnPath(requested, role) || '/community/talk'
     } catch (loginError) {
       console.error(loginError)
       setError(loginError instanceof Error ? loginError.message : 'Login failed')
@@ -54,20 +54,20 @@ export default function CommunityLoginPage() {
         <a className="signin-brand" href="/"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /><span><strong>Bur Oaks</strong><small>Community</small></span></a>
         <div className="signin-story-copy">
           <span><ShieldCheck size={16} /> Separate Community entrance</span>
-          <h1>Campground talk, events, and celebrations.</h1>
-          <p>This entrance opens the Community workspace without the billing, finance, or maintenance screens.</p>
+          <h1>One simple place for campground conversation.</h1>
+          <p>This entrance opens only the Community message thread—nothing from Admin, billing, finance, maintenance, or event planning.</p>
         </div>
         <div className="signin-feature-strip" aria-label="Community workspace highlights">
-          <article><MessageCircle size={18} /><span><strong>Community feed</strong><small>Keep up with campground talk</small></span></article>
-          <article><CalendarDays size={18} /><span><strong>Events & RSVPs</strong><small>Plan and track attendance</small></span></article>
-          <article><Soup size={18} /><span><strong>Dinners & birthdays</strong><small>Everything fun in one place</small></span></article>
+          <article><MessageCircle size={18} /><span><strong>Community posts</strong><small>Keep up with campground talk</small></span></article>
+          <article><UsersRound size={18} /><span><strong>Comments & replies</strong><small>Join one clear conversation</small></span></article>
+          <article><Camera size={18} /><span><strong>Shared photos</strong><small>See what campers are sharing</small></span></article>
         </div>
         <small className="signin-est">Bur Oaks Community · Separate from Admin</small>
       </section>
 
       <section className="signin-form-side">
         <div className="signin-form-card">
-          <div className="signin-card-badge"><CakeSlice size={17} /><span>Community workspace</span></div>
+          <div className="signin-card-badge"><MessageCircle size={17} /><span>Community talk</span></div>
           <span className="signin-form-kicker">BUR OAKS COMMUNITY</span>
           <h2>Sign in to Community</h2>
           <p>Dawn can use the same email and password as her Admin account.</p>

@@ -131,6 +131,18 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
   const activeHelpPath = Object.keys(badgeHelp).find((path) => pathname === path || pathname.startsWith(`${path}/`)) as keyof typeof badgeHelp | undefined
   const activeHelp = activeHelpPath ? badgeHelp[activeHelpPath] : null
 
+  if (pathname === '/community/talk' || pathname.startsWith('/community/talk/')) {
+    return (
+      <div className="community-talk-workspace">
+        <header className="community-talk-header">
+          <a href="/community/talk"><img src="/bur-oaks-logo.png" alt="" /><span><strong>Bur Oaks Community</strong><small>Campground conversation</small></span></a>
+          <button type="button" onClick={logout}><LogOut size={17} /> Log out</button>
+        </header>
+        <div className="community-talk-content">{children}</div>
+      </div>
+    )
+  }
+
   return (
     <div className={`community-workspace seasonal-theme seasonal-theme-${theme.key}`}>
       <aside className="community-sidebar" aria-label="Event coordinator navigation">

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 
 export const metadata: Metadata = {
   title: 'Bur Oaks Community Sign In',
-  manifest: '/community/manifest.webmanifest',
+  manifest: '/community/talk/manifest.webmanifest',
   robots: { index: false, follow: false },
 }
 

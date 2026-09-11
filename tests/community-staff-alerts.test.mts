@@ -46,3 +46,16 @@ test('failed badge setup explains what the admin must change on the phone', () =
   assert.match(permission, /Open iPhone Settings, choose Notifications, then Bur Oaks/)
   assert.match(permission, /<small role="alert">\{detail\}<\/small>/)
 })
+
+test('Dawn Community Talk is one feed without the Admin or event-planning navigation', () => {
+  const talk = readFileSync(new URL('../app/community/talk/page.tsx', import.meta.url), 'utf8')
+  const chrome = readFileSync(new URL('../components/CommunityChrome.tsx', import.meta.url), 'utf8')
+  const adminHome = readFileSync(new URL('../app/admin/page.tsx', import.meta.url), 'utf8')
+
+  assert.match(talk, /<CommunityFeed \/>/)
+  assert.doesNotMatch(talk, /adminMode/)
+  assert.match(chrome, /pathname === '\/community\/talk'/)
+  assert.match(chrome, /community-talk-content/)
+  assert.doesNotMatch(chrome.match(/if \(pathname === '\/community\/talk'[\s\S]*?\n  \}/)?.[0] || '', /Admin Command Center|Birthdays|Announcements|Events|Dinners|RSVPs/)
+  assert.match(adminHome, /href="\/community\/talk"/)
+})

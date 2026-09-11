@@ -42,5 +42,5 @@ test('Community has its own sign-in entrance while full admins keep the same acc
   assert.match(layout, /loginPath="\/community-login"/)
   assert.match(login, /same email and password as her Admin account/)
   assert.match(login, /\['admin', 'event_coordinator'\]\.includes\(role\)/)
-  assert.match(login, /safeLoginReturnPath\(requested, role\) \|\| '\/community'/)
+  assert.match(login, /safeLoginReturnPath\(requested, role\) \|\| '\/community\/talk'/)
 })

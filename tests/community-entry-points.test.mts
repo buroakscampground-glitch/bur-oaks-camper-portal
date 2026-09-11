@@ -11,7 +11,7 @@ test('Community is prominently linked from both home screens', () => {
   const adminHome = source('../app/admin/page.tsx')
 
   assert.match(camperHome, /className="portal-community-home-link" href="\/campground-community"/)
-  assert.match(adminHome, /className="admin-community-home-link" href="\/community"/)
+  assert.match(adminHome, /className="admin-community-home-link" href="\/community\/talk"/)
   assert.match(adminHome, /title: 'Community feed'/)
 })
 
