@@ -505,6 +505,7 @@ export default function AdminInvoicesPage() {
                       <small>Lot {invoice.campers?.lot_number || '—'} · Invoice #{invoice.invoice_number}</small>
                       <strong>{invoice.campers?.first_name} {invoice.campers?.last_name}</strong>
                       <em>{invoice.invoice_type || 'Campground charge'}</em>
+                      <span className="admin-invoice-record-compact-due"><CalendarDays size={15} /> DUE: {formatDate(invoice.due_date)}</span>
                     </span>
                     <span className="admin-invoice-record-date"><CalendarDays size={14} /><span><small>Due</small><strong>{formatDate(invoice.due_date)}</strong></span></span>
                     <span className="admin-invoice-record-total">
