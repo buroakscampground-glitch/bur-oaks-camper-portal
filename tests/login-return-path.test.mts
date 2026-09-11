@@ -9,6 +9,11 @@ test('admin message alert returns to the exact conversation after login', () => 
   )
 })
 
+test('full admins can return directly to the separate community workspace', () => {
+  assert.equal(safeLoginReturnPath('/community/feed', 'admin'), '/community/feed')
+  assert.equal(safeLoginReturnPath('/community/announcements', 'admin'), '/community/announcements')
+})
+
 test('login return path rejects external and wrong-role destinations', () => {
   assert.equal(safeLoginReturnPath('//malicious.example/admin', 'admin'), '')
   assert.equal(safeLoginReturnPath('https://malicious.example/admin', 'admin'), '')

@@ -139,6 +139,7 @@ const navGroups = [
   {
     label: 'Community',
     links: [
+      { href: '/community', label: 'Community Portal', icon: Home },
       { href: '/admin/community-feed', label: 'Community Feed', icon: Users },
       { href: '/admin/dinners', label: 'Saturday Dinners', icon: Utensils },
       { href: '/admin/events', label: 'Events', icon: CalendarDays },

@@ -33,7 +33,7 @@ export function safeLoginReturnPath(value: unknown, role: unknown) {
 
   const normalizedRole = String(role || '').trim().toLowerCase()
   const allowed = normalizedRole === 'admin'
-    ? pathMatches(parsed.pathname, '/admin')
+    ? pathMatches(parsed.pathname, '/admin') || pathMatches(parsed.pathname, '/community')
     : normalizedRole === 'event_coordinator'
       ? pathMatches(parsed.pathname, '/community')
     : normalizedRole === 'maintenance'

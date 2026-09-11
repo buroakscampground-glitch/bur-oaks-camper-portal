@@ -82,7 +82,12 @@ export async function GET(request: Request) {
       rsvps: unseen('rsvps'),
     }
 
-    return NextResponse.json({ counts, total: Object.values(counts).reduce((sum, count) => sum + count, 0), dinnerDate: trackable.dinnerDate })
+    return NextResponse.json({
+      counts,
+      total: Object.values(counts).reduce((sum, count) => sum + count, 0),
+      dinnerDate: trackable.dinnerDate,
+      role: context.camper.role,
+    })
   } catch (error) {
     console.error('Community workspace summary failed:', error)
     return NextResponse.json({ error: 'Unable to load Community badges.' }, { status: 500 })

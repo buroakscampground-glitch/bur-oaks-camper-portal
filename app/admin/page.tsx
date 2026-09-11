@@ -653,12 +653,12 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <a className="admin-community-home-link" href="/admin/community-feed">
+        <a className="admin-community-home-link" href="/community">
           <span className="admin-community-home-icon"><UsersRound size={25} /></span>
           <span>
             <small>CAMPGROUND COMMUNITY</small>
-            <strong>Open the camper conversation</strong>
-            <em>View posts and comments · Post as the office · Manage or block members</em>
+            <strong>Open the separate Community portal</strong>
+            <em>Community feed · Birthdays · Announcements · Events · Dinners · RSVPs</em>
           </span>
           <span className="admin-community-home-cta">
             Open Community <ArrowRight size={17} /> <CommunityUnreadBadge syncHomeScreen={false} />

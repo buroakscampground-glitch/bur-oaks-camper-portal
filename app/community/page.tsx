@@ -15,9 +15,9 @@ export default function CommunityHomePage() {
   return (
     <main className="community-home">
       <section className="community-home-hero">
-        <div><span><Sparkles size={17} /> EVENT COORDINATOR</span><h1>Everything for the fun side of Bur Oaks.</h1><p>Plan events, celebrate campers, post announcements, and keep attendance organized from one simple workspace.</p></div>
+        <div><span><Sparkles size={17} /> COMMUNITY CENTER</span><h1>Everything for the fun side of Bur Oaks.</h1><p>Plan events, celebrate campers, post announcements, and keep attendance organized from one simple workspace.</p></div>
       </section>
-      <section className="community-access-note"><ShieldCheck size={22} /><div><strong>You have full Community administrative authority.</strong><p>You can manage Community posts and member access, but this login cannot open billing, invoices, financial reports, maintenance, camper records, leases, or owner settings.</p></div></section>
+      <section className="community-access-note"><ShieldCheck size={22} /><div><strong>You have full Community administrative authority.</strong><p>This workspace keeps Community posts, events, announcements, dinners, birthdays, and RSVPs together without billing or maintenance clutter.</p></div></section>
       <AppBadgePermission label="your Event Coordinator alerts" staffApp="community" />
       <CommunityBadgeOverview />
       <section className="community-tool-grid">

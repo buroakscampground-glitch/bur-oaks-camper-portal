@@ -55,6 +55,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const [counts, setCounts] = useState<CommunityCounts>(emptyCounts)
+  const [portalRole, setPortalRole] = useState('')
   const theme = getSeasonalTheme()
 
   useEffect(() => {
@@ -73,6 +74,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
 
       const nextCounts = { ...emptyCounts, ...(result.counts || {}), total: Number(result.total || 0) }
       setCounts(nextCounts)
+      setPortalRole(String(result.role || '').toLowerCase())
       void syncHomeScreenBadge(nextCounts.total)
     }
 
@@ -138,9 +140,10 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
             {menuOpen ? <X size={20} /> : <Menu size={20} />} <span>{menuOpen ? 'Close' : 'Menu'}</span>
           </button>
         </div>
-        <div className="community-role-card"><Sparkles size={20} /><span><strong>Event Coordinator</strong><small>Community tools only</small></span></div>
+        <div className="community-role-card"><Sparkles size={20} /><span><strong>{portalRole === 'admin' ? 'Full Admin' : 'Event Coordinator'}</strong><small>Community workspace</small></span></div>
         <SeasonalThemeCard theme={theme} />
         <nav className={menuOpen ? 'open' : ''}>
+          {portalRole === 'admin' && <a href="/admin"><Home size={18} /> <span>Admin Command Center</span></a>}
           {links.map((link) => {
             const Icon = link.icon
             const count = counts[link.countKey]
@@ -155,7 +158,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
           {activeHelp && <aside className="community-badge-help"><BellRing size={19} /><div><strong>{activeHelp.title}</strong><p>{activeHelp.detail}</p></div></aside>}
           {children}
         </div>
-        <footer>Event Coordinator Workspace · No billing or maintenance access</footer>
+        <footer>Community Workspace · Full admins can return to the Admin Command Center anytime</footer>
       </div>
     </div>
   )
