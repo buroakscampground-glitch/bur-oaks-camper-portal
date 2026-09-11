@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function CommunityLayout({ children }: { children: ReactNode }) {
   return (
-    <RoleGuard allowedRoles={['event_coordinator', 'admin']}>
+    <RoleGuard allowedRoles={['event_coordinator', 'admin']} loginPath="/community-login">
       <CommunityChrome>{children}</CommunityChrome>
     </RoleGuard>
   )

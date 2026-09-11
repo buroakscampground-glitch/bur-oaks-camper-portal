@@ -7,9 +7,11 @@ import { effectivePortalRole } from '../lib/staff-roles'
 
 export default function RoleGuard({
   allowedRoles,
+  loginPath = '/login',
   children,
 }: {
   allowedRoles: string[]
+  loginPath?: string
   children: React.ReactNode
 }) {
   const [allowed, setAllowed] = useState(false)
@@ -36,7 +38,7 @@ export default function RoleGuard({
 
         if (!token || !session.user?.email) {
           const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
-          window.location.replace(`/login?returnTo=${encodeURIComponent(returnTo)}`)
+          window.location.replace(`${loginPath}?returnTo=${encodeURIComponent(returnTo)}`)
           return
         }
 
@@ -101,7 +103,7 @@ export default function RoleGuard({
 
     checkRole()
     return () => { active = false }
-  }, [allowedRolesKey, checkAttempt])
+  }, [allowedRolesKey, checkAttempt, loginPath])
 
   if (!allowed) {
     return (
