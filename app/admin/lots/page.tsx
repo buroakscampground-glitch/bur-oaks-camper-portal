@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isSystemPortalAccount } from '../../../lib/camper-records'
+import { rentPaymentBreakdown } from '../../../lib/rent-payment-summary'
 
 const siteKey = (value: unknown) => String(value || '').trim().toLowerCase()
 
@@ -240,6 +241,7 @@ export default function LotsPage() {
           <div className="admin-lot-grid">
             {filteredSites.map((site) => {
               const occupants = campers.filter((camper) => siteKey(camper.lot_number) === siteKey(site.lot_number))
+              const rentSchedule = rentPaymentBreakdown(site.lot_rent_amount, occupants[0]?.rent_payment_plan)
               return (
                 <article className="admin-lot-card" key={site.id}>
                   <header>
@@ -248,7 +250,7 @@ export default function LotsPage() {
                   </header>
                   <div className="admin-lot-details">
                     <span><Gauge size={15} /><small>Meter</small><strong>{site.meter_number || 'Not entered'}</strong></span>
-                    <span><CircleDollarSign size={15} /><small>Annual rent</small><strong>{site.lot_rent_amount ? `$${Number(site.lot_rent_amount).toFixed(2)}` : 'Not entered'}</strong></span>
+                    <span><CircleDollarSign size={15} /><small>Annual rent</small><strong>{site.lot_rent_amount ? `$${Number(site.lot_rent_amount).toFixed(2)}` : 'Not entered'}</strong>{rentSchedule && <em>{rentSchedule.count} payments · {rentSchedule.payments.map((payment) => `$${payment.amount.toFixed(2)}`).join(' · ')}</em>}</span>
                   </div>
                   <div className="admin-lot-occupants">
                     <small>CAMPERS ON THIS SITE</small>

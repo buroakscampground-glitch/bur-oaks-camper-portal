@@ -32,6 +32,7 @@ import AddressFinder from '../../../../components/AddressFinder'
 import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 import { isPhonePortalLoginEmail } from '../../../../lib/phone-portal-login'
 import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/staff-roles'
+import { rentPaymentBreakdown } from '../../../../lib/rent-payment-summary'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 type HistoryView = 'activity' | 'documents' | 'billing' | 'site' | 'messages' | 'electric'
@@ -141,6 +142,11 @@ export default function CamperDetailPage() {
   const [internalHistory, setInternalHistory] = useState<any | null>(null)
   const [historyView, setHistoryView] = useState<HistoryView>('activity')
   const [historyError, setHistoryError] = useState('')
+  const rentSchedule = rentPaymentBreakdown(
+    annualLotRent,
+    camper.rent_payment_plan,
+    internalHistory?.renewal?.contract_start_date || internalHistory?.renewal?.contract_end_date,
+  )
 
   useEffect(() => {
     loadCamper()
@@ -769,6 +775,24 @@ export default function CamperDetailPage() {
               {savingAnnualRent ? 'Saving…' : 'Save Rent & Plan'}
             </button>
           </div>
+          {rentSchedule && (
+            <div className="admin-camper-rent-schedule">
+              <header>
+                <span><CalendarDays size={18} /></span>
+                <div><small>PAYMENT SCHEDULE</small><strong>{rentSchedule.label} · {rentSchedule.count} payments</strong></div>
+                <b>${rentSchedule.annualRent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} yearly</b>
+              </header>
+              <div>
+                {rentSchedule.payments.map((payment) => (
+                  <article key={payment.number}>
+                    <small>PAYMENT {payment.number}</small>
+                    <strong>${payment.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                    <span>{payment.dueDate ? `Due ${new Date(`${payment.dueDate}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}` : 'Contract due date'}</span>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
         </ProfileSection>
 
         <ProfileSection icon={<ContactRound />} kicker="CONTACT" title="Profile 1 & portal emails">
