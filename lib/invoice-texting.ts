@@ -65,7 +65,7 @@ function buildInvoiceSms(invoice: any, kind: InvoiceTextKind, camper: any) {
   }
 
   if (kind === 'due_1_day') {
-    return compact(`BILL DUE TOMORROW #${invoiceNumber}${site}: ${total}, due ${due}.`)
+    return compact(`!!! BILL DUE TOMORROW !!! #${invoiceNumber}${site}: ${total}, due ${due}.`)
   }
 
   if (kind === 'due_today') {
