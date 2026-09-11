@@ -29,3 +29,20 @@ test('posts, comments, likes, reports, and administrative actions notify Communi
     assert.match(route, new RegExp(`kind: '${kind}'`))
   }
 })
+
+test('the separate Community workspace registers the correct phone alert type for each staff role', () => {
+  const permission = readFileSync(new URL('../components/CommunityAppBadgePermission.tsx', import.meta.url), 'utf8')
+  const home = readFileSync(new URL('../app/community/page.tsx', import.meta.url), 'utf8')
+
+  assert.match(permission, /role === 'admin'/)
+  assert.match(permission, /label="your Admin alerts" staffApp="admin"/)
+  assert.match(permission, /label="your Event Coordinator alerts" staffApp="community"/)
+  assert.match(home, /<CommunityAppBadgePermission \/>/)
+})
+
+test('failed badge setup explains what the admin must change on the phone', () => {
+  const permission = readFileSync(new URL('../components/AppBadgePermission.tsx', import.meta.url), 'utf8')
+
+  assert.match(permission, /Open iPhone Settings, choose Notifications, then Bur Oaks/)
+  assert.match(permission, /<small role="alert">\{detail\}<\/small>/)
+})

@@ -61,6 +61,7 @@ export default function AppBadgePermission({
   const [available, setAvailable] = useState(false)
   const [enabled, setEnabled] = useState(false)
   const [status, setStatus] = useState<'ready' | 'working' | 'denied' | 'error'>('ready')
+  const [detail, setDetail] = useState('')
 
   useEffect(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches
@@ -116,9 +117,11 @@ export default function AppBadgePermission({
   async function enableStaffBackground(askPermission: boolean) {
     try {
       setStatus('working')
+      setDetail('')
       if (askPermission && Notification.permission === 'default') await Notification.requestPermission()
       if (Notification.permission !== 'granted') {
         setStatus('denied')
+        setDetail('Notifications are blocked for this app. Open iPhone Settings, choose Notifications, then Bur Oaks, and turn on Allow Notifications.')
         return
       }
       if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('Background alerts are not supported on this phone.')
@@ -164,6 +167,7 @@ export default function AppBadgePermission({
     } catch (error) {
       console.error('Background staff alerts could not be enabled:', error)
       setStatus('error')
+      setDetail(error instanceof Error ? error.message : 'Background alerts could not be enabled. Please try again.')
     }
   }
 
@@ -173,6 +177,7 @@ export default function AppBadgePermission({
       return
     }
     setStatus('working')
+    setDetail('')
     const permission = await Notification.requestPermission()
     if (permission === 'granted') {
       setEnabled(true)
@@ -183,6 +188,7 @@ export default function AppBadgePermission({
       return
     }
     setStatus('denied')
+    setDetail('Notifications are blocked for this app. Open iPhone Settings, choose Notifications, then Bur Oaks, and turn on Allow Notifications.')
   }
 
   if (!available) return null
@@ -195,6 +201,7 @@ export default function AppBadgePermission({
       {!enabled && <button type="button" onClick={enableBadge} disabled={status === 'working'}>
         {status === 'working' ? 'Turning on…' : status === 'denied' ? 'Allow notifications in phone Settings' : status === 'error' ? 'Try background alerts again' : staffApp ? 'Turn on automatic badges' : 'Turn on red badge'}
       </button>}
+      {detail && <small role="alert">{detail}</small>}
     </div>
   )
 }

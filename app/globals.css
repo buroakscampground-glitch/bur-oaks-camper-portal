@@ -14908,6 +14908,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 .admin-app-badge-permission span{display:flex;align-items:center;gap:8px}
 .admin-app-badge-permission button{border:0;border-radius:999px;background:#a62f28;color:#fff;padding:9px 13px;font:inherit;white-space:nowrap;cursor:pointer}
 .admin-app-badge-permission button:disabled{cursor:default;opacity:.72}
+.admin-app-badge-permission>small{flex-basis:100%;color:#7a342f;font-size:11px;line-height:1.45}.admin-app-badge-permission:has(>small){flex-wrap:wrap}
 @media(max-width:640px){.portal-community-home-link,.admin-community-home-link{grid-template-columns:auto minmax(0,1fr);gap:12px;padding:15px}.portal-community-home-link strong,.admin-community-home-link strong{font-size:18px}.portal-community-home-link b,.portal-community-home-cta,.admin-community-home-link b,.admin-community-home-cta{grid-column:1/-1;justify-content:center;width:100%}.portal-community-home-cta .camper-community-badge,.admin-community-home-cta .camper-community-badge{margin-left:8px}}
 @media(max-width:640px){.admin-app-badge-permission{align-items:stretch;flex-direction:column}.admin-app-badge-permission button{width:100%}}
 .campground-community-page{--community-ink:#203c31;--community-muted:#6c7770;--community-green:#285f43;--community-deep:#173f2e;--community-gold:#d9a43e;--community-paper:#fffdf8;--community-cream:#f6f1e5;--community-line:#dfd8ca;max-width:1180px;margin:0 auto;padding:28px 28px 70px;color:var(--community-ink)}
