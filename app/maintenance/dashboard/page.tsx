@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, CheckCircle2, ClipboardList, Clock3, Eye, Gauge, ListChecks, PackageCheck, PlusCircle, Warehouse, Wrench } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardList, Clock3, Droplets, Eye, Gauge, ListChecks, PackageCheck, PlusCircle, Warehouse, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import MaintenanceSupplyRequestPanel from '../../../components/MaintenanceSupplyRequestPanel'
@@ -204,6 +204,16 @@ export default function MaintenanceDashboard() {
           <Link href="/maintenance/history">Completed history →</Link>
         </div>
       </section>
+
+      <Link className="maintenance-pumping-entry" href="/maintenance/dashboard/pumping">
+        <span><Droplets size={48} /></span>
+        <div>
+          <small>SEWER PUMP-OUT ROUTE</small>
+          <strong>PUMPING</strong>
+          <p>One lot at a time · No typing needed</p>
+        </div>
+        <ArrowRight size={48} />
+      </Link>
 
       <section className="maintenance-staff-steps">
         <article><ClipboardList size={20} /><strong>1. Pick approved work</strong><span>Open a ticket from the queue below.</span></article>
