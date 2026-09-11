@@ -38,6 +38,30 @@ export async function POST(request: Request) {
     'Maintenance team'
 
   try {
+    const duplicateCutoff = new Date(Date.now() - 30_000).toISOString()
+    const { data: recentMatch } = await context.admin
+      .from('maintenance_tickets')
+      .select('id')
+      .eq('camper_id', context.camper.id)
+      .eq('lot_number', 'STAFF')
+      .eq('title', title)
+      .eq('description', description)
+      .eq('category', 'Maintenance Staff')
+      .gte('created_at', duplicateCutoff)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (recentMatch) {
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        ticketId: recentMatch.id,
+        emailStatus: 'skipped',
+        emailMessage: 'Duplicate submission ignored.',
+      })
+    }
+
     const { data: ticket, error } = await context.admin
       .from('maintenance_tickets')
       .insert({

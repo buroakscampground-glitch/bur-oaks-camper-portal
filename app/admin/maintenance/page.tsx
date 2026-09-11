@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Archive,
@@ -39,6 +39,7 @@ export default function MaintenancePage() {
   const [archivedCount, setArchivedCount] = useState(0)
   const [creating, setCreating] = useState(false)
   const [sendingWorkOrders, setSendingWorkOrders] = useState(false)
+  const creatingRef = useRef(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -69,6 +70,8 @@ export default function MaintenancePage() {
   }
 
   async function createTicket() {
+    if (creatingRef.current) return
+
     if (!title) {
       setMessage('Please add a ticket title.')
       return
@@ -82,6 +85,7 @@ export default function MaintenancePage() {
       return
     }
 
+    creatingRef.current = true
     setCreating(true)
     setMessage('Creating ticket and notifying maintenance…')
 
@@ -119,7 +123,9 @@ export default function MaintenancePage() {
       setReportedBy('')
 
       setMessage(
-        result.smsStatus === 'sent'
+        result.duplicate
+          ? 'That same work order was already created. The duplicate tap was ignored.'
+          : result.smsStatus === 'sent'
           ? 'Maintenance ticket created and queued for the 7:00 a.m. print. Text alert sent to (314) 713-6100.'
           : `Maintenance ticket created and queued for the 7:00 a.m. print, but the text alert did not send: ${result.smsMessage || 'unknown Twilio error'}`
       )
@@ -127,6 +133,7 @@ export default function MaintenancePage() {
     } catch (error: any) {
       setMessage(error?.message || 'Unable to create this maintenance ticket.')
     } finally {
+      creatingRef.current = false
       setCreating(false)
     }
   }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, CheckCircle2, ClipboardList, ImagePlus, Wrench, X } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
@@ -43,6 +43,7 @@ export default function MaintenanceRequestPage() {
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
   const [expandedTicketId, setExpandedTicketId] = useState('')
+  const submittingRef = useRef(false)
   const router = useRouter()
   const isTreeGroundsRequest = category === 'Tree / Grounds'
 
@@ -98,6 +99,8 @@ export default function MaintenanceRequestPage() {
   }
 
   async function submitRequest() {
+    if (submittingRef.current) return
+
     if (!title || !description) {
       setMessage('Please add a title and description.')
       return
@@ -108,6 +111,7 @@ export default function MaintenanceRequestPage() {
       return
     }
 
+    submittingRef.current = true
     setSubmitting(true)
     setMessage('Submitting your request…')
 
@@ -116,6 +120,7 @@ export default function MaintenanceRequestPage() {
     if (photoFiles.length > 0) {
       if (!userId) {
         setMessage('Please sign in again before uploading photos.')
+        submittingRef.current = false
         setSubmitting(false)
         return
       }
@@ -134,6 +139,7 @@ export default function MaintenanceRequestPage() {
             await supabase.storage.from('maintenance-photos').remove(uploadedPaths)
           }
           setMessage(`Photo upload failed: ${uploadError.message}`)
+          submittingRef.current = false
           setSubmitting(false)
           return
         }
@@ -150,6 +156,7 @@ export default function MaintenanceRequestPage() {
         await supabase.storage.from('maintenance-photos').remove(uploadedPaths)
       }
       setMessage('Please sign in again before submitting your request.')
+      submittingRef.current = false
       setSubmitting(false)
       return
     }
@@ -176,12 +183,15 @@ export default function MaintenanceRequestPage() {
         await supabase.storage.from('maintenance-photos').remove(uploadedPaths)
       }
       setMessage(result?.error || 'Unable to submit maintenance request.')
+      submittingRef.current = false
       setSubmitting(false)
       return
     }
 
     let alertMessage = ''
-    if (result.emailStatus === 'skipped') {
+    if (result.duplicate) {
+      alertMessage = ' A duplicate tap was safely ignored.'
+    } else if (result.emailStatus === 'skipped') {
       alertMessage = ` Email alerts are not fully configured: ${result.emailMessage || 'missing email setup'}.`
     } else if (result.emailStatus === 'failed') {
       alertMessage = ` The request was saved, but the email alert failed: ${result.emailMessage || 'email provider error'}.`
@@ -193,6 +203,7 @@ export default function MaintenanceRequestPage() {
     setTreeResponsibilityAcknowledged(false)
     setPhotoFiles([])
     setMessage(`✅ Maintenance request submitted. Returning to your portal…${alertMessage}`)
+    submittingRef.current = false
     setSubmitting(false)
     await loadPage()
     window.setTimeout(() => router.push('/portal'), 900)

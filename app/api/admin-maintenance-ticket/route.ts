@@ -44,6 +44,32 @@ export async function POST(request: Request) {
   }
 
   const now = new Date().toISOString()
+  const duplicateCutoff = new Date(Date.now() - 30_000).toISOString()
+  const { data: recentMatch } = await context.admin
+    .from('maintenance_tickets')
+    .select('id')
+    .eq('lot_number', lotNumber)
+    .eq('title', title)
+    .eq('description', description)
+    .eq('category', category)
+    .eq('priority', priority)
+    .eq('assigned_to', assignedTo)
+    .eq('reported_by', reportedBy)
+    .gte('created_at', duplicateCutoff)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (recentMatch) {
+    return NextResponse.json({
+      success: true,
+      duplicate: true,
+      ticketId: recentMatch.id,
+      smsStatus: 'skipped',
+      smsMessage: 'Duplicate submission ignored.',
+    })
+  }
+
   const { data: ticket, error } = await context.admin
     .from('maintenance_tickets')
     .insert({

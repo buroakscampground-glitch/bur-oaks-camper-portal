@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { AlertTriangle, ArrowRight, CheckCircle2, ClipboardList, Clock3, Droplets, Eye, Gauge, ListChecks, PackageCheck, PlusCircle, Warehouse, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
@@ -49,6 +49,8 @@ export default function MaintenanceDashboard() {
   const [newDescription, setNewDescription] = useState('')
   const [newPriority, setNewPriority] = useState('Normal')
   const [submitMessage, setSubmitMessage] = useState('')
+  const [submittingRequest, setSubmittingRequest] = useState(false)
+  const submittingRequestRef = useRef(false)
 
   useEffect(() => {
     loadTickets()
@@ -93,6 +95,8 @@ export default function MaintenanceDashboard() {
   }
 
   async function createWorkOrder() {
+    if (submittingRequestRef.current) return
+
     if (!newTitle || !newDescription) {
       alert('Please enter a title and description')
       return
@@ -106,41 +110,50 @@ export default function MaintenanceDashboard() {
       return
     }
 
+    submittingRequestRef.current = true
+    setSubmittingRequest(true)
     setSubmitMessage('Submitting for admin approval…')
 
-    const response = await fetch('/api/maintenance-staff-request', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: newTitle,
-        description: newDescription,
-        priority: newPriority,
-      }),
-    })
+    try {
+      const response = await fetch('/api/maintenance-staff-request', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: newTitle,
+          description: newDescription,
+          priority: newPriority,
+        }),
+      })
 
-    const result = await response.json().catch(() => null)
+      const result = await response.json().catch(() => null)
 
-    if (!response.ok || !result?.success) {
-      setSubmitMessage(result?.error || 'Unable to submit this work request. Please try again.')
-      return
+      if (!response.ok || !result?.success) {
+        setSubmitMessage(result?.error || 'Unable to submit this work request. Please try again.')
+        return
+      }
+
+      let alertMessage = ''
+      if (result.duplicate) {
+        alertMessage = ' The duplicate tap was ignored.'
+      } else if (result.emailStatus === 'failed') {
+        alertMessage = ` Ticket was saved, but the admin email alert did not send: ${result.emailMessage || 'unknown email error'}.`
+      } else if (result.emailStatus === 'skipped') {
+        alertMessage = ` Ticket was saved, but email alerts are not configured: ${result.emailMessage || 'missing setup'}.`
+      }
+
+      setNewTitle('')
+      setNewDescription('')
+      setNewPriority('Normal')
+      setSubmitMessage(`Submitted for admin approval. It will appear in the work queue after approval.${alertMessage}`)
+
+      loadTickets()
+    } finally {
+      submittingRequestRef.current = false
+      setSubmittingRequest(false)
     }
-
-    let alertMessage = ''
-    if (result.emailStatus === 'failed') {
-      alertMessage = ` Ticket was saved, but the admin email alert did not send: ${result.emailMessage || 'unknown email error'}.`
-    } else if (result.emailStatus === 'skipped') {
-      alertMessage = ` Ticket was saved, but email alerts are not configured: ${result.emailMessage || 'missing setup'}.`
-    }
-
-    setNewTitle('')
-    setNewDescription('')
-    setNewPriority('Normal')
-    setSubmitMessage(`Submitted for admin approval. It will appear in the work queue after approval.${alertMessage}`)
-
-    loadTickets()
   }
 
   async function updateTicket(id: string, updates: any, successMessage: string) {
@@ -288,8 +301,8 @@ export default function MaintenanceDashboard() {
             <option>Emergency</option>
           </select>
 
-          <button onClick={createWorkOrder}>
-            Submit for Admin Approval
+          <button onClick={createWorkOrder} disabled={submittingRequest}>
+            {submittingRequest ? 'Submitting…' : 'Submit for Admin Approval'}
           </button>
 
           {submitMessage && <p className="maintenance-submit-message">{submitMessage}</p>}
