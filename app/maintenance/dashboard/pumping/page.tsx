@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeft, Check, CheckCircle2, Droplets, LoaderCircle, MapPin, Phone, RefreshCw, RotateCcw, X } from 'lucide-react'
+import { ArrowLeft, Check, CheckCircle2, Droplets, LoaderCircle, Phone, RefreshCw, RotateCcw, X } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { movePumpOutStopToEnd, pumpOutWorkerProgress, type PumpOutWorkerStop } from '../../../../lib/pump-out-worker'
 import './pumping.css'
 
-const DIRECTIONS_URL = 'https://www.google.com/maps/dir/?api=1&destination=10303+Oaks+Rd,+Alhambra,+IL+62001&travelmode=driving'
 const OFFICE_PHONE = '+16184887927'
 
 type WorkerStop = PumpOutWorkerStop & {
@@ -208,9 +207,6 @@ export default function PumpOutWorkerPage() {
           </section>
         ) : (
           <section className="pump-worker-actions">
-            <a className="directions" href={DIRECTIONS_URL} target="_blank" rel="noreferrer">
-              <MapPin size={42} /><span><strong>DIRECTIONS</strong><small>Campground entrance · Follow signs to Lot {current.lot_number || '—'}</small></span>
-            </a>
             <button className="complete" type="button" onClick={() => setConfirming(true)}><Check size={48} /> MARK COMPLETE</button>
             <button className="skip" type="button" onClick={skipCurrent}><RotateCcw size={35} /> SKIP FOR NOW</button>
             <a className="call" href={`tel:${OFFICE_PHONE}`}><Phone size={35} /> CALL OFFICE</a>
