@@ -7796,6 +7796,23 @@ tbody tr:hover {
   font-weight: 800;
 }
 
+.admin-birds-loading {
+  gap: 4px;
+  color: #004c54;
+}
+
+.admin-birds-loading img {
+  width: clamp(116px, 24vw, 170px);
+  height: auto;
+  filter: drop-shadow(0 12px 18px rgba(0, 76, 84, 0.18));
+}
+
+.admin-birds-loading p {
+  margin: 0;
+  font-size: clamp(1.5rem, 5vw, 2.25rem);
+  letter-spacing: 0.08em;
+}
+
 .admin-command-hero {
   position: relative;
   min-height: 410px;

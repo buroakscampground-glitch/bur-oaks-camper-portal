@@ -18,6 +18,7 @@ export default function RoleGuard({
   const [checkError, setCheckError] = useState('')
   const [checkAttempt, setCheckAttempt] = useState(0)
   const allowedRolesKey = allowedRoles.join(',')
+  const isAdminOnly = allowedRoles.length === 1 && allowedRoles[0] === 'admin'
 
   useEffect(() => {
     let active = true
@@ -108,9 +109,11 @@ export default function RoleGuard({
   if (!allowed) {
     return (
       <main className="page">
-        <div className="admin-command-loading">
-          <ShieldCheck size={34} />
-          <p>{checkError || 'Checking permissions…'}</p>
+        <div className={`admin-command-loading${isAdminOnly && !checkError ? ' admin-birds-loading' : ''}`}>
+          {isAdminOnly && !checkError
+            ? <img src="/philadelphia-eagles-logo.png" alt="Philadelphia Eagles logo" />
+            : <ShieldCheck size={34} />}
+          <p>{checkError || (isAdminOnly ? 'GO BIRDS' : 'Checking permissions…')}</p>
           {checkError && <button type="button" onClick={() => setCheckAttempt((attempt) => attempt + 1)}>Try again</button>}
         </div>
       </main>
