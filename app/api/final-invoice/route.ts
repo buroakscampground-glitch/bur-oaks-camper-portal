@@ -42,8 +42,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ closed: true, message: 'This final-invoice link is no longer available.' }, { status: 410 })
   }
 
-  if (camper.active !== false) {
-    return NextResponse.json({ closed: true, message: 'This final-billing link is closed.' }, { status: 410 })
+  if (camper.active !== false && payload.purpose !== 'guest_payment') {
+    return NextResponse.json({ closed: true, message: 'This private payment link is closed.' }, { status: 410 })
   }
 
   if (String(invoice.status || '').toLowerCase() === 'paid') {
@@ -56,6 +56,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     success: true,
+    paymentOnly: payload.purpose === 'guest_payment',
     invoice: {
       id: invoice.id,
       invoice_number: invoice.invoice_number,

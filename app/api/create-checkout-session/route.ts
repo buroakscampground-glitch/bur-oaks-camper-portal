@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       requestedIds = [finalPayload.invoiceId]
       allowedCamperIds = new Set([finalPayload.camperId])
       payerId = `final-${finalPayload.camperId}`
-      billingAccess = 'archived_final_invoice'
+      billingAccess = finalPayload.purpose === 'guest_payment' ? 'guest_invoice_payment' : 'archived_final_invoice'
     } else {
       const context = await getAuthenticatedContext(request)
       if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -137,8 +137,8 @@ export async function POST(request: Request) {
         .eq('id', finalPayload.camperId)
         .single()
 
-      if (finalCamperError || !finalCamper || finalCamper.active !== false) {
-        return NextResponse.json({ error: 'This final-billing payment link is closed.' }, { status: 410 })
+      if (finalCamperError || !finalCamper || (finalCamper.active !== false && finalPayload.purpose !== 'guest_payment')) {
+        return NextResponse.json({ error: 'This private payment link is closed.' }, { status: 410 })
       }
 
       payerEmail = [finalCamper.email, finalCamper.secondary_email]
@@ -148,7 +148,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'This invoice is not available to this account.' }, { status: 403 })
     }
 
-    const delegatedPayment = billingAccess !== 'archived_final_invoice' && billedCamperId !== accountCamperId
+    const delegatedPayment = !finalPayload && billedCamperId !== accountCamperId
+    const recordedBillingAccess = finalPayload
+      ? billingAccess
+      : delegatedPayment
+        ? 'authorized_family_payer'
+        : 'camper'
 
     const invoiceSubtotalCents = invoices.reduce((sum, invoice) => {
       return sum + Math.round(Number(invoice.total_due || 0) * 100)
@@ -245,7 +250,7 @@ export async function POST(request: Request) {
         invoice_ids: JSON.stringify(verifiedInvoiceIds),
         camper_id: billedCamperId,
         paid_by_email: payerEmail,
-        billing_access: billingAccess === 'archived_final_invoice' ? billingAccess : delegatedPayment ? 'authorized_family_payer' : 'camper',
+        billing_access: recordedBillingAccess,
         purpose: 'invoice_payment',
         payment_method: paymentMethod,
         invoice_subtotal_cents: String(invoiceSubtotalCents),
@@ -256,7 +261,7 @@ export async function POST(request: Request) {
           invoice_ids: JSON.stringify(verifiedInvoiceIds),
           camper_id: billedCamperId,
           paid_by_email: payerEmail,
-          billing_access: billingAccess === 'archived_final_invoice' ? billingAccess : delegatedPayment ? 'authorized_family_payer' : 'camper',
+          billing_access: recordedBillingAccess,
           purpose: 'invoice_payment',
           payment_method: paymentMethod,
           invoice_subtotal_cents: String(invoiceSubtotalCents),

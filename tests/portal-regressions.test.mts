@@ -3,7 +3,7 @@ import test from 'node:test'
 import { nextInvoiceNumber } from '../lib/invoice-number.ts'
 import { isCompletedTicketStatus } from '../lib/maintenance-status.ts'
 import { filterOptedInPhones } from '../lib/sms-recipient-filter.ts'
-import { createFinalInvoiceToken, verifyFinalInvoiceToken } from '../lib/final-invoice-token.ts'
+import { createFinalInvoiceToken, createGuestInvoicePaymentToken, verifyFinalInvoiceToken } from '../lib/final-invoice-token.ts'
 import { buildNonRenewalLetter } from '../lib/nonrenewal-letter-copy.ts'
 
 test('completed maintenance statuses are matched without case or whitespace sensitivity', () => {
@@ -52,6 +52,24 @@ test('final invoice tokens are scoped, signed, and expire', () => {
   )
   assert.equal(verifyFinalInvoiceToken(`${token}changed`, { now: issuedAt, secret }), null)
   assert.equal(verifyFinalInvoiceToken(token, { now: issuedAt + 61_000, secret }), null)
+})
+
+test('a guest payment token is scoped to one invoice without granting portal access', () => {
+  const secret = 'test-guest-payment-secret'
+  const issuedAt = Date.UTC(2026, 8, 13)
+  const token = createGuestInvoicePaymentToken('invoice-electric', 'camper-max', {
+    now: issuedAt,
+    lifetimeSeconds: 300,
+    secret,
+  })
+
+  assert.deepEqual(verifyFinalInvoiceToken(token, { now: issuedAt + 1_000, secret }), {
+    version: 1,
+    invoiceId: 'invoice-electric',
+    camperId: 'camper-max',
+    expiresAt: Math.floor(issuedAt / 1000) + 300,
+    purpose: 'guest_payment',
+  })
 })
 
 test('campground non-renewal letters name both profiles and use the lease end date', () => {

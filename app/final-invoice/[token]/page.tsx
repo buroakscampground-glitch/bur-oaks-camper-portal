@@ -61,7 +61,7 @@ export default function FinalInvoicePage() {
   }
 
   if (loading) {
-    return <main className="final-invoice-page"><section className="final-invoice-state"><ReceiptText size={34} /><h1>Opening your final invoice…</h1></section></main>
+    return <main className="final-invoice-page"><section className="final-invoice-state"><ReceiptText size={34} /><h1>Opening your private invoice…</h1></section></main>
   }
 
   if (!result?.invoice) {
@@ -69,9 +69,9 @@ export default function FinalInvoicePage() {
       <main className="final-invoice-page">
         <section className="final-invoice-state">
           {result?.paid ? <CheckCircle2 size={38} /> : <LockKeyhole size={38} />}
-          <span>BUR OAKS FINAL BILLING</span>
+          <span>BUR OAKS SECURE PAYMENT</span>
           <h1>{result?.paid ? 'Payment complete' : 'Payment link closed'}</h1>
-          <p>{result?.message || 'This final-invoice link is no longer available.'}</p>
+          <p>{result?.message || 'This private payment link is no longer available.'}</p>
           <small>Contact the Bur Oaks office if you have any questions.</small>
         </section>
       </main>
@@ -88,7 +88,7 @@ export default function FinalInvoicePage() {
     <main className="final-invoice-page">
       <section className="final-invoice-shell">
         <header className="final-invoice-hero">
-          <div><span><LockKeyhole size={15} /> FINAL BILLING · PAYMENT ACCESS ONLY</span><h1>Invoice #{invoice.invoice_number}</h1><p>Lot {camper.lot_number || '—'} · {camper.first_name} {camper.last_name}</p></div>
+          <div><span><LockKeyhole size={15} /> PRIVATE INVOICE · PAYMENT ACCESS ONLY</span><h1>Invoice #{invoice.invoice_number}</h1><p>Lot {camper.lot_number || '—'} · {camper.first_name} {camper.last_name}</p></div>
           <button type="button" onClick={() => printPageWithFlag('data-print-final-invoice')}><Printer size={16} /> Print Invoice</button>
         </header>
 
@@ -99,7 +99,7 @@ export default function FinalInvoicePage() {
         </section>
 
         <section className="final-invoice-card">
-          <div className="final-invoice-heading"><div><small>ITEMIZED FINAL CHARGES</small><h2>{invoice.invoice_type || 'Final campground invoice'}</h2></div><ReceiptText size={25} /></div>
+          <div className="final-invoice-heading"><div><small>ITEMIZED CHARGES</small><h2>{invoice.invoice_type || 'Campground invoice'}</h2></div><ReceiptText size={25} /></div>
           <div className="final-invoice-items">
             {(invoice.invoice_items || []).map((item: any) => (
               <article key={item.id}><div><strong>{item.description || 'Invoice charge'}</strong><small>Qty {Number(item.quantity || 1).toLocaleString()} × {money(item.unit_price)}</small></div><span>{money(item.total)}</span></article>
@@ -128,7 +128,7 @@ export default function FinalInvoicePage() {
             <button className="final-invoice-pay" type="button" onClick={pay} disabled={paying}><LockKeyhole size={17} /> {paying ? 'Opening secure checkout…' : `Pay ${money(total)} by ${paymentMethod === 'ach' ? 'ACH' : 'card'}`}</button>
           )}
           {message && <p className="final-invoice-message">{message}</p>}
-          <p className="final-invoice-security">This private link opens only this final invoice. It does not restore camper-portal access and automatically closes when the invoice is paid online or marked paid by the office.</p>
+          <p className="final-invoice-security">This private link opens only this invoice. It does not provide camper-portal access and automatically closes when the invoice is paid online or marked paid by the office.</p>
         </section>
       </section>
     </main>

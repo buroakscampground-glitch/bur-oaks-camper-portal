@@ -5,6 +5,7 @@ export type FinalInvoiceTokenPayload = {
   invoiceId: string
   camperId: string
   expiresAt: number
+  purpose?: 'guest_payment'
 }
 
 const defaultLifetimeSeconds = 180 * 24 * 60 * 60
@@ -35,6 +36,23 @@ export function createFinalInvoiceToken(
   return `${encodedPayload}.${signatureFor(encodedPayload, signingSecret(options.secret))}`
 }
 
+export function createGuestInvoicePaymentToken(
+  invoiceId: string,
+  camperId: string,
+  options: { now?: number; lifetimeSeconds?: number; secret?: string } = {}
+) {
+  const now = options.now ?? Date.now()
+  const payload: FinalInvoiceTokenPayload = {
+    version: 1,
+    invoiceId,
+    camperId,
+    expiresAt: Math.floor(now / 1000) + (options.lifetimeSeconds ?? 30 * 24 * 60 * 60),
+    purpose: 'guest_payment',
+  }
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64url')
+  return `${encodedPayload}.${signatureFor(encodedPayload, signingSecret(options.secret))}`
+}
+
 export function verifyFinalInvoiceToken(
   token: string,
   options: { now?: number; secret?: string } = {}
@@ -55,7 +73,8 @@ export function verifyFinalInvoiceToken(
       !payload.invoiceId ||
       !payload.camperId ||
       !Number.isFinite(payload.expiresAt) ||
-      payload.expiresAt <= nowSeconds
+      payload.expiresAt <= nowSeconds ||
+      (payload.purpose !== undefined && payload.purpose !== 'guest_payment')
     ) return null
 
     return payload
