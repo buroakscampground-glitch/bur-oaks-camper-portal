@@ -1,11 +1,34 @@
 'use client'
 
-import { Ban, Bell, Camera, Check, Eye, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X, ZoomIn } from 'lucide-react'
+import { Ban, Bell, Camera, Check, CheckCircle2, Clock, Edit3, ExternalLink, Eye, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, Pin, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X, ZoomIn } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { communityPostAuthor, communityPostLocation } from '../lib/community-branding'
 import { supabase } from '../lib/supabase'
 
 type FeedProps = { adminMode?: boolean }
+
+const categories = [
+  { value: 'all', label: 'Everything' },
+  { value: 'office', label: 'Office' },
+  { value: 'event', label: 'Events' },
+  { value: 'dinner', label: 'Dinners' },
+  { value: 'lost_found', label: 'Lost & Found' },
+  { value: 'marketplace', label: 'For Sale / Free' },
+  { value: 'general', label: 'General Talk' },
+]
+
+const actionLabels: Record<string, { label: string; href: string }> = {
+  events: { label: 'View events and RSVP', href: '/events' },
+  dinners: { label: 'View dinner details', href: '/dinners' },
+  contact: { label: 'Contact the office', href: '/messages' },
+}
+
+function localDateTimeInput(value?: string | null) {
+  if (!value) return ''
+  const date = new Date(value)
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
@@ -29,10 +52,22 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [blocked, setBlocked] = useState(false)
   const [blockReason, setBlockReason] = useState('')
   const [tab, setTab] = useState<'all' | 'official' | 'mine'>('all')
+  const [category, setCategory] = useState('all')
   const [draft, setDraft] = useState('')
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState('')
   const [commentsEnabled, setCommentsEnabled] = useState(true)
+  const [postCategory, setPostCategory] = useState('general')
+  const [actionType, setActionType] = useState('')
+  const [actionUrl, setActionUrl] = useState('')
+  const [publishAt, setPublishAt] = useState('')
+  const [pinned, setPinned] = useState(false)
+  const [pinnedUntil, setPinnedUntil] = useState('')
+  const [expiresAt, setExpiresAt] = useState('')
+  const [sendText, setSendText] = useState(true)
+  const [sendCorrectionText, setSendCorrectionText] = useState(false)
+  const [previewing, setPreviewing] = useState(false)
+  const [editingPost, setEditingPost] = useState<any>(null)
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
   const [showComposer, setShowComposer] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -43,8 +78,31 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const postRequestId = useRef('')
   const reactionRequests = useRef(new Set<string>())
+  const observedPosts = useRef(new Map<string, HTMLElement>())
+  const markedPosts = useRef(new Set<string>())
 
   useEffect(() => { loadFeed() }, [])
+  useEffect(() => {
+    const saved = window.localStorage.getItem('bur-oaks-community-draft')
+    if (saved) setDraft(saved)
+  }, [])
+  useEffect(() => {
+    if (!editingPost) window.localStorage.setItem('bur-oaks-community-draft', draft)
+  }, [draft, editingPost])
+  useEffect(() => {
+    if (!posts.length) return
+    const observer = new IntersectionObserver((entries) => {
+      const seen = entries.filter((entry) => entry.isIntersecting && entry.intersectionRatio >= .55).map((entry) => entry.target.getAttribute('data-post-id') || '').filter(Boolean).filter((id) => !markedPosts.current.has(id))
+      if (!seen.length) return
+      seen.forEach((id) => markedPosts.current.add(id))
+      communityAction({ action: 'mark_read', postIds: seen }).then(() => {
+        setPosts((current) => current.map((post) => seen.includes(String(post.id)) ? { ...post, read_by_me: true } : post))
+        window.dispatchEvent(new Event('community-unread-changed'))
+      }).catch(() => seen.forEach((id) => markedPosts.current.delete(id)))
+    }, { threshold: [.55] })
+    observedPosts.current.forEach((element) => observer.observe(element))
+    return () => observer.disconnect()
+  }, [posts.length, tab, category])
   useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview) }, [photoPreview])
   useEffect(() => {
     if (!expandedPhoto) return
@@ -87,12 +145,6 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     setActivityNotifications(result.activityNotifications || [])
     setMembers(result.members || [])
     setLoading(false)
-    const unreadIds = (result.posts || []).filter((post: any) => !post.read_by_me && post.status === 'published').map((post: any) => post.id)
-    if (unreadIds.length || result.directCount) {
-      fetch('/api/community-feed', { method: 'POST', headers: await authHeaders(), body: JSON.stringify({ action: 'mark_read', postIds: unreadIds }) })
-        .then(() => window.dispatchEvent(new Event('community-unread-changed')))
-        .catch(() => {})
-    }
   }
 
   async function communityAction(payload: any) {
@@ -123,16 +175,76 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         if (!response.ok) throw new Error(result.error || 'The photo could not be uploaded.')
         photoPath = result.path
       }
-      await communityAction({ action: 'create_post', requestId: postRequestId.current, body: draft, photoPath, commentsEnabled })
+      const recentTime = viewer?.recentStaffPostAt ? new Date(viewer.recentStaffPostAt).getTime() : 0
+      const minutesSince = Math.floor((Date.now() - recentTime) / 60_000)
+      if (adminMode && (editingPost ? sendCorrectionText : sendText) && recentTime && minutesSince >= 0 && minutesSince < 10 && !window.confirm(`A campground post text went out ${minutesSince || 'less than one'} minute${minutesSince === 1 ? '' : 's'} ago. Post this and send another text anyway?`)) {
+        setWorking('')
+        return
+      }
+      if (editingPost) {
+        await communityAction({ action: 'update_post', postId: editingPost.id, body: draft, commentsEnabled, category: postCategory, actionType, actionUrl, pinned, pinnedUntil: pinnedUntil ? new Date(pinnedUntil).toISOString() : null, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, sendCorrectionText })
+      } else {
+        await communityAction({ action: 'create_post', requestId: postRequestId.current, body: draft, photoPath, commentsEnabled, category: postCategory, actionType, actionUrl, publishAt: publishAt ? new Date(publishAt).toISOString() : null, pinned, pinnedUntil: pinnedUntil ? new Date(pinnedUntil).toISOString() : null, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, sendText })
+      }
       setDraft('')
+      window.localStorage.removeItem('bur-oaks-community-draft')
       postRequestId.current = ''
       choosePhoto()
       setShowComposer(false)
-      setNotice(viewer?.canPostOfficial ? 'The official Bur Oaks Community post is live.' : `${viewer?.postingName || 'Your'} post is now in the Community.`)
+      setPreviewing(false)
+      setEditingPost(null)
+      setNotice(editingPost ? 'The Community post was updated.' : publishAt && new Date(publishAt).getTime() > Date.now() ? 'The Community post is scheduled.' : viewer?.canPostOfficial ? 'The official Bur Oaks Community post is live.' : `${viewer?.postingName || 'Your'} post is now in the Community.`)
       await loadFeed(true)
     } catch (error: any) {
       setNotice(error.message)
     }
+    setWorking('')
+  }
+
+  function resetComposer() {
+    setDraft(window.localStorage.getItem('bur-oaks-community-draft') || '')
+    setEditingPost(null)
+    setPostCategory('general')
+    setActionType('')
+    setActionUrl('')
+    setPublishAt('')
+    setPinned(false)
+    setPinnedUntil('')
+    setExpiresAt('')
+    setSendText(true)
+    setSendCorrectionText(false)
+    setCommentsEnabled(true)
+    setPreviewing(false)
+  }
+
+  function openComposer() {
+    resetComposer()
+    setShowComposer(true)
+  }
+
+  function editPost(post: any) {
+    setEditingPost(post)
+    setDraft(post.body || '')
+    setPostCategory(post.category || 'general')
+    setActionType(post.action_type || '')
+    setActionUrl(post.action_type === 'custom' ? post.action_url || '' : '')
+    setPublishAt(localDateTimeInput(post.publish_at))
+    setPinned(Boolean(post.pinned_until && new Date(post.pinned_until).getTime() > Date.now()))
+    setPinnedUntil(localDateTimeInput(post.pinned_until))
+    setExpiresAt(localDateTimeInput(post.expires_at))
+    setCommentsEnabled(post.comments_enabled !== false)
+    setSendCorrectionText(false)
+    setPreviewing(false)
+    setShowComposer(true)
+  }
+
+  async function markAllSeen() {
+    setWorking('mark-all')
+    try {
+      await communityAction({ action: 'mark_all_read' })
+      setPosts((current) => current.map((post) => ({ ...post, read_by_me: true })))
+      window.dispatchEvent(new Event('community-unread-changed'))
+    } catch (error: any) { setNotice(error.message) }
     setWorking('')
   }
 
@@ -227,7 +339,15 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     if (tab === 'official') return post.is_official
     if (tab === 'mine') return String(post.camper_id) === String(viewer?.id)
     return true
-  }), [posts, tab, viewer])
+  }).filter((post) => category === 'all' || String(post.category || 'general') === category).sort((a, b) => {
+    const aPinned = a.pinned_until && new Date(a.pinned_until).getTime() > Date.now() ? 1 : 0
+    const bPinned = b.pinned_until && new Date(b.pinned_until).getTime() > Date.now() ? 1 : 0
+    if (a.status === 'scheduled' && b.status !== 'scheduled') return -1
+    if (b.status === 'scheduled' && a.status !== 'scheduled') return 1
+    if (aPinned !== bPinned) return bPinned - aPinned
+    return new Date(b.publish_at || b.created_at).getTime() - new Date(a.publish_at || a.created_at).getTime()
+  }), [posts, tab, category, viewer])
+  const unreadCount = visiblePosts.filter((post) => post.status === 'published' && !post.read_by_me).length
   const filteredMembers = useMemo(() => members.filter((member) => `${member.name} ${member.lotNumber}`.toLowerCase().includes(memberSearch.trim().toLowerCase())), [members, memberSearch])
 
   if (!loading && blocked) {
@@ -250,7 +370,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         <button className="campground-community-settings" type="button" onClick={() => setShowSettings(true)}><Bell size={18} /> Alerts</button>
       </section>
 
-      <section className="campground-community-calm"><ShieldCheck size={18} /><div><strong>No constant community texts.</strong><span>Conversation uses portal badges and your email choices. Emergency text alerts stay separate.</span></div></section>
+      <section className="campground-community-calm"><ShieldCheck size={18} /><div><strong>Important staff posts are easy to find.</strong><span>Bur Oaks staff posts may send one short text with a portal link. Comments and likes never send texts.</span></div></section>
       {notice && <p className="campground-community-notice" role="status">{notice}</p>}
 
       {adminMode && activityNotifications.length > 0 && (
@@ -300,9 +420,15 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         <button type="button" className="campground-community-refresh" onClick={() => loadFeed(true)} aria-label="Refresh Community"><RefreshCw size={17} /></button>
       </section>
 
+      <section className="campground-community-categories" aria-label="Filter posts by topic">
+        {categories.map((item) => <button type="button" key={item.value} className={category === item.value ? 'active' : ''} onClick={() => setCategory(item.value)}>{item.label}</button>)}
+      </section>
+
+      {unreadCount > 0 && <section className="campground-community-new-summary"><span><Bell size={18} /><strong>{unreadCount} new post{unreadCount === 1 ? '' : 's'} since your last visit</strong></span><button type="button" onClick={markAllSeen} disabled={working === 'mark-all'}><CheckCircle2 size={17} /> Mark all seen</button></section>}
+
       <section className="campground-community-layout">
         <div className="campground-community-feed">
-          <button className="campground-community-compose-open" type="button" onClick={() => setShowComposer(true)}>
+          <button className="campground-community-compose-open" type="button" onClick={openComposer}>
             <span>{String(viewer?.name || 'You').split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>
             <strong>{adminMode ? viewer?.canPostOfficial ? 'Share an official update or join the conversation…' : `Share as ${viewer?.postingName || 'yourself'} or join the conversation…` : 'Share something with the campground…'}</strong>
             <Camera size={19} />
@@ -310,19 +436,27 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
           {loading ? <div className="campground-community-empty">Opening the Community…</div> : visiblePosts.length === 0 ? (
             <div className="campground-community-empty"><UsersRound size={28} /><strong>No posts in this view yet.</strong><span>Start the conversation with a friendly update or question.</span></div>
-          ) : visiblePosts.map((post) => (
-            <article className={`campground-community-post${post.is_official ? ' official' : ''}${post.status === 'hidden' ? ' hidden' : ''}`} id={`community-post-${post.id}`} key={post.id}>
+          ) : visiblePosts.map((post, index) => (
+            <div key={post.id}>
+            {post.status === 'published' && !post.read_by_me && !visiblePosts.slice(0, index).some((item) => item.status === 'published' && !item.read_by_me) && <div className="campground-community-divider new"><span>NEW SINCE YOUR LAST VISIT</span></div>}
+            {post.read_by_me && index > 0 && !visiblePosts[index - 1]?.read_by_me && <div className="campground-community-divider"><span>EARLIER POSTS</span></div>}
+            <article ref={(element) => { if (element) observedPosts.current.set(String(post.id), element); else observedPosts.current.delete(String(post.id)) }} data-post-id={post.id} className={`campground-community-post${post.is_official ? ' official' : ''}${post.status === 'hidden' ? ' hidden' : ''}${post.status === 'scheduled' ? ' scheduled' : ''}${post.pinned_until && new Date(post.pinned_until).getTime() > Date.now() ? ' pinned' : ''}`} id={`community-post-${post.id}`}>
               <header>
                 {post.is_official ? <span className="campground-community-avatar official"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /></span> : <span className="campground-community-avatar">{communityPostAuthor(post).split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>}
-                <div><strong>{communityPostAuthor(post)}</strong>{post.is_official && <b>OFFICIAL BUR OAKS POST</b>}<small>{communityPostLocation(post) ? `${communityPostLocation(post)} · ` : ''}{formatDate(post.created_at)}</small></div>
-                {adminMode ? <div className="campground-community-admin-actions"><button type="button" onClick={() => moderate('post', post.id, post.status === 'hidden' ? 'published' : 'hidden')} disabled={working === `moderate:${post.id}`}>{post.status === 'hidden' ? 'Restore' : 'Hide'}</button>{viewer?.canDelete && <>{String(post.camper_id) !== String(viewer.id) && <button type="button" onClick={() => setMemberAccess({ id: post.camper_id, name: post.author_name, lotNumber: post.lot_number }, 'blocked')}><Ban size={14} /> Block</button>}<button className="danger" type="button" onClick={() => deleteContent('post', post.id)} disabled={working === `delete:${post.id}`}><Trash2 size={14} /> Delete</button></>}</div> : <button type="button" className="campground-community-menu" onClick={() => reportPost(post.id)} aria-label="Report post"><MoreHorizontal size={19} /></button>}
+                <div><strong>{communityPostAuthor(post)}</strong>{post.is_official && <b>OFFICIAL BUR OAKS POST</b>}<small>{communityPostLocation(post) ? `${communityPostLocation(post)} · ` : ''}{formatDate(post.publish_at || post.created_at)}</small></div>
+                {adminMode ? <div className="campground-community-admin-actions">{(String(post.camper_id) === String(viewer?.id) || post.is_official) && <button type="button" onClick={() => editPost(post)}><Edit3 size={14} /> Edit</button>}{post.status !== 'scheduled' && <button type="button" onClick={() => moderate('post', post.id, post.status === 'hidden' ? 'published' : 'hidden')} disabled={working === `moderate:${post.id}`}>{post.status === 'hidden' ? 'Restore' : 'Hide'}</button>}{viewer?.canDelete && <>{String(post.camper_id) !== String(viewer.id) && <button type="button" onClick={() => setMemberAccess({ id: post.camper_id, name: post.author_name, lotNumber: post.lot_number }, 'blocked')}><Ban size={14} /> Block</button>}<button className="danger" type="button" onClick={() => deleteContent('post', post.id)} disabled={working === `delete:${post.id}`}><Trash2 size={14} /> Delete</button></>}</div> : <button type="button" className="campground-community-menu" onClick={() => reportPost(post.id)} aria-label="Report post"><MoreHorizontal size={19} /></button>}
               </header>
               {post.status === 'hidden' && <em className="campground-community-hidden-label">Hidden from campers</em>}
+              {post.status === 'scheduled' && <em className="campground-community-hidden-label"><Clock size={13} /> Scheduled for {formatDate(post.publish_at)}</em>}
+              {post.pinned_until && new Date(post.pinned_until).getTime() > Date.now() && <em className="campground-community-pin-label"><Pin size={13} /> Pinned important post</em>}
+              <div className="campground-community-post-meta"><span>{categories.find((item) => item.value === (post.category || 'general'))?.label || 'General Talk'}</span>{post.edited_at && <small>Edited</small>}{post.expires_at && adminMode && <small>Expires {formatDate(post.expires_at)}</small>}</div>
               <p>{post.body}</p>
               {post.photo_url && (() => {
                 const alt = `Shared by ${communityPostAuthor(post)}`
                 return <button className="campground-community-photo-button" type="button" onClick={() => setExpandedPhoto({ url: post.photo_url, alt })} aria-label={`Open full-size photo ${alt}`}><img className="campground-community-photo" src={post.photo_url} alt={alt} /><span><ZoomIn size={16} /> View full picture</span></button>
               })()}
+              {post.action_type && post.action_url && <a className="campground-community-post-action" href={post.action_url}><span>{actionLabels[post.action_type]?.label || 'Open details'}</span><ExternalLink size={18} /></a>}
+              {adminMode && post.status === 'published' && <div className="campground-community-delivery"><Eye size={15} /><span>{post.read_count || 0} viewed</span>{post.sms_delivery ? <><Send size={15} /><span>{post.sms_delivery.sent_count || 0} texts delivered{post.sms_delivery.failed_count ? ` · ${post.sms_delivery.failed_count} failed` : ''}</span></> : <span>No text delivery recorded</span>}</div>}
               <div className="campground-community-actions">
                 <button type="button" className={post.liked_by_me ? 'liked' : ''} disabled={Boolean(post.reaction_pending)} onClick={() => toggleLike(post)}><Heart size={17} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.liked_by_me ? 'Liked' : 'Like'} <span>{post.reaction_count || ''}</span></button>
                 <span><MessageCircle size={17} /> {(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length} comment{(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length === 1 ? '' : 's'}</span>
@@ -336,11 +470,12 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               ))}
               {post.comments_enabled && post.status !== 'hidden' && (
                 <div className="campground-community-comment-box">
-                  <input value={commentDrafts[post.id] || ''} onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))} onKeyDown={(event) => { if (event.key === 'Enter') addComment(post) }} placeholder="Write a friendly comment…" aria-label={`Comment on ${communityPostAuthor(post)}'s post`} />
-                  <button type="button" onClick={() => addComment(post)} disabled={working === `comment:${post.id}` || !String(commentDrafts[post.id] || '').trim()}><Send size={17} /></button>
+                  <textarea rows={2} value={commentDrafts[post.id] || ''} onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))} placeholder="Write a comment…" aria-label={`Comment on ${communityPostAuthor(post)}'s post`} />
+                  <button type="button" onClick={() => addComment(post)} disabled={working === `comment:${post.id}` || !String(commentDrafts[post.id] || '').trim()}><Send size={18} /><span>Reply</span></button>
                 </div>
               )}
             </article>
+            </div>
           ))}
         </div>
 
@@ -362,16 +497,29 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       {showComposer && (
         <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create Community post">
           <section className="campground-community-modal">
-            <header><div><small>{viewer?.canPostOfficial ? 'OFFICIAL BUR OAKS POST' : adminMode ? `${viewer?.postingName || 'STAFF'} COMMUNITY POST` : 'NEW COMMUNITY POST'}</small><h2>Create a post</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
-            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={6} maxLength={2000} placeholder="What would you like the campground to know?" autoFocus />
-            {photoPreview && <div className="campground-community-photo-preview"><img src={photoPreview} alt="Selected upload preview" /><button type="button" onClick={() => choosePhoto()}><X size={16} /> Remove</button></div>}
+            <header><div><small>{viewer?.canPostOfficial ? 'OFFICIAL BUR OAKS POST' : adminMode ? `${viewer?.postingName || 'STAFF'} COMMUNITY POST` : 'NEW COMMUNITY POST'}</small><h2>{editingPost ? 'Edit this post' : 'Create a post'}</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
+            {previewing ? <article className="campground-community-compose-preview"><small>PREVIEW — WHAT CAMPERS WILL SEE</small><strong>{viewer?.canPostOfficial ? 'Bur Oaks Campground' : viewer?.postingName || viewer?.name}</strong><span>{categories.find((item) => item.value === postCategory)?.label}</span><p>{draft || 'Your message will appear here.'}</p>{photoPreview && <img src={photoPreview} alt="Post preview" />}{actionType && <b>{actionLabels[actionType]?.label || 'Open details'} <ExternalLink size={15} /></b>}</article> : <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={8} maxLength={2000} placeholder="What would you like the campground to know?" autoFocus />}
+            {photoPreview && !previewing && <div className="campground-community-photo-preview"><img src={photoPreview} alt="Selected upload preview" /><button type="button" onClick={() => choosePhoto()}><X size={16} /> Remove</button></div>}
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => choosePhoto(event.target.files?.[0])} />
+            <div className="campground-community-compose-fields">
+              <label><span>Topic</span><select value={postCategory} onChange={(event) => setPostCategory(event.target.value)}>{categories.filter((item) => item.value !== 'all').map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}</select></label>
+              {adminMode && <label><span>Helpful button</span><select value={actionType} onChange={(event) => setActionType(event.target.value)}><option value="">No button</option><option value="events">View events and RSVP</option><option value="dinners">View dinner details</option><option value="contact">Contact the office</option><option value="custom">Custom link</option></select></label>}
+              {adminMode && actionType === 'custom' && <label className="wide"><span>Custom link</span><input value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="https://… or /portal/page" /></label>}
+            </div>
+            {adminMode && <details className="campground-community-publishing-options"><summary><Clock size={17} /> Publishing and expiration options</summary><div>
+              {!editingPost && <label><span>Publish later (optional)</span><input type="datetime-local" value={publishAt} onChange={(event) => setPublishAt(event.target.value)} /></label>}
+              <label><span>Automatically remove after (optional)</span><input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
+              <label className="check"><input type="checkbox" checked={pinned} onChange={(event) => setPinned(event.target.checked)} /><span>Pin this important post to the top</span></label>
+              {pinned && <label><span>Keep pinned until</span><input type="datetime-local" value={pinnedUntil} onChange={(event) => setPinnedUntil(event.target.value)} /></label>}
+              {!editingPost && <label className="check"><input type="checkbox" checked={sendText} onChange={(event) => setSendText(event.target.checked)} /><span>Send campers one short text with the Community link</span></label>}
+              {editingPost && <label className="check"><input type="checkbox" checked={sendCorrectionText} onChange={(event) => setSendCorrectionText(event.target.checked)} /><span>Text campers that this post was corrected</span></label>}
+            </div></details>}
             <div className="campground-community-compose-options">
-              <button type="button" onClick={() => fileRef.current?.click()}><ImageIcon size={17} /> Add photo</button>
+              {!editingPost && <button type="button" onClick={() => fileRef.current?.click()}><ImageIcon size={17} /> Add photo</button>}
               <label><input type="checkbox" checked={commentsEnabled} onChange={(event) => setCommentsEnabled(event.target.checked)} /> Allow comments</label>
               {adminMode && <span className="campground-community-official-compose-note"><ShieldCheck size={17} /> Campers will see this from {viewer?.canPostOfficial ? 'Bur Oaks Campground as an official post' : viewer?.postingName || 'this staff account'}</span>}
             </div>
-            <button className="campground-community-primary" type="button" onClick={publishPost} disabled={working === 'post' || (!draft.trim() && !photo)}>{working === 'post' ? 'Posting…' : 'Post to the Community'}</button>
+            <div className="campground-community-compose-submit"><button type="button" onClick={() => setPreviewing((value) => !value)}><Eye size={17} /> {previewing ? 'Keep editing' : 'Preview'}</button><button className="campground-community-primary" type="button" onClick={publishPost} disabled={working === 'post' || (!draft.trim() && !photo)}>{working === 'post' ? 'Saving…' : editingPost ? 'Save changes' : publishAt && new Date(publishAt).getTime() > Date.now() ? 'Schedule post' : 'Post to the Community'}</button></div>
           </section>
         </div>
       )}
@@ -380,7 +528,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Community notification settings">
           <section className="campground-community-modal campground-community-preferences">
             <header><div><small>YOUR CHOICES</small><h2>Notification settings</h2></div><button type="button" onClick={() => setShowSettings(false)} aria-label="Close"><X size={19} /></button></header>
-            <p>Community conversations never trigger routine text messages. Choose when you want an email, or keep everything inside the portal.</p>
+            <p>Likes and comments do not send texts. Staff may send one short text for a new campground post. Choose when you want email, or keep everything else inside the portal.</p>
             {[
               ['community_mode', 'General community posts', 'Questions, photos, and neighbor conversation'],
               ['replies_mode', 'Replies to my posts', 'When someone responds directly to you'],

@@ -27,6 +27,42 @@ function published(value: any) {
   return String(value?.status || 'published') === 'published'
 }
 
+const COMMUNITY_CATEGORIES = new Set(['general', 'office', 'event', 'dinner', 'lost_found', 'marketplace'])
+const COMMUNITY_ACTIONS = new Set(['events', 'dinners', 'contact', 'custom'])
+
+function communityCategory(value: unknown) {
+  const category = String(value || '').trim()
+  return COMMUNITY_CATEGORIES.has(category) ? category : 'general'
+}
+
+function communityActionType(value: unknown) {
+  const actionType = String(value || '').trim()
+  return COMMUNITY_ACTIONS.has(actionType) ? actionType : null
+}
+
+function safeCommunityActionUrl(value: unknown) {
+  const raw = String(value || '').trim().slice(0, 500)
+  if (!raw) return null
+  if (raw.startsWith('/') && !raw.startsWith('//')) return raw
+  try {
+    const parsed = new URL(raw)
+    return parsed.protocol === 'https:' ? parsed.toString() : null
+  } catch {
+    return null
+  }
+}
+
+function optionalDate(value: unknown) {
+  const raw = String(value || '').trim()
+  if (!raw) return null
+  const date = new Date(raw)
+  return Number.isNaN(date.getTime()) ? null : date.toISOString()
+}
+
+function pinUntil(value: unknown) {
+  return optionalDate(value) || new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString()
+}
+
 async function authenticated(request: Request) {
   const context = await getAuthenticatedContext(request)
   return context && String(context.camper.role || '').toLowerCase() !== 'maintenance' ? context : null
@@ -157,9 +193,12 @@ export async function GET(request: Request) {
   let postQuery = context.admin
     .from('community_posts')
     .select('*')
-    .order('created_at', { ascending: false })
+    .order('publish_at', { ascending: false })
     .limit(summaryOnly ? 200 : 60)
-  if (!isManager) postQuery = postQuery.eq('status', 'published')
+  if (!isManager) {
+    const now = new Date().toISOString()
+    postQuery = postQuery.eq('status', 'published').lte('publish_at', now).or(`expires_at.is.null,expires_at.gt.${now}`)
+  }
 
   const { data: posts, error: postError } = await postQuery
   if (postError) return NextResponse.json({ error: postError.message }, { status: 500 })
@@ -188,7 +227,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ unreadCount: unreadPostCount, directCount: directCount || 0 })
   }
 
-  const [{ data: comments, error: commentError }, { data: reactions, error: reactionError }, { data: preferences, error: preferenceError }] = await Promise.all([
+  const [{ data: comments, error: commentError }, { data: reactions, error: reactionError }, { data: preferences, error: preferenceError }, allReadsResult, deliveryResult] = await Promise.all([
     postIds.length
       ? context.admin.from('community_comments').select('*').in('post_id', postIds).order('created_at', { ascending: true })
       : Promise.resolve({ data: [], error: null }),
@@ -196,9 +235,15 @@ export async function GET(request: Request) {
       ? context.admin.from('community_reactions').select('post_id,camper_id').in('post_id', postIds)
       : Promise.resolve({ data: [], error: null }),
     context.admin.from('community_notification_preferences').select('*').eq('camper_id', camperId).maybeSingle(),
+    isManager && postIds.length
+      ? context.admin.from('community_reads').select('post_id').in('post_id', postIds)
+      : Promise.resolve({ data: [], error: null }),
+    isManager && postIds.length
+      ? context.admin.from('sms_broadcasts').select('idempotency_key,status,recipient_count,sent_count,failed_count,created_at').in('idempotency_key', postIds)
+      : Promise.resolve({ data: [], error: null }),
   ])
-  if (commentError || reactionError || preferenceError) {
-    return NextResponse.json({ error: commentError?.message || reactionError?.message || preferenceError?.message }, { status: 500 })
+  if (commentError || reactionError || preferenceError || allReadsResult.error || deliveryResult.error) {
+    return NextResponse.json({ error: commentError?.message || reactionError?.message || preferenceError?.message || allReadsResult.error?.message || deliveryResult.error?.message }, { status: 500 })
   }
 
   const reportResult = isManager
@@ -233,7 +278,11 @@ export async function GET(request: Request) {
     reaction_count: (reactions || []).filter((reaction: any) => String(reaction.post_id) === String(post.id)).length,
     liked_by_me: (reactions || []).some((reaction: any) => String(reaction.post_id) === String(post.id) && String(reaction.camper_id) === camperId),
     read_by_me: readIds.has(String(post.id)),
+    read_count: (allReadsResult.data || []).filter((row: any) => String(row.post_id) === String(post.id)).length,
+    sms_delivery: (deliveryResult.data || []).find((row: any) => String(row.idempotency_key) === String(post.id)) || null,
   })))
+
+  const recentStaffPost = (posts || []).find((post: any) => !post.lot_number && published(post))
 
   return NextResponse.json({
     posts: enrichedPosts,
@@ -253,6 +302,7 @@ export async function GET(request: Request) {
       canPostOfficial: canPublishOfficialCommunityPosts(context.camper.role),
       accessLevel,
       canParticipate: canParticipateInCommunity(accessLevel),
+      recentStaffPostAt: recentStaffPost?.publish_at || recentStaffPost?.created_at || null,
     },
   })
 }
@@ -285,6 +335,11 @@ export async function POST(request: Request) {
       const { data: existing } = await context.admin.from('community_posts').select('*').eq('request_id', requestId).maybeSingle()
       if (existing) return NextResponse.json({ success: true, duplicate: true, post: existing })
     }
+    const requestedPublishAt = isManager ? optionalDate(body.publishAt) : null
+    const publishAt = requestedPublishAt && new Date(requestedPublishAt).getTime() > Date.now() + 60_000 ? requestedPublishAt : new Date().toISOString()
+    const status = new Date(publishAt).getTime() > Date.now() + 60_000 ? 'scheduled' : 'published'
+    const actionType = isManager ? communityActionType(body.actionType) : null
+    const actionUrl = actionType === 'events' ? '/events' : actionType === 'dinners' ? '/dinners' : actionType === 'contact' ? '/messages' : actionType === 'custom' ? safeCommunityActionUrl(body.actionUrl) : null
     const { data: post, error } = await context.admin.from('community_posts').insert({
       camper_id: camperId,
       author_name: canPostOfficial ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper),
@@ -294,10 +349,18 @@ export async function POST(request: Request) {
       is_official: canPostOfficial,
       comments_enabled: body.commentsEnabled !== false,
       request_id: requestId,
+      category: communityCategory(body.category),
+      publish_at: publishAt,
+      pinned_until: isManager && body.pinned ? pinUntil(body.pinnedUntil) : null,
+      expires_at: isManager ? optionalDate(body.expiresAt) : null,
+      action_type: actionType,
+      action_url: actionUrl,
+      send_text: isManager && body.sendText !== false,
+      status,
     }).select('*').single()
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-    if (post.is_official) {
+    if (post.status === 'published' && post.is_official) {
       const { data: campers } = await context.admin.from('campers').select('id,lot_number,role').eq('active', true)
       const notifications = (campers || [])
         .filter((camper: any) => isOperationalCamper(camper) && String(camper.id) !== camperId)
@@ -342,14 +405,48 @@ export async function POST(request: Request) {
       }
     }
     if (isManager) {
+      if (post.status === 'published' && body.sendText !== false) {
+        after(() => textCampersAboutStaffPost({
+          admin: context.admin,
+          user: context.user,
+          post,
+          author: post.is_official ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper),
+        }))
+      }
+    }
+    if (post.status === 'published') await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'post', postId: post.id, detail: post.body })
+    return NextResponse.json({ success: true, post })
+  }
+
+  if (action === 'update_post' && isManager) {
+    const postId = String(body.postId || '')
+    const text = String(body.body || '').trim().slice(0, 2000)
+    if (!postId || !text) return NextResponse.json({ error: 'Write the updated post first.' }, { status: 400 })
+    const { data: existing, error: lookupError } = await context.admin.from('community_posts').select('*').eq('id', postId).maybeSingle()
+    if (lookupError || !existing) return NextResponse.json({ error: lookupError?.message || 'That post could not be found.' }, { status: 404 })
+    if (String(existing.camper_id) !== camperId && !existing.is_official) return NextResponse.json({ error: 'Staff can edit their own posts. Use Hide for another person’s post.' }, { status: 403 })
+    const actionType = communityActionType(body.actionType)
+    const actionUrl = actionType === 'events' ? '/events' : actionType === 'dinners' ? '/dinners' : actionType === 'contact' ? '/messages' : actionType === 'custom' ? safeCommunityActionUrl(body.actionUrl) : null
+    const { data: post, error } = await context.admin.from('community_posts').update({
+      body: text,
+      category: communityCategory(body.category),
+      comments_enabled: body.commentsEnabled !== false,
+      pinned_until: body.pinned ? pinUntil(body.pinnedUntil) : null,
+      expires_at: optionalDate(body.expiresAt),
+      action_type: actionType,
+      action_url: actionUrl,
+      edited_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', postId).select('*').single()
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (body.sendCorrectionText === true) {
       after(() => textCampersAboutStaffPost({
         admin: context.admin,
         user: context.user,
-        post,
+        post: { ...post, id: `${post.id}:correction:${Date.now()}` },
         author: post.is_official ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper),
       }))
     }
-    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'post', postId: post.id, detail: post.body })
     return NextResponse.json({ success: true, post })
   }
 
@@ -428,6 +525,18 @@ export async function POST(request: Request) {
 
   if (action === 'mark_read') {
     const postIds = Array.from(new Set((Array.isArray(body.postIds) ? body.postIds : []).map((id: unknown) => String(id || '')).filter(Boolean))).slice(0, 100)
+    if (postIds.length) {
+      const { error } = await context.admin.from('community_reads').upsert(postIds.map((postId) => ({ post_id: postId, camper_id: camperId, read_at: new Date().toISOString() })), { onConflict: 'post_id,camper_id' })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+    if (postIds.length) await context.admin.from('community_notifications').update({ read_at: new Date().toISOString() }).eq('camper_id', camperId).in('post_id', postIds).is('read_at', null)
+    return NextResponse.json({ success: true })
+  }
+
+  if (action === 'mark_all_read') {
+    const { data: readablePosts, error: postError } = await context.admin.from('community_posts').select('id').eq('status', 'published').lte('publish_at', new Date().toISOString())
+    if (postError) return NextResponse.json({ error: postError.message }, { status: 500 })
+    const postIds = (readablePosts || []).map((post: any) => String(post.id))
     if (postIds.length) {
       const { error } = await context.admin.from('community_reads').upsert(postIds.map((postId) => ({ post_id: postId, camper_id: camperId, read_at: new Date().toISOString() })), { onConflict: 'post_id,camper_id' })
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
