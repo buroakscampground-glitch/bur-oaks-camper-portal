@@ -18,3 +18,19 @@ test('the event coordinator posts as a shortened personal name', () => {
   assert.equal(communityActorAuthor({ first_name: 'Rachel', last_name: 'Finley', role: 'event_coordinator' }), 'Rachel F')
   assert.equal(communityActorAuthor({ first_name: 'Sample', last_name: 'Camper', role: 'camper' }), 'Sample Camper')
 })
+
+test('a shared account post uses the name belonging to the signed-in email', () => {
+  const camper = {
+    first_name: 'Steve',
+    last_name: 'Yerkes',
+    email: 'steve@example.com',
+    second_profile_first_name: 'Denise',
+    second_profile_last_name: 'Yerkes',
+    secondary_email: 'denise@example.com',
+    role: 'camper',
+  }
+
+  assert.equal(communityActorAuthor(camper, 'steve@example.com'), 'Steve Yerkes')
+  assert.equal(communityActorAuthor(camper, ' DENISE@example.com '), 'Denise Yerkes')
+  assert.equal(communityActorAuthor({ ...camper, secondary_email: 'steve@example.com' }, 'steve@example.com'), 'Steve Yerkes')
+})

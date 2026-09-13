@@ -79,6 +79,7 @@ async function notifyCommunityStaff({
   admin,
   request,
   actor,
+  actorEmail,
   kind,
   postId,
   commentId,
@@ -88,6 +89,7 @@ async function notifyCommunityStaff({
   admin: any
   request: Request
   actor: any
+  actorEmail?: unknown
   kind: CommunityActivityKind
   postId?: string | null
   commentId?: string | null
@@ -105,7 +107,7 @@ async function notifyCommunityStaff({
   const excluded = new Set(excludeCamperIds.map((id) => String(id || '')).filter(Boolean))
   const recipients = communityStaffRecipients(campers || [], actor?.id).filter((recipient) => !excluded.has(String(recipient.id)))
   if (!recipients.length) return
-  const message = communityActivityMessage({ kind, actorName: communityActorAuthor(actor), lotNumber: actor?.lot_number, detail })
+  const message = communityActivityMessage({ kind, actorName: communityActorAuthor(actor, actorEmail), lotNumber: actor?.lot_number, detail })
   const { data: notifications, error: notificationError } = await admin.from('community_notifications').insert(recipients.map((recipient: any) => ({
     camper_id: recipient.id,
     post_id: postId || null,
@@ -186,7 +188,7 @@ export async function GET(request: Request) {
       unreadCount: 0,
       directCount: 0,
       reason: memberControl?.reason || 'The office has paused this account’s Community access.',
-      viewer: { id: camperId, name: camperName(context.camper), postingName: communityActorAuthor(context.camper), lotNumber: context.camper.lot_number || '', canManage: false, canDelete: false, canPostOfficial: false, accessLevel },
+      viewer: { id: camperId, name: camperName(context.camper), postingName: communityActorAuthor(context.camper, context.user.email), lotNumber: context.camper.lot_number || '', canManage: false, canDelete: false, canPostOfficial: false, accessLevel },
     })
   }
 
@@ -295,7 +297,7 @@ export async function GET(request: Request) {
     viewer: {
       id: camperId,
       name: camperName(context.camper),
-      postingName: communityActorAuthor(context.camper),
+      postingName: communityActorAuthor(context.camper, context.user.email),
       lotNumber: context.camper.lot_number || '',
       canManage: isManager,
       canDelete: isCommunityAdmin,
@@ -342,7 +344,7 @@ export async function POST(request: Request) {
     const actionUrl = actionType === 'events' ? '/events' : actionType === 'dinners' ? '/dinners' : actionType === 'contact' ? '/messages' : actionType === 'custom' ? safeCommunityActionUrl(body.actionUrl) : null
     const { data: post, error } = await context.admin.from('community_posts').insert({
       camper_id: camperId,
-      author_name: canPostOfficial ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper),
+      author_name: canPostOfficial ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper, context.user.email),
       lot_number: isManager ? null : context.camper.lot_number || null,
       body: text || 'Shared a campground photo.',
       photo_path: photoPath,
@@ -410,11 +412,11 @@ export async function POST(request: Request) {
           admin: context.admin,
           user: context.user,
           post,
-          author: post.is_official ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper),
+          author: post.is_official ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper, context.user.email),
         }))
       }
     }
-    if (post.status === 'published') await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'post', postId: post.id, detail: post.body })
+    if (post.status === 'published') await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, actorEmail: context.user.email, kind: 'post', postId: post.id, detail: post.body })
     return NextResponse.json({ success: true, post })
   }
 
@@ -444,7 +446,7 @@ export async function POST(request: Request) {
         admin: context.admin,
         user: context.user,
         post: { ...post, id: `${post.id}:correction:${Date.now()}` },
-        author: post.is_official ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper),
+        author: post.is_official ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper, context.user.email),
       }))
     }
     return NextResponse.json({ success: true, post })
@@ -457,7 +459,7 @@ export async function POST(request: Request) {
     if (!postId || !text) return NextResponse.json({ error: 'Write a comment first.' }, { status: 400 })
     const { data: post, error: postError } = await context.admin.from('community_posts').select('*').eq('id', postId).maybeSingle()
     if (postError || !post || !published(post) || !post.comments_enabled) return NextResponse.json({ error: 'Comments are not available on this post.' }, { status: 400 })
-    const replyAuthor = canPostOfficial ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper)
+    const replyAuthor = canPostOfficial ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper, context.user.email)
     const { data: comment, error } = await context.admin.from('community_comments').insert({
       post_id: postId,
       camper_id: camperId,
@@ -502,7 +504,7 @@ export async function POST(request: Request) {
         await context.admin.from('community_notifications').update({ email_status: 'skipped' }).eq('id', replyNotification.id)
       }
     }
-    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'comment', postId, commentId: comment.id, detail: text, excludeCamperIds: [post.camper_id] })
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, actorEmail: context.user.email, kind: 'comment', postId, commentId: comment.id, detail: text, excludeCamperIds: [post.camper_id] })
     return NextResponse.json({ success: true, comment })
   }
 
@@ -570,7 +572,7 @@ export async function POST(request: Request) {
       reason: String(body.reason || 'Please review this content.').trim().slice(0, 300),
     })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'report', postId, commentId })
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, actorEmail: context.user.email, kind: 'report', postId, commentId })
     return NextResponse.json({ success: true })
   }
 
@@ -594,7 +596,7 @@ export async function POST(request: Request) {
     if (logError) return NextResponse.json({ error: logError.message }, { status: 500 })
     const { error } = await context.admin.from(table).delete().eq('id', id)
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'moderation', detail: `permanently deleted a ${contentType}` })
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, actorEmail: context.user.email, kind: 'moderation', detail: `permanently deleted a ${contentType}` })
     return NextResponse.json({ success: true })
   }
 
@@ -608,7 +610,7 @@ export async function POST(request: Request) {
     const { error } = await context.admin.from('community_member_controls').upsert({ camper_id: targetCamperId, access_level: nextAccess, reason, controlled_by: camperId, updated_at: new Date().toISOString() }, { onConflict: 'camper_id' })
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     await context.admin.from('community_moderation_log').insert({ admin_camper_id: camperId, action: nextAccess === 'blocked' ? 'set_blocked' : nextAccess === 'read_only' ? 'set_read_only' : 'set_active', target_camper_id: targetCamperId, reason })
-    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'member_access', detail: `${camperName(target)} is now ${communityAccessLabel(nextAccess)}` })
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, actorEmail: context.user.email, kind: 'member_access', detail: `${camperName(target)} is now ${communityAccessLabel(nextAccess)}` })
     return NextResponse.json({ success: true, accessLevel: nextAccess })
   }
 
@@ -621,7 +623,7 @@ export async function POST(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     await context.admin.from('community_moderation_log').insert({ admin_camper_id: camperId, action: status === 'published' ? 'restore' : 'hide', post_id: contentType === 'community_posts' ? id : null, comment_id: contentType === 'community_comments' ? id : null, reason: String(body.reason || '').trim().slice(0, 300) || null })
     if (body.reportId) await context.admin.from('community_reports').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', body.reportId)
-    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'moderation', postId: contentType === 'community_posts' ? id : null, commentId: contentType === 'community_comments' ? id : null, detail: `${status === 'published' ? 'restored' : 'hid'} a ${contentType === 'community_posts' ? 'post' : 'comment'}` })
+    await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, actorEmail: context.user.email, kind: 'moderation', postId: contentType === 'community_posts' ? id : null, commentId: contentType === 'community_comments' ? id : null, detail: `${status === 'published' ? 'restored' : 'hid'} a ${contentType === 'community_posts' ? 'post' : 'comment'}` })
     return NextResponse.json({ success: true })
   }
 
