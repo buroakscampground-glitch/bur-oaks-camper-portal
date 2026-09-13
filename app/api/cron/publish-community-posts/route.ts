@@ -40,7 +40,7 @@ export async function GET(request: Request) {
     if (post.is_official) {
       const { data: campers } = await admin.from('campers').select('id,lot_number,role').eq('active', true)
       const notifications = (campers || []).filter((camper: any) => isOperationalCamper(camper) && String(camper.id) !== String(post.camper_id)).map((camper: any) => ({ camper_id: camper.id, post_id: post.id, kind: 'official', message: `New official Community post: ${String(post.body || '').slice(0, 120)}` }))
-      if (notifications.length) await admin.from('community_notifications').upsert(notifications, { onConflict: 'camper_id,post_id,kind', ignoreDuplicates: true })
+      if (notifications.length) await admin.from('community_notifications').insert(notifications)
     }
     results.push({ postId: post.id, textStatus: textResult.status, sent: textResult.sentCount || 0, failed: textResult.failedCount || 0 })
   }
