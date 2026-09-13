@@ -171,12 +171,17 @@ export async function GET(request: Request) {
   if (readError) return NextResponse.json({ error: readError.message }, { status: 500 })
   const readIds = new Set((readRows || []).map((row: any) => String(row.post_id)))
 
-  const { count: directCount, error: directError } = await context.admin
+  const directResult = await context.admin
     .from('community_notifications')
-    .select('id', { count: 'exact', head: true })
+    .select(isManager ? 'id,post_id' : 'id', { count: 'exact', head: !isManager })
     .eq('camper_id', camperId)
     .is('read_at', null)
-  if (directError) return NextResponse.json({ error: directError.message }, { status: 500 })
+  if (directResult.error) return NextResponse.json({ error: directResult.error.message }, { status: 500 })
+  // Staff need to know which conversations are active, not receive a giant
+  // badge for every action inside the same conversation.
+  const directCount = isManager
+    ? new Set((directResult.data || []).map((item: any) => String(item.post_id || item.id))).size
+    : Number(directResult.count || 0)
 
   const unreadPostCount = isManager ? 0 : (posts || []).filter((post: any) => published(post) && !readIds.has(String(post.id))).length
   if (summaryOnly) {
@@ -405,6 +410,7 @@ export async function POST(request: Request) {
   }
 
   if (action === 'toggle_reaction') {
+    if (!canParticipateInCommunity(accessLevel)) return NextResponse.json({ error: `Your Community access is ${communityAccessLabel(accessLevel).toLowerCase()}. Contact the office if you have questions.` }, { status: 403 })
     const postId = String(body.postId || '')
     if (!postId) return NextResponse.json({ error: 'Choose a post.' }, { status: 400 })
     const { data: existing, error: lookupError } = await context.admin.from('community_reactions').select('id').eq('post_id', postId).eq('camper_id', camperId).maybeSingle()
@@ -413,8 +419,11 @@ export async function POST(request: Request) {
       ? await context.admin.from('community_reactions').delete().eq('id', existing.id)
       : await context.admin.from('community_reactions').insert({ post_id: postId, camper_id: camperId })
     if (result.error) return NextResponse.json({ error: result.error.message }, { status: 500 })
-    if (!existing) await notifyCommunityStaff({ admin: context.admin, request, actor: context.camper, kind: 'like', postId })
-    return NextResponse.json({ success: true, liked: !existing })
+    const { count: reactionCount, error: countError } = await context.admin.from('community_reactions').select('id', { count: 'exact', head: true }).eq('post_id', postId)
+    if (countError) return NextResponse.json({ error: countError.message }, { status: 500 })
+    // Likes remain visible on the post itself. They intentionally do not create
+    // staff notifications or Home Screen badge noise.
+    return NextResponse.json({ success: true, liked: !existing, reactionCount: Number(reactionCount || 0) })
   }
 
   if (action === 'mark_read') {

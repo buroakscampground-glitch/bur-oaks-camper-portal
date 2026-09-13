@@ -32,7 +32,7 @@ const emptyCounts: CommunityCounts = {
 }
 
 const badgeHelp = {
-  '/community/feed': { title: 'New Community activity', detail: 'The badge counts new posts, comments, and likes. Opening the feed marks that activity viewed.' },
+  '/community/feed': { title: 'New Community conversations', detail: 'The badge counts conversations with new posts or comments. Likes stay visible on each post without adding badge noise.' },
   '/community/birthdays': { title: 'Birthday greeting needs attention', detail: 'The badge stays until the birthday greeting or private portal surprise is handled.' },
   '/community/announcements': { title: 'Announcements to review', detail: 'The badge counts announcements added since Rachel last opened this page. Opening it clears the badge.' },
   '/community/events': { title: 'Events to review', detail: 'The badge counts upcoming events added since Rachel last opened this page. Opening it clears the badge.' },

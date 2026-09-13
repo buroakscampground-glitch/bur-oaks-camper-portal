@@ -23,11 +23,27 @@ test('Community staff alerts clearly identify the action, camper, and lot', () =
   )
 })
 
-test('posts, comments, likes, reports, and administrative actions notify Community staff', () => {
+test('posts, comments, reports, and administrative actions notify Community staff while likes stay quiet', () => {
   const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
-  for (const kind of ['post', 'comment', 'like', 'report', 'moderation', 'member_access']) {
+  for (const kind of ['post', 'comment', 'report', 'moderation', 'member_access']) {
     assert.match(route, new RegExp(`kind: '${kind}'`))
   }
+  const toggleReaction = route.match(/if \(action === 'toggle_reaction'\) \{[\s\S]*?if \(action === 'mark_read'\)/)?.[0] || ''
+  assert.doesNotMatch(toggleReaction, /notifyCommunityStaff/)
+  assert.match(toggleReaction, /reactionCount/)
+})
+
+test('the like button blocks repeat taps and reconciles the exact database count', () => {
+  const feed = readFileSync(new URL('../components/CommunityFeed.tsx', import.meta.url), 'utf8')
+  assert.match(feed, /reactionRequests\.current\.has\(postId\)/)
+  assert.match(feed, /reaction_pending: true/)
+  assert.match(feed, /reaction_count: Number\(result\.reactionCount \|\| 0\)/)
+  assert.match(feed, /disabled=\{Boolean\(post\.reaction_pending\)\}/)
+})
+
+test('staff Community badges collapse repeated activity to one conversation', () => {
+  const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
+  assert.match(route, /new Set\(\(directResult\.data \|\| \[\]\)\.map\(\(item: any\) => String\(item\.post_id \|\| item\.id\)\)\)\.size/)
 })
 
 test('only an admin or Event Coordinator post starts a camper text campaign', () => {

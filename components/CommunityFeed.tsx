@@ -42,6 +42,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [notice, setNotice] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const postRequestId = useRef('')
+  const reactionRequests = useRef(new Set<string>())
 
   useEffect(() => { loadFeed() }, [])
   useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview) }, [photoPreview])
@@ -136,10 +137,19 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   }
 
   async function toggleLike(post: any) {
+    const postId = String(post.id || '')
+    if (!postId || reactionRequests.current.has(postId)) return
+    reactionRequests.current.add(postId)
     const liked = !post.liked_by_me
-    setPosts((current) => current.map((item) => item.id === post.id ? { ...item, liked_by_me: liked, reaction_count: Math.max(0, Number(item.reaction_count || 0) + (liked ? 1 : -1)) } : item))
-    try { await communityAction({ action: 'toggle_reaction', postId: post.id }) }
-    catch { setPosts((current) => current.map((item) => item.id === post.id ? post : item)) }
+    setPosts((current) => current.map((item) => item.id === postId ? { ...item, liked_by_me: liked, reaction_count: Math.max(0, Number(item.reaction_count || 0) + (liked ? 1 : -1)), reaction_pending: true } : item))
+    try {
+      const result = await communityAction({ action: 'toggle_reaction', postId })
+      setPosts((current) => current.map((item) => item.id === postId ? { ...item, liked_by_me: Boolean(result.liked), reaction_count: Number(result.reactionCount || 0), reaction_pending: false } : item))
+    } catch {
+      setPosts((current) => current.map((item) => item.id === postId ? { ...post, reaction_pending: false } : item))
+    } finally {
+      reactionRequests.current.delete(postId)
+    }
   }
 
   async function addComment(post: any) {
@@ -314,7 +324,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
                 return <button className="campground-community-photo-button" type="button" onClick={() => setExpandedPhoto({ url: post.photo_url, alt })} aria-label={`Open full-size photo ${alt}`}><img className="campground-community-photo" src={post.photo_url} alt={alt} /><span><ZoomIn size={16} /> View full picture</span></button>
               })()}
               <div className="campground-community-actions">
-                <button type="button" className={post.liked_by_me ? 'liked' : ''} onClick={() => toggleLike(post)}><Heart size={17} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.liked_by_me ? 'Liked' : 'Like'} <span>{post.reaction_count || ''}</span></button>
+                <button type="button" className={post.liked_by_me ? 'liked' : ''} disabled={Boolean(post.reaction_pending)} onClick={() => toggleLike(post)}><Heart size={17} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.liked_by_me ? 'Liked' : 'Like'} <span>{post.reaction_count || ''}</span></button>
                 <span><MessageCircle size={17} /> {(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length} comment{(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length === 1 ? '' : 's'}</span>
               </div>
               {(post.comments || []).map((comment: any) => (
