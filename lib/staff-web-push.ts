@@ -1,4 +1,5 @@
 import webpush, { type PushSubscription } from 'web-push'
+import { requiresAdminAttention } from './admin-notification-types'
 import { effectivePortalRole } from './staff-roles'
 
 type StaffPushSubscription = PushSubscription & {
@@ -90,10 +91,17 @@ export async function sendStaffWebPush(admin: any, options: StaffPushOptions) {
     const subscriptions = savedSubscriptions(user.user_metadata?.staff_push_subscriptions).filter((item) => item.app === expectedApp)
     if (!subscriptions.length) continue
     const expired = new Set<string>()
-    const countResult = recipient.role === 'admin'
-      ? await admin.from('admin_notifications').select('id', { count: 'exact', head: true }).is('read_at', null)
-      : await admin.from('community_notifications').select('id', { count: 'exact', head: true }).eq('camper_id', recipient.camper.id).is('read_at', null)
-    const badgeCount = Math.max(1, Math.round(Number(options.badgeCount || countResult.count || 1)))
+    const [adminResult, communityResult] = await Promise.all([
+      recipient.role === 'admin'
+        ? admin.from('admin_notifications').select('type').is('read_at', null)
+        : Promise.resolve({ data: [], error: null }),
+      admin.from('community_notifications').select('id,post_id').eq('camper_id', recipient.camper.id).is('read_at', null),
+    ])
+    if (adminResult.error || communityResult.error) throw adminResult.error || communityResult.error
+    const actionableAdminCount = (adminResult.data || []).filter((item: any) => requiresAdminAttention(item.type)).length
+    const communityConversationCount = new Set((communityResult.data || []).map((item: any) => String(item.post_id || item.id))).size
+    const storedBadgeCount = actionableAdminCount + communityConversationCount
+    const badgeCount = Math.max(0, Math.round(Number(options.badgeCount ?? storedBadgeCount)))
     const payload = JSON.stringify({
       title: options.title,
       body: options.body,

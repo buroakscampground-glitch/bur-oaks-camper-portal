@@ -95,3 +95,15 @@ test('desktop counts remain visible without requiring hover', async () => {
   assert.equal((styles.match(/^\.admin-attention-badge \{/gm) || []).length, 1)
   assert.doesNotMatch(styles, /^\.admin-attention-badge \{[^}]*position: absolute/m)
 })
+
+test('background Admin badges exclude informational payment and dinner notices', async () => {
+  const [push, worker] = await Promise.all([
+    readFile(new URL('../lib/staff-web-push.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../public/admin/staff-sw.js', import.meta.url), 'utf8'),
+  ])
+  assert.match(push, /requiresAdminAttention\(item\.type\)/)
+  assert.match(push, /communityConversationCount/)
+  assert.doesNotMatch(push, /select\('id', \{ count: 'exact', head: true \}\)\.is\('read_at', null\)/)
+  assert.match(worker, /badgeCount > 0/)
+  assert.match(worker, /clearAppBadge/)
+})

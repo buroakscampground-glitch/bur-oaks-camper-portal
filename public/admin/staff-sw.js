@@ -10,7 +10,9 @@ self.addEventListener('push', function (event) {
     icon: '/bur-oaks-logo.png', badge: '/bur-oaks-logo.png',
     tag: data.tag || 'bur-oaks-admin', renotify: true, data: { url: url }
   })]
-  if (self.navigator && self.navigator.setAppBadge) work.push(self.navigator.setAppBadge(Math.max(1, Number(data.badgeCount || 1))))
+  var badgeCount = Math.max(0, Number(data.badgeCount == null ? 1 : data.badgeCount))
+  if (self.navigator && self.navigator.setAppBadge && badgeCount > 0) work.push(self.navigator.setAppBadge(badgeCount))
+  else if (self.navigator && self.navigator.clearAppBadge) work.push(self.navigator.clearAppBadge())
   event.waitUntil(Promise.all(work))
 })
 self.addEventListener('notificationclick', function (event) {
