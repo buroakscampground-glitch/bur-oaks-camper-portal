@@ -87,3 +87,12 @@ export function campgroundUpdateSms(title: unknown, url: string) {
     action: 'Details',
   })
 }
+
+export function communityPostSms(author: unknown, url: string) {
+  const cleanAuthor = String(author || 'Bur Oaks').trim() || 'Bur Oaks'
+  return singleSegmentSms({
+    message: `NEW COMMUNITY POST from ${cleanAuthor}`,
+    url,
+    action: 'Read',
+  })
+}

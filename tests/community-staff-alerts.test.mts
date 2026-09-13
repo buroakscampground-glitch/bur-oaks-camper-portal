@@ -30,6 +30,15 @@ test('posts, comments, likes, reports, and administrative actions notify Communi
   }
 })
 
+test('only an admin or Event Coordinator post starts a camper text campaign', () => {
+  const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
+  const createPost = route.match(/if \(action === 'create_post'\) \{[\s\S]*?if \(action === 'create_comment'\)/)?.[0] || ''
+  const createComment = route.match(/if \(action === 'create_comment'\) \{[\s\S]*?if \(action === 'toggle_reaction'\)/)?.[0] || ''
+
+  assert.match(createPost, /if \(isManager\)[\s\S]*textCampersAboutStaffPost/)
+  assert.doesNotMatch(createComment, /textCampersAboutStaffPost|sendTwilioSms|sms_broadcasts/)
+})
+
 test('the separate Community workspace registers the correct phone alert type for each staff role', () => {
   const permission = readFileSync(new URL('../components/CommunityAppBadgePermission.tsx', import.meta.url), 'utf8')
   const home = readFileSync(new URL('../app/community/page.tsx', import.meta.url), 'utf8')
