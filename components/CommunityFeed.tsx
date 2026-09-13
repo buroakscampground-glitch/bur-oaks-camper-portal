@@ -52,7 +52,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [activityNotifications, setActivityNotifications] = useState<any[]>([])
   const [members, setMembers] = useState<any[]>([])
   const [memberSearch, setMemberSearch] = useState('')
-  const [showMemberControls, setShowMemberControls] = useState(false)
+  const [adminSection, setAdminSection] = useState<'feed' | 'activity' | 'members'>('feed')
   const [blocked, setBlocked] = useState(false)
   const [blockReason, setBlockReason] = useState('')
   const [tab, setTab] = useState<'all' | 'official' | 'mine'>('all')
@@ -375,20 +375,35 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
   return (
     <main className={`campground-community-page${adminMode ? ' admin-community-page' : ''}`}>
-      <section className="campground-community-hero">
+      <section className={`campground-community-hero${adminMode ? ' compact' : ''}`}>
         <div className="campground-community-hero-icon"><UsersRound size={30} /></div>
         <div>
           <span>{adminMode ? 'COMMUNITY MODERATION' : 'BUR OAKS COMMUNITY'}</span>
-          <h1>{adminMode ? 'Keep campground conversation friendly and useful.' : 'The campground conversation, all in one calm place.'}</h1>
-          <p>{adminMode ? viewer?.canPostOfficial ? 'Post official news, join conversations, and review anything campers report.' : `Post as ${viewer?.postingName || 'yourself'}, join conversations, and use the same Community moderation controls as the office.` : 'Share updates, photos, questions, and friendly conversation with your Bur Oaks neighbors.'}</p>
+          <h1>{adminMode ? 'Community Feed' : 'The campground conversation, all in one calm place.'}</h1>
+          <p>{adminMode ? 'Post updates, review activity, or manage access—one task at a time.' : 'Share updates, photos, questions, and friendly conversation with your Bur Oaks neighbors.'}</p>
         </div>
         <button className="campground-community-settings" type="button" onClick={() => setShowSettings(true)}><Bell size={18} /> Alerts</button>
       </section>
 
-      <section className="campground-community-calm"><ShieldCheck size={18} /><div><strong>Important staff posts are easy to find.</strong><span>Bur Oaks staff posts may send one short text with a portal link. Comments and likes never send texts.</span></div></section>
+      {!adminMode && <section className="campground-community-calm"><ShieldCheck size={18} /><div><strong>Important staff posts are easy to find.</strong><span>Bur Oaks staff posts may send one short text with a portal link. Comments and likes never send texts.</span></div></section>}
       {notice && <p className="campground-community-notice" role="status">{notice}</p>}
 
-      {adminMode && activityNotifications.length > 0 && (
+      {adminMode && <nav className="campground-community-admin-sections" aria-label="Community administration sections">
+        <button type="button" className={adminSection === 'feed' ? 'active' : ''} onClick={() => setAdminSection('feed')}><MessageCircle size={21} /><span><strong>Feed & posting</strong><small>Read, post, and reply</small></span></button>
+        <button type="button" className={adminSection === 'activity' ? 'active' : ''} onClick={() => setAdminSection('activity')}><Bell size={21} /><span><strong>Activity & reports</strong><small>Recent activity and moderation</small></span>{reports.length > 0 && <b>{reports.length}</b>}</button>
+        {viewer?.canDelete && <button type="button" className={adminSection === 'members' ? 'active' : ''} onClick={() => setAdminSection('members')}><ShieldCheck size={21} /><span><strong>Member access</strong><small>Search, restrict, or restore</small></span>{members.some((member) => member.accessLevel !== 'active') && <b>{members.filter((member) => member.accessLevel !== 'active').length}</b>}</button>}
+      </nav>}
+
+      {adminMode && adminSection === 'activity' && reports.length > 0 && (
+        <section className="campground-community-review">
+          <header><div><small>NEEDS REVIEW</small><h2>{reports.length} reported item{reports.length === 1 ? '' : 's'}</h2></div></header>
+          {reports.map((report) => (
+            <article key={report.id}><span>{report.reason}</span><div><button type="button" onClick={() => moderate(report.comment_id ? 'comment' : 'post', report.comment_id || report.post_id, 'hidden', report.id)}>Hide item</button><button type="button" onClick={() => moderate(report.comment_id ? 'comment' : 'post', report.comment_id || report.post_id, 'published', report.id)}>Leave visible</button></div></article>
+          ))}
+        </section>
+      )}
+
+      {adminMode && adminSection === 'activity' && activityNotifications.length > 0 && (
         <section className="campground-community-staff-activity">
           <header><Bell size={19} /><div><small>STAFF ALERTS</small><h2>Recent Community activity</h2><p>Rachel and administrator accounts see activity here, with routine items collected into the daily email.</p></div></header>
           <div>{activityNotifications.slice(0, 10).map((item) => (
@@ -400,32 +415,25 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         </section>
       )}
 
-      {adminMode && viewer?.canDelete && (
+      {adminMode && adminSection === 'activity' && reports.length === 0 && activityNotifications.length === 0 && (
+        <section className="campground-community-admin-empty"><CheckCircle2 size={30} /><strong>Nothing needs review.</strong><span>New camper posts, comments, and reports will appear here.</span></section>
+      )}
+
+      {adminMode && adminSection === 'members' && viewer?.canDelete && (
         <section className="campground-community-owner-controls">
-          <button type="button" onClick={() => setShowMemberControls((open) => !open)}><ShieldCheck size={18} /><span><small>OWNER CONTROL</small><strong>Manage camper access</strong></span><b>{members.filter((member) => member.accessLevel !== 'active').length} restricted</b></button>
-          {showMemberControls && (
-            <div className="campground-community-members">
-              <header><div><small>COMMUNITY MEMBERS</small><h2>Block, restrict, or restore access</h2><p>These controls affect only Community posts and comments—not billing or the rest of the portal.</p></div><button type="button" onClick={() => setShowMemberControls(false)} aria-label="Close member controls"><X size={18} /></button></header>
+          <div className="campground-community-members open">
+              <header><div><small>COMMUNITY MEMBERS</small><h2>Manage camper access</h2><p>Search by camper or lot. These controls affect only the Community—not billing or the rest of the portal.</p></div></header>
               <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Search camper or lot…" aria-label="Search Community members" />
               <div className="campground-community-member-list">
                 {filteredMembers.map((member) => (
                   <article className={member.accessLevel} key={member.id}><div><strong>{member.name}</strong><small>Lot {member.lotNumber} · {member.accessLevel === 'blocked' ? 'Blocked' : member.accessLevel === 'read_only' ? 'Read-only' : 'Active'}</small></div><div><button type="button" className={member.accessLevel === 'active' ? 'selected' : ''} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'active')}><UserCheck size={14} /> Active</button><button type="button" className={member.accessLevel === 'read_only' ? 'selected' : ''} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'read_only')}><Eye size={14} /> Read-only</button><button type="button" className={member.accessLevel === 'blocked' ? 'selected danger' : 'danger'} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'blocked')}><Ban size={14} /> Block</button></div></article>
                 ))}
               </div>
-            </div>
-          )}
+          </div>
         </section>
       )}
 
-      {adminMode && reports.length > 0 && (
-        <section className="campground-community-review">
-          <header><div><small>NEEDS REVIEW</small><h2>{reports.length} reported item{reports.length === 1 ? '' : 's'}</h2></div></header>
-          {reports.map((report) => (
-            <article key={report.id}><span>{report.reason}</span><div><button type="button" onClick={() => moderate(report.comment_id ? 'comment' : 'post', report.comment_id || report.post_id, 'hidden', report.id)}>Hide item</button><button type="button" onClick={() => moderate(report.comment_id ? 'comment' : 'post', report.comment_id || report.post_id, 'published', report.id)}>Leave visible</button></div></article>
-          ))}
-        </section>
-      )}
-
+      {(!adminMode || adminSection === 'feed') && <>
       <section className="campground-community-toolbar">
         <div role="tablist" aria-label="Community feed views">
           <button type="button" className={tab === 'all' ? 'active' : ''} onClick={() => setTab('all')}>Community</button>
@@ -494,13 +502,14 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
           ))}
         </div>
 
-        <aside className="campground-community-guide">
+        {!adminMode && <aside className="campground-community-guide">
           <small>HOW ALERTS WORK</small>
           <h2>Stay connected without the buzzing.</h2>
           <ul><li><Check size={16} /> New activity appears as an unread badge.</li><li><Check size={16} /> General posts become one daily email.</li><li><Check size={16} /> Replies to your post may email you right away.</li><li><Check size={16} /> Routine notices pause during quiet hours.</li><li><Check size={16} /> Emergency texts remain separate.</li></ul>
           <button type="button" onClick={() => setShowSettings(true)}><Bell size={16} /> Choose my alerts</button>
-        </aside>
+        </aside>}
       </section>
+      </>}
 
       {expandedPhoto && (
         <div className="campground-community-photo-lightbox" role="dialog" aria-modal="true" aria-label="Full-size Community photo" onClick={() => setExpandedPhoto(null)}>

@@ -58,6 +58,18 @@ test('opening the staff feed acknowledges every Community activity badge', () =>
   assert.match(feed, /admin-attention-changed/)
 })
 
+test('the admin Community page separates conversation, review work, and member access', () => {
+  const feed = readFileSync(new URL('../components/CommunityFeed.tsx', import.meta.url), 'utf8')
+
+  assert.match(feed, /adminSection.*'feed'.*'activity'.*'members'/)
+  assert.match(feed, />Feed & posting</)
+  assert.match(feed, />Activity & reports</)
+  assert.match(feed, />Member access</)
+  assert.match(feed, /adminSection === 'activity'/)
+  assert.match(feed, /adminSection === 'members'/)
+  assert.match(feed, /!adminMode \|\| adminSection === 'feed'/)
+})
+
 test('only an admin or Event Coordinator post starts a camper text campaign', () => {
   const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
   const createPost = route.match(/if \(action === 'create_post'\) \{[\s\S]*?if \(action === 'create_comment'\)/)?.[0] || ''
