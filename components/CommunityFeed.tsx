@@ -23,11 +23,15 @@ const actionLabels: Record<string, { label: string; href: string }> = {
   contact: { label: 'Contact the office', href: '/messages' },
 }
 
-function localDateTimeInput(value?: string | null) {
+function localDateInput(value?: string | null) {
   if (!value) return ''
   const date = new Date(value)
   const offset = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10)
+}
+
+function scheduledDate(value: string) {
+  return value ? new Date(`${value}T08:00:00`).toISOString() : null
 }
 
 function formatDate(value: string) {
@@ -184,7 +188,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       if (editingPost) {
         await communityAction({ action: 'update_post', postId: editingPost.id, body: draft, commentsEnabled, category: postCategory, actionType, actionUrl, pinned, pinnedUntil: pinnedUntil ? new Date(pinnedUntil).toISOString() : null, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, sendCorrectionText })
       } else {
-        await communityAction({ action: 'create_post', requestId: postRequestId.current, body: draft, photoPath, commentsEnabled, category: postCategory, actionType, actionUrl, publishAt: publishAt ? new Date(publishAt).toISOString() : null, pinned, pinnedUntil: pinnedUntil ? new Date(pinnedUntil).toISOString() : null, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, sendText })
+        await communityAction({ action: 'create_post', requestId: postRequestId.current, body: draft, photoPath, commentsEnabled, category: postCategory, actionType, actionUrl, publishAt: scheduledDate(publishAt), pinned, pinnedUntil: pinnedUntil ? new Date(pinnedUntil).toISOString() : null, expiresAt: expiresAt ? new Date(expiresAt).toISOString() : null, sendText })
       }
       setDraft('')
       window.localStorage.removeItem('bur-oaks-community-draft')
@@ -193,7 +197,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       setShowComposer(false)
       setPreviewing(false)
       setEditingPost(null)
-      setNotice(editingPost ? 'The Community post was updated.' : publishAt && new Date(publishAt).getTime() > Date.now() ? 'The Community post is scheduled.' : viewer?.canPostOfficial ? 'The official Bur Oaks Community post is live.' : `${viewer?.postingName || 'Your'} post is now in the Community.`)
+      setNotice(editingPost ? 'The Community post was updated.' : publishAt && new Date(`${publishAt}T08:00:00`).getTime() > Date.now() ? 'The Community post is scheduled for about 8 AM Central.' : viewer?.canPostOfficial ? 'The official Bur Oaks Community post is live.' : `${viewer?.postingName || 'Your'} post is now in the Community.`)
       await loadFeed(true)
     } catch (error: any) {
       setNotice(error.message)
@@ -228,10 +232,10 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     setPostCategory(post.category || 'general')
     setActionType(post.action_type || '')
     setActionUrl(post.action_type === 'custom' ? post.action_url || '' : '')
-    setPublishAt(localDateTimeInput(post.publish_at))
+    setPublishAt(localDateInput(post.publish_at))
     setPinned(Boolean(post.pinned_until && new Date(post.pinned_until).getTime() > Date.now()))
-    setPinnedUntil(localDateTimeInput(post.pinned_until))
-    setExpiresAt(localDateTimeInput(post.expires_at))
+    setPinnedUntil(post.pinned_until ? localDateInput(post.pinned_until) + 'T23:59' : '')
+    setExpiresAt(post.expires_at ? localDateInput(post.expires_at) + 'T23:59' : '')
     setCommentsEnabled(post.comments_enabled !== false)
     setSendCorrectionText(false)
     setPreviewing(false)
@@ -507,7 +511,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               {adminMode && actionType === 'custom' && <label className="wide"><span>Custom link</span><input value={actionUrl} onChange={(event) => setActionUrl(event.target.value)} placeholder="https://… or /portal/page" /></label>}
             </div>
             {adminMode && <details className="campground-community-publishing-options"><summary><Clock size={17} /> Publishing and expiration options</summary><div>
-              {!editingPost && <label><span>Publish later (optional)</span><input type="datetime-local" value={publishAt} onChange={(event) => setPublishAt(event.target.value)} /></label>}
+              {!editingPost && <label><span>Publish on a future date around 8 AM (optional)</span><input type="date" value={publishAt} min={new Date().toISOString().slice(0, 10)} onChange={(event) => setPublishAt(event.target.value)} /></label>}
               <label><span>Automatically remove after (optional)</span><input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
               <label className="check"><input type="checkbox" checked={pinned} onChange={(event) => setPinned(event.target.checked)} /><span>Pin this important post to the top</span></label>
               {pinned && <label><span>Keep pinned until</span><input type="datetime-local" value={pinnedUntil} onChange={(event) => setPinnedUntil(event.target.value)} /></label>}
@@ -519,7 +523,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               <label><input type="checkbox" checked={commentsEnabled} onChange={(event) => setCommentsEnabled(event.target.checked)} /> Allow comments</label>
               {adminMode && <span className="campground-community-official-compose-note"><ShieldCheck size={17} /> Campers will see this from {viewer?.canPostOfficial ? 'Bur Oaks Campground as an official post' : viewer?.postingName || 'this staff account'}</span>}
             </div>
-            <div className="campground-community-compose-submit"><button type="button" onClick={() => setPreviewing((value) => !value)}><Eye size={17} /> {previewing ? 'Keep editing' : 'Preview'}</button><button className="campground-community-primary" type="button" onClick={publishPost} disabled={working === 'post' || (!draft.trim() && !photo)}>{working === 'post' ? 'Saving…' : editingPost ? 'Save changes' : publishAt && new Date(publishAt).getTime() > Date.now() ? 'Schedule post' : 'Post to the Community'}</button></div>
+            <div className="campground-community-compose-submit"><button type="button" onClick={() => setPreviewing((value) => !value)}><Eye size={17} /> {previewing ? 'Keep editing' : 'Preview'}</button><button className="campground-community-primary" type="button" onClick={publishPost} disabled={working === 'post' || (!draft.trim() && !photo)}>{working === 'post' ? 'Saving…' : editingPost ? 'Save changes' : publishAt && new Date(`${publishAt}T08:00:00`).getTime() > Date.now() ? 'Schedule post' : 'Post to the Community'}</button></div>
           </section>
         </div>
       )}
