@@ -46,6 +46,18 @@ test('staff Community badges collapse repeated activity to one conversation', ()
   assert.match(route, /new Set\(\(directResult\.data \|\| \[\]\)\.map\(\(item: any\) => String\(item\.post_id \|\| item\.id\)\)\)\.size/)
 })
 
+test('opening the staff feed acknowledges every Community activity badge', () => {
+  const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
+  const feed = readFileSync(new URL('../components/CommunityFeed.tsx', import.meta.url), 'utf8')
+
+  assert.match(route, /action === 'mark_staff_activity_read' && isManager/)
+  assert.match(route, /from\('community_notifications'\)[\s\S]*?eq\('camper_id', camperId\)[\s\S]*?is\('read_at', null\)/)
+  assert.match(feed, /result\.viewer\?\.canManage && Number\(result\.directCount \|\| 0\) > 0/)
+  assert.match(feed, /action: 'mark_staff_activity_read'/)
+  assert.match(feed, /community-unread-changed/)
+  assert.match(feed, /admin-attention-changed/)
+})
+
 test('only an admin or Event Coordinator post starts a camper text campaign', () => {
   const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
   const createPost = route.match(/if \(action === 'create_post'\) \{[\s\S]*?if \(action === 'create_comment'\)/)?.[0] || ''

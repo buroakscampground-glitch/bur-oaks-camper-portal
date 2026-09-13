@@ -149,6 +149,17 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     setActivityNotifications(result.activityNotifications || [])
     setMembers(result.members || [])
     setLoading(false)
+    if (result.viewer?.canManage && Number(result.directCount || 0) > 0) {
+      try {
+        await communityAction({ action: 'mark_staff_activity_read' })
+        setActivityNotifications((current) => current.map((item) => ({ ...item, read_at: item.read_at || new Date().toISOString() })))
+        window.dispatchEvent(new Event('community-unread-changed'))
+        window.dispatchEvent(new Event('community-workspace-changed'))
+        window.dispatchEvent(new Event('admin-attention-changed'))
+      } catch (error) {
+        console.error('Community staff alerts could not be acknowledged:', error)
+      }
+    }
   }
 
   async function communityAction(payload: any) {

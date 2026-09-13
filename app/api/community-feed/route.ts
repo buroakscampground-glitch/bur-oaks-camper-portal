@@ -547,6 +547,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true })
   }
 
+  if (action === 'mark_staff_activity_read' && isManager) {
+    const { error } = await context.admin
+      .from('community_notifications')
+      .update({ read_at: new Date().toISOString() })
+      .eq('camper_id', camperId)
+      .is('read_at', null)
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ success: true })
+  }
+
   if (action === 'save_preferences') {
     const preferences = {
       camper_id: camperId,
