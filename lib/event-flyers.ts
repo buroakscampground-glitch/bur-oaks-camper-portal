@@ -71,15 +71,6 @@ export const eventFlyers2026: EventFlyer[] = [
     flyer: '/events-2026/2026-09-05-labor-day.jpg',
   },
   {
-    slug: 'casino-night',
-    title: 'Wild West Saloon Casino Night',
-    date: '2026-09-19',
-    displayDate: 'September 19, 2026',
-    time: '6 PM – 11 PM',
-    description: 'Private ticketed casino night with craps, blackjack, poker, roulette, dinner, event shirt, and silent-auction fundraiser.',
-    flyer: '/events-2026/2026-09-19-casino-night.jpg',
-  },
-  {
     slug: 'hog-roast',
     title: '2nd Annual Hog Roast',
     date: '2026-10-10',
