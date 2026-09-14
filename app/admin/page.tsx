@@ -621,6 +621,14 @@ export default function AdminPage() {
       urgent: stats.emergencyMaintenance > 0 || stats.pendingMaintenance > 0,
     },
     {
+      href: '/admin/pump-outs',
+      title: 'Pump-outs waiting',
+      count: stats.pumpOuts,
+      detail: stats.pumpOuts ? 'Requested sites waiting for service' : 'Pump-out list is clear',
+      icon: Droplets,
+      urgent: stats.pumpOuts > 0,
+    },
+    {
       href: '/admin/open-balance?filter=past-due',
       title: 'Past due invoices',
       count: stats.pastDueInvoices,
@@ -738,6 +746,23 @@ export default function AdminPage() {
           </div>
         </section>
 
+        <section className="admin-handle-today" aria-labelledby="admin-handle-today-heading">
+          <header>
+            <div><span>HANDLE TODAY</span><h2 id="admin-handle-today-heading">Work that needs your attention</h2></div>
+            <strong>{attentionTotal}</strong>
+          </header>
+          {visiblePriorityItems.length ? (
+            <div>
+              {visiblePriorityItems.slice(0, 5).map((item) => {
+                const Icon = item.icon
+                return <a href={item.href} key={item.title}><span><Icon size={19} /></span><div><strong>{item.title}</strong><small>{item.detail}</small></div><em>{item.count}</em><ArrowRight size={17} /></a>
+              })}
+            </div>
+          ) : (
+            <p><ShieldCheck size={21} /> Everything is caught up. New work will appear here.</p>
+          )}
+        </section>
+
         <section className="admin-campground-today" aria-labelledby="admin-campground-today-heading">
           <header>
             <div>
@@ -785,6 +810,20 @@ export default function AdminPage() {
             <a href="/admin/individual-invoices"><ReceiptText size={17} /> Create invoice</a>
           </div>
         </section>
+
+        <section className="admin-recent-activity" aria-labelledby="admin-recent-activity-heading">
+          <header><div><span>LIVE RECORD</span><h2 id="admin-recent-activity-heading">Recent activity</h2></div><a href="/admin/system-health">Open activity history <ArrowRight size={15} /></a></header>
+          {cockpitItems.length ? (
+            <div>{cockpitItems.slice(0, 4).map((item) => {
+              const Icon = item.type === 'billing' ? CircleDollarSign : item.type === 'message' ? MessageCircle : item.type === 'maintenance' ? Wrench : item.type === 'site-care' ? ClipboardCheck : ShoppingBasket
+              return <a href={item.href} key={item.id}><span><Icon size={18} /></span><div><strong>{item.title}</strong><small>{item.detail}</small></div><em>{item.status}</em></a>
+            })}</div>
+          ) : <p><CheckCircle2 size={20} /> No new activity needs review.</p>}
+        </section>
+
+        <details className="admin-all-operations">
+          <summary><span><Gauge size={19} /><strong>All admin operations</strong><small>Monthly billing boards, complete tool directory, records, reports, weather, and settings</small></span><ArrowRight size={19} /></summary>
+          <div className="admin-all-operations-content">
         <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
           <header>
             <div>
@@ -942,6 +981,8 @@ export default function AdminPage() {
             <ArrowRight size={18} />
           </summary>
           <AdminWeather />
+        </details>
+          </div>
         </details>
 
         <footer className="admin-command-footer">
