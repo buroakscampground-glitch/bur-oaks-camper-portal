@@ -92,6 +92,13 @@ type AdminStats = {
   totalUnreadAlerts: number
   pastDueInvoices: number
   pastDueAmount: number
+  dueNext7Invoices: number
+  dueNext7Amount: number
+  due8To30Invoices: number
+  due8To30Amount: number
+  futureScheduledInvoices: number
+  futureScheduledAmount: number
+  waitingToBill: number
   dueSoonInvoices: number
   almostDueAmount: number
   nextDinnerGoing: number
@@ -99,6 +106,9 @@ type AdminStats = {
   nextDinnerGuests: number
   nextDinnerDishes: number
   nextEventRsvps: number
+  nextEventTitle: string
+  nextEventDate: string
+  currentAnnouncementTitle: string
   needsContactInfo: number
   billingMonths: InvoiceMonthGroup<any>[]
 }
@@ -147,6 +157,13 @@ const emptyStats: AdminStats = {
   totalUnreadAlerts: 0,
   pastDueInvoices: 0,
   pastDueAmount: 0,
+  dueNext7Invoices: 0,
+  dueNext7Amount: 0,
+  due8To30Invoices: 0,
+  due8To30Amount: 0,
+  futureScheduledInvoices: 0,
+  futureScheduledAmount: 0,
+  waitingToBill: 0,
   dueSoonInvoices: 0,
   almostDueAmount: 0,
   nextDinnerGoing: 0,
@@ -154,6 +171,9 @@ const emptyStats: AdminStats = {
   nextDinnerGuests: 0,
   nextDinnerDishes: 0,
   nextEventRsvps: 0,
+  nextEventTitle: '',
+  nextEventDate: '',
+  currentAnnouncementTitle: '',
   needsContactInfo: 0,
   billingMonths: [],
 }
@@ -241,7 +261,7 @@ export default function AdminPage() {
       supabase.from('campers').select('id,email,secondary_email,phone,mailing_address_line1,mailing_city,mailing_state,mailing_zip,lot_number,role').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
       supabase.from('invoices').select('*'),
-      supabase.from('events').select('id,event_date'),
+      supabase.from('events').select('id,title,event_date'),
       supabase.from('announcements').select('id,title,message,created_at').eq('is_active', true),
       supabase.from('event_rsvps').select('id,event_id'),
       supabase.from('electric_readings').select('id,invoice_id,reading_date'),
@@ -323,12 +343,29 @@ export default function AdminPage() {
       const dueDate = new Date(`${invoice.due_date}T12:00:00`)
       return !Number.isNaN(dueDate.getTime()) && dueDate < today
     })
+    const dueWithinRange = (invoice: any, minimumDays: number, maximumDays?: number) => {
+      if (!invoice.due_date) return false
+      const dueDate = new Date(`${invoice.due_date}T12:00:00`)
+      if (Number.isNaN(dueDate.getTime())) return false
+      const daysUntilDue = Math.floor((dueDate.getTime() - today.getTime()) / 86_400_000)
+      return daysUntilDue >= minimumDays && (maximumDays === undefined || daysUntilDue <= maximumDays)
+    }
+    const dueNext7Invoices = openInvoices.filter((invoice) => dueWithinRange(invoice, 0, 7))
+    const due8To30Invoices = openInvoices.filter((invoice) => dueWithinRange(invoice, 8, 30))
+    const futureScheduledInvoices = openInvoices.filter((invoice) => dueWithinRange(invoice, 31))
     const dueSoonInvoices = openInvoices.filter((invoice) => isInvoiceDueAfterCurrentMonthWithinDays(invoice, 30))
     const billingMonths = groupInvoicesByDueMonth(
       invoices.filter((invoice) => !isInvoiceClosed(invoice))
     ).filter((month) => month.key !== 'undated' && (month.openCount > 0 || month.key === electricBillingMonth))
     const activeCredits = (creditResult.data || []).filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)
     const pumpOutsNeedingService = pumpOuts.filter(isPumpOutWaitingForService)
+    const unbilledPumpOuts = pumpOuts.filter((request) => request.completed_at && !request.billed_at)
+    const unbilledSiteServices = (siteServiceResult.data || []).filter((charge) => !charge.cancelled_at && !charge.billed_at)
+    const upcomingEvents = (eventsResult.data || [])
+      .filter((event: any) => !event.event_date || event.event_date >= todayIso)
+      .sort((left: any, right: any) => String(left.event_date || '').localeCompare(String(right.event_date || '')))
+    const nextEvent = upcomingEvents[0]
+    const activeAnnouncements = (announcementsResult.data || []).filter((item) => !isAnnouncementExpired(item))
     const insuredCamperIds = new Set(
       documents
         .filter((document) => document.document_type === 'Golf Cart Insurance')
@@ -414,7 +451,7 @@ export default function AdminPage() {
       archivedCampers: archivedResult.data?.length || 0,
       balance: totalInvoiceBalance(amountDueInvoices),
       events: eventsResult.data?.length || 0,
-      announcements: (announcementsResult.data || []).filter((item) => !isAnnouncementExpired(item)).length,
+      announcements: activeAnnouncements.length,
       rsvps: rsvpsResult.data?.length || 0,
       electric: electricResult.data?.length || 0,
       electricSitesLeft,
@@ -448,10 +485,17 @@ export default function AdminPage() {
       }).length,
       insuranceMissing: campers.filter((camper) => !insuredCamperIds.has(String(camper.id))).length,
       pumpOuts: pumpOutsNeedingService.length,
-      siteServices: (siteServiceResult.data || []).filter((charge) => !charge.cancelled_at && !charge.billed_at).length,
+      siteServices: unbilledSiteServices.length,
       totalUnreadAlerts: notifications.filter((notification) => notification.type !== 'event_rsvp' && requiresAdminAttention(notification.type)).length,
       pastDueInvoices: pastDueInvoices.length,
-      pastDueAmount: pastDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
+      pastDueAmount: totalInvoiceBalance(pastDueInvoices),
+      dueNext7Invoices: dueNext7Invoices.length,
+      dueNext7Amount: totalInvoiceBalance(dueNext7Invoices),
+      due8To30Invoices: due8To30Invoices.length,
+      due8To30Amount: totalInvoiceBalance(due8To30Invoices),
+      futureScheduledInvoices: futureScheduledInvoices.length,
+      futureScheduledAmount: totalInvoiceBalance(futureScheduledInvoices),
+      waitingToBill: electricSitesLeft + unbilledPumpOuts.length + unbilledSiteServices.length,
       dueSoonInvoices: dueSoonInvoices.length,
       almostDueAmount: dueSoonInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
       nextDinnerGoing: nextDinnerGoing.length,
@@ -459,6 +503,9 @@ export default function AdminPage() {
       nextDinnerGuests: nextDinnerGoing.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0),
       nextDinnerDishes: nextDinnerSignups.filter((signup) => String(signup.bringing || '').trim()).length,
       nextEventRsvps: rsvps.filter((rsvp) => upcomingEventIds.has(String(rsvp.event_id))).length,
+      nextEventTitle: nextEvent?.title || '',
+      nextEventDate: nextEvent?.event_date || '',
+      currentAnnouncementTitle: activeAnnouncements[0]?.title || '',
       needsContactInfo: campers.filter((camper) =>
         !camper.phone ||
         !camper.email ||
@@ -653,17 +700,91 @@ export default function AdminPage() {
           </div>
         </header>
 
-        <a className="admin-community-home-link" href="/community/talk">
-          <span className="admin-community-home-icon"><UsersRound size={25} /></span>
-          <span>
-            <small>CAMPGROUND COMMUNITY</small>
-            <strong>Open Community Talk</strong>
-            <em>One simple feed for campground posts, comments, replies, and photos</em>
-          </span>
-          <span className="admin-community-home-cta">
-            Open Community <ArrowRight size={17} /> <CommunityUnreadBadge syncHomeScreen={false} />
-          </span>
-        </a>
+        <section className="admin-money-watch" aria-labelledby="admin-money-watch-heading">
+          <header>
+            <div>
+              <span>MONEY WATCH</span>
+              <h2 id="admin-money-watch-heading">What is due, what is next, and what is late</h2>
+              <p>Each number opens the exact invoices behind it. Electric and lot rent remain itemized on the invoice pages.</p>
+            </div>
+            <a href="/admin/invoices">See every invoice <ArrowRight size={16} /></a>
+          </header>
+          <div className="admin-money-watch-grid">
+            <a className="late" href="/admin/open-balance?filter=past-due">
+              <small>Past due</small>
+              <strong>${stats.pastDueAmount.toFixed(2)}</strong>
+              <span>{stats.pastDueInvoices} invoice{stats.pastDueInvoices === 1 ? '' : 's'} · see names</span>
+            </a>
+            <a className="soon" href="/admin/invoices?filter=due-7">
+              <small>Due in 7 days</small>
+              <strong>${stats.dueNext7Amount.toFixed(2)}</strong>
+              <span>{stats.dueNext7Invoices} invoice{stats.dueNext7Invoices === 1 ? '' : 's'}</span>
+            </a>
+            <a className="coming" href="/admin/invoices?filter=due-8-30">
+              <small>Due in 8–30 days</small>
+              <strong>${stats.due8To30Amount.toFixed(2)}</strong>
+              <span>{stats.due8To30Invoices} invoice{stats.due8To30Invoices === 1 ? '' : 's'}</span>
+            </a>
+            <a className="scheduled" href="/admin/invoices?filter=future">
+              <small>Future scheduled</small>
+              <strong>${stats.futureScheduledAmount.toFixed(2)}</strong>
+              <span>{stats.futureScheduledInvoices} later invoice{stats.futureScheduledInvoices === 1 ? '' : 's'}</span>
+            </a>
+            <a className="unbilled" href="/admin/electric">
+              <small>Waiting to be billed</small>
+              <strong>{stats.waitingToBill}</strong>
+              <span>readings and completed services</span>
+            </a>
+          </div>
+        </section>
+
+        <section className="admin-campground-today" aria-labelledby="admin-campground-today-heading">
+          <header>
+            <div>
+              <span>CAMPGROUND TODAY</span>
+              <h2 id="admin-campground-today-heading">Community, events, and daily activity</h2>
+            </div>
+            <a href="/admin/announcements"><Megaphone size={16} /> Post an update</a>
+          </header>
+          <div className="admin-campground-today-grid">
+            <a className="admin-community-home-link" href="/community/talk">
+              <UsersRound size={21} />
+              <small>Community Forum</small>
+              <strong>Open the conversation</strong>
+              <span>Posts, comments, replies, and photos <CommunityUnreadBadge syncHomeScreen={false} /></span>
+            </a>
+            <a href="/admin/dinners">
+              <Soup size={21} />
+              <small>Saturday dinner</small>
+              <strong>{stats.nextDinnerGoing} going · {stats.nextDinnerMaybe} maybe</strong>
+              <span>{stats.nextDinnerGuests} guests · {stats.nextDinnerDishes} dishes listed</span>
+            </a>
+            <a href="/admin/events">
+              <CalendarDays size={21} />
+              <small>Next event</small>
+              <strong>{stats.nextEventTitle || 'Open event calendar'}</strong>
+              <span>{stats.nextEventDate ? new Date(`${stats.nextEventDate}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : `${stats.events} scheduled event${stats.events === 1 ? '' : 's'}`}</span>
+            </a>
+            <a href="/admin/birthdays">
+              <CakeSlice size={21} />
+              <small>Birthdays</small>
+              <strong>Today, missed, and upcoming</strong>
+              <span>Open the birthday office</span>
+            </a>
+            <a href="/admin/announcements">
+              <Megaphone size={21} />
+              <small>Current announcement</small>
+              <strong>{stats.currentAnnouncementTitle || 'No active announcement'}</strong>
+              <span>{stats.announcements} active notice{stats.announcements === 1 ? '' : 's'}</span>
+            </a>
+          </div>
+          <div className="admin-home-quick-actions" aria-label="Common admin actions">
+            <a href="/admin/invoices"><CircleDollarSign size={17} /> Record payment</a>
+            <a href="/admin/campers"><Users size={17} /> Open camper</a>
+            <a href="/admin/announcements"><Megaphone size={17} /> Send update</a>
+            <a href="/admin/individual-invoices"><ReceiptText size={17} /> Create invoice</a>
+          </div>
+        </section>
         <section className="admin-monthly-billing" aria-labelledby="monthly-billing-heading">
           <header>
             <div>

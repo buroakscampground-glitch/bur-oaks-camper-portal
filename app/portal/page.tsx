@@ -1080,15 +1080,70 @@ export default function CamperPortalPage() {
 
         </section>
 
-        <a className="portal-community-home-link" href="/campground-community">
-          <span className="portal-community-home-icon"><UsersRound size={25} /></span>
-          <span>
-            <small>CAMPER COMMUNITY</small>
-            <strong>See what everyone is talking about</strong>
-            <em>Read campground posts, join a conversation, or share an update.</em>
-          </span>
-          <span className="portal-community-home-cta">Open Community <ArrowRight size={17} /> <CommunityUnreadBadge syncHomeScreen={false} /></span>
-        </a>
+        <section className="portal-home-console" aria-labelledby="portal-home-console-heading">
+          <header>
+            <div>
+              <small>MY CAMPING HOME</small>
+              <h2 id="portal-home-console-heading">Lot {camper?.lot_number || '—'} at a glance</h2>
+              <p>The important things are first. Every original portal feature is still available below.</p>
+            </div>
+            <span className={urgentCount ? 'attention' : 'clear'}>
+              {urgentCount ? `${urgentCount} need${urgentCount === 1 ? 's' : ''} attention` : 'Everything is caught up'}
+            </span>
+          </header>
+
+          <div className="portal-home-account-strip">
+            <a href="/invoices">
+              <small>Due now</small>
+              <strong>${openBalance.toFixed(2)}</strong>
+              <span>{dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} to review` : 'No payment due now'}</span>
+            </a>
+            <a href="/invoices">
+              <small>Next payment</small>
+              <strong>{nextOwnedOpenInvoice?.due_date ? formatDate(nextOwnedOpenInvoice.due_date) : 'Nothing scheduled'}</strong>
+              <span>{nextOwnedOpenInvoice ? `$${totalInvoiceBalance([nextOwnedOpenInvoice]).toFixed(2)} remaining` : 'Your account is clear'}</span>
+            </a>
+            <a href="/site">
+              <small>Site status</small>
+              <strong>Lot {camper?.lot_number || '—'}</strong>
+              <span>Open site details</span>
+            </a>
+          </div>
+
+          <div className="portal-home-main-actions">
+            <button
+              type="button"
+              className="portal-home-pump-action"
+              onClick={() => setShowPumpConfirm(true)}
+              disabled={requestingPump}
+            >
+              <span><Droplets size={29} /></span>
+              <span>
+                <small>ONE-TOUCH SERVICE</small>
+                <strong>{activePumpOutRequests.length ? 'Pump-out already requested' : 'Request a pump-out'}</strong>
+                <em>{activePumpOutRequests.length ? 'Your lot is already on the office list' : `$${displayedPumpOutFee.toFixed(2)} added to your next electric bill after confirmation`}</em>
+              </span>
+              <ArrowRight size={21} />
+            </button>
+
+            <a className="portal-community-home-link" href="/campground-community">
+              <span><UsersRound size={29} /></span>
+              <span>
+                <small>COMMUNITY FORUM</small>
+                <strong>See what everyone is talking about</strong>
+                <em>Campground posts, photos, comments, and replies</em>
+              </span>
+              <span className="portal-home-community-arrow"><CommunityUnreadBadge syncHomeScreen={false} /><ArrowRight size={21} /></span>
+            </a>
+          </div>
+
+          <div className="portal-home-shortcuts">
+            <a href="/invoices"><ReceiptText size={18} /><span><strong>Billing & payments</strong><small>Invoices, receipts, and AutoPay</small></span><ArrowRight size={16} /></a>
+            <a href="/messages"><MessageCircle size={18} /><span><strong>Message the office</strong><small>{unreadOfficeMessages ? `${unreadOfficeMessages} unread repl${unreadOfficeMessages === 1 ? 'y' : 'ies'}` : 'Private help from Bur Oaks'}</small></span><ArrowRight size={16} /></a>
+            <a href="/documents"><FileText size={18} /><span><strong>Documents</strong><small>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} need${documentsNeedingSignature.length === 1 ? 's' : ''} your signature` : 'Everything is signed'}</small></span><ArrowRight size={16} /></a>
+            <a href="/maintenance"><Wrench size={18} /><span><strong>Maintenance</strong><small>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'Request help or check progress'}</small></span><ArrowRight size={16} /></a>
+          </div>
+        </section>
         <AppBadgePermission label="your portal alerts" />
 
         {urgentAnnouncement && (
@@ -1985,15 +2040,15 @@ export default function CamperPortalPage() {
           </a>
           <button type="button" className={`portal-dock-pump ${pumpNeedsAttention ? 'attention' : ''}`} onClick={() => setShowPumpConfirm(true)} disabled={requestingPump}>
             <Droplets size={18} />
-            <span>Pump</span>
+            <span>Pump-out</span>
           </button>
+          <a href="/campground-community">
+            <UsersRound size={18} />
+            <span>Community</span>
+          </a>
           <a href="/messages" className={unreadOfficeMessages > 0 ? 'attention' : ''}>
             <MessageCircle size={18} />
             <span>Chat</span>
-          </a>
-          <a href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>
-            <Soup size={18} />
-            <span>Dinner</span>
           </a>
           <button type="button" className={`portal-dock-more ${mobileMoreNeedsAttention ? 'attention' : ''}`} onClick={() => setShowMobileMenu(true)}>
             <Sparkles size={18} />

@@ -38,7 +38,7 @@ import {
 } from '../../../lib/invoice-balance'
 import { buildBillingReminderMessage } from '../../../lib/billing-reminder-message'
 
-type InvoiceFilter = 'all' | 'open' | 'paid' | 'upcoming-30' | 'closed'
+type InvoiceFilter = 'all' | 'open' | 'paid' | 'due-7' | 'due-8-30' | 'future' | 'upcoming-30' | 'closed'
 
 const invoiceDescriptionOptions = [
   'Lot Rent',
@@ -63,6 +63,16 @@ function formatDate(value?: string) {
   const date = new Date(`${value}T12:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function isOutstandingInvoiceDueInRange(invoice: any, minimumDays: number, maximumDays?: number) {
+  if (!isInvoiceOutstanding(invoice) || !invoice.due_date) return false
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dueDate = new Date(`${invoice.due_date}T12:00:00`)
+  if (Number.isNaN(dueDate.getTime())) return false
+  const daysUntilDue = Math.floor((dueDate.getTime() - today.getTime()) / 86_400_000)
+  return daysUntilDue >= minimumDays && (maximumDays === undefined || daysUntilDue <= maximumDays)
 }
 
 export default function AdminInvoicesPage() {
@@ -119,7 +129,7 @@ export default function AdminInvoicesPage() {
     async function loadWorkspace() {
       const searchParams = new URLSearchParams(window.location.search)
       const requestedFilter = searchParams.get('filter')
-      if (requestedFilter && ['all', 'open', 'paid', 'upcoming-30', 'closed'].includes(requestedFilter)) {
+      if (requestedFilter && ['all', 'open', 'paid', 'due-7', 'due-8-30', 'future', 'upcoming-30', 'closed'].includes(requestedFilter)) {
         setFilter(requestedFilter as InvoiceFilter)
       }
       const requestedMonth = searchParams.get('month') || ''
@@ -288,6 +298,9 @@ export default function AdminInvoicesPage() {
       (filter === 'paid' && isInvoicePaid(invoice)) ||
       (filter === 'open' && isInvoiceOutstanding(invoice)) ||
       (filter === 'closed' && isInvoiceClosed(invoice)) ||
+      (filter === 'due-7' && isOutstandingInvoiceDueInRange(invoice, 0, 7)) ||
+      (filter === 'due-8-30' && isOutstandingInvoiceDueInRange(invoice, 8, 30)) ||
+      (filter === 'future' && isOutstandingInvoiceDueInRange(invoice, 31)) ||
       (filter === 'upcoming-30' && isInvoiceDueAfterCurrentMonthWithinDays(invoice, 30))
     const matchesSearch =
       !normalizedSearch ||
@@ -438,9 +451,9 @@ export default function AdminInvoicesPage() {
           <div className="admin-history-heading">
             <div><small>MONTH-BY-MONTH BILLING</small><h2>Invoices by due month</h2><p>Open bills are shown first. Paid and canceled records stay in their own filters.</p></div>
             <div className="admin-invoice-filters" role="group" aria-label="Filter invoices">
-              {(['open', 'upcoming-30', 'paid', 'all', 'closed'] as InvoiceFilter[]).map((option) => (
+              {(['open', 'due-7', 'due-8-30', 'future', 'paid', 'all', 'closed'] as InvoiceFilter[]).map((option) => (
                 <button key={option} type="button" className={filter === option ? 'active' : ''} onClick={() => setFilter(option)}>
-                  {option === 'all' ? 'All active history' : option === 'open' ? 'Still due' : option === 'upcoming-30' ? 'Due next 30 days' : option === 'paid' ? 'Paid' : 'Canceled / void'}
+                  {option === 'all' ? 'All active history' : option === 'open' ? 'Still due' : option === 'due-7' ? 'Due in 7 days' : option === 'due-8-30' ? 'Due in 8–30 days' : option === 'future' ? 'Future scheduled' : option === 'paid' ? 'Paid' : 'Canceled / void'}
                 </button>
               ))}
             </div>
