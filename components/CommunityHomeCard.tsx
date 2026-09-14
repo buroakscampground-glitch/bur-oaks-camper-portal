@@ -22,7 +22,7 @@ export default function CommunityHomeCard() {
   return (
     <a className={unread > 0 ? 'attention portal-community-action' : 'portal-community-action'} href="/campground-community">
       <UsersRound size={20} />
-      <span><small>{unread > 0 ? 'Community activity' : 'Community'}</small><strong>{unread > 0 ? `${unread} new` : 'Join the conversation'}</strong></span>
+      <span><small>{unread > 0 ? 'Messenger activity' : 'Campground Messenger'}</small><strong>{unread > 0 ? `${unread} new` : 'Join the conversation'}</strong></span>
     </a>
   )
 }

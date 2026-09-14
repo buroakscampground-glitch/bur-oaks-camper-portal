@@ -580,7 +580,7 @@ export default function AdminPage() {
     {
       label: 'Communication & community',
       items: [
-        { href: '/admin/community-feed', title: 'Community feed', detail: 'Posts, comments & owner controls', icon: UsersRound },
+        { href: '/admin/community-feed', title: 'Campground Messenger', detail: 'Posts, replies & owner controls', icon: UsersRound },
         { href: '/admin/messages', title: 'Office messages', detail: `${stats.messageAlerts} unread`, icon: MessageCircle },
         { href: '/admin/texts', title: 'Text alerts', detail: 'Send camper notices', icon: BellRing },
         { href: '/admin/announcements', title: 'Announcements', detail: `${stats.announcements} active`, icon: Megaphone },
@@ -774,7 +774,7 @@ export default function AdminPage() {
           <div className="admin-campground-today-grid">
             <a className="admin-community-home-link" href="/community/talk">
               <UsersRound size={21} />
-              <small>Community Forum</small>
+              <small>Campground Messenger</small>
               <strong>Open the conversation</strong>
               <span>Posts, comments, replies, and photos <CommunityUnreadBadge syncHomeScreen={false} /></span>
             </a>

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 const explanations = [
-  { key: 'feed', href: '/community/feed', label: 'Community Feed', cause: 'new posts, comments, or likes', action: 'Open the feed to mark them viewed' },
+  { key: 'feed', href: '/community/feed', label: 'Campground Messenger', cause: 'new posts or replies', action: 'Open Messenger to mark them viewed' },
   { key: 'birthdays', href: '/community/birthdays', label: 'Birthdays', cause: 'greetings or private surprises that still need attention', action: 'Send or post the birthday greeting' },
   { key: 'announcements', href: '/community/announcements', label: 'Announcements', cause: 'announcements added since the last review', action: 'Open Announcements to review them' },
   { key: 'events', href: '/community/events', label: 'Events', cause: 'upcoming events added since the last review', action: 'Open Events to review them' },

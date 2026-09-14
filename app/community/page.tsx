@@ -3,7 +3,7 @@ import CommunityAppBadgePermission from '../../components/CommunityAppBadgePermi
 import CommunityBadgeOverview from '../../components/CommunityBadgeOverview'
 
 const tools = [
-  { href: '/community/feed', title: 'Community Feed', note: 'Post as Bur Oaks, moderate conversations, delete posts, or manage member access.', icon: UsersRound, tone: 'green' },
+  { href: '/community/feed', title: 'Campground Messenger', note: 'Post as Bur Oaks, follow discussions, moderate posts, or manage member access.', icon: UsersRound, tone: 'green' },
   { href: '/community/birthdays', title: 'Birthdays', note: 'See upcoming birthdays and send approved greetings.', icon: CakeSlice, tone: 'rose' },
   { href: '/community/announcements', title: 'Announcements', note: 'Post complete camper updates and optional short texts.', icon: Megaphone, tone: 'gold' },
   { href: '/community/events', title: 'All Events', note: 'Create events and keep the campground calendar current.', icon: CalendarDays, tone: 'green' },

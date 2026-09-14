@@ -85,7 +85,7 @@ const pageNames: Record<string, string> = {
   renewals: 'Season Renewal Forecast',
   'site-availability': 'Site Availability',
   'system-health': 'System Health & Search',
-  'community-feed': 'Community Feed',
+  'community-feed': 'Campground Messenger',
 }
 
 const navGroups = [
@@ -140,7 +140,7 @@ const navGroups = [
     label: 'Community',
     links: [
       { href: '/community', label: 'Community Portal', icon: Home },
-      { href: '/admin/community-feed', label: 'Community Feed', icon: Users },
+      { href: '/admin/community-feed', label: 'Campground Messenger', icon: Users },
       { href: '/admin/dinners', label: 'Saturday Dinners', icon: Utensils },
       { href: '/admin/events', label: 'Events', icon: CalendarDays },
       { href: '/admin/birthdays', label: 'Birthday Office', icon: CakeSlice },
@@ -263,7 +263,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
     { href: '/admin/pump-outs', label: 'Pump-Outs', count: Number(attentionCounts['/admin/pump-outs'] || 0), icon: Hammer },
     { href: '/admin/site-care', label: 'Site Care', count: Number(attentionCounts['/admin/site-care'] || 0), icon: ClipboardCheck },
     { href: '/admin/birthdays', label: 'Birthday Office', count: Number(attentionCounts['/admin/birthdays'] || 0), icon: CakeSlice, detail: birthdayPreview || undefined },
-    { href: '/admin/community-feed', label: 'Community', count: Number(attentionCounts['/admin/community-feed'] || 0), icon: Users },
+    { href: '/admin/community-feed', label: 'Messenger', count: Number(attentionCounts['/admin/community-feed'] || 0), icon: Users },
   ].filter((item) => item.count > 0)
   const showBirthdayToday = birthdayTodayCount > 0 && !mobileAlertItems.some((item) => item.href === '/admin/birthdays')
 

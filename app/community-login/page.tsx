@@ -51,14 +51,14 @@ export default function CommunityLoginPage() {
   return (
     <main className="signin-page">
       <section className="signin-story">
-        <a className="signin-brand" href="/"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /><span><strong>Bur Oaks</strong><small>Community</small></span></a>
+        <a className="signin-brand" href="/"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /><span><strong>Bur Oaks</strong><small>Campground Messenger</small></span></a>
         <div className="signin-story-copy">
-          <span><ShieldCheck size={16} /> Separate Community entrance</span>
+          <span><ShieldCheck size={16} /> Separate Messenger entrance</span>
           <h1>One simple place for campground conversation.</h1>
-          <p>This entrance opens only the Community message thread—nothing from Admin, billing, finance, maintenance, or event planning.</p>
+          <p>This entrance opens only Campground Messenger—nothing from Admin, billing, finance, maintenance, or event planning.</p>
         </div>
         <div className="signin-feature-strip" aria-label="Community workspace highlights">
-          <article><MessageCircle size={18} /><span><strong>Community posts</strong><small>Keep up with campground talk</small></span></article>
+          <article><MessageCircle size={18} /><span><strong>Messenger posts</strong><small>Keep up with campground talk</small></span></article>
           <article><UsersRound size={18} /><span><strong>Comments & replies</strong><small>Join one clear conversation</small></span></article>
           <article><Camera size={18} /><span><strong>Shared photos</strong><small>See what campers are sharing</small></span></article>
         </div>
@@ -67,7 +67,7 @@ export default function CommunityLoginPage() {
 
       <section className="signin-form-side">
         <div className="signin-form-card">
-          <div className="signin-card-badge"><MessageCircle size={17} /><span>Community talk</span></div>
+          <div className="signin-card-badge"><MessageCircle size={17} /><span>Campground Messenger</span></div>
           <span className="signin-form-kicker">BUR OAKS COMMUNITY</span>
           <h2>Sign in to Community</h2>
           <p>Dawn can use the same email and password as her Admin account.</p>

@@ -58,11 +58,11 @@ test('opening the staff feed acknowledges every Community activity badge', () =>
   assert.match(feed, /admin-attention-changed/)
 })
 
-test('the admin Community page separates conversation, review work, and member access', () => {
+test('the admin Campground Messenger separates conversation, review work, and member access', () => {
   const feed = readFileSync(new URL('../components/CommunityFeed.tsx', import.meta.url), 'utf8')
 
   assert.match(feed, /adminSection.*'feed'.*'activity'.*'members'/)
-  assert.match(feed, />Feed & posting</)
+  assert.match(feed, />Messenger & posting</)
   assert.match(feed, />Activity & reports</)
   assert.match(feed, />Member access</)
   assert.match(feed, /adminSection === 'activity'/)
@@ -96,7 +96,7 @@ test('failed badge setup explains what the admin must change on the phone', () =
   assert.match(permission, /<small role="alert">\{detail\}<\/small>/)
 })
 
-test('Dawn Community Talk is one feed without the Admin or event-planning navigation', () => {
+test('Dawn Campground Messenger is one feed without the Admin or event-planning navigation', () => {
   const talk = readFileSync(new URL('../app/community/talk/page.tsx', import.meta.url), 'utf8')
   const chrome = readFileSync(new URL('../components/CommunityChrome.tsx', import.meta.url), 'utf8')
   const adminHome = readFileSync(new URL('../app/admin/page.tsx', import.meta.url), 'utf8')

@@ -73,7 +73,7 @@ export async function GET(request: Request) {
       message: 'Here is the routine admin activity collected into one daily email. Nothing listed here needs to be cleared from Needs Attention.',
       details: [
         { label: 'Community', value: `${posts.length} post${posts.length === 1 ? '' : 's'}, ${comments.length} comment${comments.length === 1 ? '' : 's'}, ${reactions.length} like${reactions.length === 1 ? '' : 's'}, ${reports.length} report${reports.length === 1 ? '' : 's'}` },
-        { label: 'Community activity', value: communityDetails || (reactions.length ? 'Likes only today; open the Community feed to view them.' : 'None today') },
+        { label: 'Messenger activity', value: communityDetails || (reactions.length ? 'Likes only today; open Campground Messenger to view them.' : 'None today') },
         { label: 'Dinner responses', value: dinners.length ? dinnerDetails : 'None today' },
         { label: 'Text activity', value: texts.length ? textDetails : 'None today' },
       ],

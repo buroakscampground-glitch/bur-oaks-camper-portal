@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server'
 export function GET() {
   return NextResponse.json({
     id: '/community/talk',
-    name: 'Bur Oaks Community Talk',
-    short_name: 'Community Talk',
-    description: 'Bur Oaks Campground community conversation',
+    name: 'Bur Oaks Campground Messenger',
+    short_name: 'Messenger',
+    description: 'Bur Oaks Campground Messenger',
     start_url: '/community/talk',
     scope: '/community/talk',
     display: 'standalone',

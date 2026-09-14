@@ -1051,7 +1051,7 @@ export default function CamperPortalPage() {
           <div className="portal-home-shortcuts portal-premium-account-list">
             <a href="/invoices"><ReceiptText size={19} /><span><strong>Invoices & payments</strong><small>View your schedule, balance, receipts, or pay</small></span><ChevronRight size={17} /></a>
             <a href="/messages"><MessageCircle size={19} /><span><strong>Office messages</strong><small>{unreadOfficeMessages ? `${unreadOfficeMessages} unread repl${unreadOfficeMessages === 1 ? 'y' : 'ies'}` : 'No unread replies'}</small></span><ChevronRight size={17} /></a>
-            <a className="portal-community-home-link" href="/campground-community"><UsersRound size={19} /><span><strong>Community Forum</strong><small>Campground posts, photos, comments, and replies</small></span><span className="portal-home-community-arrow"><CommunityUnreadBadge syncHomeScreen={false} /><ChevronRight size={17} /></span></a>
+            <a className="portal-community-home-link" href="/campground-community"><UsersRound size={19} /><span><strong>Campground Messenger</strong><small>Posts, photos, conversations, and replies</small></span><span className="portal-home-community-arrow"><CommunityUnreadBadge syncHomeScreen={false} /><ChevronRight size={17} /></span></a>
             <a href="/maintenance"><Wrench size={19} /><span><strong>Maintenance & services</strong><small>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'Requests, status, and history'}</small></span><ChevronRight size={17} /></a>
           </div>
 
@@ -1971,7 +1971,7 @@ export default function CamperPortalPage() {
           </button>
           <a href="/campground-community">
             <UsersRound size={18} />
-            <span>Community</span>
+            <span>Messenger</span>
           </a>
           <a href="/messages" className={unreadOfficeMessages > 0 ? 'attention' : ''}>
             <MessageCircle size={18} />

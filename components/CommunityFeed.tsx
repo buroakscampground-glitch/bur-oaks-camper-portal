@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase'
 type FeedProps = { adminMode?: boolean }
 
 const categories = [
-  { value: 'all', label: 'Everything' },
+  { value: 'all', label: 'Latest' },
   { value: 'office', label: 'Office' },
   { value: 'event', label: 'Events' },
   { value: 'dinner', label: 'Dinners' },
@@ -80,6 +80,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [working, setWorking] = useState('')
   const [notice, setNotice] = useState('')
   const [linkedPostId, setLinkedPostId] = useState('')
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
   const postRequestId = useRef('')
   const reactionRequests = useRef(new Set<string>())
@@ -100,11 +101,12 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     if (loading || !linkedPostId || linkedPostHandled.current) return
     const linkedPost = posts.find((post) => String(post.id) === linkedPostId)
     if (!linkedPost) {
-      setNotice('That Community post is no longer available. The newest posts are shown below.')
+      setNotice('That Campground Messenger post is no longer available. The newest posts are shown below.')
       linkedPostHandled.current = true
       return
     }
     const frame = window.requestAnimationFrame(() => {
+      setExpandedThreads((current) => new Set(current).add(linkedPostId))
       const element = document.getElementById(`community-post-${linkedPostId}`)
       if (!element) return
       linkedPostHandled.current = true
@@ -163,7 +165,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     const response = await fetch('/api/community-feed', { headers: await authHeaders(false) })
     const result = await response.json().catch(() => ({}))
     if (!response.ok) {
-      setNotice(result.error || 'The Community could not be opened.')
+      setNotice(result.error || 'Campground Messenger could not be opened.')
       setLoading(false)
       return
     }
@@ -235,7 +237,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       setShowComposer(false)
       setPreviewing(false)
       setEditingPost(null)
-      setNotice(editingPost ? 'The Community post was updated.' : publishAt && new Date(`${publishAt}T08:00:00`).getTime() > Date.now() ? 'The Community post is scheduled for about 8 AM Central.' : viewer?.canPostOfficial ? 'The official Bur Oaks Community post is live.' : `${viewer?.postingName || 'Your'} post is now in the Community.`)
+      setNotice(editingPost ? 'The Campground Messenger post was updated.' : publishAt && new Date(`${publishAt}T08:00:00`).getTime() > Date.now() ? 'The Campground Messenger post is scheduled for about 8 AM Central.' : viewer?.canPostOfficial ? 'The official Bur Oaks message is live.' : `${viewer?.postingName || 'Your'} post is now in Campground Messenger.`)
       await loadFeed(true)
     } catch (error: any) {
       setNotice(error.message)
@@ -329,7 +331,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         quietHoursEnabled: preferences.quiet_hours_enabled,
       })
       setShowSettings(false)
-      setNotice('Your Community notification choices are saved.')
+      setNotice('Your Campground Messenger notification choices are saved.')
     } catch (error: any) { setNotice(error.message) }
     setWorking('')
   }
@@ -395,7 +397,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   if (!loading && blocked) {
     return (
       <main className="campground-community-page">
-        <section className="campground-community-blocked"><Ban size={34} /><small>COMMUNITY ACCESS PAUSED</small><h1>The Community is not available for this account.</h1><p>{blockReason || 'Please contact the Bur Oaks office if you have questions.'}</p><a href="/portal">Return to Portal Home</a></section>
+        <section className="campground-community-blocked"><Ban size={34} /><small>MESSENGER ACCESS PAUSED</small><h1>Campground Messenger is not available for this account.</h1><p>{blockReason || 'Please contact the Bur Oaks office if you have questions.'}</p><a href="/portal">Return to Portal Home</a></section>
       </main>
     )
   }
@@ -405,18 +407,18 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       <section className={`campground-community-hero${adminMode ? ' compact' : ''}`}>
         <div className="campground-community-hero-icon"><UsersRound size={30} /></div>
         <div>
-          <span>{adminMode ? 'COMMUNITY MODERATION' : 'BUR OAKS COMMUNITY'}</span>
-          <h1>{adminMode ? 'Community Feed' : 'The campground conversation, all in one calm place.'}</h1>
-          <p>{adminMode ? 'Post updates, review activity, or manage access—one task at a time.' : 'Share updates, photos, questions, and friendly conversation with your Bur Oaks neighbors.'}</p>
+          <span>{adminMode ? 'MESSENGER ADMINISTRATION' : 'AROUND THE CAMPGROUND'}</span>
+          <h1>Campground Messenger</h1>
+          <p>{adminMode ? 'Post messages, follow discussions, review activity, or manage access from one clear workspace.' : 'Official updates and friendly conversations with your Bur Oaks neighbors—all in one easy feed.'}</p>
         </div>
         <button className="campground-community-settings" type="button" onClick={() => setShowSettings(true)}><Bell size={18} /> Alerts</button>
       </section>
 
-      {!adminMode && <section className="campground-community-calm"><ShieldCheck size={18} /><div><strong>Important staff posts are easy to find.</strong><span>Bur Oaks staff posts may send one short text with a portal link. Comments and likes never send texts.</span></div></section>}
+      {!adminMode && <section className="campground-community-calm"><ShieldCheck size={18} /><div><strong>Official Bur Oaks messages stay easy to find.</strong><span>Staff may send one short text with a link. Replies and likes stay quietly inside Campground Messenger.</span></div></section>}
       {notice && <p className="campground-community-notice" role="status">{notice}</p>}
 
-      {adminMode && <nav className="campground-community-admin-sections" aria-label="Community administration sections">
-        <button type="button" className={adminSection === 'feed' ? 'active' : ''} onClick={() => setAdminSection('feed')}><MessageCircle size={21} /><span><strong>Feed & posting</strong><small>Read, post, and reply</small></span></button>
+      {adminMode && <nav className="campground-community-admin-sections" aria-label="Campground Messenger administration sections">
+        <button type="button" className={adminSection === 'feed' ? 'active' : ''} onClick={() => setAdminSection('feed')}><MessageCircle size={21} /><span><strong>Messenger & posting</strong><small>Read, post, and reply</small></span></button>
         <button type="button" className={adminSection === 'activity' ? 'active' : ''} onClick={() => setAdminSection('activity')}><Bell size={21} /><span><strong>Activity & reports</strong><small>Recent activity and moderation</small></span>{reports.length > 0 && <b>{reports.length}</b>}</button>
         {viewer?.canDelete && <button type="button" className={adminSection === 'members' ? 'active' : ''} onClick={() => setAdminSection('members')}><ShieldCheck size={21} /><span><strong>Member access</strong><small>Search, restrict, or restore</small></span>{members.some((member) => member.accessLevel !== 'active') && <b>{members.filter((member) => member.accessLevel !== 'active').length}</b>}</button>}
       </nav>}
@@ -432,7 +434,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
       {adminMode && adminSection === 'activity' && activityNotifications.length > 0 && (
         <section className="campground-community-staff-activity">
-          <header><Bell size={19} /><div><small>STAFF ALERTS</small><h2>Recent Community activity</h2><p>Rachel and administrator accounts see activity here, with routine items collected into the daily email.</p></div></header>
+          <header><Bell size={19} /><div><small>STAFF ALERTS</small><h2>Recent Messenger activity</h2><p>Rachel and administrator accounts see activity here, with routine items collected into the daily email.</p></div></header>
           <div>{activityNotifications.slice(0, 10).map((item) => (
             <a href={item.post_id ? `#community-post-${item.post_id}` : undefined} key={item.id}>
               <span>{item.message}</span>
@@ -449,8 +451,8 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       {adminMode && adminSection === 'members' && viewer?.canDelete && (
         <section className="campground-community-owner-controls">
           <div className="campground-community-members open">
-              <header><div><small>COMMUNITY MEMBERS</small><h2>Manage camper access</h2><p>Search by camper or lot. These controls affect only the Community—not billing or the rest of the portal.</p></div></header>
-              <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Search camper or lot…" aria-label="Search Community members" />
+              <header><div><small>MESSENGER MEMBERS</small><h2>Manage camper access</h2><p>Search by camper or lot. These controls affect only Campground Messenger—not billing or the rest of the portal.</p></div></header>
+              <input value={memberSearch} onChange={(event) => setMemberSearch(event.target.value)} placeholder="Search camper or lot…" aria-label="Search Campground Messenger members" />
               <div className="campground-community-member-list">
                 {filteredMembers.map((member) => (
                   <article className={member.accessLevel} key={member.id}><div><strong>{member.name}</strong><small>Lot {member.lotNumber} · {member.accessLevel === 'blocked' ? 'Blocked' : member.accessLevel === 'read_only' ? 'Read-only' : 'Active'}</small></div><div><button type="button" className={member.accessLevel === 'active' ? 'selected' : ''} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'active')}><UserCheck size={14} /> Active</button><button type="button" className={member.accessLevel === 'read_only' ? 'selected' : ''} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'read_only')}><Eye size={14} /> Read-only</button><button type="button" className={member.accessLevel === 'blocked' ? 'selected danger' : 'danger'} disabled={working === `member:${member.id}`} onClick={() => setMemberAccess(member, 'blocked')}><Ban size={14} /> Block</button></div></article>
@@ -462,12 +464,12 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
       {(!adminMode || adminSection === 'feed') && <>
       <section className="campground-community-toolbar">
-        <div role="tablist" aria-label="Community feed views">
-          <button type="button" className={tab === 'all' ? 'active' : ''} onClick={() => setTab('all')}>Community</button>
+        <div role="tablist" aria-label="Campground Messenger views">
+          <button type="button" className={tab === 'all' ? 'active' : ''} onClick={() => setTab('all')}>Latest</button>
           <button type="button" className={tab === 'official' ? 'active' : ''} onClick={() => setTab('official')}>Official only</button>
           <button type="button" className={tab === 'mine' ? 'active' : ''} onClick={() => setTab('mine')}>My posts</button>
         </div>
-        <button type="button" className="campground-community-refresh" onClick={() => loadFeed(true)} aria-label="Refresh Community"><RefreshCw size={17} /></button>
+        <button type="button" className="campground-community-refresh" onClick={() => loadFeed(true)} aria-label="Refresh Campground Messenger"><RefreshCw size={17} /></button>
       </section>
 
       <section className="campground-community-categories" aria-label="Filter posts by topic">
@@ -480,11 +482,11 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         <div className="campground-community-feed">
           <button className="campground-community-compose-open" type="button" onClick={openComposer}>
             <span>{String(viewer?.name || 'You').split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>
-            <strong>{adminMode ? viewer?.canPostOfficial ? 'Share an official update or join the conversation…' : `Share as ${viewer?.postingName || 'yourself'} or join the conversation…` : 'Share something with the campground…'}</strong>
+            <strong>{adminMode ? viewer?.canPostOfficial ? 'Post an official message or join a discussion…' : `Post as ${viewer?.postingName || 'yourself'} or join a discussion…` : 'Start a post, share a photo, or ask a question…'}</strong>
             <Camera size={19} />
           </button>
 
-          {loading ? <div className="campground-community-empty">Opening the Community…</div> : visiblePosts.length === 0 ? (
+          {loading ? <div className="campground-community-empty">Opening Campground Messenger…</div> : visiblePosts.length === 0 ? (
             <div className="campground-community-empty"><UsersRound size={28} /><strong>No posts in this view yet.</strong><span>Start the conversation with a friendly update or question.</span></div>
           ) : visiblePosts.map((post, index) => (
             <div key={post.id}>
@@ -508,23 +510,44 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               })()}
               {post.action_type && post.action_url && <a className="campground-community-post-action" href={post.action_url}><span>{actionLabels[post.action_type]?.label || 'Open details'}</span><ExternalLink size={18} /></a>}
               {adminMode && post.status === 'published' && <div className="campground-community-delivery"><Eye size={15} /><span>{post.read_count || 0} viewed</span>{post.sms_delivery ? <><Send size={15} /><span>{post.sms_delivery.sent_count || 0} texts delivered{post.sms_delivery.failed_count ? ` · ${post.sms_delivery.failed_count} failed` : ''}</span></> : <span>No text delivery recorded</span>}</div>}
-              <div className="campground-community-actions">
-                <button type="button" className={post.liked_by_me ? 'liked' : ''} disabled={Boolean(post.reaction_pending)} onClick={() => toggleLike(post)}><Heart size={17} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.liked_by_me ? 'Liked' : 'Like'} <span>{post.reaction_count || ''}</span></button>
-                <span><MessageCircle size={17} /> {(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length} comment{(post.comments || []).filter((comment: any) => comment.status !== 'hidden').length === 1 ? '' : 's'}</span>
-              </div>
-              {(post.comments || []).map((comment: any) => (
-                <div className={`campground-community-comment${comment.status === 'hidden' ? ' hidden' : ''}`} key={comment.id}>
-                  <span>{String(comment.author_name || 'BO').split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>
-                  <div><strong>{comment.author_name}</strong><small>{comment.lot_number ? `Lot ${comment.lot_number} · ` : ''}{formatDate(comment.created_at)}</small><p>{comment.body}</p></div>
-                  {adminMode && <div className="campground-community-comment-admin"><button type="button" onClick={() => moderate('comment', comment.id, comment.status === 'hidden' ? 'published' : 'hidden')}>{comment.status === 'hidden' ? 'Restore' : 'Hide'}</button>{viewer?.canDelete && <button className="danger" type="button" onClick={() => deleteContent('comment', comment.id)}><Trash2 size={12} /> Delete</button>}</div>}
-                </div>
-              ))}
-              {post.comments_enabled && post.status !== 'hidden' && (
-                <div className="campground-community-comment-box">
-                  <textarea rows={2} value={commentDrafts[post.id] || ''} onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))} placeholder="Write a comment…" aria-label={`Comment on ${communityPostAuthor(post)}'s post`} />
-                  <button type="button" onClick={() => addComment(post)} disabled={working === `comment:${post.id}` || !String(commentDrafts[post.id] || '').trim()}><Send size={18} /><span>Reply</span></button>
-                </div>
-              )}
+              {(() => {
+                const discussionComments = (post.comments || []).filter((comment: any) => adminMode || comment.status !== 'hidden')
+                const publicReplyCount = (post.comments || []).filter((comment: any) => comment.status !== 'hidden').length
+                const isExpanded = expandedThreads.has(String(post.id))
+                const shownComments = isExpanded ? discussionComments : discussionComments.slice(0, 3)
+                const participantNames = Array.from(new Set(discussionComments.map((comment: any) => String(comment.author_name || 'Bur Oaks')))).slice(0, 5) as string[]
+
+                return <>
+                  <div className="campground-community-discussion-summary">
+                    <div className="campground-community-participants" aria-label={`${participantNames.length} recent participants`}>
+                      {participantNames.map((name) => <span key={name} title={name}>{name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2)}</span>)}
+                    </div>
+                    <div><strong>{publicReplyCount} {publicReplyCount === 1 ? 'reply' : 'replies'}</strong>{Number(post.read_count || 0) > 0 && <small>Seen by {post.read_count}</small>}</div>
+                  </div>
+                  <div className="campground-community-actions">
+                    <button type="button" className={post.liked_by_me ? 'liked' : ''} disabled={Boolean(post.reaction_pending)} onClick={() => toggleLike(post)}><Heart size={17} fill={post.liked_by_me ? 'currentColor' : 'none'} /> {post.liked_by_me ? 'Liked' : 'Like'} <span>{post.reaction_count || ''}</span></button>
+                    <span><MessageCircle size={17} /> {publicReplyCount} {publicReplyCount === 1 ? 'reply' : 'replies'}</span>
+                  </div>
+                  {shownComments.map((comment: any) => (
+                    <div className={`campground-community-comment${comment.status === 'hidden' ? ' hidden' : ''}`} key={comment.id}>
+                      <span>{String(comment.author_name || 'BO').split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>
+                      <div><strong>{comment.author_name}</strong><small>{comment.lot_number ? `Lot ${comment.lot_number} · ` : ''}{formatDate(comment.created_at)}</small><p>{comment.body}</p></div>
+                      {adminMode && <div className="campground-community-comment-admin"><button type="button" onClick={() => moderate('comment', comment.id, comment.status === 'hidden' ? 'published' : 'hidden')}>{comment.status === 'hidden' ? 'Restore' : 'Hide'}</button>{viewer?.canDelete && <button className="danger" type="button" onClick={() => deleteContent('comment', comment.id)}><Trash2 size={12} /> Delete</button>}</div>}
+                    </div>
+                  ))}
+                  {discussionComments.length > 3 && <button className="campground-community-thread-toggle" type="button" aria-expanded={isExpanded} onClick={() => setExpandedThreads((current) => {
+                    const next = new Set(current)
+                    if (next.has(String(post.id))) next.delete(String(post.id)); else next.add(String(post.id))
+                    return next
+                  })}>{isExpanded ? 'Show fewer replies' : `Open full discussion · ${discussionComments.length} replies`}</button>}
+                  {post.comments_enabled && post.status !== 'hidden' && (
+                    <div className="campground-community-comment-box">
+                      <textarea rows={2} value={commentDrafts[post.id] || ''} onChange={(event) => setCommentDrafts((current) => ({ ...current, [post.id]: event.target.value }))} placeholder="Join this discussion…" aria-label={`Reply to ${communityPostAuthor(post)}'s post`} />
+                      <button type="button" onClick={() => addComment(post)} disabled={working === `comment:${post.id}` || !String(commentDrafts[post.id] || '').trim()}><Send size={18} /><span>Reply</span></button>
+                    </div>
+                  )}
+                </>
+              })()}
             </article>
             </div>
           ))}
@@ -540,16 +563,16 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       </>}
 
       {expandedPhoto && (
-        <div className="campground-community-photo-lightbox" role="dialog" aria-modal="true" aria-label="Full-size Community photo" onClick={() => setExpandedPhoto(null)}>
+        <div className="campground-community-photo-lightbox" role="dialog" aria-modal="true" aria-label="Full-size Campground Messenger photo" onClick={() => setExpandedPhoto(null)}>
           <button type="button" onClick={() => setExpandedPhoto(null)} aria-label="Close full-size photo"><X size={21} /> Close</button>
           <img src={expandedPhoto.url} alt={expandedPhoto.alt} onClick={(event) => event.stopPropagation()} />
         </div>
       )}
 
       {showComposer && (
-        <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create Community post">
+        <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create Campground Messenger post">
           <section className="campground-community-modal">
-            <header><div><small>{viewer?.canPostOfficial ? 'OFFICIAL BUR OAKS POST' : adminMode ? `${viewer?.postingName || 'STAFF'} COMMUNITY POST` : 'NEW COMMUNITY POST'}</small><h2>{editingPost ? 'Edit this post' : 'Create a post'}</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
+            <header><div><small>{viewer?.canPostOfficial ? 'OFFICIAL BUR OAKS MESSAGE' : adminMode ? `${viewer?.postingName || 'STAFF'} MESSENGER POST` : 'NEW MESSENGER POST'}</small><h2>{editingPost ? 'Edit this post' : 'Create a post'}</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
             {previewing ? <article className="campground-community-compose-preview"><small>PREVIEW — WHAT CAMPERS WILL SEE</small><strong>{viewer?.canPostOfficial ? 'Bur Oaks Campground' : viewer?.postingName || viewer?.name}</strong><span>{categories.find((item) => item.value === postCategory)?.label}</span><p>{draft || 'Your message will appear here.'}</p>{photoPreview && <img src={photoPreview} alt="Post preview" />}{actionType && <b>{actionLabels[actionType]?.label || 'Open details'} <ExternalLink size={15} /></b>}</article> : <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={8} maxLength={2000} placeholder="What would you like the campground to know?" autoFocus />}
             {photoPreview && !previewing && <div className="campground-community-photo-preview"><img src={photoPreview} alt="Selected upload preview" /><button type="button" onClick={() => choosePhoto()}><X size={16} /> Remove</button></div>}
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => choosePhoto(event.target.files?.[0])} />
@@ -563,7 +586,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               <label><span>Automatically remove after (optional)</span><input type="datetime-local" value={expiresAt} onChange={(event) => setExpiresAt(event.target.value)} /></label>
               <label className="check"><input type="checkbox" checked={pinned} onChange={(event) => setPinned(event.target.checked)} /><span>Pin this important post to the top</span></label>
               {pinned && <label><span>Keep pinned until</span><input type="datetime-local" value={pinnedUntil} onChange={(event) => setPinnedUntil(event.target.value)} /></label>}
-              {!editingPost && <label className="check"><input type="checkbox" checked={sendText} onChange={(event) => setSendText(event.target.checked)} /><span>Send campers one short text with the Community link</span></label>}
+              {!editingPost && <label className="check"><input type="checkbox" checked={sendText} onChange={(event) => setSendText(event.target.checked)} /><span>Send campers one short text with the Campground Messenger link</span></label>}
               {editingPost && <label className="check"><input type="checkbox" checked={sendCorrectionText} onChange={(event) => setSendCorrectionText(event.target.checked)} /><span>Text campers that this post was corrected</span></label>}
             </div></details>}
             <div className="campground-community-compose-options">
@@ -571,20 +594,20 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
               <label><input type="checkbox" checked={commentsEnabled} onChange={(event) => setCommentsEnabled(event.target.checked)} /> Allow comments</label>
               {adminMode && <span className="campground-community-official-compose-note"><ShieldCheck size={17} /> Campers will see this from {viewer?.canPostOfficial ? 'Bur Oaks Campground as an official post' : viewer?.postingName || 'this staff account'}</span>}
             </div>
-            <div className="campground-community-compose-submit"><button type="button" onClick={() => setPreviewing((value) => !value)}><Eye size={17} /> {previewing ? 'Keep editing' : 'Preview'}</button><button className="campground-community-primary" type="button" onClick={publishPost} disabled={working === 'post' || (!draft.trim() && !photo)}>{working === 'post' ? 'Saving…' : editingPost ? 'Save changes' : publishAt && new Date(`${publishAt}T08:00:00`).getTime() > Date.now() ? 'Schedule post' : 'Post to the Community'}</button></div>
+            <div className="campground-community-compose-submit"><button type="button" onClick={() => setPreviewing((value) => !value)}><Eye size={17} /> {previewing ? 'Keep editing' : 'Preview'}</button><button className="campground-community-primary" type="button" onClick={publishPost} disabled={working === 'post' || (!draft.trim() && !photo)}>{working === 'post' ? 'Saving…' : editingPost ? 'Save changes' : publishAt && new Date(`${publishAt}T08:00:00`).getTime() > Date.now() ? 'Schedule post' : 'Post to Messenger'}</button></div>
           </section>
         </div>
       )}
 
       {showSettings && preferences && (
-        <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Community notification settings">
+        <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Campground Messenger notification settings">
           <section className="campground-community-modal campground-community-preferences">
             <header><div><small>YOUR CHOICES</small><h2>Notification settings</h2></div><button type="button" onClick={() => setShowSettings(false)} aria-label="Close"><X size={19} /></button></header>
             <p>Likes and comments do not send texts. Staff may send one short text for a new campground post. Choose when you want email, or keep everything else inside the portal.</p>
             {[
-              ['community_mode', 'General community posts', 'Questions, photos, and neighbor conversation'],
+              ['community_mode', 'General Messenger posts', 'Questions, photos, and neighbor conversation'],
               ['replies_mode', 'Replies to my posts', 'When someone responds directly to you'],
-              ['official_mode', 'Official Community posts', 'Updates posted by the Bur Oaks office'],
+              ['official_mode', 'Official Bur Oaks posts', 'Updates posted by the Bur Oaks office'],
             ].map(([key, label, note]) => (
               <label className="campground-community-preference" key={key}><span><strong>{label}</strong><small>{note}</small></span><select value={preferences[key]} onChange={(event) => setPreferences((current: any) => ({ ...current, [key]: event.target.value }))}><option value="daily_summary">One daily email</option><option value="right_away">Email right away</option><option value="portal_only">Portal only</option></select></label>
             ))}

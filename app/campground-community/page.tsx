@@ -3,8 +3,8 @@ import CommunityFeed from '../../components/CommunityFeed'
 import RoleGuard from '../../components/RoleGuard'
 
 export const metadata: Metadata = {
-  title: 'Community',
-  description: 'Private campground conversation for Bur Oaks campers.',
+  title: 'Campground Messenger',
+  description: 'Private Campground Messenger for Bur Oaks campers.',
   robots: { index: false, follow: false },
 }
 

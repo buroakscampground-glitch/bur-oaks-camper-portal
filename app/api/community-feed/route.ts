@@ -121,7 +121,7 @@ async function notifyCommunityStaff({
   }
 
   await sendStaffWebPush(admin, {
-    title: kind === 'report' ? 'Community report needs review' : 'New Community activity',
+    title: kind === 'report' ? 'Messenger report needs review' : 'New Messenger activity',
     body: message,
     urlByRole: {
       admin: `/admin/community-feed${postId ? `?post=${encodeURIComponent(postId)}` : ''}`,
@@ -152,8 +152,8 @@ async function notifyCommunityStaff({
         const result: any = await sendCommunityEmail({
           to: [email],
           camperName: camperName(recipient),
-          subject: `Community activity: ${kind.replace('_', ' ')}`,
-          heading: 'New Community activity',
+          subject: `Campground Messenger: ${kind.replace('_', ' ')}`,
+          heading: 'New Campground Messenger activity',
           message,
           actionUrl: `${new URL(request.url).origin}${destination}${postId ? `?post=${encodeURIComponent(postId)}` : ''}`,
         })
