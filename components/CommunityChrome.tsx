@@ -144,7 +144,7 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className={`community-workspace seasonal-theme seasonal-theme-${theme.key}`}>
+    <div className={`community-workspace seasonal-theme seasonal-theme-${theme.key}${pathname === '/community' ? '' : ' community-workspace-interior-page'}`}>
       <aside className="community-sidebar" aria-label="Event coordinator navigation">
         <div className="community-sidebar-head">
           <a href="/community"><img src="/bur-oaks-logo.png" alt="" /><span><strong>Bur Oaks</strong><small>Community Center</small></span></a>

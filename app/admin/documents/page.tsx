@@ -481,6 +481,7 @@ export default function AdminDocumentsPage() {
 
   return (
     <main className="admin-document-center">
+      <header className="mobile-inline-page-title"><small>DOCUMENTS</small><h1>Document Center</h1><p>Track signatures and assign camper documents.</p></header>
       <section className="admin-document-overview">
         <article><span className="green"><FileStack size={22} /></span><div><small>Approved templates</small><strong>{templates.length}</strong><em>Private and unassigned</em></div></article>
         <article><span className="gold"><LockKeyhole size={22} /></span><div><small>Waiting signatures</small><strong>{pendingSignatureCount}</strong><em>Need camper action</em></div></article>

@@ -268,7 +268,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
   const showBirthdayToday = birthdayTodayCount > 0 && !mobileAlertItems.some((item) => item.href === '/admin/birthdays')
 
   return (
-    <div className={`admin-workspace-page seasonal-theme seasonal-theme-${theme.key}`}>
+    <div className={`admin-workspace-page seasonal-theme seasonal-theme-${theme.key}${pathname === '/admin' ? '' : ' admin-workspace-interior-page'}`}>
       <div className="admin-workspace-shell">
         <aside className="admin-sidebar" aria-label="Admin navigation">
           <div className="admin-sidebar-mobile-head">

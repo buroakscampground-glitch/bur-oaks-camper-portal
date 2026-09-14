@@ -104,7 +104,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
 
   return (
     <RoleGuard allowedRoles={['camper']}>
-      <div className={`camper-workspace-page seasonal-theme seasonal-theme-${theme.key}${isPortalHome ? ' camper-workspace-home-page' : ''}${isMessenger ? ' camper-workspace-messenger-page' : ''}`}>
+      <div className={`camper-workspace-page seasonal-theme seasonal-theme-${theme.key}${isPortalHome ? ' camper-workspace-home-page' : ' camper-workspace-interior-page'}${isMessenger ? ' camper-workspace-messenger-page' : ''}`}>
       <div className="camper-workspace-shell">
         <aside className="camper-sidebar" aria-label="Camper portal navigation">
           <div className="camper-sidebar-mobile-head">

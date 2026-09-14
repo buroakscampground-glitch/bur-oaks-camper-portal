@@ -15395,3 +15395,26 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
   .campground-community-guide{margin-top:12px;padding:14px}
   .campground-community-guide h2{font-size:20px}
 }
+
+/* System-wide mobile density: one page identity, then the real work. */
+.mobile-inline-page-title{display:none}
+@media(max-width:760px){
+  .camper-workspace-interior-page .camper-workspace-header,.admin-workspace-interior-page .admin-workspace-header{display:none}
+  .camper-workspace-interior-page .camper-sidebar-feature,.camper-workspace-interior-page .camper-sidebar>.seasonal-theme-card{display:none}
+  .admin-workspace-interior-page .admin-sidebar-create,.admin-workspace-interior-page .admin-sidebar>.seasonal-theme-card{display:none}
+  .camper-workspace-interior-page .camper-workspace-main,.admin-workspace-interior-page .admin-workspace-main{padding-top:0}
+  .admin-workspace-interior-page .admin-mobile-alerts{margin:0 0 8px;border-radius:13px}
+  .admin-workspace-interior-page .admin-mobile-alerts-toggle{min-height:48px;padding:6px 9px}
+  .admin-workspace-interior-page .admin-mobile-alerts-icon{width:32px;height:32px;border-radius:10px}
+  .admin-workspace-interior-page .admin-mobile-alerts-copy small{display:none}
+  .mobile-inline-page-title{display:block;margin:0 0 10px;padding:13px 15px;border:1px solid #d7ded5;border-radius:15px;background:#fff;color:#284535;box-shadow:0 7px 20px rgba(35,55,40,.05)}
+  .mobile-inline-page-title small{color:#9a752e;font-size:9px;font-weight:950;letter-spacing:.13em}
+  .mobile-inline-page-title h1{margin:3px 0 0!important;color:#284535!important;font:500 25px/1.05 Georgia,serif!important}
+  .mobile-inline-page-title p{margin:5px 0 0;color:#6f7a72;font-size:10px;line-height:1.35}
+}
+@media(max-width:800px){
+  .community-workspace-interior-page .community-sidebar>.seasonal-theme-card{display:none}
+  .community-workspace-interior-page .community-main>header{display:none}
+  .community-workspace-interior-page .community-badge-help{margin-bottom:8px;padding:10px 12px}
+  .community-workspace-interior-page .community-badge-help p{display:none}
+}

@@ -323,6 +323,7 @@ export default function AdminInvoicesPage() {
 
   return (
     <main className="admin-billing-page">
+      <header className="mobile-inline-page-title"><small>BILLING</small><h1>Invoices</h1><p>Create charges, record payments, and track what is due.</p></header>
       <section className="admin-billing-summary" aria-label="Billing summary">
         <article>
           <span className="green"><CircleDollarSign size={22} /></span>
