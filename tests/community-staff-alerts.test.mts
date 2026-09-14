@@ -108,3 +108,24 @@ test('Dawn Community Talk is one feed without the Admin or event-planning naviga
   assert.doesNotMatch(chrome.match(/if \(pathname === '\/community\/talk'[\s\S]*?\n  \}/)?.[0] || '', /Admin Command Center|Birthdays|Announcements|Events|Dinners|RSVPs/)
   assert.match(adminHome, /href="\/community\/talk"/)
 })
+
+test('Community text alerts open and highlight the exact post', () => {
+  const sender = readFileSync(new URL('../lib/community-post-text-server.ts', import.meta.url), 'utf8')
+  const feed = readFileSync(new URL('../components/CommunityFeed.tsx', import.meta.url), 'utf8')
+
+  assert.match(sender, /portalSmsUrl\(`\/c\/\$\{encodeURIComponent\(String\(post\.id\)\)\}`\)/)
+  assert.match(feed, /URLSearchParams\(window\.location\.search\)\.get\('post'\)/)
+  assert.match(feed, /scrollIntoView\(\{ behavior: 'smooth', block: 'center' \}\)/)
+  assert.match(feed, /Opened from your text alert/)
+})
+
+test('Community post reads are tracked separately for each signed-in household member', () => {
+  const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
+  const migration = readFileSync(new URL('../migrations/075_community_per_login_reads.sql', import.meta.url), 'utf8')
+
+  assert.match(route, /const readerId = String\(context\.user\.id\)/)
+  assert.match(route, /from\('community_login_reads'\)/)
+  assert.match(route, /eq\('reader_id', readerId\)/)
+  assert.match(route, /onConflict: 'post_id,camper_id,reader_id'/)
+  assert.match(migration, /PRIMARY KEY \(post_id, camper_id, reader_id\)/)
+})

@@ -173,6 +173,7 @@ export async function GET(request: Request) {
   const isManager = canManageCommunity(context.camper.role)
   const summaryOnly = url.searchParams.get('mode') === 'summary'
   const camperId = String(context.camper.id)
+  const readerId = String(context.user.id)
   const isCommunityAdmin = canAdministerCommunity(context.camper.role)
   const { data: memberControl, error: controlError } = await context.admin
     .from('community_member_controls')
@@ -207,7 +208,7 @@ export async function GET(request: Request) {
 
   const postIds = (posts || []).map((post: any) => post.id)
   const { data: readRows, error: readError } = postIds.length
-    ? await context.admin.from('community_reads').select('post_id').eq('camper_id', camperId).in('post_id', postIds)
+    ? await context.admin.from('community_login_reads').select('post_id').eq('camper_id', camperId).eq('reader_id', readerId).in('post_id', postIds)
     : { data: [], error: null }
   if (readError) return NextResponse.json({ error: readError.message }, { status: 500 })
   const readIds = new Set((readRows || []).map((row: any) => String(row.post_id)))
@@ -238,7 +239,7 @@ export async function GET(request: Request) {
       : Promise.resolve({ data: [], error: null }),
     context.admin.from('community_notification_preferences').select('*').eq('camper_id', camperId).maybeSingle(),
     isManager && postIds.length
-      ? context.admin.from('community_reads').select('post_id').in('post_id', postIds)
+      ? context.admin.from('community_login_reads').select('post_id').in('post_id', postIds)
       : Promise.resolve({ data: [], error: null }),
     isManager && postIds.length
       ? context.admin.from('sms_broadcasts').select('idempotency_key,status,recipient_count,sent_count,failed_count,created_at').in('idempotency_key', postIds)
@@ -318,6 +319,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const action = String(body.action || '')
   const camperId = String(context.camper.id)
+  const readerId = String(context.user.id)
   const isManager = canManageCommunity(context.camper.role)
   const isCommunityAdmin = canAdministerCommunity(context.camper.role)
   const canPostOfficial = canPublishOfficialCommunityPosts(context.camper.role)
@@ -528,7 +530,7 @@ export async function POST(request: Request) {
   if (action === 'mark_read') {
     const postIds = Array.from(new Set((Array.isArray(body.postIds) ? body.postIds : []).map((id: unknown) => String(id || '')).filter(Boolean))).slice(0, 100)
     if (postIds.length) {
-      const { error } = await context.admin.from('community_reads').upsert(postIds.map((postId) => ({ post_id: postId, camper_id: camperId, read_at: new Date().toISOString() })), { onConflict: 'post_id,camper_id' })
+      const { error } = await context.admin.from('community_login_reads').upsert(postIds.map((postId) => ({ post_id: postId, camper_id: camperId, reader_id: readerId, read_at: new Date().toISOString() })), { onConflict: 'post_id,camper_id,reader_id' })
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     }
     if (postIds.length) await context.admin.from('community_notifications').update({ read_at: new Date().toISOString() }).eq('camper_id', camperId).in('post_id', postIds).is('read_at', null)
@@ -540,7 +542,7 @@ export async function POST(request: Request) {
     if (postError) return NextResponse.json({ error: postError.message }, { status: 500 })
     const postIds = (readablePosts || []).map((post: any) => String(post.id))
     if (postIds.length) {
-      const { error } = await context.admin.from('community_reads').upsert(postIds.map((postId) => ({ post_id: postId, camper_id: camperId, read_at: new Date().toISOString() })), { onConflict: 'post_id,camper_id' })
+      const { error } = await context.admin.from('community_login_reads').upsert(postIds.map((postId) => ({ post_id: postId, camper_id: camperId, reader_id: readerId, read_at: new Date().toISOString() })), { onConflict: 'post_id,camper_id,reader_id' })
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     }
     await context.admin.from('community_notifications').update({ read_at: new Date().toISOString() }).eq('camper_id', camperId).is('read_at', null)

@@ -43,7 +43,7 @@ export async function textCampersAboutStaffPost({
   const recipientPlan = uniqueSmsBroadcastRecipients(candidates)
   if (!recipientPlan.recipients.length) return { status: 'skipped', sentCount: 0, failedCount: 0, reason: 'No opted-in phone numbers matched.' }
 
-  const message = communityPostSms(author, portalSmsUrl('/campground-community'))
+  const message = communityPostSms(author, portalSmsUrl(`/c/${encodeURIComponent(String(post.id))}`))
   const { data: campaign, error: campaignError } = await admin.from('sms_broadcasts').insert({
     idempotency_key: post.id,
     target_mode: 'all_opted_in',

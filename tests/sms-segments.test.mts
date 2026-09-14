@@ -25,12 +25,12 @@ test('automated SMS copy stays inside one GSM-7 segment', () => {
 test('staff Community post alerts are relevant one-segment links', () => {
   const text = communityPostSms(
     'Rachel F',
-    'https://www.buroakscampground.com/campground-community'
+    'https://www.buroakscampground.com/c/8dc03f97-f94a-4c72-89e4-8309642d51a2'
   )
 
   assert.ok(gsm7Units(text) <= SMS_SINGLE_SEGMENT_LIMIT)
   assert.match(text, /^Bur Oaks account: NEW COMMUNITY POST from Rachel F/)
-  assert.match(text, /Read: https:\/\/www\.buroakscampground\.com\/campground-community/)
+  assert.match(text, /Read: https:\/\/www\.buroakscampground\.com\/c\/8dc03f97-f94a-4c72-89e4-8309642d51a2/)
   assert.match(text, /Reply STOP to opt out\.$/)
 })
 

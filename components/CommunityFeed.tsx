@@ -79,13 +79,40 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState('')
   const [notice, setNotice] = useState('')
+  const [linkedPostId, setLinkedPostId] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const postRequestId = useRef('')
   const reactionRequests = useRef(new Set<string>())
   const observedPosts = useRef(new Map<string, HTMLElement>())
   const markedPosts = useRef(new Set<string>())
+  const linkedPostHandled = useRef(false)
 
   useEffect(() => { loadFeed() }, [])
+  useEffect(() => {
+    const postId = new URLSearchParams(window.location.search).get('post') || ''
+    if (postId) {
+      setLinkedPostId(postId)
+      setTab('all')
+      setCategory('all')
+    }
+  }, [])
+  useEffect(() => {
+    if (loading || !linkedPostId || linkedPostHandled.current) return
+    const linkedPost = posts.find((post) => String(post.id) === linkedPostId)
+    if (!linkedPost) {
+      setNotice('That Community post is no longer available. The newest posts are shown below.')
+      linkedPostHandled.current = true
+      return
+    }
+    const frame = window.requestAnimationFrame(() => {
+      const element = document.getElementById(`community-post-${linkedPostId}`)
+      if (!element) return
+      linkedPostHandled.current = true
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      element.focus({ preventScroll: true })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [loading, linkedPostId, posts])
   useEffect(() => {
     const saved = window.localStorage.getItem('bur-oaks-community-draft')
     if (saved) setDraft(saved)
@@ -463,7 +490,8 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
             <div key={post.id}>
             {post.status === 'published' && !post.read_by_me && !visiblePosts.slice(0, index).some((item) => item.status === 'published' && !item.read_by_me) && <div className="campground-community-divider new"><span>NEW SINCE YOUR LAST VISIT</span></div>}
             {post.read_by_me && index > 0 && !visiblePosts[index - 1]?.read_by_me && <div className="campground-community-divider"><span>EARLIER POSTS</span></div>}
-            <article ref={(element) => { if (element) observedPosts.current.set(String(post.id), element); else observedPosts.current.delete(String(post.id)) }} data-post-id={post.id} className={`campground-community-post${post.is_official ? ' official' : ''}${post.status === 'hidden' ? ' hidden' : ''}${post.status === 'scheduled' ? ' scheduled' : ''}${post.pinned_until && new Date(post.pinned_until).getTime() > Date.now() ? ' pinned' : ''}`} id={`community-post-${post.id}`}>
+            <article ref={(element) => { if (element) observedPosts.current.set(String(post.id), element); else observedPosts.current.delete(String(post.id)) }} data-post-id={post.id} tabIndex={linkedPostId === String(post.id) ? -1 : undefined} className={`campground-community-post${post.is_official ? ' official' : ''}${post.status === 'hidden' ? ' hidden' : ''}${post.status === 'scheduled' ? ' scheduled' : ''}${post.pinned_until && new Date(post.pinned_until).getTime() > Date.now() ? ' pinned' : ''}${linkedPostId === String(post.id) ? ' linked' : ''}`} id={`community-post-${post.id}`}>
+              {linkedPostId === String(post.id) && <div className="campground-community-linked-label"><ExternalLink size={15} /> Opened from your text alert</div>}
               <header>
                 {post.is_official ? <span className="campground-community-avatar official"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /></span> : <span className="campground-community-avatar">{communityPostAuthor(post).split(/\s+/).map((part: string) => part[0]).join('').slice(0, 2)}</span>}
                 <div><strong>{communityPostAuthor(post)}</strong>{post.is_official && <b>OFFICIAL BUR OAKS POST</b>}<small>{communityPostLocation(post) ? `${communityPostLocation(post)} · ` : ''}{formatDate(post.publish_at || post.created_at)}</small></div>
