@@ -16,3 +16,17 @@ ALTER TABLE public.community_login_reads ENABLE ROW LEVEL SECURITY;
 
 REVOKE ALL ON TABLE public.community_login_reads FROM anon, authenticated;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.community_login_reads TO service_role;
+
+-- Keep the existing "already seen" state during rollout so old posts do not
+-- suddenly reappear as unread. Future reads are recorded per login.
+INSERT INTO public.community_login_reads (post_id, camper_id, reader_id, read_at)
+SELECT reads.post_id, reads.camper_id, users.id, reads.read_at
+FROM public.community_reads AS reads
+JOIN public.campers AS campers ON campers.id = reads.camper_id
+JOIN auth.users AS users
+  ON LOWER(COALESCE(users.email, '')) IN (
+    LOWER(COALESCE(campers.email, '')),
+    LOWER(COALESCE(campers.secondary_email, ''))
+  )
+WHERE COALESCE(users.email, '') <> ''
+ON CONFLICT (post_id, camper_id, reader_id) DO NOTHING;

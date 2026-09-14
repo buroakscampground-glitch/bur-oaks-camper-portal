@@ -128,4 +128,6 @@ test('Community post reads are tracked separately for each signed-in household m
   assert.match(route, /eq\('reader_id', readerId\)/)
   assert.match(route, /onConflict: 'post_id,camper_id,reader_id'/)
   assert.match(migration, /PRIMARY KEY \(post_id, camper_id, reader_id\)/)
+  assert.match(migration, /FROM public\.community_reads AS reads/)
+  assert.match(migration, /JOIN auth\.users AS users/)
 })
