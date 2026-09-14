@@ -4,6 +4,7 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { sendAdminAlertEmail } from '../../../lib/admin-alert-email'
 import { getSiteUrl } from '../../../lib/site-url'
+import { sendWaitlistConfirmationEmail } from '../../../lib/waitlist-confirmation-email'
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -153,7 +154,33 @@ export async function POST(request: Request) {
       console.error('Public waitlist admin email failed:', emailError)
     }
 
-    return NextResponse.json({ success: true, emailStatus, emailMessage })
+    let confirmationEmailStatus: 'sent' | 'skipped' | 'failed' = email ? 'sent' : 'skipped'
+    let confirmationEmailMessage = email ? '' : 'No applicant email address was provided.'
+
+    if (email) {
+      try {
+        const confirmationResult = await sendWaitlistConfirmationEmail({
+          to: email,
+          firstName,
+        })
+        if ((confirmationResult as any)?.skipped) {
+          confirmationEmailStatus = 'skipped'
+          confirmationEmailMessage = (confirmationResult as any).reason || 'Applicant confirmation email was skipped.'
+        }
+      } catch (confirmationError: any) {
+        confirmationEmailStatus = 'failed'
+        confirmationEmailMessage = confirmationError?.message || 'Applicant confirmation email failed.'
+        console.error('Public waitlist confirmation email failed:', confirmationError)
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      emailStatus,
+      emailMessage,
+      confirmationEmailStatus,
+      confirmationEmailMessage,
+    })
   } catch (error) {
     console.error('Public waitlist form failed:', error)
     return NextResponse.json(
