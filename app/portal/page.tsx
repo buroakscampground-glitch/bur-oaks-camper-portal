@@ -998,103 +998,24 @@ export default function CamperPortalPage() {
   return (
     <main className="camper-portal-page">
       <div className="portal-shell">
-        <section className={`portal-hero portal-season-${portalSeason} portal-holiday-${seasonalTheme.key}`}>
-          <nav className="portal-topbar" aria-label="Camper portal navigation">
-            <a className="portal-brand" href="/portal">
-              <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
-              <span>
-                <strong>Bur Oaks</strong>
-                <small>Camper Portal</small>
-              </span>
-            </a>
-
-            <button className="portal-logout" type="button" onClick={handleLogout}>
-              <LogOut size={17} />
-              Sign out
-            </button>
-          </nav>
-
-          <div className="portal-hero-content">
-            <div className="portal-seasonal-banner" aria-label={`${seasonalTheme.label}. ${seasonalTheme.detail}.`}>
-              <span aria-hidden="true">{seasonalTheme.symbol}</span>
-              <div>
-                <strong>{seasonalTheme.label}</strong>
-                <small>{seasonalTheme.detail}</small>
-              </div>
-            </div>
-            <div className="portal-eyebrow">
-              <TentTree size={16} /> Your campground home base
-            </div>
-            <div className="portal-site-badge">
-              <MapPin size={18} />
-              <div>
-                <small>Your site</small>
-                <strong>Lot {camper?.lot_number || '—'}</strong>
-              </div>
-            </div>
-            <h1>Welcome back, {welcomeNames}.</h1>
-            <p>
-              Everything for your stay at Bur Oaks—from account details to
-              campground happenings—is right here.
-            </p>
-
-            <PortalWeatherMini variant="hero" />
-
-            <section className="portal-identity-card" aria-label="Camper site badge">
-              <div className="portal-identity-avatar">{camperInitials}</div>
-              <div>
-                <small>My Bur Oaks site</small>
-                <strong>Lot {camper?.lot_number || '—'}</strong>
-                <span>{camper?.first_name || ''} {camper?.last_name || ''}</span>
-              </div>
-              <div className="portal-identity-badges">
-                {identityBadges.map((badge) => (
-                  <a className={badge.complete ? 'complete' : 'attention'} href={badge.label === 'Texts' ? '/invoices' : '/profile'} key={badge.label}>
-                    {badge.complete ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
-                    <span>{badge.label}: {badge.value}</span>
-                  </a>
-                ))}
-              </div>
-            </section>
-
-            <div className="portal-hero-actions">
-              <a className="portal-office-chat-action" href="/messages">
-                <span><MessageCircle size={18} /><i aria-hidden="true" /></span>
-                <span>
-                  <small>Office chat available</small>
-                  <strong>Chat with us</strong>
-                </span>
-                <ArrowRight size={18} />
-              </a>
-              <a className="portal-primary-action" href="/invoices">
-                Billing & payments <ArrowRight size={18} />
-              </a>
-              <a className="portal-secondary-action" href="/site">
-                View my site
-              </a>
-              <a className="portal-secondary-action" href="/maintenance">
-                Request maintenance
-              </a>
-            </div>
+        <header className="portal-premium-header">
+          <div className="portal-premium-brandline">
+            <a href="/portal"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /><span><strong>Bur Oaks Campground</strong><small>Camper Portal</small></span></a>
+            <button type="button" onClick={handleLogout}><LogOut size={17} /><span>Sign out</span></button>
           </div>
-
-        </section>
+          <div className="portal-premium-welcome">
+            <div><small>{formatFriendlyToday()}</small><h1>Welcome back, {camper?.first_name || welcomeNames}.</h1></div>
+            <span>LOT {camper?.lot_number || '—'}</span>
+          </div>
+          <div className="portal-premium-season"><span aria-hidden="true">{seasonalTheme.symbol}</span><strong>{seasonalTheme.label}</strong><small>{seasonalTheme.detail}</small></div>
+        </header>
 
         <section className="portal-home-console" aria-labelledby="portal-home-console-heading">
-          <header>
-            <div>
-              <small>MY CAMPING HOME</small>
-              <h2 id="portal-home-console-heading">Lot {camper?.lot_number || '—'} at a glance</h2>
-              <p>The important things are first. Every original portal feature is still available below.</p>
-            </div>
-            <span className={urgentCount ? 'attention' : 'clear'}>
-              {urgentCount ? `${urgentCount} need${urgentCount === 1 ? 's' : ''} attention` : 'Everything is caught up'}
-            </span>
-          </header>
+          <div className="portal-premium-status"><i /> Portal services operating normally</div>
 
           <div className="portal-home-account-strip">
             <a href="/invoices">
-              <small>Due now</small>
+              <small>Balance</small>
               <strong>${openBalance.toFixed(2)}</strong>
               <span>{dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} to review` : 'No payment due now'}</span>
             </a>
@@ -1105,45 +1026,48 @@ export default function CamperPortalPage() {
             </a>
             <a href="/site">
               <small>Site status</small>
-              <strong>Lot {camper?.lot_number || '—'}</strong>
-              <span>Open site details</span>
+              <strong>Active</strong>
+              <span>Lot {camper?.lot_number || '—'}</span>
             </a>
           </div>
 
-          <div className="portal-home-main-actions">
-            <button
-              type="button"
-              className="portal-home-pump-action"
-              onClick={() => setShowPumpConfirm(true)}
-              disabled={requestingPump}
-            >
-              <span><Droplets size={29} /></span>
-              <span>
-                <small>ONE-TOUCH SERVICE</small>
-                <strong>{activePumpOutRequests.length ? 'Pump-out already requested' : 'Request a pump-out'}</strong>
-                <em>{activePumpOutRequests.length ? 'Your lot is already on the office list' : `$${displayedPumpOutFee.toFixed(2)} added to your next electric bill after confirmation`}</em>
-              </span>
-              <ArrowRight size={21} />
-            </button>
+          <div className="portal-premium-section-title">
+            <h2 id="portal-home-console-heading">Needs your attention</h2>
+            <span>{urgentCount ? `${urgentCount} item${urgentCount === 1 ? '' : 's'}` : 'All caught up'}</span>
+          </div>
+          {camperCockpitItems.length ? (
+            <div className="portal-premium-priority-list">
+              {camperCockpitItems.slice(0, 2).map((item) => {
+                const Icon = item.icon
+                return <a href={item.href} key={`${item.label}-${item.title}`}><span><Icon size={20} /></span><div><strong>{item.title}</strong><small>{item.detail}</small></div><ChevronRight size={18} /></a>
+              })}
+            </div>
+          ) : (
+            <div className="portal-premium-all-clear"><CheckCircle2 size={20} /><span><strong>Nothing needs your attention</strong><small>Your account and requests are current.</small></span></div>
+          )}
 
-            <a className="portal-community-home-link" href="/campground-community">
-              <span><UsersRound size={29} /></span>
-              <span>
-                <small>COMMUNITY FORUM</small>
-                <strong>See what everyone is talking about</strong>
-                <em>Campground posts, photos, comments, and replies</em>
-              </span>
-              <span className="portal-home-community-arrow"><CommunityUnreadBadge syncHomeScreen={false} /><ArrowRight size={21} /></span>
-            </a>
+          <div className="portal-premium-section-title"><h2>Your account</h2><span>Everything in one place</span></div>
+          <div className="portal-home-shortcuts portal-premium-account-list">
+            <a href="/invoices"><ReceiptText size={19} /><span><strong>Invoices & payments</strong><small>View your schedule, balance, receipts, or pay</small></span><ChevronRight size={17} /></a>
+            <a href="/messages"><MessageCircle size={19} /><span><strong>Office messages</strong><small>{unreadOfficeMessages ? `${unreadOfficeMessages} unread repl${unreadOfficeMessages === 1 ? 'y' : 'ies'}` : 'No unread replies'}</small></span><ChevronRight size={17} /></a>
+            <a className="portal-community-home-link" href="/campground-community"><UsersRound size={19} /><span><strong>Community Forum</strong><small>Campground posts, photos, comments, and replies</small></span><span className="portal-home-community-arrow"><CommunityUnreadBadge syncHomeScreen={false} /><ChevronRight size={17} /></span></a>
+            <a href="/maintenance"><Wrench size={19} /><span><strong>Maintenance & services</strong><small>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'Requests, status, and history'}</small></span><ChevronRight size={17} /></a>
           </div>
 
-          <div className="portal-home-shortcuts">
-            <a href="/invoices"><ReceiptText size={18} /><span><strong>Billing & payments</strong><small>Invoices, receipts, and AutoPay</small></span><ArrowRight size={16} /></a>
-            <a href="/messages"><MessageCircle size={18} /><span><strong>Message the office</strong><small>{unreadOfficeMessages ? `${unreadOfficeMessages} unread repl${unreadOfficeMessages === 1 ? 'y' : 'ies'}` : 'Private help from Bur Oaks'}</small></span><ArrowRight size={16} /></a>
-            <a href="/documents"><FileText size={18} /><span><strong>Documents</strong><small>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} need${documentsNeedingSignature.length === 1 ? 's' : ''} your signature` : 'Everything is signed'}</small></span><ArrowRight size={16} /></a>
-            <a href="/maintenance"><Wrench size={18} /><span><strong>Maintenance</strong><small>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'Request help or check progress'}</small></span><ArrowRight size={16} /></a>
+          <button className="portal-premium-pump" type="button" onClick={() => setShowPumpConfirm(true)} disabled={requestingPump}>
+            <span><Droplets size={23} /></span><div><small>ONE-TOUCH SERVICE</small><strong>{activePumpOutRequests.length ? 'Pump-out already requested' : 'Request a pump-out'}</strong><em>{activePumpOutRequests.length ? 'Your lot is on the office list' : `$${displayedPumpOutFee.toFixed(2)} added after confirmation`}</em></div><ArrowRight size={19} />
+          </button>
+
+          <div className="portal-premium-section-title"><h2>Around the campground</h2></div>
+          <div className="portal-premium-around">
+            <a href="/calendar"><CalendarDays size={21} /><span><small>NEXT EVENT{nextEvent?.event_date ? ` · ${formatDate(nextEvent.event_date)}` : ''}</small><strong>{nextEvent?.title || 'Open the campground calendar'}</strong></span><ChevronRight size={17} /></a>
+            <a href={nextDinner ? `/dinners?date=${nextDinner.date}` : '/dinners'}><Soup size={21} /><span><small>NEXT SATURDAY DINNER</small><strong>{nextDinner?.menu || 'View dinner schedule'}</strong></span><ChevronRight size={17} /></a>
           </div>
         </section>
+
+        <details className="portal-all-tools" id="portal-all-tools">
+          <summary><span><Sparkles size={18} /><strong>All camper tools and details</strong><small>Weather, events, dinners, birthdays, documents, electric, profile, and more</small></span><ChevronRight size={19} /></summary>
+          <div className="portal-all-tools-content">
         <AppBadgePermission label="your portal alerts" />
 
         {urgentAnnouncement && (
@@ -2024,6 +1948,8 @@ export default function CamperPortalPage() {
           </div>
           <a href="/site">Open My Site <ArrowRight size={16} /></a>
         </section>
+          </div>
+        </details>
 
         <footer className="portal-footer">
           <span>Bur Oaks Campground</span>
