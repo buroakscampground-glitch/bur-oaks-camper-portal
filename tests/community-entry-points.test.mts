@@ -45,3 +45,13 @@ test('busy Messenger discussions stay compact until a camper opens the full thre
   assert.match(feed, /Show fewer replies/)
   assert.match(feed, /Join this discussion/)
 })
+
+test('the mobile Messenger reaches the feed without duplicate headers or alert instructions first', () => {
+  const chrome = source('../components/CamperChrome.tsx')
+  const styles = source('../app/globals.css')
+
+  assert.match(chrome, /!isPortalHome && !isMessenger/)
+  assert.match(styles, /\.campground-community-guide\{order:initial/)
+  assert.match(styles, /\.campground-community-calm\{display:none\}/)
+  assert.match(styles, /\.camper-workspace-messenger-page \.camper-sidebar-feature/)
+})

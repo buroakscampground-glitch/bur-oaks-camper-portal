@@ -15369,3 +15369,29 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 .campground-community-guide{border-color:#d8cfad;background:linear-gradient(150deg,#fff9e7,#f2f8f1)}
 .admin-community-page .campground-community-layout{max-width:960px;margin-left:auto;margin-right:auto}.admin-community-page .campground-community-feed{max-width:880px}
 @media(max-width:640px){.campground-community-toolbar{margin-top:14px}.campground-community-post{padding:15px}.campground-community-post.official>header{margin:-15px -15px 0;padding:14px 15px}.campground-community-post>p{font-size:15px}.campground-community-actions{margin:0 -15px;padding-left:15px;padding-right:15px}.campground-community-discussion-summary{padding-top:9px}.campground-community-comment{grid-template-columns:auto minmax(0,1fr);padding:10px}.campground-community-comment-admin{grid-column:2;flex-direction:row}.campground-community-compose-open{min-height:64px}.campground-community-compose-open>strong{font-size:12px}.campground-community-compose-open>svg{width:35px;height:35px}}
+
+/* Messenger opens on the conversation, not repeated page framing. */
+.campground-community-hero h1{color:#fff}
+@media(max-width:900px){.campground-community-guide{order:initial;margin-top:8px}}
+@media(max-width:640px){
+  .camper-workspace-messenger-page .camper-sidebar-feature,.camper-workspace-messenger-page .camper-sidebar>.seasonal-theme-card{display:none}
+  .camper-workspace-messenger-page .camper-workspace-content{padding-top:0}
+  .campground-community-page{padding:8px 10px 90px}
+  .campground-community-hero{grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:14px 15px;border-radius:15px}
+  .campground-community-hero-icon{display:none}
+  .campground-community-hero h1,.campground-community-hero.compact h1{margin:2px 0 0;color:#fff;font-size:23px;line-height:1.05}
+  .campground-community-hero p{display:none}
+  .campground-community-hero span{font-size:9px}
+  .campground-community-settings{grid-column:auto;width:42px;height:42px;padding:0;justify-content:center;border-radius:12px;font-size:0}
+  .campground-community-settings svg{width:19px;height:19px}
+  .campground-community-calm{display:none}
+  .campground-community-toolbar{margin:8px 0 7px;padding:4px;border-radius:13px}
+  .campground-community-toolbar button{min-height:37px;padding:6px 10px;font-size:11px}
+  .campground-community-categories{margin:0 0 6px;padding:2px 0 5px;gap:6px}
+  .campground-community-categories button{min-height:34px;padding:6px 10px;font-size:10px}
+  .campground-community-compose-open{min-height:57px;margin-bottom:8px;padding:9px 11px;border-radius:14px}
+  .campground-community-compose-open>span{width:36px;height:36px}
+  .campground-community-compose-open>svg{width:34px;height:34px}
+  .campground-community-guide{margin-top:12px;padding:14px}
+  .campground-community-guide h2{font-size:20px}
+}

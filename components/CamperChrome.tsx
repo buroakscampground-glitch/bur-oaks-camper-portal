@@ -98,12 +98,13 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
   }
 
   const isPortalHome = pathname === '/portal'
+  const isMessenger = pathname === '/campground-community'
   const backHref = pathname === '/maintenance/history' ? '/maintenance' : '/portal'
   const backLabel = pathname === '/maintenance/history' ? 'Back to maintenance' : 'Back to portal'
 
   return (
     <RoleGuard allowedRoles={['camper']}>
-      <div className={`camper-workspace-page seasonal-theme seasonal-theme-${theme.key}${isPortalHome ? ' camper-workspace-home-page' : ''}`}>
+      <div className={`camper-workspace-page seasonal-theme seasonal-theme-${theme.key}${isPortalHome ? ' camper-workspace-home-page' : ''}${isMessenger ? ' camper-workspace-messenger-page' : ''}`}>
       <div className="camper-workspace-shell">
         <aside className="camper-sidebar" aria-label="Camper portal navigation">
           <div className="camper-sidebar-mobile-head">
@@ -162,7 +163,7 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
         </aside>
 
         <div className="camper-workspace-main">
-          {!isPortalHome && (
+          {!isPortalHome && !isMessenger && (
             <header className="camper-workspace-header">
               <nav>
                 <a className="camper-workspace-brand" href="/portal">
