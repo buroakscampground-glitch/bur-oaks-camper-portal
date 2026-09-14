@@ -269,6 +269,7 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
 
   return (
     <div className={`admin-workspace-page seasonal-theme seasonal-theme-${theme.key}${pathname === '/admin' ? '' : ' admin-workspace-interior-page'}`}>
+      <div className="seasonal-campground-scene" aria-hidden="true" />
       <div className="admin-workspace-shell">
         <aside className="admin-sidebar" aria-label="Admin navigation">
           <div className="admin-sidebar-mobile-head">
