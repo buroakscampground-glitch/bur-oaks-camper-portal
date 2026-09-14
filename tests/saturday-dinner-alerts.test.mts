@@ -69,3 +69,11 @@ test('dinner bring choices contain food only and never include ice', async () =>
     excluded.forEach((item) => assert.equal(choices.includes(item), false, `${menu} should not offer ${item}`))
   })
 })
+
+test('the September 19 dinner is only Cowboy Chicken Casserole', async () => {
+  const { saturdayDinners2026 } = await import('../lib/saturday-dinners.ts')
+  const dinner = saturdayDinners2026.find((item) => item.date === '2026-09-19')
+
+  assert.equal(dinner?.menu, 'Cowboy Chicken Casserole')
+  assert.equal(dinner?.theme, undefined)
+})

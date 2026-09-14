@@ -40,7 +40,7 @@ import CommunityUnreadBadge from '../../components/CommunityUnreadBadge'
 import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
-import PortalWeather, { PortalWeatherMini } from '../../components/PortalWeather'
+import PortalWeather, { PortalWeatherDockButton, PortalWeatherMini } from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
@@ -217,6 +217,7 @@ export default function CamperPortalPage() {
   const [requestingPump, setRequestingPump] = useState(false)
   const [showPumpConfirm, setShowPumpConfirm] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showWeatherSheet, setShowWeatherSheet] = useState(false)
   const [birthdayBoard, setBirthdayBoard] = useState<BirthdayBoard>(emptyBirthdayBoard)
   const [officeBirthdayGreetings, setOfficeBirthdayGreetings] = useState<OfficeBirthdayGreeting[]>([])
   const [birthdaySending, setBirthdaySending] = useState('')
@@ -1976,10 +1977,7 @@ export default function CamperPortalPage() {
             <MessageCircle size={18} />
             <span>Chat</span>
           </a>
-          <button type="button" className={`portal-dock-more ${mobileMoreNeedsAttention ? 'attention' : ''}`} onClick={() => setShowMobileMenu(true)}>
-            <Sparkles size={18} />
-            <span>More</span>
-          </button>
+          <PortalWeatherDockButton onClick={() => setShowWeatherSheet(true)} />
         </nav>
 
         {showPumpConfirm && (
@@ -2052,6 +2050,35 @@ export default function CamperPortalPage() {
                   )
                 })}
               </div>
+            </section>
+          </div>
+        )}
+
+        {showWeatherSheet && (
+          <div className="portal-mobile-sheet-backdrop portal-weather-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Detailed Bur Oaks weather forecast">
+            <section className="portal-weather-sheet">
+              <header>
+                <div>
+                  <span>BUR OAKS WEATHER</span>
+                  <h2>Forecast &amp; radar</h2>
+                </div>
+                <button className="portal-mobile-sheet-close" type="button" onClick={() => setShowWeatherSheet(false)} aria-label="Close weather forecast">
+                  <X size={18} />
+                </button>
+              </header>
+              <div className="portal-weather-sheet-scroll">
+                <PortalWeather />
+              </div>
+              <button
+                type="button"
+                className={`portal-weather-tools-button ${mobileMoreNeedsAttention ? 'attention' : ''}`}
+                onClick={() => {
+                  setShowWeatherSheet(false)
+                  setShowMobileMenu(true)
+                }}
+              >
+                <Sparkles size={17} /> All camper tools
+              </button>
             </section>
           </div>
         )}

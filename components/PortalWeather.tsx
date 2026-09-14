@@ -254,7 +254,87 @@ export default function PortalWeather() {
           })}
         </div>
       </div>
+
+      <div className="portal-daily-weather">
+        <div className="portal-weather-subheading">
+          <strong>7-day forecast</strong>
+          <span>High · Low · Rain</span>
+        </div>
+        <div className="portal-daily-weather-scroll">
+          {weather.daily.slice(0, 7).map((day, index) => {
+            const DayIcon = condition(day.weatherCode).Icon
+
+            return (
+              <article key={day.date}>
+                <small>{index === 0 ? 'Today' : dayLabel(day.date)}</small>
+                <DayIcon size={24} />
+                <strong>{day.high}°</strong>
+                <span>{day.low}°</span>
+                <em><Droplets size={11} /> {day.rainChance}%</em>
+              </article>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="portal-weather-radar">
+        <div className="portal-weather-radar-heading">
+          <div>
+            <span>LIVE LOCAL RADAR</span>
+            <strong>See rain and storms moving toward Bur Oaks.</strong>
+          </div>
+          <a href="https://radar.weather.gov/station/KLSX/standard" target="_blank" rel="noreferrer">
+            Open interactive radar
+          </a>
+        </div>
+        <div className="portal-weather-radar-map">
+          <img
+            src="https://radar.weather.gov/ridge/standard/KLSX_loop.gif"
+            alt="Animated National Weather Service radar for the St. Louis region near Bur Oaks Campground"
+          />
+        </div>
+        <small>Radar provided by the National Weather Service. Tap the link above for zoom and additional controls.</small>
+      </div>
     </section>
+  )
+}
+
+export function PortalWeatherDockButton({ onClick }: { onClick: () => void }) {
+  const [weather, setWeather] = useState<WeatherData | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadTemperature() {
+      try {
+        const response = await fetch('/api/weather', { cache: 'no-store' })
+        if (!response.ok) return
+        const result = await response.json() as WeatherData
+        if (!cancelled) setWeather(result)
+      } catch {
+        // Keep the forecast button usable even when live weather is unavailable.
+      }
+    }
+
+    loadTemperature()
+    const refreshTimer = window.setInterval(loadTemperature, 10 * 60 * 1000)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(refreshTimer)
+    }
+  }, [])
+
+  const CurrentIcon = weather ? condition(weather.current.weatherCode).Icon : CloudSun
+
+  return (
+    <button type="button" className="portal-dock-forecast" onClick={onClick} aria-label={weather ? `Open forecast, currently ${weather.current.temperature} degrees` : 'Open forecast'}>
+      <CurrentIcon size={18} />
+      <span>
+        <strong>{weather ? `${weather.current.temperature}°` : 'Weather'}</strong>
+        <small>Forecast</small>
+      </span>
+    </button>
   )
 }
 

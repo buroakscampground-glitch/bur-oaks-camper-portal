@@ -35,7 +35,7 @@ export const saturdayDinners2026: SaturdayDinner[] = [
   { id: '2026-08-29', date: '2026-08-29', month: 'August', day: 29, menu: 'Meatball Subs' },
   { id: '2026-09-05', date: '2026-09-05', month: 'Sept', day: 5, menu: 'Sausage', theme: 'Labor Day' },
   { id: '2026-09-12', date: '2026-09-12', month: 'Sept', day: 12, menu: 'Jambalaya' },
-  { id: '2026-09-19', date: '2026-09-19', month: 'Sept', day: 19, menu: 'Cowboy Chicken Casserole', theme: 'Casino Night' },
+  { id: '2026-09-19', date: '2026-09-19', month: 'Sept', day: 19, menu: 'Cowboy Chicken Casserole' },
   { id: '2026-09-26', date: '2026-09-26', month: 'Sept', day: 26, menu: 'Soup Day' },
   { id: '2026-10-10', date: '2026-10-10', month: 'October', day: 10, menu: 'Pulled Pork', theme: 'Hog Roast' },
   { id: '2026-10-17', date: '2026-10-17', month: 'October', day: 17, menu: 'Pasta Bar' },
