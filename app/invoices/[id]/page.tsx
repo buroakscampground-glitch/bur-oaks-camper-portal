@@ -28,6 +28,7 @@ import { saveSmsConsentPreference } from '../../../lib/sms-consent'
 import InvoiceSmsOptInAlert from '../../components/invoice-sms-opt-in-alert'
 import { printPageWithFlag } from '../../../lib/print-page'
 import { isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
+import { achExpectedLabel } from '../../../lib/ach-expected-date'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -322,7 +323,7 @@ export default function CamperInvoiceDetailPage() {
           <article>
             <small>Status</small>
             <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
-              {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : isClosed ? 'Canceled — nothing due' : 'Payment due'}
+              {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice, 'long') || 'Bank payment processing') : isClosed ? 'Canceled — nothing due' : 'Payment due'}
             </strong>
           </article>
           <article>
@@ -425,7 +426,7 @@ export default function CamperInvoiceDetailPage() {
             {isPaid ? (
               <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice is paid</span>
             ) : isProcessing ? (
-              <span className="camper-invoice-processing"><Hourglass size={18} /> Bank payment processing — please do not pay again</span>
+              <span className="camper-invoice-processing"><Hourglass size={18} /> {achExpectedLabel(invoice, 'long') || 'Bank payment processing'} — please do not pay again</span>
             ) : isClosed ? (
               <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice was canceled. Nothing is owed.</span>
             ) : (

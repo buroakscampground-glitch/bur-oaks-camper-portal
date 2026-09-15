@@ -42,6 +42,7 @@ import {
 } from '../../lib/autopay'
 import InvoiceSmsOptInAlert from '../components/invoice-sms-opt-in-alert'
 import { isInvoiceClosed, isInvoiceDueNow, isInvoiceOutstanding, isInvoicePaid, isInvoiceUpcoming, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { achExpectedLabel } from '../../lib/ach-expected-date'
 
 type InvoiceFilter = 'all' | 'open' | 'paid'
 
@@ -71,7 +72,14 @@ function invoiceStatusBadge(invoice: any) {
   }
 
   if (invoice.status === 'processing') {
-    return { label: 'Payment processing', className: 'processing', detail: 'Your bank payment is underway. Please do not pay again.' }
+    const expected = achExpectedLabel(invoice)
+    return {
+      label: expected || 'Payment processing',
+      className: 'processing',
+      detail: expected
+        ? 'Stripe is waiting for the bank to finish. Please do not pay again.'
+        : 'Your bank payment is underway. Please do not pay again.',
+    }
   }
 
   if (!invoice.due_date) {
@@ -526,7 +534,7 @@ export default function InvoicesPage() {
                                   </button>
                                 )}
                                 {isPaid && <em>Paid</em>}
-                                {isProcessing && <em>Processing</em>}
+                                {isProcessing && <em>{achExpectedLabel(invoice) || 'Processing'}</em>}
                               </div>
                             </div>
                           )
@@ -683,7 +691,7 @@ export default function InvoicesPage() {
                       <div className="account-invoice-total">
                         <strong>{formatMoney(invoice.total_due)}</strong>
                         <span className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
-                          {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : 'Payment due'}
+                          {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice) || 'Bank payment processing') : 'Payment due'}
                         </span>
                         {!isPaid && !isProcessing && (
                           <small>
@@ -698,7 +706,7 @@ export default function InvoicesPage() {
                           View invoice
                         </a>
                         {isProcessing ? (
-                          <span className="account-processing-mark"><Hourglass size={17} /> Do not pay again</span>
+                          <span className="account-processing-mark"><Hourglass size={17} /> {achExpectedLabel(invoice) || 'Processing'} · Do not pay again</span>
                         ) : !isPaid ? (
                           <button type="button" onClick={() => handlePayInvoice(invoice)} disabled={processingInvoiceId === invoice.id || checkoutLoading}>
                             {processingInvoiceId === invoice.id ? 'Opening…' : 'Pay now'} <ChevronRight size={16} />

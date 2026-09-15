@@ -1,6 +1,7 @@
 import Stripe from 'stripe'
 import { sendPaymentReceivedAlert } from './payment-alerts'
 import { requiredStripePaymentEvents, stripePaymentResolution } from './stripe-ach-status'
+import { achExpectedFromStripeEvent } from './ach-expected-date'
 
 function metadataInvoiceIds(intent: Stripe.PaymentIntent) {
   try {
@@ -62,7 +63,7 @@ export async function reconcileProcessingAchPayments({
 }) {
   const { data: invoices, error } = await admin
     .from('invoices')
-    .select('id,camper_id,invoice_number,total_due,status,payment_method,payment_reference')
+    .select('id,camper_id,invoice_number,total_due,status,payment_method,payment_reference,ach_expected_date')
     .eq('status', 'processing')
     .ilike('payment_method', '%ACH%')
     .not('payment_reference', 'is', null)
@@ -116,6 +117,7 @@ export async function reconcileProcessingAchPayments({
             status: 'paid',
             paid_at: new Date().toISOString(),
             payment_method: settledPaymentMethod,
+            ach_expected_date: null,
           })
           .in('id', invoiceIds)
           .eq('status', 'processing')
@@ -137,7 +139,7 @@ export async function reconcileProcessingAchPayments({
       } else if (resolution === 'reopen') {
         const { data: updated, error: updateError } = await admin
           .from('invoices')
-          .update({ status: 'sent', paid_at: null, payment_method: null, payment_reference: null })
+          .update({ status: 'sent', paid_at: null, payment_method: null, payment_reference: null, ach_expected_date: null })
           .in('id', invoiceIds)
           .eq('status', 'processing')
           .eq('payment_reference', paymentReference)
@@ -146,6 +148,17 @@ export async function reconcileProcessingAchPayments({
         if (updateError) throw updateError
         summary.reopenedInvoices += updated?.length || 0
       } else {
+        const missingEstimateIds = paymentInvoices
+          .filter((invoice) => !invoice.ach_expected_date)
+          .map((invoice) => String(invoice.id))
+        if (missingEstimateIds.length) {
+          const { error: estimateError } = await admin
+            .from('invoices')
+            .update({ ach_expected_date: achExpectedFromStripeEvent(intent.created, true) })
+            .in('id', missingEstimateIds)
+            .eq('status', 'processing')
+          if (estimateError) throw estimateError
+        }
         summary.pendingInvoices += paymentInvoices.length
       }
 

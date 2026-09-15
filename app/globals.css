@@ -15597,3 +15597,15 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
     background-color: rgba(255, 253, 248, .97) !important;
   }
 }
+
+.account-invoice-timeline.processing strong,
+.admin-invoice-record-total em.processing,
+.camper-invoice-detail-summary strong.processing,
+.admin-invoice-status.processing {
+  color: #835b12;
+}
+
+.account-processing-mark,
+.camper-invoice-processing {
+  line-height: 1.35;
+}

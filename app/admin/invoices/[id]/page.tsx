@@ -13,6 +13,7 @@ import { buildBillingReminderMessage } from '../../../../lib/billing-reminder-me
 import { buildPaymentAllocationPreview, submitManualPayment } from '../../../../lib/manual-payment'
 import { isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../../lib/invoice-balance'
 import { removeAdminInvoiceLateFee } from '../../../../lib/admin-late-fee'
+import { achExpectedLabel } from '../../../../lib/ach-expected-date'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -462,7 +463,7 @@ export default function InvoiceDetailPage() {
           <article>
             <small>Status</small>
             <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
-              {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : isClosed ? 'Canceled — nothing due' : 'Payment due'}
+              {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice, 'long') || 'Bank payment processing') : isClosed ? 'Canceled — nothing due' : 'Payment due'}
             </strong>
           </article>
           <article>
@@ -577,7 +578,7 @@ export default function InvoiceDetailPage() {
               <h2>How this invoice total was calculated</h2>
             </div>
             <span className={isPaid ? 'admin-invoice-status paid' : isProcessing ? 'admin-invoice-status processing' : isClosed ? 'admin-invoice-status closed' : 'admin-invoice-status open'}>
-              {isPaid ? 'Paid' : isProcessing ? 'Processing' : isClosed ? 'Canceled — nothing due' : 'Open'}
+              {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice) || 'Processing') : isClosed ? 'Canceled — nothing due' : 'Open'}
             </span>
           </div>
 

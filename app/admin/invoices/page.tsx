@@ -37,6 +37,7 @@ import {
   totalInvoiceBalance,
 } from '../../../lib/invoice-balance'
 import { buildBillingReminderMessage } from '../../../lib/billing-reminder-message'
+import { achExpectedLabel } from '../../../lib/ach-expected-date'
 
 type InvoiceFilter = 'all' | 'open' | 'paid' | 'due-7' | 'due-8-30' | 'future' | 'upcoming-30' | 'closed'
 
@@ -525,7 +526,7 @@ export default function AdminInvoicesPage() {
                     <span className="admin-invoice-record-total">
                       <strong>{formatMoney(invoiceAmount)}</strong>
                       <em className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
-                        {isPaid ? 'Paid' : isProcessing ? 'Bank payment processing' : isClosed ? 'Canceled — nothing due' : 'Payment due'}
+                        {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice) || 'Bank payment processing') : isClosed ? 'Canceled — nothing due' : 'Payment due'}
                       </em>
                       {!isPaid && !isProcessing && !isClosed && (
                         <small>

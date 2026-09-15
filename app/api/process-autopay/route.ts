@@ -5,6 +5,7 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 import { sendPaymentReceivedAlert } from '../../../lib/payment-alerts'
 import { getSiteUrl } from '../../../lib/site-url'
 import { isInvoiceOutstanding, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
+import { achExpectedFromStripeEvent } from '../../../lib/ach-expected-date'
 
 export const runtime = 'nodejs'
 
@@ -145,6 +146,7 @@ export async function POST(request: Request) {
           paid_at: new Date().toISOString(),
           payment_method: paymentMethodLabel,
           payment_reference: intent.id,
+          ach_expected_date: null,
         })
         .eq('id', invoice.id)
         .in('status', ['open', 'sent', 'overdue'])
@@ -181,6 +183,9 @@ export async function POST(request: Request) {
           paid_at: null,
           payment_method: paymentMethodLabel,
           payment_reference: intent.id,
+          ach_expected_date: savedPaymentMethod.type === 'us_bank_account'
+            ? achExpectedFromStripeEvent(intent.created)
+            : null,
         })
         .eq('id', invoice.id)
         .in('status', ['open', 'sent', 'overdue'])

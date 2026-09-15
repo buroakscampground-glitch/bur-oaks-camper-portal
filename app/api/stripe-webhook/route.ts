@@ -7,6 +7,7 @@ import { getSiteUrl } from '../../../lib/site-url'
 import { reconcileAndPrintStripePayout } from '../../../lib/stripe-payout-printing'
 import { alertStripePayoutProblem } from '../../../lib/stripe-payout-alerts'
 import { priorPaymentReview } from '../../../lib/stripe-payment-review'
+import { achExpectedFromStripeEvent } from '../../../lib/ach-expected-date'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -175,6 +176,7 @@ export async function POST(request: Request) {
         paid_at: new Date().toISOString(),
         payment_method: checkoutPaymentMethod(session),
         payment_reference: paymentReference,
+        ach_expected_date: null,
       })
       .in('id', invoiceIds)
       .neq('status', 'paid')
@@ -256,6 +258,9 @@ export async function POST(request: Request) {
                   paid_at: null,
                   payment_method: checkoutPaymentMethod(session, true),
                   payment_reference: paymentReference,
+                  ach_expected_date: session.payment_method_types?.includes('us_bank_account')
+                    ? achExpectedFromStripeEvent(event.created, true)
+                    : null,
                 })
                 .in('id', verified.invoiceIds)
                 .neq('status', 'paid')
@@ -287,6 +292,7 @@ export async function POST(request: Request) {
             paid_at: null,
             payment_method: null,
             payment_reference: null,
+            ach_expected_date: null,
           })
           .in('id', invoiceIds)
           .eq('status', 'processing')
@@ -343,6 +349,7 @@ export async function POST(request: Request) {
                 paid_at: new Date().toISOString(),
                 payment_method: isAch ? 'Online ACH' : 'Online card',
                 payment_reference: intent.id,
+                ach_expected_date: null,
               })
               .in('id', invoiceIds)
               .neq('status', 'paid')
@@ -393,6 +400,7 @@ export async function POST(request: Request) {
                 ? 'AutoPay card'
                 : 'AutoPay',
             payment_reference: intent.id,
+            ach_expected_date: null,
           })
           .eq('id', invoiceId)
           .neq('status', 'paid')
@@ -417,6 +425,24 @@ export async function POST(request: Request) {
       }
     }
 
+    if (event.type === 'payment_intent.processing') {
+      const intent = event.data.object as Stripe.PaymentIntent
+      const invoiceIds = intent.metadata.purpose === 'autopay_invoice' && intent.metadata.invoice_id
+        ? [intent.metadata.invoice_id]
+        : paymentIntentInvoiceIds(intent)
+
+      if (invoiceIds.length > 0 && intent.payment_method_types.includes('us_bank_account')) {
+        const { error: expectedDateError } = await supabaseAdmin
+          .from('invoices')
+          .update({ ach_expected_date: achExpectedFromStripeEvent(event.created) })
+          .in('id', invoiceIds)
+          .eq('status', 'processing')
+          .eq('payment_reference', intent.id)
+
+        if (expectedDateError) throw expectedDateError
+      }
+    }
+
     if (event.type === 'payment_intent.payment_failed' || event.type === 'payment_intent.canceled') {
       const intent = event.data.object as Stripe.PaymentIntent
       const invoiceIds = paymentIntentInvoiceIds(intent)
@@ -429,6 +455,7 @@ export async function POST(request: Request) {
             paid_at: null,
             payment_method: null,
             payment_reference: null,
+            ach_expected_date: null,
           })
           .in('id', invoiceIds)
           .eq('status', 'processing')
@@ -445,6 +472,7 @@ export async function POST(request: Request) {
             paid_at: null,
             payment_method: null,
             payment_reference: null,
+            ach_expected_date: null,
           })
           .eq('id', intent.metadata.invoice_id)
           .eq('status', 'processing')
