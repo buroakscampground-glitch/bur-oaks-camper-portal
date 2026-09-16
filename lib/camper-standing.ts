@@ -1,3 +1,5 @@
+import { LATE_FEE_ASSESSMENT_DAY } from './invoice-reminder-schedule.ts'
+
 export type CamperStanding = 'clear' | 'watch' | 'needs-review'
 export type CamperPattern = 'steady' | 'one-off' | 'improving' | 'repeated'
 
@@ -41,9 +43,30 @@ export type CamperStandingRow = {
 }
 
 const EXCLUDED_STANDING_STATUSES = new Set(['cancelled', 'canceled', 'void', 'refunded', 'processing'])
+export const CAMPER_STANDING_LATE_HISTORY_START = '2026-09-16'
 
 function calendarDate(value: unknown) {
   return String(value || '').slice(0, 10)
+}
+
+function centralCalendarDate(value: unknown) {
+  const rawValue = String(value || '').trim()
+  if (!rawValue) return ''
+  if (!rawValue.includes('T')) return calendarDate(rawValue)
+
+  const date = new Date(rawValue)
+  if (Number.isNaN(date.getTime())) return calendarDate(rawValue)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+
+  const year = parts.find((part) => part.type === 'year')?.value
+  const month = parts.find((part) => part.type === 'month')?.value
+  const day = parts.find((part) => part.type === 'day')?.value
+  return year && month && day ? `${year}-${month}-${day}` : calendarDate(rawValue)
 }
 
 function dateMs(value: string) {
@@ -64,12 +87,15 @@ function monthsBefore(today: string, months: number) {
 export function invoiceWasLate(invoice: InvoiceRecord, today: string) {
   const dueDate = calendarDate(invoice.due_date)
   if (!dueDate || EXCLUDED_STANDING_STATUSES.has(String(invoice.status || '').toLowerCase())) return false
-  if (Number(invoice.late_fee || 0) > 0) return true
 
   const status = String(invoice.status || '').toLowerCase()
-  const paidDate = calendarDate(invoice.paid_at)
-  if (status === 'paid') return Boolean(paidDate && paidDate > dueDate)
-  return dueDate < today
+  const paidDate = centralCalendarDate(invoice.paid_at)
+  if (status === 'paid') {
+    if (dueDate < CAMPER_STANDING_LATE_HISTORY_START) return false
+    return Boolean(paidDate && daysBetween(dueDate, paidDate) >= LATE_FEE_ASSESSMENT_DAY)
+  }
+
+  return daysBetween(dueDate, today) >= LATE_FEE_ASSESSMENT_DAY
 }
 
 export function buildCamperStanding(input: {
@@ -87,7 +113,7 @@ export function buildCamperStanding(input: {
   const currentPastDue = validInvoices.filter((invoice) => {
     const status = String(invoice.status || '').toLowerCase()
     const dueDate = calendarDate(invoice.due_date)
-    return status !== 'paid' && Boolean(dueDate && dueDate < today)
+    return status !== 'paid' && Boolean(dueDate && daysBetween(dueDate, today) >= LATE_FEE_ASSESSMENT_DAY)
   })
   const late12Months = lateInvoices.filter((invoice) => calendarDate(invoice.due_date) >= cutoff12).length
   const late24Months = lateInvoices.filter((invoice) => calendarDate(invoice.due_date) >= cutoff24).length

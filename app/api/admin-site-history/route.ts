@@ -1,20 +1,9 @@
 import { NextResponse } from 'next/server'
+import { invoiceWasLate } from '../../../lib/camper-standing'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { todayInCentral } from '../../../lib/invoice-texting'
 
 export const runtime = 'nodejs'
-
-function isLateInvoice(invoice: Record<string, unknown>, today: string) {
-  const dueDate = String(invoice.due_date || '').slice(0, 10)
-  if (!dueDate) return false
-  if (Number(invoice.late_fee || 0) > 0) return true
-
-  const status = String(invoice.status || '').toLowerCase()
-  const paidDate = String(invoice.paid_at || '').slice(0, 10)
-  if (status === 'paid') return Boolean(paidDate && paidDate > dueDate)
-
-  return !['cancelled', 'canceled', 'void', 'refunded'].includes(status) && dueDate < today
-}
 
 export async function GET(request: Request) {
   const context = await getAuthenticatedContext(request)
@@ -63,7 +52,7 @@ export async function GET(request: Request) {
   const today = todayInCentral()
   const invoices = (invoiceResult.data || []).map((invoice) => ({
     ...invoice,
-    is_late: isLateInvoice(invoice, today),
+    is_late: invoiceWasLate(invoice, today),
   }))
   const paidInvoices = invoices.filter((invoice) => String(invoice.status || '').toLowerCase() === 'paid')
   const openInvoices = invoices.filter((invoice) => !['paid', 'cancelled', 'canceled', 'void', 'refunded'].includes(String(invoice.status || '').toLowerCase()))
