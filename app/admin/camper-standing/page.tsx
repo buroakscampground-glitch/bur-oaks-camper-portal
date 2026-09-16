@@ -90,7 +90,7 @@ export default function CamperStandingPage() {
 
       <section className="camper-standing-rules" aria-label="How standing works">
         <TrendingUp size={22} />
-        <div><strong>Built to recognize patterns, not punish one-offs.</strong><p>A single recent issue is normally Watch. Needs Review is reserved for active important items, multiple current past-due bills, an invoice 14+ days late, or repeated recent issues. Old resolved history remains visible but fades out of the standing.</p></div>
+        <div><strong>Built to recognize patterns, not punish one-offs.</strong><p>One isolated resolved incident stays Clear and is noted as a likely one-off. Watch begins with an active issue or two incidents within 24 months. Needs Review is reserved for active important items, multiple current past-due bills, an invoice 14+ days late, or repeated recent issues.</p></div>
       </section>
 
       <section className="camper-standing-summary" aria-label="Standing totals">

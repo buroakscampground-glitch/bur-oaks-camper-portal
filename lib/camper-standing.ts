@@ -113,10 +113,7 @@ export function buildCamperStanding(input: {
   } else if (
     currentPastDue.length > 0 ||
     activeNotices.length > 0 ||
-    late12Months > 0 ||
-    siteCare12Months > 0 ||
-    late24Months >= 2 ||
-    siteCare24Months >= 2
+    late24Months + siteCare24Months >= 2
   ) {
     standing = 'watch'
   }
@@ -125,7 +122,7 @@ export function buildCamperStanding(input: {
   const recentIssues = late12Months + siteCare12Months
   let pattern: CamperPattern = 'steady'
   if (standing === 'needs-review') pattern = 'repeated'
-  else if (standing === 'watch' && recentIssues <= 1 && activeImportant.length === 0) pattern = 'one-off'
+  else if (recentIssues === 1 && activeNotices.length === 0 && currentPastDue.length === 0) pattern = 'one-off'
   else if (standing === 'clear' && lifetimeIssues > 0) pattern = 'improving'
 
   const reasons: string[] = []

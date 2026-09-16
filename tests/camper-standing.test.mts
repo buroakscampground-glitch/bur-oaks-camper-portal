@@ -5,7 +5,7 @@ import { buildCamperStanding } from '../lib/camper-standing.ts'
 const camper = { id: 'camper-1', lot_number: '15', first_name: 'Sample', last_name: 'Camper' }
 const today = '2026-09-16'
 
-test('one isolated late payment is watch and labeled as a likely one-off', () => {
+test('one isolated resolved late payment stays clear and is labeled as a likely one-off', () => {
   const row = buildCamperStanding({
     camper,
     today,
@@ -13,9 +13,21 @@ test('one isolated late payment is watch and labeled as a likely one-off', () =>
     notices: [],
     documents: [],
   })
-  assert.equal(row.standing, 'watch')
+  assert.equal(row.standing, 'clear')
   assert.equal(row.pattern, 'one-off')
   assert.equal(row.late12Months, 1)
+})
+
+test('two resolved incidents within 24 months become watch', () => {
+  const row = buildCamperStanding({
+    camper,
+    today,
+    invoices: [{ due_date: '2026-08-01', paid_at: '2026-08-02', status: 'paid', total_due: 100 }],
+    notices: [{ created_at: '2026-04-01', status: 'Resolved', priority: 'Standard' }],
+    documents: [],
+  })
+  assert.equal(row.standing, 'watch')
+  assert.equal(row.late24Months + row.siteCare24Months, 2)
 })
 
 test('old resolved history remains visible but does not permanently lower standing', () => {
