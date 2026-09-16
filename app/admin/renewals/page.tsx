@@ -29,6 +29,7 @@ import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { effectiveRenewalStatus } from '../../../lib/renewal-document-status'
 import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
+import { renewalOfficeReviewDate, renewalResponseDueDate, renewalSendDate } from '../../../lib/renewal-timeline'
 import { isDocumentDeliveryExcluded } from '../../../lib/document-delivery-exemptions'
 
 type Camper = {
@@ -596,9 +597,9 @@ export default function AdminRenewalsPage() {
         ? { ...storedRenewal, status: effectiveStatus as RenewalStatus }
         : storedRenewal
       const contractEnd = annualContractDate(renewal)
-      const sendDue = shiftDate(contractEnd, -4)
-      const reviewDue = shiftDate(sendDue, 0, -14)
-      const responseDue = shiftDate(contractEnd, -3)
+      const sendDue = renewalSendDate(contractEnd)
+      const reviewDue = renewalOfficeReviewDate(contractEnd)
+      const responseDue = renewalResponseDueDate(contractEnd)
       const openingDate = shiftDate(contractEnd, 0, 1)
       const confirmedOpening = renewal?.status === 'Camper Leaving' || renewal?.status === 'Campground Not Renewing'
       const campgroundDecision = renewal?.status === 'Campground Not Renewing'
@@ -687,7 +688,7 @@ export default function AdminRenewalsPage() {
       `}</style>
 
       <section className="renewal-hero">
-        <div><span className="renewal-eyebrow"><CalendarClock size={17} /> SEASON PLANNING</span><h1>Know which sites may open next.</h1><p>Contract dates repeat yearly. The saved renewal form goes into the camper portal four months before the anniversary, and the camper’s answer is due one month later.</p></div>
+        <div><span className="renewal-eyebrow"><CalendarClock size={17} /> SEASON PLANNING</span><h1>Know which sites may open next.</h1><p>Contract dates repeat yearly. The renewal form goes into the camper portal 60 days before the lease expires, and the signed form or decision is due 30 days before expiration.</p></div>
         <a href="/admin/waitlist"><BookOpen size={16} /> Open waitlist <ArrowRight size={15} /></a>
       </section>
 
@@ -772,7 +773,7 @@ export default function AdminRenewalsPage() {
                 <label>Decision<select value={draft.status} onChange={(event) => updateDraft(row.camper.id, 'status', event.target.value)}>{statuses.map((status) => <option key={status} value={status} disabled={status === 'Renewing' && row.renewal?.status !== 'Renewing'}>{statusLabels[status]}</option>)}</select><small>{signatureExempt ? 'This camper is signature-exempt and receives no renewal documents.' : '“Camper Renewing” is assigned automatically only after the camper completes the required signature.'}</small></label>
                 <label>Rent payment plan<select value={row.camper.rent_payment_plan || 'semiannual'} onChange={(event) => setCampers((current) => current.map((camper) => camper.id === row.camper.id ? { ...camper, rent_payment_plan: event.target.value === 'quarterly' ? 'quarterly' : 'semiannual' } : camper))}><option value="semiannual">Half-and-half · 2 payments</option><option value="quarterly">Grandfathered quarterly · 4 payments</option></select><small>Saved with this renewal record and used when the camper signs.</small></label>
                 <div className="renewal-annual-help"><strong>Enter this once.</strong><span>The year does not matter. Every renewal is for 12 months, so the system automatically moves this date forward each year.</span></div>
-                {annualPreview && <div className="renewal-edit-dates"><span>Annual date <strong>{formatAnnualDate(annualPreview)}</strong></span><span>Next automatic send <strong>{formatDate(shiftDate(annualPreview, -4))}</strong></span><span>Camper reply due <strong>{formatDate(shiftDate(annualPreview, -3))}</strong></span><span>Possible opening <strong>{formatDate(shiftDate(annualPreview, 0, 1))}</strong></span>{row.renewal?.automation_error && <span><strong>Needs attention:</strong> {row.renewal.automation_error}</span>}</div>}
+                {annualPreview && <div className="renewal-edit-dates"><span>Annual date <strong>{formatAnnualDate(annualPreview)}</strong></span><span>Next automatic send <strong>{formatDate(renewalSendDate(annualPreview))}</strong></span><span>Camper reply due <strong>{formatDate(renewalResponseDueDate(annualPreview))}</strong></span><span>Possible opening <strong>{formatDate(shiftDate(annualPreview, 0, 1))}</strong></span>{row.renewal?.automation_error && <span><strong>Needs attention:</strong> {row.renewal.automation_error}</span>}</div>}
                 {row.renewal?.renewal_document_id && <section className={`renewal-document-record ${String(renewalDocument?.signature_status || 'pending').toLowerCase()}`}>
                   <span><FileCheck2 size={19} /></span>
                   <div><small>EXACT RENEWAL DOCUMENT · CAMPGROUND RECORD</small><strong>{renewalDocument?.document_name || 'Seasonal renewal document'}</strong><p>{renewalDocumentSummary(renewalDocument)}</p>{renewalDocument?.signature_record_hash && <em>Secure signature proof saved</em>}</div>

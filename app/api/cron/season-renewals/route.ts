@@ -8,6 +8,7 @@ import { runPendingDocumentSignatureReminders } from '../../../../lib/document-r
 import { singleSegmentSms } from '../../../../lib/sms-segments'
 import { reconcileRenewalsWithDocuments } from '../../../../lib/renewal-document-reconciliation'
 import { isDocumentDeliveryExcluded } from '../../../../lib/document-delivery-exemptions'
+import { renewalOfficeReviewDate, renewalResponseDueDate, renewalSendDate } from '../../../../lib/renewal-timeline'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,24 +24,10 @@ function isAuthorized(request: Request) {
   return Boolean(secret && request.headers.get('authorization') === `Bearer ${secret}`)
 }
 
-function shiftMonths(value: string, amount: number) {
-  const [year, month, day] = value.split('-').map(Number)
-  const target = new Date(year, month - 1 + amount, 1, 12)
-  const last = new Date(target.getFullYear(), target.getMonth() + 1, 0, 12).getDate()
-  target.setDate(Math.min(day, last))
-  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`
-}
-
 function addYear(value: string) {
   const [year, month, day] = value.split('-').map(Number)
   const last = new Date(year + 1, month, 0, 12).getDate()
   return `${year + 1}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`
-}
-
-function shiftDays(value: string, amount: number) {
-  const [year, month, day] = value.split('-').map(Number)
-  const target = new Date(year, month - 1, day + amount, 12)
-  return `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`
 }
 
 export async function GET(request: Request) {
@@ -98,7 +85,7 @@ export async function GET(request: Request) {
   const operationalRecords = (records || []).filter((record) => !isSystemPortalAccount(record))
   const reviewQueue = operationalRecords.filter((record) => {
     if (!record.contract_end_date || record.review_notified_at || record.auto_send_approved) return false
-    return shiftDays(shiftMonths(record.contract_end_date, -4), -14) <= today
+    return renewalOfficeReviewDate(record.contract_end_date) <= today
   })
 
   if (reviewQueue.length) {
@@ -107,7 +94,7 @@ export async function GET(request: Request) {
     await admin.from('admin_notifications').insert(reviewQueue.map((record) => ({
       type: 'renewal_review',
       title: `Review Lot ${record.lot_number || '—'} before renewal`,
-      message: `Choose Yes, send automatically or No, do not renew before ${shiftMonths(record.contract_end_date, -4)}. The renewal is held until you approve it.`,
+      message: `Choose Yes, send automatically or No, do not renew before ${renewalSendDate(record.contract_end_date)}. The renewal is held until you approve it.`,
       lot_number: record.lot_number || null,
       camper_id: record.camper_id,
       source_table: 'season_renewals',
@@ -134,7 +121,7 @@ export async function GET(request: Request) {
   // professional letter until an administrator reviews and sends it.
   const nonRenewalReviewQueue = (nonRenewals || [])
     .filter((record) => !isSystemPortalAccount(record))
-    .filter((record) => record.contract_end_date && !record.review_notified_at && shiftMonths(record.contract_end_date, -4) <= today)
+    .filter((record) => record.contract_end_date && !record.review_notified_at && renewalSendDate(record.contract_end_date) <= today)
 
   if (nonRenewalReviewQueue.length) {
     const lots = nonRenewalReviewQueue.map((record) => record.lot_number || 'unknown').join(', ')
@@ -164,7 +151,7 @@ export async function GET(request: Request) {
     await admin.from('season_renewals').update({ review_notified_at: now }).in('id', nonRenewalReviewQueue.map((record) => record.id))
   }
 
-  const due = operationalRecords.filter((record) => record.auto_send_approved && record.contract_end_date && shiftMonths(record.contract_end_date, -4) <= today)
+  const due = operationalRecords.filter((record) => record.auto_send_approved && record.contract_end_date && renewalSendDate(record.contract_end_date) <= today)
   const renewalTemplate = (templates || []).find((template) => /renewal/i.test(`${template.document_name || ''} ${template.document_type || ''}`))
   const results: any[] = []
 
@@ -232,7 +219,7 @@ export async function GET(request: Request) {
     const phones = await consentedCamperSmsPhones(admin, camper)
     if (phones.length) {
       const text = singleSegmentSms({
-        message: `RENEWAL READY - Lot ${camper.lot_number}. Please sign by ${shiftMonths(record.contract_end_date, -3)}.`,
+        message: `RENEWAL READY - Lot ${camper.lot_number}. Please sign by ${renewalResponseDueDate(record.contract_end_date)}.`,
         url: 'https://www.buroakscampground.com/documents',
         action: 'Sign',
       })
