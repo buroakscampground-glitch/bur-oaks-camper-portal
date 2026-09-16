@@ -1,4 +1,4 @@
-import { LATE_FEE_ASSESSMENT_DAY } from './invoice-reminder-schedule.ts'
+import { LATE_FEE_WARNING_DAY } from './invoice-reminder-schedule.ts'
 
 export type CamperStanding = 'clear' | 'watch' | 'needs-review'
 export type CamperPattern = 'steady' | 'one-off' | 'improving' | 'repeated'
@@ -92,10 +92,10 @@ export function invoiceWasLate(invoice: InvoiceRecord, today: string) {
   const paidDate = centralCalendarDate(invoice.paid_at)
   if (status === 'paid') {
     if (dueDate < CAMPER_STANDING_LATE_HISTORY_START) return false
-    return Boolean(paidDate && daysBetween(dueDate, paidDate) >= LATE_FEE_ASSESSMENT_DAY)
+    return Boolean(paidDate && daysBetween(dueDate, paidDate) >= LATE_FEE_WARNING_DAY)
   }
 
-  return daysBetween(dueDate, today) >= LATE_FEE_ASSESSMENT_DAY
+  return daysBetween(dueDate, today) >= LATE_FEE_WARNING_DAY
 }
 
 export function buildCamperStanding(input: {
@@ -113,7 +113,7 @@ export function buildCamperStanding(input: {
   const currentPastDue = validInvoices.filter((invoice) => {
     const status = String(invoice.status || '').toLowerCase()
     const dueDate = calendarDate(invoice.due_date)
-    return status !== 'paid' && Boolean(dueDate && daysBetween(dueDate, today) >= LATE_FEE_ASSESSMENT_DAY)
+    return status !== 'paid' && Boolean(dueDate && daysBetween(dueDate, today) >= LATE_FEE_WARNING_DAY)
   })
   const late12Months = lateInvoices.filter((invoice) => calendarDate(invoice.due_date) >= cutoff12).length
   const late24Months = lateInvoices.filter((invoice) => calendarDate(invoice.due_date) >= cutoff24).length

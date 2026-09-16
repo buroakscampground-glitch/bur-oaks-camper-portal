@@ -68,13 +68,13 @@ test('a single current invoice needs review only after a reasonable grace period
   assert.equal(older.standing, 'needs-review')
 })
 
-test('a paid invoice becomes late only on day six after its due date', () => {
-  assert.equal(invoiceWasLate({ due_date: '2026-10-01', paid_at: '2026-10-06T18:00:00Z', status: 'paid' }, '2026-10-10'), false)
-  assert.equal(invoiceWasLate({ due_date: '2026-10-01', paid_at: '2026-10-07T18:00:00Z', status: 'paid' }, '2026-10-10'), true)
+test('a paid invoice becomes late once it is five calendar days past due', () => {
+  assert.equal(invoiceWasLate({ due_date: '2026-10-01', paid_at: '2026-10-05T18:00:00Z', status: 'paid' }, '2026-10-10'), false)
+  assert.equal(invoiceWasLate({ due_date: '2026-10-01', paid_at: '2026-10-06T18:00:00Z', status: 'paid' }, '2026-10-10'), true)
 })
 
 test('paid timestamps use the campground date instead of UTC', () => {
-  assert.equal(invoiceWasLate({ due_date: '2026-10-01', paid_at: '2026-10-07T00:30:00Z', status: 'paid' }, '2026-10-10'), false)
+  assert.equal(invoiceWasLate({ due_date: '2026-10-01', paid_at: '2026-10-06T00:30:00Z', status: 'paid' }, '2026-10-10'), false)
 })
 
 test('a payment already processing never lowers camper standing', () => {

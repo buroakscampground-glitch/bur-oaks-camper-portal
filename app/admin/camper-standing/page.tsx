@@ -90,7 +90,7 @@ export default function CamperStandingPage() {
 
       <section className="camper-standing-rules" aria-label="How standing works">
         <TrendingUp size={22} />
-        <div><strong>Built to recognize patterns, not punish one-offs.</strong><p>Payment history restarted September 16, 2026. A bill counts as late only after the full five-day grace period. Watch begins with an active issue or two incidents within 24 months. Needs Review is reserved for active important items, multiple bills beyond grace, a bill 14+ days beyond its due date, or repeated recent issues.</p></div>
+        <div><strong>Built to recognize patterns, not punish one-offs.</strong><p>Payment history restarted September 16, 2026. A bill counts as late once it is five calendar days past its due date. Watch begins with an active issue or two incidents within 24 months. Needs Review is reserved for active important items, multiple bills beyond grace, a bill 14+ days beyond its due date, or repeated recent issues.</p></div>
       </section>
 
       <section className="camper-standing-summary" aria-label="Standing totals">
