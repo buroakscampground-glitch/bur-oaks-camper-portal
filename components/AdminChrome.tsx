@@ -53,6 +53,7 @@ import AppBadgePermission from './AppBadgePermission'
 
 const pageNames: Record<string, string> = {
   campers: 'Camper Management',
+  'camper-standing': 'Camper Standing',
   invoices: 'Invoices & Billing',
   'open-balance': 'Open Balances',
   electric: 'Electric Operations',
@@ -115,6 +116,7 @@ const navGroups = [
     label: 'Campers',
     links: [
       { href: '/admin/campers', label: 'Camper Records', icon: Users },
+      { href: '/admin/camper-standing', label: 'Camper Standing', icon: ShieldCheck },
       { href: '/admin/renewals', label: 'Renewal Forecast', icon: CalendarClock },
       { href: '/admin/site-availability', label: 'Site Availability', icon: DoorOpen },
       { href: '/admin/documents', label: 'Documents & Leases', icon: FileText },

@@ -568,6 +568,7 @@ export default function AdminPage() {
       label: 'Campers & records',
       items: [
         { href: '/admin/campers', title: 'Camper accounts', detail: `${stats.campers} active`, icon: Users },
+        { href: '/admin/camper-standing', title: 'Camper standing', detail: 'Payment & site-care patterns', icon: ShieldCheck },
         { href: '/admin/site-availability', title: 'Site availability', detail: 'Open now & next 12 months', icon: DoorOpen },
         { href: '/admin/renewals', title: 'Renewal forecast', detail: 'Contracts & likely openings', icon: CalendarClock },
         { href: '/admin/directory', title: 'Directory', detail: 'Quick camper lookup', icon: UserRoundSearch },
