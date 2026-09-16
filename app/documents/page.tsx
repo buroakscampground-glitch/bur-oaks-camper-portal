@@ -21,6 +21,11 @@ export default function DocumentsPage() {
   const [signingPreviewError, setSigningPreviewError] = useState('')
   const router = useRouter()
 
+  function sendToLogin() {
+    const returnTo = `${window.location.pathname}${window.location.search}`
+    window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`
+  }
+
   async function openDocument(documentId: string) {
     router.push(`/documents/view/${documentId}`)
   }
@@ -32,7 +37,7 @@ export default function DocumentsPage() {
       } = await supabase.auth.getUser()
 
       if (!user) {
-        window.location.href = '/login'
+        sendToLogin()
         return
       }
       setCurrentUserEmail(user.email?.trim().toLowerCase() || '')
@@ -52,8 +57,28 @@ export default function DocumentsPage() {
       if (!response.ok) {
         setMessage(result?.error || 'Unable to load your documents.')
       } else {
-        setDocuments(result?.documents || [])
-        setSuggestedSignerName(String(result?.suggestedSignerName || '').trim())
+        const loadedDocuments = result?.documents || []
+        const signerName = String(result?.suggestedSignerName || '').trim()
+        setDocuments(loadedDocuments)
+        setSuggestedSignerName(signerName)
+
+        const requestedDocumentId = new URLSearchParams(window.location.search).get('sign')
+        const requestedDocument = loadedDocuments.find((document: any) => String(document.id) === requestedDocumentId)
+        const signedEmails = [requestedDocument?.signed_email, requestedDocument?.second_signed_email]
+          .map((email) => String(email || '').trim().toLowerCase())
+        const currentEmail = user.email?.trim().toLowerCase() || ''
+        const canOpenSigning = requestedDocument &&
+          !['signed', 'not_required', 'declined'].includes(String(requestedDocument.signature_status || '')) &&
+          !signedEmails.includes(currentEmail)
+
+        if (canOpenSigning) {
+          setSigningDocument(requestedDocument)
+          setTypedName(signerName)
+          setConsentAccepted(false)
+          setMessage('')
+          setSigningPreviewUrl('')
+          void loadSigningPreview(String(requestedDocument.id))
+        }
       }
 
       setLoading(false)
@@ -72,7 +97,7 @@ export default function DocumentsPage() {
     const token = sessionData.session?.access_token
 
     if (!token) {
-      window.location.href = '/login'
+      sendToLogin()
       return
     }
 
@@ -142,7 +167,7 @@ export default function DocumentsPage() {
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
     if (!token) {
-      window.location.href = '/login'
+      sendToLogin()
       return
     }
 
@@ -207,7 +232,7 @@ export default function DocumentsPage() {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     if (!token) {
-      window.location.href = '/login'
+      sendToLogin()
       return
     }
 
@@ -398,7 +423,7 @@ export default function DocumentsPage() {
               <div>
                 <small>SECURE ELECTRONIC SIGNATURE</small>
                 <h2 id="signature-modal-title">Review and sign</h2>
-                <p>{signingDocument.document_name}</p>
+                <p>{signingDocument.document_name} · Review, sign, and you are done.</p>
               </div>
               <button type="button" className="signature-modal-close" aria-label="Close signing window" onClick={closeSigning}>
                 <X size={20} />
@@ -407,7 +432,7 @@ export default function DocumentsPage() {
             <div className="signature-simple-steps" aria-label="Three signing steps">
               <span><b>1</b> Review</span>
               <span><b>2</b> Confirm</span>
-              <span><b>3</b> Sign</span>
+              <span><b>3</b> Done</span>
             </div>
             <div className="signature-inline-document" aria-label="Document to review before signing">
               <div className="signature-inline-document-heading">
@@ -434,7 +459,7 @@ export default function DocumentsPage() {
                 checked={consentAccepted}
                 onChange={(event) => setConsentAccepted(event.target.checked)}
               />
-              <span><strong>I reviewed and agree to this document.</strong> I agree to use electronic records and understand that typing my full legal name and selecting “Sign Document Securely” is my electronic signature and shows my intent to sign this document.</span>
+              <span><strong>I reviewed and agree to this document.</strong> I agree to use electronic records and understand that typing my full legal name and selecting “Sign &amp; Finish” is my electronic signature and shows my intent to sign this document.</span>
             </label>
             <label className="signature-name-field">
               <span>Full legal name</span>
@@ -463,7 +488,7 @@ export default function DocumentsPage() {
                 onClick={signDocument}
                 disabled={signing || !consentAccepted || typedName.trim().length < 3}
               >
-                {signing ? 'Signing securely…' : 'Sign Document Securely'}
+                {signing ? 'Signing securely…' : 'Sign & Finish'}
               </button>
             </div>
           </section>

@@ -7,6 +7,7 @@ import { DOCUMENT_SIGNATURE_SMS_ALERT, documentReminderCentralDay, documentRemin
 import { authorizedContactEmails, loadAuthorizedContactProfiles } from './authorized-billing'
 import { singleSegmentSms } from './sms-segments'
 import { isDocumentDeliveryExcluded } from './document-delivery-exemptions'
+import { documentSigningUrl } from './document-signing-link'
 
 const REMINDER_TYPE = 'Document Signature Reminder'
 
@@ -55,7 +56,7 @@ function documentCopy(document: any, camper: any, isFollowUp: boolean) {
   const name = String(document.document_name || 'campground document').trim()
   const firstName = String(camper.first_name || '').trim() || 'there'
   const site = camper.lot_number ? ` for Lot ${camper.lot_number}` : ''
-  const url = `${getSiteUrl()}/documents`
+  const url = documentSigningUrl(getSiteUrl(), document.id)
   const subject = isFollowUp
     ? `Reminder: Please sign ${name}`
     : `Signature required: ${name}`
@@ -64,7 +65,7 @@ function documentCopy(document: any, camper: any, isFollowUp: boolean) {
     `Hi ${firstName},`,
     '',
     `${heading} ${name}${site} is in your Bur Oaks Camper Portal.`,
-    'Please log in, review it, and sign it as soon as possible.',
+    'Tap the link below to open this document, review it, and sign it.',
     '',
     `Review and sign: ${url}`,
     '',
@@ -86,7 +87,7 @@ function documentCopy(document: any, camper: any, isFollowUp: boolean) {
         <div style="padding:30px">
           <p>Hi ${escapeHtml(firstName)},</p>
           <p style="font-size:16px;line-height:1.6"><strong>${escapeHtml(name)}</strong>${escapeHtml(site)} is in your camper portal and needs your signature.</p>
-          <p style="font-size:16px;line-height:1.6">Please log in, review it, and sign it as soon as possible.</p>
+          <p style="font-size:16px;line-height:1.6">Tap below to open this document directly, review it, and sign it.</p>
           <a href="${escapeHtml(url)}" style="display:inline-block;margin:10px 0;padding:14px 19px;border-radius:12px;background:#315f3d;color:#fff;text-decoration:none;font-weight:800">Review and Sign Now</a>
           <p style="margin-top:20px;color:#69766d;font-size:13px;line-height:1.5">If the button does not work, copy and paste this link:<br>${escapeHtml(url)}</p>
         </div>

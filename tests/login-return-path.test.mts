@@ -24,6 +24,7 @@ test('login return path rejects external and wrong-role destinations', () => {
 
 test('camper and maintenance links return only to their own areas', () => {
   assert.equal(safeLoginReturnPath('/invoices/abc', 'camper'), '/invoices/abc')
+  assert.equal(safeLoginReturnPath('/documents?sign=renewal-123', 'camper'), '/documents?sign=renewal-123')
   assert.equal(safeLoginReturnPath('/maintenance/dashboard/ticket-1', 'maintenance'), '/maintenance/dashboard/ticket-1')
 })
 
