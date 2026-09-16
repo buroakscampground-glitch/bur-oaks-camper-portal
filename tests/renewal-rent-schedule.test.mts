@@ -62,6 +62,16 @@ test('saved quarterly terms always create four equal renewal payments', () => {
   ])
 })
 
+test('an October 1 quarterly contract stays on the January, April, and July cycle', () => {
+  const schedule = buildRenewalRentSchedule([], '2026-10-01', 'quarterly', 1600)
+  assert.deepEqual(schedule.map((installment) => [installment.dueDate, installment.amount]), [
+    ['2026-10-01', 400],
+    ['2027-01-01', 400],
+    ['2027-04-01', 400],
+    ['2027-07-01', 400],
+  ])
+})
+
 test('standard half-and-half terms always create two equal renewal payments', () => {
   const schedule = buildRenewalRentSchedule([], '2027-05-31', 'semiannual', 1500)
   assert.deepEqual(schedule.map((installment) => [installment.dueDate, installment.amount]), [
