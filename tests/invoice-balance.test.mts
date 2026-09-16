@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { groupInvoicesByDueMonth, invoiceRecordedTotal, isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
+import { groupInvoicesByDueMonth, invoiceRecordedTotal, invoiceTimingBucket, isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
 
 test('amount due excludes future invoices while keeping them upcoming', () => {
   const today = '2026-08-28'
@@ -83,4 +83,15 @@ test('the admin later-bills window does not repeat bills already shown in the cu
   assert.equal(isInvoiceDueAfterCurrentMonthWithinDays({ status: 'sent', due_date: '2026-09-12' }, 30, today), false)
   assert.equal(isInvoiceDueAfterCurrentMonthWithinDays({ status: 'sent', due_date: '2026-10-01' }, 30, today), true)
   assert.equal(isInvoiceDueAfterCurrentMonthWithinDays({ status: 'sent', due_date: '2026-10-05' }, 30, today), false)
+})
+
+test('camper invoice tabs divide bills into simple non-overlapping time windows', () => {
+  const today = '2026-09-16'
+  assert.equal(invoiceTimingBucket({ status: 'sent', due_date: '2026-09-15' }, today), 'late')
+  assert.equal(invoiceTimingBucket({ status: 'sent', due_date: '2026-09-16' }, today), 'due-now')
+  assert.equal(invoiceTimingBucket({ status: 'sent', due_date: '2026-09-23' }, today), 'due-7')
+  assert.equal(invoiceTimingBucket({ status: 'sent', due_date: '2026-09-24' }, today), 'due-8-30')
+  assert.equal(invoiceTimingBucket({ status: 'sent', due_date: '2026-10-17' }, today), 'future')
+  assert.equal(invoiceTimingBucket({ status: 'processing', due_date: '2026-09-15' }, today), 'processing')
+  assert.equal(invoiceTimingBucket({ status: 'paid', due_date: '2026-09-15' }, today), 'paid')
 })

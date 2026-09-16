@@ -41,10 +41,29 @@ import {
   type AutoPayPreference,
 } from '../../lib/autopay'
 import InvoiceSmsOptInAlert from '../components/invoice-sms-opt-in-alert'
-import { isInvoiceClosed, isInvoiceDueNow, isInvoiceOutstanding, isInvoicePaid, isInvoiceUpcoming, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { invoiceTimingBucket, isInvoiceClosed, isInvoiceDueNow, isInvoiceOutstanding, isInvoicePaid, isInvoiceUpcoming, totalInvoiceBalance, type InvoiceTimingBucket } from '../../lib/invoice-balance'
 import { achExpectedLabel } from '../../lib/ach-expected-date'
 
-type InvoiceFilter = 'all' | 'open' | 'paid'
+type InvoiceFilter = InvoiceTimingBucket
+
+const invoiceFilterOptions: Array<{ key: InvoiceFilter; label: string; short: string }> = [
+  { key: 'late', label: 'Late', short: 'Past the due date' },
+  { key: 'due-now', label: 'Due now', short: 'Due today' },
+  { key: 'due-7', label: 'Due in 7 days', short: 'Next 7 days' },
+  { key: 'due-8-30', label: 'Due in 8–30', short: 'Coming soon' },
+  { key: 'future', label: 'Future', short: 'More than 30 days' },
+  { key: 'paid', label: 'Paid', short: 'Payment history' },
+]
+
+const invoiceFilterCopy: Record<InvoiceFilter, { title: string; empty: string }> = {
+  late: { title: 'Late invoices', empty: 'Nothing is late.' },
+  'due-now': { title: 'Due now', empty: 'Nothing is due now.' },
+  'due-7': { title: 'Due in the next 7 days', empty: 'Nothing is due in the next 7 days.' },
+  'due-8-30': { title: 'Due in 8–30 days', empty: 'Nothing is due in 8–30 days.' },
+  future: { title: 'Future scheduled bills', empty: 'No bills are scheduled more than 30 days out.' },
+  processing: { title: 'Payments processing', empty: 'No payments are processing.' },
+  paid: { title: 'Paid history', empty: 'No paid invoices yet.' },
+}
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -113,7 +132,7 @@ export default function InvoicesPage() {
   const [camper, setCamper] = useState<any>(null)
   const [invoices, setInvoices] = useState<any[]>([])
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([])
-  const [filter, setFilter] = useState<InvoiceFilter>('all')
+  const [filter, setFilter] = useState<InvoiceFilter>('due-now')
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [processingInvoiceId, setProcessingInvoiceId] = useState('')
@@ -311,8 +330,8 @@ export default function InvoicesPage() {
   const payableInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice) && invoice.status !== 'processing')
   const paidInvoices = invoices.filter(isInvoicePaid)
   const openInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice))
-  const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
-  const upcomingInvoices = invoices.filter((invoice) => isInvoiceUpcoming(invoice))
+  const dueNowInvoices = invoices.filter((invoice) => invoice.status !== 'processing' && isInvoiceDueNow(invoice))
+  const upcomingInvoices = invoices.filter((invoice) => invoice.status !== 'processing' && isInvoiceUpcoming(invoice))
   const totalOpenBalance = totalInvoiceBalance(openInvoices)
   const amountDueNow = totalInvoiceBalance(dueNowInvoices)
   const upcomingTotal = totalInvoiceBalance(upcomingInvoices)
@@ -325,11 +344,21 @@ export default function InvoicesPage() {
       : calculateAchProcessingFee(selectedTotal)
     : 0
   const selectedChargeTotal = selectedTotal + selectedProcessingFee
-  const visibleInvoices = invoices.filter((invoice) => {
-    if (filter === 'open') return isInvoiceOutstanding(invoice)
-    if (filter === 'paid') return isInvoicePaid(invoice)
-    return !isInvoiceClosed(invoice)
-  })
+  const groupedInvoices = Object.fromEntries(
+    [...invoiceFilterOptions.map((option) => option.key), 'processing'].map((key) => [
+      key,
+      invoices.filter((invoice) => invoiceTimingBucket(invoice) === key),
+    ])
+  ) as Record<InvoiceFilter, any[]>
+  const processingInvoices = groupedInvoices.processing
+  const visibleInvoices = groupedInvoices[filter]
+  const visiblePayableInvoices = visibleInvoices.filter((invoice) => isInvoiceOutstanding(invoice) && invoice.status !== 'processing')
+  const filterCopy = invoiceFilterCopy[filter]
+
+  function chooseFilter(nextFilter: InvoiceFilter) {
+    setFilter(nextFilter)
+    setSelectedInvoices([])
+  }
 
   function toggleInvoice(id: string) {
     setSelectedInvoices((current) =>
@@ -440,7 +469,7 @@ export default function InvoicesPage() {
               <h2>{formatMoney(amountDueNow)} is due now.</h2>
               <p>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? ' is' : 's are'} ready for payment. Select the invoice{dueNowInvoices.length === 1 ? '' : 's'} below and tap the green payment button.</p>
             </div>
-            <a href="#invoices-due-now">View and pay</a>
+            <a href="#invoices-due-now" onClick={() => chooseFilter(groupedInvoices.late.length ? 'late' : 'due-now')}>View and pay</a>
           </section>
         )}
 
@@ -558,22 +587,38 @@ export default function InvoicesPage() {
         <div className="account-layout">
           <section className="account-panel account-ledger" id="invoices-due-now">
             <div className="account-panel-heading">
-              <div><span>ACCOUNT HISTORY</span><h2>Invoices</h2></div>
-              <div className="account-filter" role="group" aria-label="Filter invoices">
-                {(['all', 'open', 'paid'] as InvoiceFilter[]).map((option) => (
-                  <button
-                    type="button"
-                    className={filter === option ? 'active' : ''}
-                    onClick={() => setFilter(option)}
-                    key={option}
-                  >
-                    {option === 'all' ? 'All' : option === 'open' ? 'Open' : 'Paid'}
-                  </button>
-                ))}
-              </div>
+              <div><span>WHAT DO I OWE?</span><h2>{filterCopy.title}</h2><p>Tap a box to see exactly what is due and when.</p></div>
             </div>
 
-            {payableInvoices.length > 0 && (
+            <div className="account-due-tabs" role="tablist" aria-label="Show invoices by due date">
+              {invoiceFilterOptions.map((option) => {
+                const optionInvoices = groupedInvoices[option.key]
+                const amount = totalInvoiceBalance(optionInvoices)
+                return (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={filter === option.key}
+                    className={`${option.key} ${filter === option.key ? 'active' : ''}`}
+                    onClick={() => chooseFilter(option.key)}
+                    key={option.key}
+                  >
+                    <span>{option.label}</span>
+                    <strong>{formatMoney(amount)}</strong>
+                    <small>{optionInvoices.length} invoice{optionInvoices.length === 1 ? '' : 's'} · {option.short}</small>
+                  </button>
+                )
+              })}
+              {processingInvoices.length > 0 && (
+                <button type="button" role="tab" aria-selected={filter === 'processing'} className={`processing ${filter === 'processing' ? 'active' : ''}`} onClick={() => chooseFilter('processing')}>
+                  <span>Processing</span>
+                  <strong>{formatMoney(totalInvoiceBalance(processingInvoices))}</strong>
+                  <small>{processingInvoices.length} bank payment{processingInvoices.length === 1 ? '' : 's'} underway</small>
+                </button>
+              )}
+            </div>
+
+            {visiblePayableInvoices.length > 0 && (
               <div className="account-payment-method-choice">
                 <strong>How would you like to pay?</strong>
                 <div>
@@ -592,7 +637,7 @@ export default function InvoicesPage() {
               </div>
             )}
 
-            {payableInvoices.length > 0 && (
+            {visiblePayableInvoices.length > 0 && (
               <div className="account-selection-bar">
                 <div>
                   <strong>{selectedInvoices.length || 'No'} selected</strong>
@@ -606,7 +651,7 @@ export default function InvoicesPage() {
                   )}
                 </div>
                 <div>
-                  <button type="button" className="account-text-button" onClick={() => setSelectedInvoices(payableInvoices.map((invoice) => invoice.id))}>Select all payable</button>
+                  <button type="button" className="account-text-button" onClick={() => setSelectedInvoices(visiblePayableInvoices.map((invoice) => invoice.id))}>Select all shown</button>
                   {selectedInvoices.length > 0 && <button type="button" className="account-text-button" onClick={() => setSelectedInvoices([])}>Clear</button>}
                   <button type="button" className="account-pay-button" onClick={handlePaySelected} disabled={selectedInvoices.length === 0 || checkoutLoading}>
                     <LockKeyhole size={15} /> {checkoutLoading ? 'Opening checkout…' : `${invoicePaymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} ${formatMoney(selectedChargeTotal)}`}
@@ -615,7 +660,7 @@ export default function InvoicesPage() {
               </div>
             )}
 
-            {payableInvoices.length > 0 && (
+            {visiblePayableInvoices.length > 0 && (
               <div className="account-processing-fee-disclosure">
                 <strong>Secure card or ACH payment</strong>
                 <span>
@@ -628,8 +673,8 @@ export default function InvoicesPage() {
             {visibleInvoices.length === 0 ? (
               <div className="account-empty">
                 <CheckCircle2 size={34} />
-                <h3>{invoices.length === 0 ? 'No invoices yet' : `No ${filter} invoices`}</h3>
-                <p>{invoices.length === 0 ? 'New charges will appear here when they are issued.' : 'Try another account-history filter.'}</p>
+                <h3>{invoices.length === 0 ? 'No invoices yet' : filterCopy.empty}</h3>
+                <p>{invoices.length === 0 ? 'New charges will appear here when they are issued.' : 'Tap another box above to check a different time period.'}</p>
               </div>
             ) : (
               <div className="account-invoice-list">
@@ -638,6 +683,7 @@ export default function InvoicesPage() {
                   const isProcessing = invoice.status === 'processing'
                   const isSelected = selectedInvoices.includes(invoice.id)
                   const statusBadge = invoiceStatusBadge(invoice)
+                  const timingBucket = invoiceTimingBucket(invoice)
                   const processingFee = invoicePaymentMethod === 'card'
                     ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
                     : calculateAchProcessingFee(Number(invoice.total_due || 0))
@@ -691,7 +737,7 @@ export default function InvoicesPage() {
                       <div className="account-invoice-total">
                         <strong>{formatMoney(invoice.total_due)}</strong>
                         <span className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
-                          {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice) || 'Bank payment processing') : 'Payment due'}
+                          {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice) || 'Bank payment processing') : timingBucket === 'future' ? 'Scheduled' : 'Payment due'}
                         </span>
                         {!isPaid && !isProcessing && (
                           <small>

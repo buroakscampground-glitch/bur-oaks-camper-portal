@@ -38,7 +38,7 @@ export function isInvoiceClosed(invoice: BalanceInvoice) {
   return ['void', 'cancelled', 'canceled', 'refunded'].includes(normalizedInvoiceStatus(invoice))
 }
 
-function todayInCentral() {
+export function todayInCentral() {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Chicago',
     year: 'numeric',
@@ -50,6 +50,30 @@ function todayInCentral() {
   const month = parts.find((part) => part.type === 'month')?.value
   const day = parts.find((part) => part.type === 'day')?.value
   return `${year}-${month}-${day}`
+}
+
+export type InvoiceTimingBucket = 'late' | 'due-now' | 'due-7' | 'due-8-30' | 'future' | 'processing' | 'paid'
+
+function calendarDaysBetween(today: string, dueDate: string) {
+  const [todayYear, todayMonth, todayDay] = today.split('-').map(Number)
+  const [dueYear, dueMonth, dueDay] = dueDate.split('-').map(Number)
+  if (![todayYear, todayMonth, todayDay, dueYear, dueMonth, dueDay].every(Number.isFinite)) return null
+  return Math.round((Date.UTC(dueYear, dueMonth - 1, dueDay) - Date.UTC(todayYear, todayMonth - 1, todayDay)) / 86_400_000)
+}
+
+export function invoiceTimingBucket(invoice: BalanceInvoice, today = todayInCentral()): InvoiceTimingBucket | null {
+  if (isInvoicePaid(invoice)) return 'paid'
+  if (normalizedInvoiceStatus(invoice) === 'processing') return 'processing'
+  if (!isInvoiceOutstanding(invoice)) return null
+  if (!invoice.due_date) return 'due-now'
+
+  const daysUntilDue = calendarDaysBetween(today, String(invoice.due_date).slice(0, 10))
+  if (daysUntilDue === null) return 'due-now'
+  if (daysUntilDue < 0) return 'late'
+  if (daysUntilDue === 0) return 'due-now'
+  if (daysUntilDue <= 7) return 'due-7'
+  if (daysUntilDue <= 30) return 'due-8-30'
+  return 'future'
 }
 
 export function isInvoiceOutstanding(invoice: BalanceInvoice) {
