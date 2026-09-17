@@ -59,6 +59,7 @@ import {
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 import { requiresAdminAttention } from '../../lib/admin-notification-types'
 import { isCompletedTicketStatus } from '../../lib/maintenance-status'
+import { paidInvoiceCollectedTotal } from '../../lib/monthly-billing-report'
 
 type AdminStats = {
   campers: number
@@ -113,16 +114,16 @@ type AdminStats = {
   billingMonths: InvoiceMonthGroup<any>[]
 }
 
-type CockpitItem = {
+type MoneyActivityItem = {
   id: string
   href: string
-  type: 'maintenance' | 'supply' | 'site-care' | 'message' | 'billing'
-  label: string
-  title: string
+  camperName: string
+  lotNumber: string
+  invoiceType: string
+  invoiceNumber: string
+  amount: number
   detail: string
   status: string
-  tone: 'red' | 'gold' | 'green' | 'blue' | 'orange'
-  createdAt?: string
 }
 
 const emptyStats: AdminStats = {
@@ -181,7 +182,8 @@ const emptyStats: AdminStats = {
 export default function AdminPage() {
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [stats, setStats] = useState<AdminStats>(emptyStats)
-  const [cockpitItems, setCockpitItems] = useState<CockpitItem[]>([])
+  const [recentPayments, setRecentPayments] = useState<MoneyActivityItem[]>([])
+  const [upcomingBalances, setUpcomingBalances] = useState<MoneyActivityItem[]>([])
   const [toolSearch, setToolSearch] = useState('')
   const achReconciliationAttempted = useRef(false)
 
@@ -260,7 +262,7 @@ export default function AdminPage() {
     ] = await Promise.all([
       supabase.from('campers').select('id,email,secondary_email,phone,mailing_address_line1,mailing_city,mailing_state,mailing_zip,lot_number,role').eq('active', true),
       supabase.from('campers').select('id').eq('active', false),
-      supabase.from('invoices').select('*'),
+      supabase.from('invoices').select('*, campers(first_name,last_name,lot_number)'),
       supabase.from('events').select('id,title,event_date'),
       supabase.from('announcements').select('id,title,message,created_at').eq('is_active', true),
       supabase.from('event_rsvps').select('id,event_id'),
@@ -372,79 +374,49 @@ export default function AdminPage() {
         .map((document) => String(document.camper_id))
     )
 
-    const liveCockpitItems: CockpitItem[] = [
-      ...activeSiteCare.map((notice: any): CockpitItem => ({
-        id: `site-care-${notice.id}`,
-        href: '/admin/site-care',
-        type: 'site-care',
-        label: notice.status === 'Ready for Review' ? 'SITE READY FOR REVIEW' : 'SITE CARE NOTICE',
-        title: `Lot ${notice.lot_number || 'N/A'} · ${notice.title}`,
-        detail: notice.message,
-        status: notice.status,
-        tone: notice.status === 'Ready for Review' ? 'green' : notice.priority === 'Important' ? 'red' : 'gold',
-        createdAt: notice.updated_at || notice.created_at,
-      })),
-      ...activeSupplyRequests.map((request: any): CockpitItem => ({
-        id: `supply-${request.id}`,
-        href: '/admin/maintenance/supplies',
-        type: 'supply',
-        label: request.urgency === 'Urgent' ? 'URGENT SUPPLY REQUEST' : 'SUPPLY REQUEST',
-        title: `${Number(request.quantity)} ${request.unit || 'each'} · ${request.item_name}`,
-        detail: `${request.requested_by || 'Maintenance team'}${request.notes ? ` — ${request.notes}` : ''}`,
-        status: request.status === 'Ordered' ? 'Already ordered' : 'Needs ordered',
-        tone: request.urgency === 'Urgent' ? 'red' : 'orange',
-        createdAt: request.requested_at,
-      })),
-      ...activeMaintenance
-        .map((ticket: any): CockpitItem => ({
-          id: `maintenance-${ticket.id}`,
-          href: `/admin/maintenance/${ticket.id}`,
-          type: 'maintenance',
-          label: ticket.admin_approved === true ? 'ACTIVE WORK ORDER' : 'AWAITING APPROVAL',
-          title: `Lot ${ticket.lot_number || 'N/A'} · ${ticket.title || 'Maintenance request'}`,
-          detail: ticket.description || `${ticket.priority || 'Normal'} priority maintenance item.`,
-          status: ticket.admin_approved === true ? ticket.status || 'Open' : 'Needs admin approval',
-          tone: ticket.priority === 'Emergency' ? 'red' : ticket.admin_approved === true ? 'blue' : 'orange',
-          createdAt: ticket.created_at,
-        })),
-      ...unreadMessages.map((message: any): CockpitItem => ({
-        id: `message-${message.id}`,
-        href: `/admin/messages?camperId=${message.camper_id}`,
-        type: 'message',
-        label: 'OFFICE MESSAGE',
-        title: `Lot ${message.lot_number || 'N/A'} · ${message.sender_name || message.sender_email || 'Camper'}`,
-        detail: message.body || 'Camper sent a message to the office.',
-        status: 'Needs reply',
-        tone: 'gold',
-        createdAt: message.created_at,
-      })),
-      ...pastDueInvoices.slice(0, 8).map((invoice: any): CockpitItem => ({
-        id: `pastdue-${invoice.id}`,
+    const camperForInvoice = (invoice: any) => Array.isArray(invoice.campers) ? invoice.campers[0] : invoice.campers
+    const activityDate = (value: string | null | undefined) => {
+      if (!value) return 'Date not recorded'
+      const date = new Date(value.includes('T') ? value : `${value}T12:00:00`)
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() === today.getFullYear() ? undefined : 'numeric' })
+    }
+    const moneyItem = (invoice: any, status: string, detail: string): MoneyActivityItem => {
+      const camper = camperForInvoice(invoice)
+      const camperName = `${camper?.first_name || ''} ${camper?.last_name || ''}`.trim() || 'Camper name unavailable'
+      return {
+        id: String(invoice.id),
         href: `/admin/invoices/${invoice.id}`,
-        type: 'billing',
-        label: 'PAST DUE',
-        title: `Invoice ${invoice.invoice_number || invoice.id?.slice?.(0, 6) || ''}`,
-        detail: `$${Number(invoice.total_due || 0).toFixed(2)} due ${invoice.due_date || 'now'}.`,
-        status: 'Past due',
-        tone: 'red',
-        createdAt: invoice.due_date,
-      })),
-      ...dueSoonInvoices.slice(0, 6).map((invoice: any): CockpitItem => ({
-        id: `duesoon-${invoice.id}`,
-        href: `/admin/invoices/${invoice.id}`,
-        type: 'billing',
-        label: 'DUE SOON',
-        title: `Invoice ${invoice.invoice_number || invoice.id?.slice?.(0, 6) || ''}`,
-        detail: `$${Number(invoice.total_due || 0).toFixed(2)} due ${invoice.due_date || 'soon'}.`,
-        status: 'Almost due',
-        tone: 'gold',
-        createdAt: invoice.due_date,
-      })),
-    ]
-      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      .slice(0, 9)
+        camperName,
+        lotNumber: String(camper?.lot_number || '—'),
+        invoiceType: String(invoice.invoice_type || 'Campground invoice'),
+        invoiceNumber: String(invoice.invoice_number || '').trim(),
+        amount: status === 'Paid' ? paidInvoiceCollectedTotal(invoice) : Number(invoice.total_due || 0),
+        detail,
+        status,
+      }
+    }
 
-    setCockpitItems(liveCockpitItems)
+    const newestPayments = invoices
+      .filter((invoice) => String(invoice.status || '').toLowerCase() === 'paid' && invoice.paid_at)
+      .sort((left, right) => new Date(right.paid_at).getTime() - new Date(left.paid_at).getTime())
+      .slice(0, 5)
+      .map((invoice) => moneyItem(
+        invoice,
+        'Paid',
+        `Paid ${activityDate(invoice.paid_at)}${invoice.payment_method ? ` · ${invoice.payment_method}` : ''}`,
+      ))
+
+    const balancesNeedingWatch = openInvoices
+      .filter((invoice) => pastDueInvoices.includes(invoice) || dueWithinRange(invoice, 0, 30))
+      .sort((left, right) => String(left.due_date || '9999-99-99').localeCompare(String(right.due_date || '9999-99-99')))
+      .slice(0, 5)
+      .map((invoice) => {
+        const pastDue = pastDueInvoices.includes(invoice)
+        return moneyItem(invoice, pastDue ? 'Past due' : 'Due soon', `${pastDue ? 'Was due' : 'Due'} ${activityDate(invoice.due_date)}`)
+      })
+
+    setRecentPayments(newestPayments)
+    setUpcomingBalances(balancesNeedingWatch)
 
     setStats({
       campers: campers.length,
@@ -813,13 +785,32 @@ export default function AdminPage() {
         </section>
 
         <section className="admin-recent-activity" aria-labelledby="admin-recent-activity-heading">
-          <header><div><span>LIVE RECORD</span><h2 id="admin-recent-activity-heading">Recent activity</h2></div><a href="/admin/system-health">Open activity history <ArrowRight size={15} /></a></header>
-          {cockpitItems.length ? (
-            <div>{cockpitItems.slice(0, 4).map((item) => {
-              const Icon = item.type === 'billing' ? CircleDollarSign : item.type === 'message' ? MessageCircle : item.type === 'maintenance' ? Wrench : item.type === 'site-care' ? ClipboardCheck : ShoppingBasket
-              return <a href={item.href} key={item.id}><span><Icon size={18} /></span><div><strong>{item.title}</strong><small>{item.detail}</small></div><em>{item.status}</em></a>
-            })}</div>
-          ) : <p><CheckCircle2 size={20} /> No new activity needs review.</p>}
+          <header>
+            <div><span>LIVE MONEY RECORD</span><h2 id="admin-recent-activity-heading">Who paid and who owes soon</h2><p>Names, lots, bill types, amounts, and dates—without having to decode invoice numbers.</p></div>
+            <a href="/admin/invoices">See every invoice <ArrowRight size={15} /></a>
+          </header>
+          <div className="admin-money-activity-grid">
+            <article className="payments">
+              <h3><CheckCircle2 size={18} /> Recent payments</h3>
+              {recentPayments.length ? recentPayments.map((item) => (
+                <a href={item.href} key={`paid-${item.id}`}>
+                  <span><CircleDollarSign size={18} /></span>
+                  <div><strong>{item.camperName} <b>Lot {item.lotNumber}</b></strong><small>{item.invoiceType}{item.invoiceNumber ? ` · ${item.invoiceNumber}` : ''}</small><small>{item.detail}</small></div>
+                  <em><strong>${item.amount.toFixed(2)}</strong><small>{item.status}</small></em>
+                </a>
+              )) : <p><CheckCircle2 size={18} /> No recent payments recorded.</p>}
+            </article>
+            <article className="balances">
+              <h3><CalendarClock size={18} /> Past due and coming due</h3>
+              {upcomingBalances.length ? upcomingBalances.map((item) => (
+                <a className={item.status === 'Past due' ? 'late' : ''} href={item.href} key={`due-${item.id}`}>
+                  <span><ReceiptText size={18} /></span>
+                  <div><strong>{item.camperName} <b>Lot {item.lotNumber}</b></strong><small>{item.invoiceType}{item.invoiceNumber ? ` · ${item.invoiceNumber}` : ''}</small><small>{item.detail}</small></div>
+                  <em><strong>${item.amount.toFixed(2)}</strong><small>{item.status}</small></em>
+                </a>
+              )) : <p><CheckCircle2 size={18} /> Nothing is due in the next 30 days.</p>}
+            </article>
+          </div>
         </section>
 
         <details className="admin-all-operations">
