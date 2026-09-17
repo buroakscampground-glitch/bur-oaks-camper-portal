@@ -87,6 +87,10 @@ export default function DocumentsPage() {
     loadDocuments()
   }, [])
 
+  useEffect(() => () => {
+    if (signingPreviewUrl.startsWith('blob:')) URL.revokeObjectURL(signingPreviewUrl)
+  }, [signingPreviewUrl])
+
   async function signDocument() {
     if (!signingDocument) return
 
@@ -228,6 +232,7 @@ export default function DocumentsPage() {
   async function loadSigningPreview(documentId: string) {
     setSigningPreviewLoading(true)
     setSigningPreviewError('')
+    setSigningPreviewUrl('')
 
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
@@ -242,14 +247,24 @@ export default function DocumentsPage() {
       body: JSON.stringify({ documentId }),
     })
     const result = await response.json().catch(() => null)
-    setSigningPreviewLoading(false)
-
     if (!response.ok || !result?.url) {
+      setSigningPreviewLoading(false)
       setSigningPreviewError(result?.error || 'The document preview could not be opened. Please try again.')
       return
     }
 
-    setSigningPreviewUrl(result.url)
+    try {
+      const fileResponse = await fetch(result.url)
+      if (!fileResponse.ok) throw new Error('The secure file could not be loaded.')
+      const file = await fileResponse.blob()
+      if (!file.size) throw new Error('The document file is empty.')
+      const localPreviewUrl = URL.createObjectURL(file)
+      setSigningPreviewUrl(localPreviewUrl)
+    } catch (error: any) {
+      setSigningPreviewError(error?.message || 'The document preview could not be opened. Please try again.')
+    } finally {
+      setSigningPreviewLoading(false)
+    }
   }
 
   function closeSigning() {
@@ -266,6 +281,12 @@ export default function DocumentsPage() {
     setMessage('')
     setSigningPreviewUrl('')
     void loadSigningPreview(String(document.id))
+  }
+
+  function displayRenewalDate(value: unknown) {
+    const raw = String(value || '')
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return 'Needs office review'
+    return new Date(`${raw}T12:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
   }
 
   function renderDocumentCard(doc: any) {
@@ -434,6 +455,27 @@ export default function DocumentsPage() {
               <span><b>2</b> Confirm</span>
               <span><b>3</b> Done</span>
             </div>
+            {isRenewalDocument(signingDocument) && (
+              signingDocument.renewal_details?.complete ? (
+                <section className="signature-renewal-details" aria-label="Required renewal information">
+                  <header><ShieldCheck size={18} /><div><small>REQUIRED INFORMATION</small><strong>Renewal details for this campsite</strong></div></header>
+                  <dl>
+                    <div><dt>Camper</dt><dd>{signingDocument.renewal_details.camper_name}</dd></div>
+                    <div><dt>Site</dt><dd>Lot {signingDocument.renewal_details.lot_number}</dd></div>
+                    <div><dt>Current agreement ends</dt><dd>{displayRenewalDate(signingDocument.renewal_details.contract_end_date)}</dd></div>
+                    <div><dt>Signature due</dt><dd>{displayRenewalDate(signingDocument.renewal_details.response_due_date)}</dd></div>
+                    <div><dt>Payment schedule</dt><dd>{signingDocument.renewal_details.payment_plan}</dd></div>
+                    {signingDocument.renewal_details.annual_rent && <div><dt>Annual lot rent</dt><dd>${Number(signingDocument.renewal_details.annual_rent).toFixed(2)}</dd></div>}
+                  </dl>
+                  <p>These details are attached to your secure signature record. If anything is incorrect, close this window and contact the office before signing.</p>
+                </section>
+              ) : (
+                <section className="signature-renewal-details incomplete" role="alert">
+                  <header><AlertTriangle size={18} /><div><small>OFFICE REVIEW REQUIRED</small><strong>This renewal is missing required campsite information.</strong></div></header>
+                  <p>The portal has stopped signing so an incomplete renewal cannot be accepted. The campground office must correct it before sending another reminder.</p>
+                </section>
+              )
+            )}
             <div className="signature-inline-document" aria-label="Document to review before signing">
               <div className="signature-inline-document-heading">
                 <FileText size={17} />
@@ -486,7 +528,7 @@ export default function DocumentsPage() {
                 type="button"
                 className="primary"
                 onClick={signDocument}
-                disabled={signing || !consentAccepted || typedName.trim().length < 3}
+                disabled={signing || !consentAccepted || typedName.trim().length < 3 || (isRenewalDocument(signingDocument) && !signingDocument.renewal_details?.complete)}
               >
                 {signing ? 'Signing securely…' : 'Sign & Finish'}
               </button>

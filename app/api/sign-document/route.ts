@@ -4,6 +4,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { loadAuthorizedDocumentCamper } from '../../../lib/authorized-billing'
 import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-schedule-service'
+import { isRenewalDocument, renewalDocumentHasRequiredDetails } from '../../../lib/renewal-document-readiness'
 
 const consentText =
   'I reviewed and agree to this document. I agree to use electronic records and understand that typing my full legal name and selecting Sign Document Securely is my electronic signature and shows my intent to sign this document.'
@@ -74,6 +75,53 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'You have already signed this document.' }, { status: 409 })
     }
 
+    let renewalTerms = ''
+    const isRenewal = isRenewalDocument(document)
+    if (isRenewal) {
+      const { data: renewal, error: renewalError } = await context.admin
+        .from('season_renewals')
+        .select('id,lot_number,contract_start_date,contract_end_date,status')
+        .eq('camper_id', document.camper_id)
+        .eq('renewal_document_id', document.id)
+        .maybeSingle()
+
+      if (renewalError || !renewalDocumentHasRequiredDetails(renewal)) {
+        const { data: existingNotice } = await context.admin
+          .from('admin_notifications')
+          .select('id')
+          .eq('type', 'renewal_document_incomplete')
+          .eq('source_table', 'documents')
+          .eq('source_id', document.id)
+          .is('read_at', null)
+          .limit(1)
+          .maybeSingle()
+
+        if (!existingNotice) {
+          await context.admin.from('admin_notifications').insert({
+            type: 'renewal_document_incomplete',
+            title: 'Renewal form needs correction',
+            message: 'A camper tried to sign this renewal, but required campsite or contract information is missing. Correct the renewal before sending another reminder.',
+            camper_id: document.camper_id,
+            source_table: 'documents',
+            source_id: document.id,
+          })
+        }
+
+        return NextResponse.json({
+          error: 'This renewal is missing required campsite information. The office has been notified and must correct it before you sign.',
+        }, { status: 409 })
+      }
+
+      const readyRenewal = renewal!
+      renewalTerms = JSON.stringify({
+        renewalId: readyRenewal.id,
+        lotNumber: readyRenewal.lot_number,
+        contractStartDate: readyRenewal.contract_start_date || null,
+        contractEndDate: readyRenewal.contract_end_date,
+        status: readyRenewal.status || null,
+      })
+    }
+
     const signedAt = new Date().toISOString()
     const signatureIp = getIpAddress(request)
     const signatureUserAgent = request.headers.get('user-agent')
@@ -90,6 +138,7 @@ export async function POST(request: Request) {
       signatureIp || '',
       signatureUserAgent || '',
       consentText,
+      renewalTerms,
     ].join('|')
 
     const signatureRecordHash = createHash('sha256').update(signaturePayload).digest('hex')

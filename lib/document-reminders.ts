@@ -8,6 +8,7 @@ import { authorizedContactEmails, loadAuthorizedContactProfiles } from './author
 import { singleSegmentSms } from './sms-segments'
 import { isDocumentDeliveryExcluded } from './document-delivery-exemptions'
 import { documentSigningUrl } from './document-signing-link'
+import { isRenewalDocument, renewalDocumentHasRequiredDetails } from './renewal-document-readiness'
 
 const REMINDER_TYPE = 'Document Signature Reminder'
 
@@ -271,10 +272,56 @@ export async function runPendingDocumentSignatureReminders(client: any, document
   if (camperError) throw new Error(camperError.message)
 
   const camperById = new Map<string, any>((campers || []).map((camper: any) => [String(camper.id), camper]))
+  const renewalDocumentIds = (documents || []).filter(isRenewalDocument).map((document: any) => String(document.id))
+  const { data: renewals, error: renewalError } = renewalDocumentIds.length
+    ? await client
+        .from('season_renewals')
+        .select('id,camper_id,lot_number,contract_end_date,renewal_document_id')
+        .in('renewal_document_id', renewalDocumentIds)
+    : { data: [], error: null }
+  if (renewalError) throw new Error(renewalError.message)
+  const renewalByDocumentId = new Map<string, any>((renewals || []).map((renewal: any) => [String(renewal.renewal_document_id), renewal]))
+
   const results = []
   for (const document of documents || []) {
     const camper = camperById.get(String(document.camper_id))
     if (!camper || ['admin', 'maintenance'].includes(String(camper.role || '').toLowerCase())) continue
+    if (isRenewalDocument(document)) {
+      const renewal = renewalByDocumentId.get(String(document.id))
+      if (!renewalDocumentHasRequiredDetails(renewal, camper)) {
+        const { data: existingNotice } = await client
+          .from('admin_notifications')
+          .select('id')
+          .eq('type', 'renewal_document_incomplete')
+          .eq('source_table', 'documents')
+          .eq('source_id', document.id)
+          .is('read_at', null)
+          .limit(1)
+          .maybeSingle()
+        if (!existingNotice) {
+          await client.from('admin_notifications').insert({
+            type: 'renewal_document_incomplete',
+            title: `Renewal form needs correction · Lot ${camper.lot_number || '—'}`,
+            message: 'Required camper, campsite, or contract information is missing. Signature reminders are paused until the renewal is corrected.',
+            camper_id: document.camper_id,
+            lot_number: camper.lot_number || null,
+            source_table: 'documents',
+            source_id: document.id,
+          })
+        }
+        results.push({
+          documentId: document.id,
+          lotNumber: camper.lot_number,
+          email: 'skipped',
+          sms: 'skipped',
+          emailSent: 0,
+          smsSent: 0,
+          errors: [],
+          reason: 'renewal-details-incomplete',
+        })
+        continue
+      }
+    }
     const delivery = await sendDocumentSignatureReminder({ client, document, camper })
     results.push({ documentId: document.id, lotNumber: camper.lot_number, ...delivery })
   }

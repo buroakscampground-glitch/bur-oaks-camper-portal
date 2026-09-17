@@ -32,6 +32,10 @@ export default function DocumentViewerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId])
 
+  useEffect(() => () => {
+    if (viewer?.url.startsWith('blob:')) URL.revokeObjectURL(viewer.url)
+  }, [viewer?.url])
+
   async function loadDocument() {
     if (!documentId) return
 
@@ -63,11 +67,20 @@ export default function DocumentViewerPage() {
       return
     }
 
-    setViewer({
-      url: result.url,
-      fileUrl: result.fileUrl,
-    })
-    setLoading(false)
+    try {
+      const fileResponse = await fetch(result.url)
+      if (!fileResponse.ok) throw new Error('The secure file could not be loaded.')
+      const file = await fileResponse.blob()
+      if (!file.size) throw new Error('The document file is empty.')
+      setViewer({
+        url: URL.createObjectURL(file),
+        fileUrl: result.fileUrl,
+      })
+    } catch (error: any) {
+      setMessage(error?.message || 'This document could not be opened. Please contact the campground office.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

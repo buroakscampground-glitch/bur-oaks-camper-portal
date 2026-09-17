@@ -87,7 +87,7 @@ export async function loadAuthorizedBillingCampers(client: any, email: unknown) 
 
   const { data, error } = await client
     .from('campers')
-    .select('id,lot_number,first_name,last_name,active,role')
+    .select('id,lot_number,first_name,last_name,rent_payment_plan,active,role')
     .eq('active', true)
     .in('lot_number', lots)
 
@@ -108,7 +108,7 @@ export async function loadAuthorizedDocumentCamper(client: any, email: unknown, 
 
   const { data, error } = await client
     .from('campers')
-    .select('id,lot_number,first_name,last_name,active,role')
+    .select('id,lot_number,first_name,last_name,rent_payment_plan,active,role')
     .eq('id', String(camperId))
     .maybeSingle()
 
