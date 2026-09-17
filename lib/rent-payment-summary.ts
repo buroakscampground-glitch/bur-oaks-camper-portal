@@ -36,7 +36,7 @@ export function rentPaymentBreakdown(
     annualRent: Number(total.toFixed(2)),
     plan,
     count,
-    label: plan === 'quarterly' ? 'Grandfathered quarterly' : 'Half-and-half',
+    label: plan === 'quarterly' ? 'Quarterly' : 'Half-and-half',
     payments,
   }
 }

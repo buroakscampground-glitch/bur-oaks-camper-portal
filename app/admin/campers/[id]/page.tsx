@@ -742,7 +742,7 @@ export default function CamperDetailPage() {
 
         <ProfileSection icon={<CircleDollarSign />} kicker="BILLING & RENT" title="Annual lot rent">
           <p className="admin-camper-panel-note">
-            Enter the full lot rent and renewal payment terms for Site {camper.lot_number || 'Unassigned'}. Quarterly is reserved for grandfathered campers; all other campers use two half-payments.
+            Enter the full lot rent and renewal payment terms for Site {camper.lot_number || 'Unassigned'}. Choose either four quarterly payments or two half-payments.
           </p>
           <div className="admin-camper-rent-entry">
             <label className="admin-camper-field">
@@ -767,7 +767,7 @@ export default function CamperDetailPage() {
                 onChange={(event) => updateField('rent_payment_plan', event.target.value === 'quarterly' ? 'quarterly' : 'semiannual')}
               >
                 <option value="semiannual">Half-and-half · 2 payments</option>
-                <option value="quarterly">Grandfathered quarterly · 4 payments</option>
+                <option value="quarterly">Quarterly · 4 payments</option>
               </select>
             </label>
             <button type="button" onClick={saveAnnualLotRent} disabled={savingAnnualRent || !camper.lot_number}>

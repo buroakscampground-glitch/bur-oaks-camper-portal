@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { rentPaymentBreakdown } from '../lib/rent-payment-summary.ts'
 
-test('a displayed annual rent is broken into four grandfathered quarterly payments', () => {
+test('a displayed annual rent is broken into four quarterly payments', () => {
   const schedule = rentPaymentBreakdown(1500, 'quarterly', '2000-01-08')
 
-  assert.equal(schedule?.label, 'Grandfathered quarterly')
+  assert.equal(schedule?.label, 'Quarterly')
   assert.deepEqual(schedule?.payments, [
     { number: 1, amount: 375, dueDate: '2000-01-08' },
     { number: 2, amount: 375, dueDate: '2000-04-08' },
