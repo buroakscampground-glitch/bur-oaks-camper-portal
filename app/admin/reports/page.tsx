@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Chevr
 import { supabase } from '../../../lib/supabase'
 import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding } from '../../../lib/invoice-balance'
-import { futureOpenSchedule, invoiceReportLines, monthlyDueSummary } from '../../../lib/monthly-billing-report'
+import { futureOpenSchedule, invoiceReportLines, monthlyDueSummary, officePaymentRecorded, paidInvoiceCollectedTotal } from '../../../lib/monthly-billing-report'
 
 const categoryColors: Record<string, string> = {
   Electric: '#2f6fad',
@@ -16,6 +16,7 @@ const categoryColors: Record<string, string> = {
   'Association Fees': '#9a6a22',
   Maintenance: '#76558d',
   'Processing Fees': '#8b6f2f',
+  'Payments Received': '#397047',
   'Account Credits': '#b54b42',
   'Other Charges': '#6f7280',
 }
@@ -242,15 +243,16 @@ export default function AdminMonthlyReportsPage() {
 
   const allLineItems = useMemo(() => reportInvoices.flatMap(invoiceLineItems), [reportInvoices])
 
-  const totalCollected = reportInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const totalCollected = reportInvoices.reduce((sum, invoice) => sum + paidInvoiceCollectedTotal(invoice), 0)
   const positiveLineTotal = allLineItems
     .filter((entry) => Number(entry.item.total || 0) > 0)
     .reduce((sum, entry) => sum + Number(entry.item.total || 0), 0)
   const creditsApplied = Math.abs(
     allLineItems
-      .filter((entry) => Number(entry.item.total || 0) < 0)
+      .filter((entry) => entry.category === 'Account Credits')
       .reduce((sum, entry) => sum + Number(entry.item.total || 0), 0)
   )
+  const officePaymentsRecorded = reportInvoices.reduce((sum, invoice) => sum + officePaymentRecorded(invoice), 0)
 
   const paymentMethodTotals = useMemo(() => {
     const grouped = new Map<string, { label: string; count: number; total: number }>()
@@ -258,7 +260,7 @@ export default function AdminMonthlyReportsPage() {
       const label = invoice.payment_method || 'Paid before detailed tracking'
       const current = grouped.get(label) || { label, count: 0, total: 0 }
       current.count += 1
-      current.total += Number(invoice.total_due || 0)
+      current.total += paidInvoiceCollectedTotal(invoice)
       grouped.set(label, current)
     }
     return Array.from(grouped.values()).sort((a, b) => b.total - a.total)
@@ -702,7 +704,8 @@ export default function AdminMonthlyReportsPage() {
               <p>Paid invoices recorded by the Bur Oaks portal during this report period.</p>
             </article>
             <article><small>Positive invoice charges</small><strong>{formatMoney(positiveLineTotal)}</strong><p>Itemized charges before camper credits.</p></article>
-            <article><small>Camper credits applied</small><strong>−{formatMoney(creditsApplied)}</strong><p>Credits that reduced amounts owed.</p></article>
+            <article><small>Camper credits applied</small><strong>−{formatMoney(creditsApplied)}</strong><p>Credits actually issued by Bur Oaks that reduced amounts owed.</p></article>
+            <article><small>Checks / cash recorded</small><strong>{formatMoney(officePaymentsRecorded)}</strong><p>Manual office payments. These are payments, not camper credits.</p></article>
             <article><small>Online card / ACH</small><strong>{formatMoney(onlineCollected)}</strong><p>Payments labeled online, card, ACH, or Stripe.</p></article>
             <article><small>Office / other payments</small><strong>{formatMoney(officeCollected)}</strong><p>Cash, check, manual office, and older payment records.</p></article>
             <article><small>Unitemized difference</small><strong>{formatMoney(reconciliationDifference)}</strong><p>Late fees or older invoices not represented by line items.</p></article>

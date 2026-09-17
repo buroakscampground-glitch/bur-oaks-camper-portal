@@ -3,6 +3,8 @@ export type ReportInvoice = {
   invoice_number?: string | null
   invoice_type?: string | null
   total_due?: number | string | null
+  subtotal?: number | string | null
+  late_fee?: number | string | null
   due_date?: string | null
   status?: string | null
   paid_at?: string | null
@@ -32,12 +34,14 @@ export const billingCategoryOrder = [
   'Site Services',
   'Maintenance',
   'Processing Fees',
+  'Payments Received',
   'Account Credits',
   'Other Charges',
 ]
 
 function categoryFromText(rawText: unknown, amount: number) {
   const text = String(rawText || '').toLowerCase()
+  if (amount < 0 && text.includes('office payment received')) return 'Payments Received'
   if (amount < 0 || text.includes('credit')) return 'Account Credits'
   if (text.includes('water') || text.includes('trash')) return 'Water / Trash'
   if (text.includes('sewer') || text.includes('pump')) return 'Pump-Outs'
@@ -53,6 +57,35 @@ function categoryFromText(rawText: unknown, amount: number) {
 export function billingCategory(item: any, invoice: any) {
   const amount = Number(item?.total || 0)
   return categoryFromText(item?.description, amount) || categoryFromText(invoice?.invoice_type, amount) || 'Other Charges'
+}
+
+export function genuineCreditApplied(invoice: ReportInvoice) {
+  return Number((invoice.invoice_items || [])
+    .filter((item) => billingCategory(item, invoice) === 'Account Credits')
+    .reduce((sum, item) => sum + Math.abs(Number(item.total || 0)), 0)
+    .toFixed(2))
+}
+
+export function officePaymentRecorded(invoice: ReportInvoice) {
+  return Number((invoice.invoice_items || [])
+    .filter((item) => billingCategory(item, invoice) === 'Payments Received')
+    .reduce((sum, item) => sum + Math.abs(Number(item.total || 0)), 0)
+    .toFixed(2))
+}
+
+export function invoiceGrossChargeTotal(invoice: ReportInvoice) {
+  return Number(Math.max(
+    Number(invoice.total_due || 0),
+    Number(invoice.subtotal || 0) + Number(invoice.late_fee || 0),
+    (invoice.invoice_items || [])
+      .filter((item) => Number(item.total || 0) > 0)
+      .reduce((sum, item) => sum + Number(item.total || 0), 0),
+  ).toFixed(2))
+}
+
+export function paidInvoiceCollectedTotal(invoice: ReportInvoice) {
+  if (String(invoice.status || '').toLowerCase() !== 'paid') return Number(invoice.total_due || 0)
+  return Number(Math.max(0, invoiceGrossChargeTotal(invoice) - genuineCreditApplied(invoice)).toFixed(2))
 }
 
 export function invoiceReportLines(invoice: ReportInvoice) {
@@ -76,8 +109,9 @@ export function isInvoiceInDueMonth(invoice: ReportInvoice, month: string) {
 export function monthlyDueSummary(invoices: ReportInvoice[], month: string) {
   const monthInvoices = invoices.filter((invoice) => isInvoiceInDueMonth(invoice, month))
   const lines = monthInvoices.flatMap(invoiceReportLines)
+  const chargeLines = lines.filter((line) => line.category !== 'Payments Received')
   const categories = billingCategoryOrder.map((label) => {
-    const categoryLines = lines.filter((line) => line.category === label)
+    const categoryLines = chargeLines.filter((line) => line.category === label)
     return {
       label,
       count: categoryLines.length,
@@ -91,8 +125,8 @@ export function monthlyDueSummary(invoices: ReportInvoice[], month: string) {
     invoices: monthInvoices,
     lines,
     categories,
-    total: Number(monthInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0).toFixed(2)),
-    paid: Number(paidInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0).toFixed(2)),
+    total: Number(monthInvoices.reduce((sum, invoice) => sum + invoiceGrossChargeTotal(invoice), 0).toFixed(2)),
+    paid: Number(paidInvoices.reduce((sum, invoice) => sum + invoiceGrossChargeTotal(invoice), 0).toFixed(2)),
     open: Number(openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0).toFixed(2)),
   }
 }
