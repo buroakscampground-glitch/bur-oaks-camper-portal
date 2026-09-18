@@ -94,6 +94,7 @@ export async function POST(request: Request) {
         desired_site: desiredSite,
         notes: visitorNotes,
         status: 'Waiting',
+        last_check_in_at: new Date().toISOString(),
       })
       .select('id')
       .single()

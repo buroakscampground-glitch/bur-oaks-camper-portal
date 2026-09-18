@@ -1,9 +1,15 @@
-import { portalInviteEmailProviderStatus } from './portal-invite-email'
-import { buildWaitlistConfirmation } from './waitlist-confirmation-copy'
+import { portalInviteEmailProviderStatus } from './portal-invite-email.ts'
+import { buildWaitlistConfirmation } from './waitlist-confirmation-copy.ts'
 
 type WaitlistConfirmationInput = {
   to: string
   firstName: string
+}
+
+export type WaitlistEmailCopy = {
+  subject: string
+  text: string
+  html: string
 }
 
 function parseSender(value: string) {
@@ -20,7 +26,7 @@ function parseSender(value: string) {
   return { email: trimmed }
 }
 
-export async function sendWaitlistConfirmationEmail({ to, firstName }: WaitlistConfirmationInput) {
+export async function sendWaitlistEmail(to: string, copy: WaitlistEmailCopy) {
   const recipient = to.trim().toLowerCase()
   if (!recipient) return { skipped: true, reason: 'No applicant email address was provided.' }
 
@@ -28,8 +34,6 @@ export async function sendWaitlistConfirmationEmail({ to, firstName }: WaitlistC
   if (!providerStatus.configured) {
     throw new Error(providerStatus.reason || 'The waitlist confirmation email sender is not connected.')
   }
-
-  const copy = buildWaitlistConfirmation(firstName)
 
   if (providerStatus.provider === 'sendgrid') {
     const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
@@ -79,4 +83,8 @@ export async function sendWaitlistConfirmationEmail({ to, firstName }: WaitlistC
   }
 
   return { ...result, provider: 'resend' }
+}
+
+export async function sendWaitlistConfirmationEmail({ to, firstName }: WaitlistConfirmationInput) {
+  return sendWaitlistEmail(to, buildWaitlistConfirmation(firstName))
 }

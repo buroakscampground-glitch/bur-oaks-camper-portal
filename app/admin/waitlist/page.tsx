@@ -44,6 +44,7 @@ const router = useRouter()
       desired_site: desiredSite,
       notes,
       status,
+      last_check_in_at: new Date().toISOString(),
     })
 
     if (error) {
@@ -65,7 +66,10 @@ const router = useRouter()
   async function updateStatus(id: string, newStatus: string) {
     const { error } = await supabase
       .from('waitlist')
-      .update({ status: newStatus })
+      .update({
+        status: newStatus,
+        removed_at: newStatus === 'Removed' ? new Date().toISOString() : null,
+      })
       .eq('id', id)
 
     if (error) {
@@ -133,6 +137,9 @@ const acceptedCount =
 
 const declinedCount =
   people.filter((p) => p.status === 'Declined').length
+
+const removedCount =
+  people.filter((p) => p.status === 'Removed').length
   return (
     <main className="page">
       <div className="container">
@@ -178,6 +185,7 @@ const declinedCount =
             <option>Accepted</option>
             <option>Declined</option>
             <option>Converted</option>
+            <option>Removed</option>
           </select>
 
           <textarea
@@ -197,7 +205,7 @@ const declinedCount =
           <div
   style={{
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
     gap: '15px',
     margin: '20px 0',
   }}
@@ -220,6 +228,11 @@ const declinedCount =
   <div className="card">
     <h3>Declined</h3>
     <h1>{declinedCount}</h1>
+  </div>
+
+  <div className="card">
+    <h3>Removed</h3>
+    <h1>{removedCount}</h1>
   </div>
 </div>
 <div
@@ -249,6 +262,7 @@ const declinedCount =
     <option>Accepted</option>
     <option>Declined</option>
     <option>Converted</option>
+    <option>Removed</option>
   </select>
 </div>
           {people.length === 0 && <p className="muted">No waitlist entries yet.</p>}
@@ -276,6 +290,7 @@ const declinedCount =
               <p><strong>Phone:</strong> {person.phone || 'Not Provided'}</p>
               <p><strong>Email:</strong> {person.email || 'Not Provided'}</p>
               <p><strong>Desired Site:</strong> {person.desired_site || 'Not Provided'}</p>
+              <p><strong>Last check-in email:</strong> {person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent yet'}</p>
               <p><strong>Notes:</strong> {person.notes || 'None'}</p>
 
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -283,6 +298,7 @@ const declinedCount =
                 <button onClick={() => updateStatus(person.id, 'Contacted')}>Contacted</button>
                 <button onClick={() => updateStatus(person.id, 'Accepted')}>Accepted</button>
                 <button onClick={() => updateStatus(person.id, 'Declined')}>Declined</button>
+                <button onClick={() => updateStatus(person.id, 'Removed')}>Removed</button>
                 {person.status === 'Accepted' && (
   <button onClick={() => moveToCamper(person)}>
     Move To Camper

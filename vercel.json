@@ -115,6 +115,10 @@
     {
       "path": "/api/cron/monthly-operations-backup",
       "schedule": "0 14 1 * *"
+    },
+    {
+      "path": "/api/cron/waitlist-check-ins",
+      "schedule": "15 16 * * *"
     }
   ]
 }
