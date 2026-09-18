@@ -16,10 +16,9 @@ function isAuthorized(request: Request) {
   return Boolean(secret && request.headers.get('authorization') === `Bearer ${secret}`)
 }
 
-export async function GET(request: Request) {
-  if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+export async function runWaitlistCheckIns() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceKey) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
+  if (!serviceKey) throw new Error('Supabase service key is not configured.')
 
   const admin = createClient(supabaseUrl, serviceKey)
   const now = new Date()
@@ -31,7 +30,7 @@ export async function GET(request: Request) {
     .not('email', 'is', null)
     .order('created_at', { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) throw error
 
   const due = (entries || [])
     .filter((entry) => String(entry.email || '').trim())
@@ -63,5 +62,14 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ success: summary.failed === 0, ...summary })
+  return { success: summary.failed === 0, ...summary }
+}
+
+export async function GET(request: Request) {
+  if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+  try {
+    return NextResponse.json(await runWaitlistCheckIns())
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Waitlist check-ins failed.' }, { status: 500 })
+  }
 }
