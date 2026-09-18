@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
-import { readWaitlistManageToken } from '../../../../lib/waitlist-check-in'
+import { createAdminNotification } from '../../../../lib/admin-notifications'
+import { readWaitlistManageToken, waitlistRemovalAlert } from '../../../../lib/waitlist-check-in'
 
 export const dynamic = 'force-dynamic'
 
@@ -29,12 +30,27 @@ export async function POST(request: Request) {
   if (!payload) return page('This link is not valid', 'Please contact the Bur Oaks office if you would like us to update your waitlist information.')
 
   const admin = createClient(supabaseUrl, serviceKey)
-  const { error } = await admin
+  const { data: removedEntry, error } = await admin
     .from('waitlist')
     .update({ status: 'Removed', removed_at: new Date().toISOString() })
     .eq('id', payload.id)
     .ilike('email', payload.email)
+    .neq('status', 'Removed')
+    .is('removed_at', null)
+    .select('id,first_name,last_name,email')
+    .maybeSingle()
 
   if (error) return page('Please contact the office', 'We could not update the waitlist right now. Please call (618) 488-7927.')
+  if (!removedEntry) return page('You are already removed', 'Your name is no longer active on the Bur Oaks seasonal-site waitlist.')
+
+  const alert = waitlistRemovalAlert(removedEntry)
+  await createAdminNotification(admin, {
+    type: 'website_waitlist',
+    title: alert.title,
+    message: alert.message,
+    source_table: 'waitlist',
+    source_id: String(removedEntry.id),
+  }).catch((notificationError) => console.error('Waitlist removal alert failed:', notificationError))
+
   return page('You have been removed', 'Your name is no longer active on the Bur Oaks seasonal-site waitlist. If your plans change, you are always welcome to contact us again.')
 }

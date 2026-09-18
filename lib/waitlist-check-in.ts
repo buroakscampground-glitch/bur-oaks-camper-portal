@@ -121,4 +121,13 @@ export async function sendWaitlistCheckInEmail(input: {
   return sendWaitlistEmail(input.to, buildWaitlistCheckIn(input.firstName, input.manageUrl))
 }
 
+export function waitlistRemovalAlert(entry: { first_name?: unknown; last_name?: unknown; email?: unknown }) {
+  const name = `${String(entry.first_name || '').trim()} ${String(entry.last_name || '').trim()}`.trim() || 'A waitlist applicant'
+  const email = String(entry.email || '').trim().toLowerCase()
+  return {
+    title: `Waitlist removal: ${name}`,
+    message: `${name}${email ? ` (${email})` : ''} removed their name from the seasonal-site waitlist.`,
+  }
+}
+
 export { CHECK_IN_INTERVAL_DAYS }
