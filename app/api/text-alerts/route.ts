@@ -19,10 +19,15 @@ function camperName(camper: any) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
 }
 
-function buildTextMessage(message: string, reminderType: string) {
+function buildTextMessage(message: string, reminderType: string, broadcastId?: string) {
+  const destination = portalPathForTextType(reminderType)
+  const path = destination === '/updates' && broadcastId
+    ? `/updates?alert=${encodeURIComponent(broadcastId)}`
+    : destination
+
   return camperTextWithLink({
     message,
-    path: portalPathForTextType(reminderType),
+    path,
     compact: true,
   })
 }
@@ -38,8 +43,38 @@ async function requireAdmin(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const context = await requireAdmin(request)
+  const context = await getAuthenticatedContext(request)
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const broadcastId = new URL(request.url).searchParams.get('broadcastId')
+  if (broadcastId) {
+    const isAdmin = String(context.camper.role || '').toLowerCase() === 'admin'
+    if (!isAdmin) {
+      const { data: delivery, error: deliveryError } = await context.admin
+        .from('sms_broadcast_deliveries')
+        .select('id')
+        .eq('broadcast_id', broadcastId)
+        .eq('camper_id', context.camper.id)
+        .maybeSingle()
+
+      if (deliveryError) return NextResponse.json({ error: deliveryError.message }, { status: 500 })
+      if (!delivery) return NextResponse.json({ error: 'This alert is not available for this camper account.' }, { status: 404 })
+    }
+
+    const { data: alert, error: alertError } = await context.admin
+      .from('sms_broadcasts')
+      .select('id,reminder_type,message,created_at')
+      .eq('id', broadcastId)
+      .maybeSingle()
+
+    if (alertError) return NextResponse.json({ error: alertError.message }, { status: 500 })
+    if (!alert) return NextResponse.json({ error: 'This alert could not be found.' }, { status: 404 })
+    return NextResponse.json({ success: true, alert })
+  }
+
+  if (String(context.camper.role || '').toLowerCase() !== 'admin') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const { data: broadcasts, error: broadcastError } = await context.admin
     .from('sms_broadcasts')
@@ -174,7 +209,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No opted-in phone numbers matched this text.' }, { status: 400 })
   }
 
-  const finalMessage = buildTextMessage(message, reminderType)
   const campaignInsert = await context.admin
     .from('sms_broadcasts')
     .insert({
@@ -182,7 +216,7 @@ export async function POST(request: Request) {
       target_mode: targetMode,
       target_camper_id: targetMode === 'one' ? camperId : null,
       reminder_type: reminderType,
-      message: finalMessage,
+      message,
       recipient_count: recipientPlan.recipients.length,
       duplicate_recipient_count: recipientPlan.duplicateCount,
       created_by: context.user.id,
@@ -220,6 +254,7 @@ export async function POST(request: Request) {
   }
 
   const campaign = campaignInsert.data
+  const finalMessage = buildTextMessage(message, reminderType, campaign.id)
   const admin = context.admin
   const userEmail = context.user.email
   async function deliverRecipient(recipient: (typeof recipientPlan.recipients)[number]) {

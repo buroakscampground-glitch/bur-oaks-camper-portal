@@ -12,6 +12,7 @@ const camperPaths = [
   '/directory',
   '/dinners',
   '/site',
+  '/updates',
 ]
 
 function pathMatches(pathname: string, prefix: string) {

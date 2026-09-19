@@ -16,7 +16,7 @@ function isAuthorized(request: Request) {
   return Boolean(secret && request.headers.get('authorization') === `Bearer ${secret}`)
 }
 
-export async function runWaitlistCheckIns() {
+async function runWaitlistCheckIns() {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!serviceKey) throw new Error('Supabase service key is not configured.')
 

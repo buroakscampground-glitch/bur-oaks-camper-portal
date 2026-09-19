@@ -21,6 +21,8 @@ export default function CamperUpdatesPage() {
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [readIds, setReadIds] = useState<string[]>([])
   const [messages, setMessages] = useState<any[]>([])
+  const [linkedAlert, setLinkedAlert] = useState<any>(null)
+  const [linkedAlertError, setLinkedAlertError] = useState('')
   const [draft, setDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -45,7 +47,8 @@ export default function CamperUpdatesPage() {
   async function loadCenter() {
     const camperData = await getCurrentCamper()
     if (!camperData) {
-      window.location.href = '/login'
+      const returnTo = `${window.location.pathname}${window.location.search}`
+      window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`
       return
     }
 
@@ -57,20 +60,30 @@ export default function CamperUpdatesPage() {
       setReadIds([])
     }
 
-    const [announcementResult, messageResponse] = await Promise.all([
+    const headers = await authHeaders()
+    const linkedAlertId = new URLSearchParams(window.location.search).get('alert')
+    const [announcementResult, messageResponse, linkedAlertResponse] = await Promise.all([
       supabase
         .from('announcements')
         .select('*')
         .eq('is_active', true)
         .order('is_urgent', { ascending: false })
         .order('created_at', { ascending: false }),
-      fetch('/api/messages', { headers: await authHeaders() }),
+      fetch('/api/messages', { headers }),
+      linkedAlertId
+        ? fetch(`/api/text-alerts?broadcastId=${encodeURIComponent(linkedAlertId)}`, { headers }).catch(() => null)
+        : Promise.resolve(null),
     ])
 
     const messageResult = await messageResponse.json().catch(() => ({}))
     if (announcementResult.error) setNotice(announcementResult.error.message)
     else setAnnouncements((announcementResult.data || []).filter((item) => !isAnnouncementExpired(item)))
     if (messageResponse.ok) setMessages((messageResult.messages || []).slice(-3))
+    if (linkedAlertResponse) {
+      const linkedAlertResult = await linkedAlertResponse.json().catch(() => ({}))
+      if (linkedAlertResponse.ok) setLinkedAlert(linkedAlertResult.alert || null)
+      else setLinkedAlertError(linkedAlertResult.error || 'This alert could not be opened.')
+    }
     setLoading(false)
   }
 
@@ -141,6 +154,18 @@ export default function CamperUpdatesPage() {
             </div>
             {unreadCount > 0 && <button type="button" onClick={markAllRead}><CheckCheck size={16} /> Mark all read</button>}
           </header>
+
+          {linkedAlert && (
+            <article className="updates-linked-alert" aria-live="polite">
+              <div className="updates-board-meta">
+                <span><Bell size={14} /> OPENED FROM YOUR TEXT ALERT</span>
+                <time><Clock3 size={13} /> {formatUpdateDate(linkedAlert.created_at)}</time>
+              </div>
+              <h3>{linkedAlert.reminder_type || 'Bur Oaks alert'}</h3>
+              <p>{linkedAlert.message}</p>
+            </article>
+          )}
+          {linkedAlertError && <p className="updates-linked-alert-error">{linkedAlertError}</p>}
 
           {loading ? (
             <p className="updates-empty">Opening the campground board…</p>

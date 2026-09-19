@@ -18,7 +18,7 @@ export function portalPathForTextType(reminderType: unknown) {
   if (type.includes('site care')) return '/portal#site-care'
   if (type.includes('pump') || type.includes('sewer')) return '/portal'
 
-  return '/portal'
+  return '/updates'
 }
 
 export function camperTextWithLink({
