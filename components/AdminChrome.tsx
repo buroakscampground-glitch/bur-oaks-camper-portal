@@ -280,7 +280,6 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
               <span>
                 <strong>Bur Oaks</strong>
                 <small>Command Center</small>
-                <small>Jace is the man</small>
               </span>
             </a>
             <button
@@ -396,7 +395,6 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
                   <span>
                     <strong>Bur Oaks</strong>
                     <small>Operations Center</small>
-                    <small>Jace is the man</small>
                   </span>
                 </a>
 

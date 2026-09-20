@@ -113,7 +113,7 @@ export default function RoleGuard({
           {isAdminOnly && !checkError
             ? <img src="/philadelphia-eagles-logo.png" alt="Philadelphia Eagles logo" />
             : <ShieldCheck size={34} />}
-          <p>{checkError || (isAdminOnly ? 'GO BIRDS · JACE IS THE MAN' : 'Checking permissions…')}</p>
+          <p>{checkError || (isAdminOnly ? 'GO BIRDS' : 'Checking permissions…')}</p>
           {checkError && <button type="button" onClick={() => setCheckAttempt((attempt) => attempt + 1)}>Try again</button>}
         </div>
       </main>
