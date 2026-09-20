@@ -46,6 +46,7 @@ export default function AdminDinnersPage() {
   }, [nextDinner, selectedDate])
 
   const selectedDinner = saturdayDinners2026.find((dinner) => dinner.date === selectedDate) || nextDinner
+  const isSoupDay = selectedDinner?.date === '2026-09-26'
   const dinnerSignups = signups.filter((signup) => signup.dinner_date === selectedDinner?.date)
   const visibleSignups = dinnerSignups.filter((signup) =>
     `${signup.camper_name} ${signup.lot_number} ${signup.bringing || ''}`
@@ -100,6 +101,7 @@ export default function AdminDinnersPage() {
           <div>
             <small>{selectedDinner.month} {selectedDinner.day} · 6:00 PM</small>
             <h2>{selectedDinner.menu}</h2>
+            {selectedDinner.note && <p>{selectedDinner.note}</p>}
             {selectedDinner.theme && <p>{selectedDinner.theme}</p>}
           </div>
         </section>
@@ -108,9 +110,9 @@ export default function AdminDinnersPage() {
       {selectedDinner && (
         <section className="saturday-dinner-bringing-board">
           <div>
-            <small>AVAILABLE CHOICES</small>
-            <h3>What campers can bring</h3>
-            <p>Rachel and the office can see every suggested choice, who selected it, and any custom item a camper added.</p>
+            <small>{isSoupDay ? 'SOUP DAY CHOICES' : 'AVAILABLE CHOICES'}</small>
+            <h3>{isSoupDay ? 'Soups, crackers, and cheese' : 'What campers can bring'}</h3>
+            <p>{isSoupDay ? 'Rachel and the office can see each kind of soup, plus who is bringing crackers or shredded cheese.' : 'Rachel and the office can see every suggested choice, who selected it, and any custom item a camper added.'}</p>
           </div>
           <div className="saturday-dinner-bringing-list">
             {bringOptions.map((option) => {
@@ -151,7 +153,7 @@ export default function AdminDinnersPage() {
                   <em>{selectedSides.length} camper dish{selectedSides.length === 1 ? '' : 'es'}</em>
                 </summary>
                 <div>
-                  <p><strong>Suggested side dishes:</strong> {dinnerBringSuggestions(dinner.menu).join(', ')}</p>
+                  <p><strong>{dinner.date === '2026-09-26' ? 'Soup Day extras:' : 'Suggested side dishes:'}</strong> {dinnerBringSuggestions(dinner.menu).join(', ')}</p>
                   <p><strong>Camper selections:</strong> {selectedSides.length ? selectedSides.join(', ') : 'Nothing selected yet.'}</p>
                 </div>
               </details>

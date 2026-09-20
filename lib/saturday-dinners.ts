@@ -5,6 +5,7 @@ export type SaturdayDinner = {
   day: number
   menu: string
   theme?: string
+  note?: string
   closed?: boolean
 }
 
@@ -36,7 +37,14 @@ export const saturdayDinners2026: SaturdayDinner[] = [
   { id: '2026-09-05', date: '2026-09-05', month: 'Sept', day: 5, menu: 'Sausage', theme: 'Labor Day' },
   { id: '2026-09-12', date: '2026-09-12', month: 'Sept', day: 12, menu: 'Jambalaya' },
   { id: '2026-09-19', date: '2026-09-19', month: 'Sept', day: 19, menu: 'Cowboy Casserole' },
-  { id: '2026-09-26', date: '2026-09-26', month: 'Sept', day: 26, menu: 'Soup Day' },
+  {
+    id: '2026-09-26',
+    date: '2026-09-26',
+    month: 'Sept',
+    day: 26,
+    menu: 'Many Different Kinds of Soups',
+    note: 'Bring a pot of your favorite soup. Crackers and shredded cheese are welcome too.',
+  },
   { id: '2026-10-10', date: '2026-10-10', month: 'October', day: 10, menu: 'Pulled Pork', theme: 'Hog Roast' },
   { id: '2026-10-17', date: '2026-10-17', month: 'October', day: 17, menu: 'Pasta Bar' },
   { id: '2026-10-24', date: '2026-10-24', month: 'October', day: 24, menu: 'Nacho Bar', theme: 'Buroakstober' },
@@ -74,6 +82,10 @@ const menuSuggestionMap: Array<{ match: RegExp; items: string[] }> = [
 ]
 
 export function dinnerBringSuggestions(menu = '') {
+  if (/many different kinds of soups/i.test(menu)) {
+    return ['Crackers', 'Shredded cheese']
+  }
+
   const matched = menuSuggestionMap.find((item) => item.match.test(menu))
   const combined = [...(matched?.items || []), ...commonDinnerSuggestions]
   const nonFoodItems = new Set(['drinks', 'ice', 'paper plates', 'napkins', 'plastic silverware', 'cups', 'paper bowls', 'spoons'])

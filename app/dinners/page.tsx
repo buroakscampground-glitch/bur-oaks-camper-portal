@@ -50,6 +50,7 @@ export default function SaturdayDinnersPage() {
   }, [])
 
   const selectedDinner = saturdayDinners2026.find((dinner) => dinner.date === selectedDate) || nextDinner
+  const isSoupDay = selectedDinner?.date === '2026-09-26'
   const signupByDate = new Map(signups.map((signup) => [signup.dinner_date, signup]))
   const currentMonth = selectedDinner?.month || nextDinner?.month || 'June'
   const monthDinners = saturdayDinners2026.filter((dinner) => dinner.month === currentMonth)
@@ -217,6 +218,7 @@ export default function SaturdayDinnersPage() {
           <small>YOUR RESPONSE</small>
           <h2>{selectedDinner?.month} {selectedDinner?.day} · {selectedDinner?.menu}</h2>
           <p><Clock size={15} /> Every Saturday dinner starts at 6:00 PM.</p>
+          {selectedDinner?.note && <p><Soup size={15} /> {selectedDinner.note}</p>}
           {selectedDinner?.theme && <p><Sparkles size={15} /> Theme: {selectedDinner.theme}</p>}
         </div>
 
@@ -266,21 +268,21 @@ export default function SaturdayDinnersPage() {
           </label>
           <label className="bring-field bring-field-featured">
             <span className="bring-field-callout">
-              <strong>What side are you bringing?</strong>
-              <small>Choose a side, dessert, or helpful supply so everyone can see what is covered.</small>
+              <strong>{isSoupDay ? 'What kind of soup are you bringing?' : 'What side are you bringing?'}</strong>
+              <small>{isSoupDay ? 'Choose crackers or cheese below, or select soup and type the kind you plan to make.' : 'Choose a side, dessert, or helpful supply so everyone can see what is covered.'}</small>
             </span>
-            <select aria-label="Side, dessert, or supply you are bringing" value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
+            <select aria-label={isSoupDay ? 'Soup, crackers, or cheese you are bringing' : 'Side, dessert, or supply you are bringing'} value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
               <option value="">Nothing / not sure yet</option>
               {availableBringSuggestions.map((item) => (
                 <option value={item} key={item}>{item}</option>
               ))}
-              <option value="Other">Other — I will type it in</option>
+              <option value="Other">{isSoupDay ? 'Soup — I will type the kind' : 'Other — I will type it in'}</option>
             </select>
           </label>
           {bringChoice === 'Other' && (
             <label className="bring-field">
-              <span>Other item</span>
-              <input value={customBringing} onChange={(event) => setCustomBringing(event.target.value)} placeholder="Example: brownies, fruit salad, lemonade" />
+              <span>{isSoupDay ? 'Kind of soup' : 'Other item'}</span>
+              <input value={customBringing} onChange={(event) => setCustomBringing(event.target.value)} placeholder={isSoupDay ? 'Example: potato soup, chili, chicken noodle' : 'Example: brownies, fruit salad, lemonade'} />
             </label>
           )}
           <button className="saturday-dinner-save" type="button" onClick={saveDinnerSignup} disabled={saving || selectedDinner?.closed}>
@@ -291,9 +293,9 @@ export default function SaturdayDinnersPage() {
 
         <div className="saturday-dinner-bringing-board">
           <div>
-            <small>SIDES & DISHES CAMPERS ARE BRINGING</small>
-            <h3>{selectedDinner?.month} {selectedDinner?.day} potluck list</h3>
-            <p>Check what is already covered, then claim something above. Claimed suggestions disappear from the dropdown.</p>
+            <small>{isSoupDay ? 'SOUPS CAMPERS ARE BRINGING' : 'SIDES & DISHES CAMPERS ARE BRINGING'}</small>
+            <h3>{selectedDinner?.month} {selectedDinner?.day} {isSoupDay ? 'soup list' : 'potluck list'}</h3>
+            <p>{isSoupDay ? 'See the different soups being made, plus who is bringing crackers or shredded cheese.' : 'Check what is already covered, then claim something above. Claimed suggestions disappear from the dropdown.'}</p>
           </div>
           {visibleDinnerSignups.length > 0 ? (
             <div className="saturday-dinner-bringing-list">
@@ -351,8 +353,8 @@ export default function SaturdayDinnersPage() {
       <section className="saturday-dinner-note">
         <UsersRound size={20} />
         <div>
-          <strong>Potluck planning made easy</strong>
-          <p>Your response helps the office plan seating, sides, desserts, and setup before Saturday night.</p>
+          <strong>{isSoupDay ? 'Soup Day planning made easy' : 'Potluck planning made easy'}</strong>
+          <p>{isSoupDay ? 'Your response helps everyone plan a good variety of soups without adding a separate side-dish list.' : 'Your response helps the office plan seating, sides, desserts, and setup before Saturday night.'}</p>
         </div>
       </section>
     </main>

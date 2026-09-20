@@ -70,6 +70,15 @@ test('dinner bring choices contain food only and never include ice', async () =>
   })
 })
 
+test('Soup Day asks for different soups and keeps only crackers and cheese as suggestions', async () => {
+  const { dinnerBringSuggestions, saturdayDinners2026 } = await import('../lib/saturday-dinners.ts')
+  const dinner = saturdayDinners2026.find((item) => item.date === '2026-09-26')
+
+  assert.equal(dinner?.menu, 'Many Different Kinds of Soups')
+  assert.match(dinner?.note || '', /favorite soup/i)
+  assert.deepEqual(dinnerBringSuggestions(dinner?.menu), ['Crackers', 'Shredded cheese'])
+})
+
 test('the September 19 dinner is only Cowboy Chicken Casserole', async () => {
   const { saturdayDinners2026 } = await import('../lib/saturday-dinners.ts')
   const { eventFlyers2026 } = await import('../lib/event-flyers.ts')
