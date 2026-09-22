@@ -78,7 +78,9 @@ export default function AdminElectricPage() {
       loadMeterSubmissions()
       loadBillingChecklist()
     }
-    const timer = window.setInterval(refresh, 15000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh()
+    }, 60_000)
     window.addEventListener('focus', refresh)
     return () => {
       window.clearInterval(timer)

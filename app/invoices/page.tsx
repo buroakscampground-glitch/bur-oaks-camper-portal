@@ -247,7 +247,9 @@ export default function InvoicesPage() {
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refreshInvoiceStatuses()
     }
-    const timer = window.setInterval(refreshInvoiceStatuses, 5_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshInvoiceStatuses()
+    }, 2 * 60_000)
     window.addEventListener('focus', refreshInvoiceStatuses)
     window.addEventListener('pageshow', refreshInvoiceStatuses)
     document.addEventListener('visibilitychange', refreshWhenVisible)

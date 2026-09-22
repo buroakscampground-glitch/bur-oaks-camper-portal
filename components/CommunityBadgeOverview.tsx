@@ -32,7 +32,9 @@ export default function CommunityBadgeOverview() {
       setLoaded(true)
     }
     void load()
-    const interval = window.setInterval(load, 30_000)
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load()
+    }, 5 * 60_000)
     window.addEventListener('community-workspace-changed', load)
     window.addEventListener('community-unread-changed', load)
     return () => {

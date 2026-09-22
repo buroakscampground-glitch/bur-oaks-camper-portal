@@ -34,7 +34,9 @@ export default function FinalInvoicePage() {
 
   useEffect(() => {
     loadInvoice()
-    const timer = window.setInterval(loadInvoice, 30_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadInvoice()
+    }, 2 * 60_000)
     window.addEventListener('focus', loadInvoice)
     return () => {
       window.clearInterval(timer)

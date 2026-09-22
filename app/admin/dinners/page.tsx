@@ -14,7 +14,9 @@ export default function AdminDinnersPage() {
   useEffect(() => {
     loadSignups()
 
-    const refresh = window.setInterval(loadSignups, 15_000)
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadSignups()
+    }, 2 * 60_000)
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') loadSignups()
     }

@@ -79,7 +79,9 @@ export default function CommunityChrome({ children }: { children: React.ReactNod
     }
 
     loadCounts()
-    const interval = window.setInterval(loadCounts, 30_000)
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadCounts()
+    }, 5 * 60_000)
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') loadCounts()
     }

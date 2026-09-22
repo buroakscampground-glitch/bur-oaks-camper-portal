@@ -108,7 +108,9 @@ export default function AdminCampersPage() {
     loadCampers()
     loadPortalStatuses()
 
-    const statusTimer = window.setInterval(loadPortalStatuses, 30_000)
+    const statusTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadPortalStatuses()
+    }, 5 * 60_000)
     return () => window.clearInterval(statusTimer)
   }, [])
 

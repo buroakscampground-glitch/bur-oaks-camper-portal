@@ -28,7 +28,9 @@ export default function AdminMaintenanceInventoryPage() {
     loadItems()
 
     const refresh = () => loadItems()
-    const timer = window.setInterval(refresh, 30_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh()
+    }, 2 * 60_000)
     window.addEventListener('focus', refresh)
 
     return () => {

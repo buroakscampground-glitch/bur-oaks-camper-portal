@@ -12,6 +12,7 @@ test('income projection learns from paid dates and electric usage fields', () =>
 test('income projection refreshes from live payments and meter readings with a safety poll', () => {
   assert.match(source, /table: 'invoices'/)
   assert.match(source, /table: 'electric_readings'/)
-  assert.match(source, /setInterval\(\(\) => loadProjectionData\(\), 30_000\)/)
+  assert.match(source, /document\.visibilityState === 'visible'/)
+  assert.match(source, /5 \* 60_000/)
   assert.match(source, /removeChannel\(liveChanges\)/)
 })

@@ -52,7 +52,9 @@ export default function CamperBalancePage() {
 
   useEffect(() => {
     const refreshStatuses = () => loadData()
-    const timer = window.setInterval(refreshStatuses, 30_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshStatuses()
+    }, 2 * 60_000)
 
     window.addEventListener("focus", refreshStatuses)
     window.addEventListener("pageshow", refreshStatuses)

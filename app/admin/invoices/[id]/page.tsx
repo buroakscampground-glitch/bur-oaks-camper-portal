@@ -69,7 +69,9 @@ export default function InvoiceDetailPage() {
 
   useEffect(() => {
     const refreshStatus = () => loadInvoice(false)
-    const timer = window.setInterval(refreshStatus, 30_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshStatus()
+    }, 2 * 60_000)
 
     window.addEventListener('focus', refreshStatus)
     window.addEventListener('pageshow', refreshStatus)

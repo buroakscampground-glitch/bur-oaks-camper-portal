@@ -46,7 +46,8 @@ test('Rachel dinner workspace shows every bring option and camper selection', as
 
 test('Rachel dinner workspace refreshes responses without a page reload', async () => {
   const source = await readFile(new URL('../app/admin/dinners/page.tsx', import.meta.url), 'utf8')
-  assert.match(source, /setInterval\(loadSignups, 15_000\)/)
+  assert.match(source, /document\.visibilityState === 'visible'/)
+  assert.match(source, /2 \* 60_000/)
   assert.match(source, /visibilitychange/)
   assert.match(source, /Live updates are on/)
 })

@@ -26,7 +26,9 @@ export default function CamperAttentionBadge() {
     }
 
     load()
-    const interval = window.setInterval(load, 30_000)
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') load()
+    }, 5 * 60_000)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') load()
     }

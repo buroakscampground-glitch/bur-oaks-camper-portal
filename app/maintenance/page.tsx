@@ -51,7 +51,9 @@ export default function MaintenanceRequestPage() {
     loadPage()
 
     const refresh = () => loadPage()
-    const timer = window.setInterval(refresh, 30000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh()
+    }, 60_000)
     window.addEventListener('focus', refresh)
     window.addEventListener('pageshow', refresh)
 

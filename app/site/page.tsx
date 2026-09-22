@@ -33,7 +33,9 @@ export default function MySitePage() {
     loadSite()
 
     const refresh = () => loadSite()
-    const timer = window.setInterval(refresh, 30000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh()
+    }, 2 * 60_000)
     window.addEventListener('focus', refresh)
     window.addEventListener('pageshow', refresh)
 

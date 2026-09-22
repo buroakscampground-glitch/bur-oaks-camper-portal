@@ -200,7 +200,7 @@ export default function AdminPage() {
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') loadStats()
     }
-    const timer = window.setInterval(refreshDashboard, 30_000)
+    const timer = window.setInterval(refreshDashboard, 2 * 60_000)
 
     window.addEventListener('focus', refreshDashboard)
     window.addEventListener('pageshow', refreshDashboard)

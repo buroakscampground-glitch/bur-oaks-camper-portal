@@ -10,7 +10,8 @@ test('admin navigation shows live red counts for sections needing attention', as
   assert.match(source, /admin-mobile-alerts/)
   assert.match(source, /Tap to see exactly what the red badge means/)
   assert.match(source, /birthdayPreview/)
-  assert.match(source, /setInterval\(loadAttentionCounts, 15_000\)/)
+  assert.match(source, /document\.visibilityState === 'visible'/)
+  assert.match(source, /5 \* 60_000/)
   assert.match(source, /table: 'admin_notifications'/)
   assert.match(source, /table: 'waitlist'/)
   assert.match(source, /removeChannel\(liveChanges\)/)
@@ -50,7 +51,7 @@ test('birthday alerts can reach the Admin Home Screen while the app is closed', 
   assert.match(route, /admin: '\/admin\/birthdays'/)
   assert.match(route, /hour < 6 \|\| hour > 11/)
   assert.match(route, /retryLater: !delivered/)
-  assert.equal((schedule.match(/\/api\/cron\/admin-birthday-alert/g) || []).length, 7)
+  assert.equal((schedule.match(/\/api\/cron\/admin-birthday-alert/g) || []).length, 2)
   assert.match(schedule, /\/api\/cron\/admin-birthday-alert/)
 })
 

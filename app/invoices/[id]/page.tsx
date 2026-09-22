@@ -204,7 +204,9 @@ export default function CamperInvoiceDetailPage() {
     const refreshWhenVisible = () => {
       if (document.visibilityState === 'visible') refreshInvoiceStatus()
     }
-    const timer = window.setInterval(refreshInvoiceStatus, 5_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshInvoiceStatus()
+    }, 2 * 60_000)
     window.addEventListener('focus', refreshInvoiceStatus)
     window.addEventListener('pageshow', refreshInvoiceStatus)
     document.addEventListener('visibilitychange', refreshWhenVisible)

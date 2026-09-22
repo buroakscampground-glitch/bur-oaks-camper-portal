@@ -13,19 +13,17 @@ export async function GET(request: Request) {
     notificationResult,
     messageResult,
     invoiceResult,
-    documentResult,
     supplyResult,
     siteCareResult,
   ] = await Promise.all([
     context.admin.from('admin_notifications').select('id,type').is('read_at', null),
     context.admin.from('office_messages').select('id').eq('sender_role', 'camper').is('read_by_admin_at', null),
     context.admin.from('invoices').select('id,due_date,status'),
-    context.admin.from('documents').select('id,signature_status'),
     context.admin.from('maintenance_supply_requests').select('id,status').in('status', ['Requested', 'Ordered']),
     context.admin.from('site_care_notices').select('id,status').neq('status', 'Resolved'),
   ])
 
-  const results = [notificationResult, messageResult, invoiceResult, documentResult, supplyResult, siteCareResult]
+  const results = [notificationResult, messageResult, invoiceResult, supplyResult, siteCareResult]
   const error = results.find((result) => result.error)?.error
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

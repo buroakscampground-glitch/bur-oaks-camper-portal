@@ -226,7 +226,12 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
     }
 
     loadAttentionCounts()
-    const refresh = window.setInterval(loadAttentionCounts, 15_000)
+    // Realtime events and focus/visibility refreshes handle normal updates.
+    // This five-minute timer is only a safety net, which avoids keeping an
+    // admin tab busy with four server requests every minute.
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === 'visible') loadAttentionCounts()
+    }, 5 * 60_000)
     const liveChanges = supabase
       .channel('admin-attention-live')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'admin_notifications' }, loadAttentionCounts)

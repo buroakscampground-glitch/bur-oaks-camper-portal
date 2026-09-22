@@ -74,7 +74,9 @@ export default function AdminMeterReadingReviewPage() {
 
   useEffect(() => {
     load()
-    const refresh = window.setInterval(() => load(true), 7000)
+    const refresh = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void load(true)
+    }, 30_000)
     return () => window.clearInterval(refresh)
   }, [])
 

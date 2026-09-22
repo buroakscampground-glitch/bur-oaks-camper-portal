@@ -106,7 +106,9 @@ export default function AdminIncomeProjectionPage() {
 
   useEffect(() => {
     loadProjectionData(true)
-    const timer = window.setInterval(() => loadProjectionData(), 30_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void loadProjectionData()
+    }, 5 * 60_000)
     const refresh = () => loadProjectionData()
     let refreshDelay: number | undefined
     const refreshFromLiveChange = () => {

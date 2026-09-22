@@ -63,7 +63,9 @@ export default function MaintenanceDashboard() {
     }
 
     const refresh = () => loadTickets()
-    const timer = window.setInterval(refresh, 30000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refresh()
+    }, 60_000)
     window.addEventListener('focus', refresh)
     window.addEventListener('pageshow', refresh)
 

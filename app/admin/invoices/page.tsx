@@ -152,7 +152,9 @@ export default function AdminInvoicesPage() {
 
   useEffect(() => {
     const refreshStatuses = () => loadInvoices()
-    const timer = window.setInterval(refreshStatuses, 30_000)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshStatuses()
+    }, 2 * 60_000)
 
     window.addEventListener('focus', refreshStatuses)
     window.addEventListener('pageshow', refreshStatuses)
