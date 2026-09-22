@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertTriangle,
   ArrowRight,
@@ -267,8 +267,20 @@ export default function AdminRenewalsPage() {
   const [siteDecisionMessage, setSiteDecisionMessage] = useState('')
   const [repairAnnualRent, setRepairAnnualRent] = useState('')
   const [previousSystemConfirmId, setPreviousSystemConfirmId] = useState('')
+  const openedLinkedRecord = useRef(false)
 
   useEffect(() => { loadPage() }, [])
+
+  useEffect(() => {
+    if (loading || openedLinkedRecord.current) return
+    const camperId = new URLSearchParams(window.location.search).get('camper')?.trim() || ''
+    if (!camperId) return
+
+    openedLinkedRecord.current = true
+    const camper = campers.find((item) => item.id === camperId)
+    if (camper) void openSiteHistory(camper)
+    else setFeedback('The camper attached to this renewal notice could not be found.')
+  }, [campers, loading])
 
   useEffect(() => {
     if (!selectedSiteId) return

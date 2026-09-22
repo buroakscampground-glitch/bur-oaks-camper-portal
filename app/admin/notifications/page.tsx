@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BellRing, CheckCheck, CircleDollarSign, ClipboardCheck, MessageCircle, MessageSquareWarning, PartyPopper, Search, UsersRound, Wrench } from 'lucide-react'
+import { BellRing, CalendarClock, CheckCheck, CircleDollarSign, ClipboardCheck, MessageCircle, MessageSquareWarning, PartyPopper, Search, UsersRound, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import AdminQuickText from '../../../components/AdminQuickText'
 import { informationalAdminNotificationTypes } from '../../../lib/admin-notification-types'
+import { adminNotificationHref } from '../../../lib/admin-notification-links'
 
 const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   maintenance_request: { label: 'Maintenance', icon: Wrench, href: '/admin/maintenance' },
@@ -13,6 +14,12 @@ const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   website_waitlist: { label: 'Website Waitlist', icon: UsersRound, href: '/admin/waitlist' },
   site_care: { label: 'Site Care Review', icon: ClipboardCheck, href: '/admin/site-care' },
   payment_problem: { label: 'Payment Problem', icon: CircleDollarSign, href: '/admin/stripe-deposits' },
+  renewal_review: { label: 'Renewal Decision', icon: CalendarClock, href: '/admin/renewals' },
+  nonrenewal_letter_review: { label: 'Renewal Decision', icon: CalendarClock, href: '/admin/renewals' },
+  renewal_declined: { label: 'Renewal Decision', icon: CalendarClock, href: '/admin/renewals' },
+  renewal_document_incomplete: { label: 'Renewal Record', icon: CalendarClock, href: '/admin/renewals' },
+  renewal_rent_schedule: { label: 'Renewal Billing', icon: CalendarClock, href: '/admin/renewals' },
+  renewal_rent_schedule_error: { label: 'Renewal Billing', icon: CalendarClock, href: '/admin/renewals' },
 }
 
 export default function AdminNotificationsPage() {
@@ -128,7 +135,7 @@ export default function AdminNotificationsPage() {
                 <p>{notification.message}</p>
               </div>
               <div className="admin-notification-actions">
-                <a href={config.href}>Open</a>
+                <a href={adminNotificationHref(notification, config.href)}>{String(notification.type || '').includes('renewal') ? 'Open camper record' : 'Open'}</a>
                 {!notification.read_at && (
                   <button type="button" onClick={() => markSeen(notification.id)}>Handled</button>
                 )}
