@@ -689,7 +689,7 @@ export default function CamperDetailPage() {
                 <span>{entry.dueDate ? `Due ${formatHistoryDate(entry.dueDate)}` : 'Due date not recorded'}</span>
                 <b>{entry.status.toLowerCase() === 'paid'
                   ? `Paid ${formatHistoryDate(entry.paidAt)}${entry.paymentMethod ? ` · ${entry.paymentMethod}` : ''}${entry.isLate ? ' · Late' : ''}`
-                  : entry.isPastDue ? 'Past due' : entry.status === 'Scheduled' ? 'Scheduled' : entry.status}</b>
+                  : entry.isPastDue ? 'Past due' : entry.status === 'Scheduled' ? 'Expected · invoice not created' : entry.status}</b>
                 {entry.invoiceId && <button type="button" onClick={() => router.push(`/admin/invoices/${entry.invoiceId}`)}>Open invoice</button>}
               </article>
             ))}

@@ -48,6 +48,56 @@ test('half-and-half contract uses the current rolling twelve-month term', () => 
   assert.equal(snapshot.remainingPayments, 2)
   assert.equal(snapshot.remainingBalance, 1500)
   assert.equal(snapshot.nextPayment?.dueDate, '2026-03-01')
+  assert.equal(snapshot.nextPayment?.isPastDue, false)
+  assert.equal(snapshot.entries[0].status, 'Scheduled')
+})
+
+test('real invoices remain authoritative when billing dates differ from anniversary dates', () => {
+  const snapshot = contractPaymentSnapshot({
+    annualRent: 1600,
+    paymentPlan: 'semiannual',
+    contractEndDate: '2026-10-16',
+    today: '2026-09-23',
+    invoices: [
+      { id: 'paid-first-half', invoice_type: 'Lot Rent', subtotal: 800, due_date: '2026-09-01', status: 'Paid', paid_at: '2026-09-01T14:00:00Z' },
+      { id: 'open-second-half', invoice_type: 'Lot Rent', subtotal: 800, due_date: '2026-10-01', status: 'Sent', is_late: false },
+    ],
+  })
+
+  assert.ok(snapshot)
+  assert.equal(snapshot.paidPayments, 1)
+  assert.equal(snapshot.paidAmount, 800)
+  assert.equal(snapshot.remainingPayments, 1)
+  assert.equal(snapshot.remainingBalance, 800)
+  assert.equal(snapshot.entries.some((entry) => entry.invoiceId === 'paid-first-half'), true)
+  assert.equal(snapshot.nextPayment?.invoiceId, 'open-second-half')
+  assert.equal(snapshot.nextPayment?.isPastDue, false)
+})
+
+test('only an actual invoice marked late may show as past due', () => {
+  const notLate = contractPaymentSnapshot({
+    annualRent: 1000,
+    paymentPlan: 'semiannual',
+    contractEndDate: '2027-01-01',
+    today: '2026-09-23',
+    invoices: [
+      { id: 'grace-period', invoice_type: 'Lot Rent', subtotal: 500, due_date: '2026-09-22', status: 'Payment Due', is_late: false },
+    ],
+  })
+  const late = contractPaymentSnapshot({
+    annualRent: 1000,
+    paymentPlan: 'semiannual',
+    contractEndDate: '2027-01-01',
+    today: '2026-09-23',
+    invoices: [
+      { id: 'really-late', invoice_type: 'Lot Rent', subtotal: 500, due_date: '2026-07-01', status: 'Payment Due', is_late: true },
+    ],
+  })
+
+  assert.ok(notLate)
+  assert.ok(late)
+  assert.equal(notLate.nextPayment?.isPastDue, false)
+  assert.equal(late.nextPayment?.isPastDue, true)
 })
 
 test('cancelled rent and non-rent charges never change the contract balance', () => {
@@ -74,4 +124,5 @@ test('admin camper profile makes early-release decisions easy to reference', () 
   assert.match(profileSource, /Payments remaining/)
   assert.match(profileSource, /Office decision required if they ask to leave early/)
   assert.match(profileSource, /Open complete billing and payment history/)
+  assert.match(profileSource, /Expected · invoice not created/)
 })
