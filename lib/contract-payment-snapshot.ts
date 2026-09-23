@@ -74,8 +74,7 @@ export function contractPaymentSnapshot({
   // Renewal invoices may use the first day of the billing month even when the
   // agreement anniversary falls later in that month.
   const invoiceWindowStart = showingUpcomingRenewal ? addMonthsToDate(contractStart, -1) : contractStart
-  const plan = normalizeRentPaymentPlan(paymentPlan)
-  const expectedPayments = plan === 'quarterly' ? 4 : 2
+  const savedPlan = normalizeRentPaymentPlan(paymentPlan)
   const configuredAnnualRent = money(annualRent)
 
   const invoicesByDueDate = new Map<string, ContractPaymentInvoice>()
@@ -92,6 +91,15 @@ export function contractPaymentSnapshot({
 
   const actualInvoices = [...invoicesByDueDate.values()].sort((left, right) =>
     String(left.due_date || '').localeCompare(String(right.due_date || '')))
+  const looksQuarterly = configuredAnnualRent > 0
+    && actualInvoices.length > 0
+    && actualInvoices.every((invoice) => Math.abs(principalAmount(invoice) - configuredAnnualRent / 4) < 0.01)
+  // Protect grandfathered quarterly campers when an older/default profile
+  // value says two payments but the real ledger clearly contains quarter-rent
+  // installments. The saved setting should still be corrected by the office,
+  // but the decision card must not misstate the agreement in the meantime.
+  const plan = savedPlan === 'semiannual' && looksQuarterly ? 'quarterly' : savedPlan
+  const expectedPayments = plan === 'quarterly' ? 4 : 2
   const planned = rentPaymentBreakdown(configuredAnnualRent, plan, contractStart)
   const assignedInvoices: Array<ContractPaymentInvoice | undefined> = Array.from({ length: expectedPayments })
   const usedInvoiceIds = new Set<ContractPaymentInvoice>()

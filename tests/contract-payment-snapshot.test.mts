@@ -74,6 +74,27 @@ test('real invoices remain authoritative when billing dates differ from annivers
   assert.equal(snapshot.nextPayment?.isPastDue, false)
 })
 
+test('quarter-size rent invoices protect a grandfathered camper from an incorrect two-payment profile default', () => {
+  const snapshot = contractPaymentSnapshot({
+    annualRent: 1500,
+    paymentPlan: 'semiannual',
+    contractEndDate: '2027-04-04',
+    today: '2026-09-23',
+    invoices: [
+      { id: 'hoff-paid', invoice_type: 'Lot Rent', subtotal: 375, due_date: '2026-10-01', status: 'Paid', paid_at: '2026-09-23T14:00:00Z' },
+      { id: 'hoff-next', invoice_type: 'Lot Rent', subtotal: 375, due_date: '2027-01-01', status: 'Sent' },
+    ],
+  })
+
+  assert.ok(snapshot)
+  assert.equal(snapshot.plan, 'quarterly')
+  assert.equal(snapshot.planLabel, 'Quarterly · 4 payments')
+  assert.equal(snapshot.expectedPayments, 4)
+  assert.equal(snapshot.paidPayments, 1)
+  assert.equal(snapshot.remainingPayments, 3)
+  assert.equal(snapshot.remainingBalance, 1125)
+})
+
 test('an accepted renewal shows the upcoming agreement and its early billing-month invoice', () => {
   const snapshot = contractPaymentSnapshot({
     annualRent: 1600,
