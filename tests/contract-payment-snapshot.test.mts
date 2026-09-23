@@ -74,6 +74,29 @@ test('real invoices remain authoritative when billing dates differ from annivers
   assert.equal(snapshot.nextPayment?.isPastDue, false)
 })
 
+test('an accepted renewal shows the upcoming agreement and its early billing-month invoice', () => {
+  const snapshot = contractPaymentSnapshot({
+    annualRent: 1600,
+    paymentPlan: 'semiannual',
+    contractEndDate: '2026-10-16',
+    renewalStatus: 'Renewing',
+    today: '2026-09-23',
+    invoices: [
+      { id: 'renewal-first-half', invoice_type: 'Lot Rent', subtotal: 800, due_date: '2026-10-01', status: 'Paid', paid_at: '2026-09-01T14:00:00Z' },
+      { id: 'renewal-second-half', invoice_type: 'Lot Rent', subtotal: 800, due_date: '2027-04-01', status: 'Sent', is_late: false },
+    ],
+  })
+
+  assert.ok(snapshot)
+  assert.equal(snapshot.contractStart, '2026-10-16')
+  assert.equal(snapshot.contractEnd, '2027-10-16')
+  assert.equal(snapshot.paidPayments, 1)
+  assert.equal(snapshot.remainingPayments, 1)
+  assert.equal(snapshot.nextPayment?.invoiceId, 'renewal-second-half')
+  assert.equal(snapshot.nextPayment?.dueDate, '2027-04-01')
+  assert.equal(snapshot.nextPayment?.isPastDue, false)
+})
+
 test('only an actual invoice marked late may show as past due', () => {
   const notLate = contractPaymentSnapshot({
     annualRent: 1000,

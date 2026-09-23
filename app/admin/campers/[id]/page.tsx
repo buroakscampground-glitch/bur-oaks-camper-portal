@@ -605,6 +605,7 @@ export default function CamperDetailPage() {
         annualRent: annualLotRent,
         paymentPlan: camper.rent_payment_plan,
         contractEndDate: history.renewal.contract_end_date,
+        renewalStatus: history.renewal.status,
       })
     : null
 

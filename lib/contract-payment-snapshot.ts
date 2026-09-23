@@ -1,5 +1,5 @@
 import { todayInCentral } from './invoice-balance.ts'
-import { addYearsToDate, isLotRentInvoice, normalizeRentPaymentPlan, type PriorLotRentInvoice } from './renewal-rent-schedule.ts'
+import { addMonthsToDate, addYearsToDate, isLotRentInvoice, normalizeRentPaymentPlan, type PriorLotRentInvoice } from './renewal-rent-schedule.ts'
 import { rentPaymentBreakdown } from './rent-payment-summary.ts'
 
 export type ContractPaymentInvoice = PriorLotRentInvoice & {
@@ -47,15 +47,18 @@ export function contractPaymentSnapshot({
   annualRent,
   paymentPlan,
   contractEndDate,
+  renewalStatus,
   today = todayInCentral(),
 }: {
   invoices: ContractPaymentInvoice[]
   annualRent: unknown
   paymentPlan: unknown
   contractEndDate: unknown
+  renewalStatus?: unknown
   today?: string
 }) {
-  let contractEnd = validDate(contractEndDate)
+  const savedContractEnd = validDate(contractEndDate)
+  let contractEnd = savedContractEnd
   if (!contractEnd) return null
 
   // Renewal automation normally advances this date. Advancing a stale date
@@ -63,7 +66,14 @@ export function contractPaymentSnapshot({
   for (let year = 0; year < 5 && contractEnd <= today; year += 1) {
     contractEnd = addYearsToDate(contractEnd, 1)
   }
-  const contractStart = addYearsToDate(contractEnd, -1)
+  const hasAcceptedRenewal = String(renewalStatus || '').trim().toLowerCase() === 'renewing'
+  const showingUpcomingRenewal = hasAcceptedRenewal && contractEnd === savedContractEnd
+  const contractStart = showingUpcomingRenewal ? savedContractEnd : addYearsToDate(contractEnd, -1)
+  if (showingUpcomingRenewal) contractEnd = addYearsToDate(savedContractEnd, 1)
+
+  // Renewal invoices may use the first day of the billing month even when the
+  // agreement anniversary falls later in that month.
+  const invoiceWindowStart = showingUpcomingRenewal ? addMonthsToDate(contractStart, -1) : contractStart
   const plan = normalizeRentPaymentPlan(paymentPlan)
   const expectedPayments = plan === 'quarterly' ? 4 : 2
   const configuredAnnualRent = money(annualRent)
@@ -72,7 +82,7 @@ export function contractPaymentSnapshot({
   for (const invoice of invoices) {
     const dueDate = validDate(invoice.due_date)
     const status = String(invoice.status || '').trim().toLowerCase()
-    if (!isLotRentInvoice(invoice) || !dueDate || dueDate < contractStart || dueDate >= contractEnd || closedStatuses.has(status)) continue
+    if (!isLotRentInvoice(invoice) || !dueDate || dueDate < invoiceWindowStart || dueDate >= contractEnd || closedStatuses.has(status)) continue
 
     const existing = invoicesByDueDate.get(dueDate)
     if (!existing || String(invoice.created_at || '') > String(existing.created_at || '')) {
