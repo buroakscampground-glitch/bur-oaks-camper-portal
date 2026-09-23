@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
+  AlertTriangle,
   ArrowLeft,
   CalendarDays,
   Car,
@@ -33,6 +34,7 @@ import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, totalInvoiceBala
 import { isPhonePortalLoginEmail } from '../../../../lib/phone-portal-login'
 import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/staff-roles'
 import { rentPaymentBreakdown } from '../../../../lib/rent-payment-summary'
+import { contractPaymentSnapshot } from '../../../../lib/contract-payment-snapshot'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 type HistoryView = 'activity' | 'documents' | 'billing' | 'site' | 'messages' | 'electric'
@@ -597,6 +599,14 @@ export default function CamperDetailPage() {
     messages: Number(history?.summary?.messages || 0),
     electric: Number(history?.summary?.electricReadings || 0),
   }
+  const contractSnapshot = history?.renewal?.contract_end_date
+    ? contractPaymentSnapshot({
+        invoices: history.invoices || invoices,
+        annualRent: annualLotRent,
+        paymentPlan: camper.rent_payment_plan,
+        contractEndDate: history.renewal.contract_end_date,
+      })
+    : null
 
   return (
     <main className="admin-camper-profile-page">
@@ -631,6 +641,67 @@ export default function CamperDetailPage() {
           <span className="plum"><CalendarDays size={20} /></span>
           <div><small>Annual lot rent</small><strong>{annualLotRent ? `$${Number(annualLotRent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not entered'}</strong></div>
         </article>
+      </section>
+
+      <section className={`admin-contract-snapshot${contractSnapshot?.remainingBalance ? ' decision-needed' : ''}`} aria-labelledby="contract-payment-title">
+        <header>
+          <div className="admin-contract-snapshot-title">
+            <span><CircleDollarSign size={22} /></span>
+            <div>
+              <small>ADMIN QUICK REFERENCE · 12-MONTH AGREEMENT</small>
+              <h2 id="contract-payment-title">Contract payments at a glance</h2>
+              <p>Use this before discussing an early release, transfer, or other change to the camper’s agreement.</p>
+            </div>
+          </div>
+          {contractSnapshot && <b>{contractSnapshot.planLabel}</b>}
+        </header>
+
+        {!history && !historyError && <div className="admin-contract-snapshot-loading"><LoaderCircle className="admin-spin" size={18} /> Loading the current contract payment record…</div>}
+
+        {history && !contractSnapshot && <div className="admin-contract-snapshot-setup">
+          <AlertTriangle size={20} />
+          <div><strong>Contract dates need to be entered.</strong><p>Add the camper’s annual contract date in Renewal Forecast so the office can see payments remaining in the correct 12-month term.</p></div>
+          <button type="button" onClick={() => router.push('/admin/renewals')}>Open renewals</button>
+        </div>}
+
+        {contractSnapshot && <>
+          <div className="admin-contract-snapshot-grid">
+            <article><small>Current contract</small><strong>{formatHistoryDate(contractSnapshot.contractStart)}–{formatHistoryDate(contractSnapshot.contractEnd)}</strong><span>One complete 12-month term</span></article>
+            <article><small>Paid toward contract</small><strong>{formatContractMoney(contractSnapshot.paidAmount)} of {formatContractMoney(contractSnapshot.contractAmount)}</strong><span>{contractSnapshot.paidPayments} of {contractSnapshot.expectedPayments} payments received</span></article>
+            <article className={contractSnapshot.nextPayment?.isPastDue ? 'warning' : ''}><small>{contractSnapshot.nextPayment?.isPastDue ? 'Past-due contract payment' : 'Next contract payment'}</small><strong>{contractSnapshot.nextPayment ? formatContractMoney(contractSnapshot.nextPayment.amount) : 'Paid in full'}</strong><span>{contractSnapshot.nextPayment?.dueDate ? `Due ${formatHistoryDate(contractSnapshot.nextPayment.dueDate)}` : 'No payment remains'}</span></article>
+            <article className={contractSnapshot.remainingPayments ? 'warning' : 'complete'}><small>Payments remaining</small><strong>{contractSnapshot.remainingPayments} of {contractSnapshot.expectedPayments}</strong><span>{formatContractMoney(contractSnapshot.remainingBalance)} still owed on this contract</span></article>
+          </div>
+
+          <div className={`admin-contract-office-callout${contractSnapshot.remainingBalance > 0 ? ' warning' : ' complete'}`}>
+            {contractSnapshot.remainingBalance > 0 ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}
+            <div>
+              <strong>{contractSnapshot.remainingBalance > 0 ? 'Office decision required if they ask to leave early.' : 'This contract currently shows paid in full.'}</strong>
+              <p>{contractSnapshot.remainingBalance > 0
+                ? `The camper still has ${contractSnapshot.remainingPayments} payment${contractSnapshot.remainingPayments === 1 ? '' : 's'} and ${formatContractMoney(contractSnapshot.remainingBalance)} remaining on this 12-month agreement. Do not promise a release until the office decides how the balance will be handled.`
+                : 'There is no remaining lot-rent balance in the current 12-month agreement. Any release or site change still requires office approval.'}</p>
+            </div>
+          </div>
+
+          <div className="admin-contract-payment-line" aria-label="Contract installment history">
+            {contractSnapshot.entries.map((entry) => (
+              <article className={`${entry.status.toLowerCase() === 'paid' ? 'paid' : entry.isPastDue ? 'late' : 'open'}`} key={`${entry.number}-${entry.dueDate}`}>
+                <div><small>PAYMENT {entry.number} OF {contractSnapshot.expectedPayments}</small><strong>{formatContractMoney(entry.amount)}</strong></div>
+                <span>{entry.dueDate ? `Due ${formatHistoryDate(entry.dueDate)}` : 'Due date not recorded'}</span>
+                <b>{entry.status.toLowerCase() === 'paid'
+                  ? `Paid ${formatHistoryDate(entry.paidAt)}${entry.paymentMethod ? ` · ${entry.paymentMethod}` : ''}${entry.isLate ? ' · Late' : ''}`
+                  : entry.isPastDue ? 'Past due' : entry.status === 'Scheduled' ? 'Scheduled' : entry.status}</b>
+                {entry.invoiceId && <button type="button" onClick={() => router.push(`/admin/invoices/${entry.invoiceId}`)}>Open invoice</button>}
+              </article>
+            ))}
+          </div>
+
+          {!contractSnapshot.annualRentConfigured && <p className="admin-contract-missing-rent"><AlertTriangle size={15} /> Annual lot rent is not saved. The amounts above only reflect rent invoices already created and may not represent the full contract.</p>}
+
+          <button className="admin-contract-full-history" type="button" onClick={() => {
+            setHistoryView('billing')
+            document.getElementById('camper-history')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}><History size={16} /> Open complete billing and payment history</button>
+        </>}
       </section>
 
       {message && (
@@ -1038,6 +1109,10 @@ function formatHistoryDate(value?: string | null) {
   if (!value) return 'Date not recorded'
   const date = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value)
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatContractMoney(value: number) {
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
 }
 
 function documentSignatureSummary(document: any) {

@@ -7074,6 +7074,204 @@ button:hover {
   white-space: nowrap;
 }
 
+.admin-contract-snapshot {
+  overflow: hidden;
+  margin: 0 0 22px;
+  border: 2px solid #315f3d;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 16px 40px rgba(38, 61, 46, 0.11);
+}
+
+.admin-contract-snapshot.decision-needed {
+  border-color: #c88b32;
+}
+
+.admin-contract-snapshot > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 22px;
+  border-bottom: 1px solid #e4e4da;
+  background: linear-gradient(135deg, #edf5eb, #fffaf0);
+}
+
+.admin-contract-snapshot-title {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.admin-contract-snapshot-title > span {
+  display: grid;
+  flex: 0 0 45px;
+  width: 45px;
+  height: 45px;
+  place-items: center;
+  border-radius: 14px;
+  background: #315f3d;
+  color: #fff;
+}
+
+.admin-contract-snapshot-title small {
+  color: #94702b;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: .12em;
+}
+
+.admin-contract-snapshot-title h2 {
+  margin: 3px 0 0;
+  color: #263d2e;
+  font: 500 28px Georgia, serif;
+}
+
+.admin-contract-snapshot-title p {
+  margin: 5px 0 0;
+  color: #67746b;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.admin-contract-snapshot > header > b {
+  flex: 0 0 auto;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: #315f3d;
+  color: #fff;
+  font-size: 9px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.admin-contract-snapshot-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid #e7e5dd;
+}
+
+.admin-contract-snapshot-grid article {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 17px 19px;
+  border-right: 1px solid #e7e5dd;
+}
+
+.admin-contract-snapshot-grid article:last-child { border-right: 0; }
+.admin-contract-snapshot-grid article.warning { background: #fff8e8; }
+.admin-contract-snapshot-grid article.complete { background: #eef7ed; }
+.admin-contract-snapshot-grid small { color: #78847b; font-size: 8px; font-weight: 950; letter-spacing: .08em; text-transform: uppercase; }
+.admin-contract-snapshot-grid strong { color: #263d2e; font: 500 20px Georgia, serif; line-height: 1.15; }
+.admin-contract-snapshot-grid span { color: #77827a; font-size: 9px; line-height: 1.35; }
+
+.admin-contract-office-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 15px 17px;
+  padding: 14px 15px;
+  border-radius: 14px;
+}
+
+.admin-contract-office-callout.warning { background: #fff0d5; color: #815514; }
+.admin-contract-office-callout.complete { background: #e8f3e7; color: #315f3d; }
+.admin-contract-office-callout svg { flex: 0 0 auto; margin-top: 1px; }
+.admin-contract-office-callout strong { display: block; font-size: 12px; }
+.admin-contract-office-callout p { margin: 4px 0 0; font-size: 10px; line-height: 1.5; }
+
+.admin-contract-payment-line {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+  padding: 0 17px 17px;
+}
+
+.admin-contract-payment-line article {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid #dfe3dc;
+  border-radius: 13px;
+  background: #fafbf9;
+}
+
+.admin-contract-payment-line article.paid { border-color: #bcd6bd; background: #f0f8ef; }
+.admin-contract-payment-line article.late { border-color: #e0aaa1; background: #fff0ed; }
+.admin-contract-payment-line article > div { display: grid; }
+.admin-contract-payment-line small { color: #8c7340; font-size: 8px; font-weight: 950; letter-spacing: .06em; }
+.admin-contract-payment-line strong { margin-top: 2px; color: #263d2e; font: 500 20px Georgia, serif; }
+.admin-contract-payment-line span { color: #748078; font-size: 9px; }
+.admin-contract-payment-line b { color: #315f3d; font-size: 9px; line-height: 1.4; }
+.admin-contract-payment-line article.late b { color: #9a4037; }
+.admin-contract-payment-line button { justify-self: start; min-height: 30px; margin-top: 2px; padding: 0 9px !important; font-size: 8px; }
+
+.admin-contract-snapshot-loading,
+.admin-contract-snapshot-setup {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 19px 22px;
+  color: #617067;
+  font-size: 11px;
+}
+
+.admin-contract-snapshot-setup { color: #815514; background: #fff7e8; }
+.admin-contract-snapshot-setup > div { flex: 1; }
+.admin-contract-snapshot-setup strong { display: block; font-size: 12px; }
+.admin-contract-snapshot-setup p { margin: 4px 0 0; font-size: 10px; line-height: 1.45; }
+.admin-contract-snapshot-setup button { flex: 0 0 auto; }
+
+.admin-contract-missing-rent {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: -4px 17px 13px;
+  color: #8a5d1e;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.admin-contract-full-history {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: calc(100% - 34px);
+  min-height: 39px;
+  margin: 0 17px 17px;
+  border: 1px solid #b9c9ba !important;
+  background: #fff !important;
+  color: #315f3d !important;
+  font-size: 10px;
+  box-shadow: none !important;
+}
+
+@media (max-width: 900px) {
+  .admin-contract-snapshot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .admin-contract-snapshot-grid article:nth-child(2) { border-right: 0; }
+  .admin-contract-snapshot-grid article:nth-child(-n + 2) { border-bottom: 1px solid #e7e5dd; }
+  .admin-contract-payment-line { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .admin-contract-snapshot { margin-right: 12px; margin-left: 12px; border-radius: 17px; }
+  .admin-contract-snapshot > header { align-items: flex-start; flex-direction: column; padding: 17px; }
+  .admin-contract-snapshot-title { align-items: flex-start; }
+  .admin-contract-snapshot-title > span { flex-basis: 39px; width: 39px; height: 39px; border-radius: 11px; }
+  .admin-contract-snapshot-title h2 { font-size: 23px; }
+  .admin-contract-snapshot-grid { grid-template-columns: 1fr; }
+  .admin-contract-snapshot-grid article,
+  .admin-contract-snapshot-grid article:nth-child(2) { border-right: 0; border-bottom: 1px solid #e7e5dd; }
+  .admin-contract-snapshot-grid article:last-child { border-bottom: 0; }
+  .admin-contract-payment-line { grid-template-columns: 1fr; }
+  .admin-contract-snapshot-setup { align-items: flex-start; flex-wrap: wrap; }
+  .admin-contract-snapshot-setup button { width: 100%; }
+}
+
 .admin-camper-profile-message {
   display: flex;
   align-items: center;
