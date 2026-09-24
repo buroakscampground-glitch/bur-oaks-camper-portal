@@ -3,8 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, AlertTriangle, BrainCircuit, CalendarRange, CheckCircle2, CircleHelp, Gauge, RefreshCw, Search, Zap } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
-import { isOperationalCamper } from '../../../lib/camper-records'
-import { buildCamperSeasonUsage, camperUsageRiskOrder, camperUsageSeasonWindow } from '../../../lib/camper-season-usage'
+import { buildCamperSeasonUsage, camperUsageRiskOrder, camperUsageSeasonWindow, usageCampersBySite } from '../../../lib/camper-season-usage'
 
 const usageBands = ['Not at all', 'A little', 'Sometimes', 'Often', 'A lot', 'No data'] as const
 
@@ -15,25 +14,6 @@ function formatKwh(value: number) {
 function formatDate(value: string | null) {
   if (!value) return 'No reading'
   return new Date(`${value}T12:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function siteKey(value: unknown) {
-  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
-}
-
-function campersBySite(campers: any[]) {
-  const sites = new Map<string, any>()
-  for (const camper of campers.filter(isOperationalCamper)) {
-    const key = siteKey(camper.lot_number)
-    if (!key) continue
-    const existing = sites.get(key)
-    if (existing) {
-      existing.camper_ids.push(String(camper.id))
-      continue
-    }
-    sites.set(key, { ...camper, camper_ids: [String(camper.id)] })
-  }
-  return [...sites.values()]
 }
 
 export default function CamperUsagePage() {
@@ -58,7 +38,7 @@ export default function CamperUsagePage() {
     const errors = [camperResult.error, readingResult.error].filter(Boolean)
     setMessage(errors.map((error) => error?.message).join(' '))
     if (!errors.length) {
-      setCampers(campersBySite(camperResult.data || []))
+      setCampers(usageCampersBySite(camperResult.data || []))
       setReadings(readingResult.data || [])
       setLastUpdated(new Date())
     }
@@ -92,6 +72,14 @@ export default function CamperUsagePage() {
       window.removeEventListener('pageshow', refresh)
     }
   }, [loadUsage])
+
+  useEffect(() => {
+    const requestedSearch = new URLSearchParams(window.location.search).get('search')?.trim()
+    if (requestedSearch) {
+      setSearch(requestedSearch)
+      setFilter('all')
+    }
+  }, [])
 
   const availableYears = useMemo(() => {
     const years = new Set<number>([new Date().getFullYear()])

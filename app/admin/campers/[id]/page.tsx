@@ -738,6 +738,7 @@ export default function CamperDetailPage() {
             <article><small>Signed documents</small><strong>{history.summary.signedDocuments} of {history.summary.totalDocuments}</strong><span>Signature records kept</span></article>
             <article><small>Paid invoices</small><strong>{history.summary.paidInvoices} of {history.summary.totalInvoices}</strong><span>{history.summary.lateInvoices} paid late / past due</span></article>
             <article><small>Current balance</small><strong>${Number(history.summary.openBalance || 0).toFixed(2)}</strong><span>All open invoices</span></article>
+            <article className={history.usage?.signal === 'no_activity' ? 'usage-alert' : history.usage && history.usage.signal !== 'regular' ? 'usage-warning' : ''}><small>Season usage</small><strong>{history.usage ? `${Math.round(history.usage.totalKwh).toLocaleString()} kWh` : 'No data'}</strong><span>{history.usage ? `${history.usage.usageBand} · ${history.usage.readingCount} reading${history.usage.readingCount === 1 ? '' : 's'}` : 'No seasonal baseline'}</span></article>
           </div>
 
           <nav className="admin-camper-history-tabs" aria-label="Camper history sections">
@@ -787,6 +788,7 @@ export default function CamperDetailPage() {
             </HistoryList>}
 
             {historyView === 'electric' && <HistoryList empty="No electric readings are saved for this camper yet.">
+              {history.usage && <article className={`admin-history-usage-summary ${history.usage.signal}`} key="season-usage-summary"><div><small>SEASON RUNNING TOTAL · MARCH 15–NOVEMBER 15</small><strong>{Math.round(history.usage.totalKwh).toLocaleString()} kWh · {history.usage.usageBand}</strong><p>{history.usage.signalDetail}</p></div><button type="button" onClick={() => router.push(`/admin/camper-usage?search=${encodeURIComponent(camper.lot_number || '')}`)}>Open campground comparison</button></article>}
               {(history.readings || []).map((item: any) => <article className="admin-history-electric" key={item.id}><div><small>READING DATE</small><strong>{formatHistoryDate(item.reading_date)}</strong></div><div><small>PREVIOUS</small><strong>{Number(item.previous_reading || 0).toLocaleString()}</strong></div><div><small>CURRENT</small><strong>{Number(item.current_reading || 0).toLocaleString()}</strong></div><div><small>USAGE</small><strong>{Number(item.kwh_used || 0).toLocaleString()} kWh</strong></div><div><small>CHARGE</small><strong>${Number(item.amount_due || 0).toFixed(2)}</strong></div><span>{item.invoice_id ? 'Invoiced' : 'Reading saved'}</span></article>)}
             </HistoryList>}
           </div>

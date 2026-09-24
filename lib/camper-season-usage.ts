@@ -1,9 +1,13 @@
+import { isOperationalCamper } from './camper-records.ts'
+
 export type UsageCamper = {
   id: string
   camper_ids?: string[]
   first_name?: string | null
   last_name?: string | null
   lot_number?: string | null
+  role?: string | null
+  active?: boolean | null
 }
 
 export type UsageReading = {
@@ -40,6 +44,25 @@ export function camperUsageSeasonWindow(year: number) {
     start: `${year}-03-15`,
     end: `${year}-11-15`,
   }
+}
+
+function usageSiteKey(value: unknown) {
+  return String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+}
+
+export function usageCampersBySite(campers: UsageCamper[]) {
+  const sites = new Map<string, UsageCamper>()
+  for (const camper of campers.filter(isOperationalCamper)) {
+    const key = usageSiteKey(camper.lot_number)
+    if (!key) continue
+    const existing = sites.get(key)
+    if (existing) {
+      existing.camper_ids = Array.from(new Set([...(existing.camper_ids || []), String(camper.id)]))
+      continue
+    }
+    sites.set(key, { ...camper, camper_ids: [String(camper.id)] })
+  }
+  return [...sites.values()]
 }
 
 function dateOnly(value: unknown) {

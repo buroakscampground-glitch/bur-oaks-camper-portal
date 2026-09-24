@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { invoiceWasLate } from '../../../lib/camper-standing'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { todayInCentral } from '../../../lib/invoice-texting'
+import { buildCamperSeasonUsage, usageCampersBySite } from '../../../lib/camper-season-usage'
 
 export const runtime = 'nodejs'
 
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   const camperId = new URL(request.url).searchParams.get('camperId')?.trim() || ''
   if (!camperId) return NextResponse.json({ error: 'A camper is required.' }, { status: 400 })
 
-  const [camperResult, invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult] = await Promise.all([
+  const [camperResult, invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, usageCamperResult, usageReadingResult] = await Promise.all([
     context.admin
       .from('campers')
       .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,phone,alternate_phone,second_profile_phone,active,camper_since_date')
@@ -39,12 +40,14 @@ export async function GET(request: Request) {
     context.admin.from('office_messages').select('id,sender_role,sender_name,body,read_by_admin_at,created_at').eq('camper_id', camperId).order('created_at', { ascending: false }).limit(1000),
     context.admin.from('electric_readings').select('id,reading_date,previous_reading,current_reading,kwh_used,rate_per_kwh,amount_due,invoice_id').eq('camper_id', camperId).order('reading_date', { ascending: false }).limit(1000),
     context.admin.from('season_renewals').select('id,status,contract_start_date,contract_end_date,renewal_sent_at,decision_recorded_at,renewal_document_id,notes,created_at,updated_at').eq('camper_id', camperId).maybeSingle(),
+    context.admin.from('campers').select('id,first_name,last_name,lot_number,role,active').eq('active', true),
+    context.admin.from('electric_readings').select('camper_id,reading_date,kwh_used').order('reading_date', { ascending: true }),
   ])
 
   if (camperResult.error || !camperResult.data) {
     return NextResponse.json({ error: camperResult.error?.message || 'The camper record could not be found.' }, { status: 404 })
   }
-  const relatedError = [invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult].find((result) => result.error)?.error
+  const relatedError = [invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, usageCamperResult, usageReadingResult].find((result) => result.error)?.error
   if (relatedError) {
     return NextResponse.json({ error: relatedError.message || 'Site history could not be loaded.' }, { status: 500 })
   }
@@ -63,6 +66,14 @@ export async function GET(request: Request) {
   const messages = messageResult.data || []
   const readings = readingResult.data || []
   const renewal = renewalResult.data || null
+  const currentYear = Number(today.slice(0, 4))
+  const usageRows = buildCamperSeasonUsage(
+    usageCampersBySite(usageCamperResult.data || []),
+    usageReadingResult.data || [],
+    currentYear,
+  )
+  const camperLotKey = String(camperResult.data.lot_number || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+  const usage = usageRows.find((row) => String(row.lotNumber || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '') === camperLotKey) || null
   const activity = [
     ...invoices.map((item) => ({ id: `invoice-${item.id}`, type: 'Invoice', title: item.invoice_number || item.invoice_type || 'Invoice', detail: `${item.status || 'Open'} · $${Number(item.total_due || 0).toFixed(2)}${item.is_late ? ' · late' : ''}`, date: item.paid_at || item.created_at })),
     ...notices.map((item) => ({ id: `care-${item.id}`, type: 'Site care', title: item.title || 'Site-care notice', detail: `${item.status || 'Open'}${item.priority ? ` · ${item.priority}` : ''}`, date: item.resolved_at || item.ready_for_review_at || item.created_at })),
@@ -84,6 +95,7 @@ export async function GET(request: Request) {
     messages,
     readings,
     renewal,
+    usage,
     activity,
     summary: {
       totalInvoices: invoices.length,
@@ -98,6 +110,7 @@ export async function GET(request: Request) {
       pumpOuts: pumpOuts.length,
       messages: messages.length,
       electricReadings: readings.length,
+      usageSignal: usage?.signal || 'no_data',
       activityItems: activity.length,
     },
   })
