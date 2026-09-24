@@ -2,6 +2,7 @@
 
 import { Ban, Bell, Camera, Check, CheckCircle2, Clock, Edit3, ExternalLink, Eye, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, Pin, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X, ZoomIn } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { communityActionHref, communityActionLabel } from '../lib/community-actions'
 import { communityPostAuthor, communityPostLocation } from '../lib/community-branding'
 import { supabase } from '../lib/supabase'
 
@@ -16,12 +17,6 @@ const categories = [
   { value: 'marketplace', label: 'For Sale / Free' },
   { value: 'general', label: 'General Talk' },
 ]
-
-const actionLabels: Record<string, { label: string; href: string }> = {
-  events: { label: 'View events and RSVP', href: '/events' },
-  dinners: { label: 'View dinner details', href: '/dinners' },
-  contact: { label: 'Contact the office', href: '/messages' },
-}
 
 function localDateInput(value?: string | null) {
   if (!value) return ''
@@ -206,6 +201,10 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
 
   async function publishPost() {
     if (!draft.trim() && !photo) return
+    if (adminMode && actionType === 'custom' && !communityActionHref('custom', actionUrl)) {
+      setNotice('Add a secure https:// link or a portal path beginning with / before publishing this button.')
+      return
+    }
     setWorking('post')
     setNotice('')
     try {
@@ -508,7 +507,12 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
                 const alt = `Shared by ${communityPostAuthor(post)}`
                 return <button className="campground-community-photo-button" type="button" onClick={() => setExpandedPhoto({ url: post.photo_url, alt })} aria-label={`Open full-size photo ${alt}`}><img className="campground-community-photo" src={post.photo_url} alt={alt} /><span><ZoomIn size={16} /> View full picture</span></button>
               })()}
-              {post.action_type && post.action_url && <a className="campground-community-post-action" href={post.action_url}><span>{actionLabels[post.action_type]?.label || 'Open details'}</span><ExternalLink size={18} /></a>}
+              {(() => {
+                const href = communityActionHref(post.action_type, post.action_url)
+                if (!href) return null
+                const external = href.startsWith('https://')
+                return <a className="campground-community-post-action" href={href} rel={external ? 'noreferrer' : undefined} target={external ? '_blank' : undefined}><span>{communityActionLabel(post.action_type)}</span><ExternalLink size={18} /></a>
+              })()}
               {adminMode && post.status === 'published' && <div className="campground-community-delivery"><Eye size={15} /><span>{post.read_count || 0} viewed</span>{post.sms_delivery ? <><Send size={15} /><span>{post.sms_delivery.sent_count || 0} texts delivered{post.sms_delivery.failed_count ? ` · ${post.sms_delivery.failed_count} failed` : ''}</span></> : <span>No text delivery recorded</span>}</div>}
               {(() => {
                 const discussionComments = (post.comments || []).filter((comment: any) => adminMode || comment.status !== 'hidden')
@@ -573,7 +577,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         <div className="campground-community-modal-backdrop" role="dialog" aria-modal="true" aria-label="Create Campground Messenger post">
           <section className="campground-community-modal">
             <header><div><small>{viewer?.canPostOfficial ? 'OFFICIAL BUR OAKS MESSAGE' : adminMode ? `${viewer?.postingName || 'STAFF'} MESSENGER POST` : 'NEW MESSENGER POST'}</small><h2>{editingPost ? 'Edit this post' : 'Create a post'}</h2></div><button type="button" onClick={() => setShowComposer(false)} aria-label="Close"><X size={19} /></button></header>
-            {previewing ? <article className="campground-community-compose-preview"><small>PREVIEW — WHAT CAMPERS WILL SEE</small><strong>{viewer?.canPostOfficial ? 'Bur Oaks Campground' : viewer?.postingName || viewer?.name}</strong><span>{categories.find((item) => item.value === postCategory)?.label}</span><p>{draft || 'Your message will appear here.'}</p>{photoPreview && <img src={photoPreview} alt="Post preview" />}{actionType && <b>{actionLabels[actionType]?.label || 'Open details'} <ExternalLink size={15} /></b>}</article> : <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={8} maxLength={2000} placeholder="What would you like the campground to know?" autoFocus />}
+            {previewing ? <article className="campground-community-compose-preview"><small>PREVIEW — WHAT CAMPERS WILL SEE</small><strong>{viewer?.canPostOfficial ? 'Bur Oaks Campground' : viewer?.postingName || viewer?.name}</strong><span>{categories.find((item) => item.value === postCategory)?.label}</span><p>{draft || 'Your message will appear here.'}</p>{photoPreview && <img src={photoPreview} alt="Post preview" />}{actionType && <b>{communityActionLabel(actionType)} <ExternalLink size={15} /></b>}</article> : <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={8} maxLength={2000} placeholder="What would you like the campground to know?" autoFocus />}
             {photoPreview && !previewing && <div className="campground-community-photo-preview"><img src={photoPreview} alt="Selected upload preview" /><button type="button" onClick={() => choosePhoto()}><X size={16} /> Remove</button></div>}
             <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" hidden onChange={(event) => choosePhoto(event.target.files?.[0])} />
             <div className="campground-community-compose-fields">

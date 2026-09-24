@@ -4,6 +4,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { canAdministerCommunity, canManageCommunity, canPublishOfficialCommunityPosts, effectivePortalRole } from '../../../lib/staff-roles'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { communityActorAuthor, communityVisibleAuthorName, communityVisibleText, OFFICIAL_COMMUNITY_NAME } from '../../../lib/community-branding'
+import { communityActionHref, normalizeCommunityActionType } from '../../../lib/community-actions'
 import { textCampersAboutStaffPost } from '../../../lib/community-post-text-server'
 import { canParticipateInCommunity, canViewCommunity, communityAccessLabel, normalizeCommunityAccess } from '../../../lib/community-access'
 import { communityActivityMessage, communityStaffRecipients, type CommunityActivityKind } from '../../../lib/community-staff-alerts'
@@ -28,28 +29,10 @@ function published(value: any) {
 }
 
 const COMMUNITY_CATEGORIES = new Set(['general', 'office', 'event', 'dinner', 'lost_found', 'marketplace'])
-const COMMUNITY_ACTIONS = new Set(['events', 'dinners', 'contact', 'custom'])
 
 function communityCategory(value: unknown) {
   const category = String(value || '').trim()
   return COMMUNITY_CATEGORIES.has(category) ? category : 'general'
-}
-
-function communityActionType(value: unknown) {
-  const actionType = String(value || '').trim()
-  return COMMUNITY_ACTIONS.has(actionType) ? actionType : null
-}
-
-function safeCommunityActionUrl(value: unknown) {
-  const raw = String(value || '').trim().slice(0, 500)
-  if (!raw) return null
-  if (raw.startsWith('/') && !raw.startsWith('//')) return raw
-  try {
-    const parsed = new URL(raw)
-    return parsed.protocol === 'https:' ? parsed.toString() : null
-  } catch {
-    return null
-  }
 }
 
 function optionalDate(value: unknown) {
@@ -342,8 +325,11 @@ export async function POST(request: Request) {
     const requestedPublishAt = isManager ? optionalDate(body.publishAt) : null
     const publishAt = requestedPublishAt && new Date(requestedPublishAt).getTime() > Date.now() + 60_000 ? requestedPublishAt : new Date().toISOString()
     const status = new Date(publishAt).getTime() > Date.now() + 60_000 ? 'scheduled' : 'published'
-    const actionType = isManager ? communityActionType(body.actionType) : null
-    const actionUrl = actionType === 'events' ? '/events' : actionType === 'dinners' ? '/dinners' : actionType === 'contact' ? '/messages' : actionType === 'custom' ? safeCommunityActionUrl(body.actionUrl) : null
+    const actionType = isManager ? normalizeCommunityActionType(body.actionType) : null
+    const actionUrl = communityActionHref(actionType, body.actionUrl)
+    if (actionType === 'custom' && !actionUrl) {
+      return NextResponse.json({ error: 'Add a secure https:// link or a valid portal path beginning with / for this button.' }, { status: 400 })
+    }
     const { data: post, error } = await context.admin.from('community_posts').insert({
       camper_id: camperId,
       author_name: canPostOfficial ? OFFICIAL_COMMUNITY_NAME : communityActorAuthor(context.camper, context.user.email),
@@ -429,8 +415,11 @@ export async function POST(request: Request) {
     const { data: existing, error: lookupError } = await context.admin.from('community_posts').select('*').eq('id', postId).maybeSingle()
     if (lookupError || !existing) return NextResponse.json({ error: lookupError?.message || 'That post could not be found.' }, { status: 404 })
     if (String(existing.camper_id) !== camperId && !existing.is_official) return NextResponse.json({ error: 'Staff can edit their own posts. Use Hide for another person’s post.' }, { status: 403 })
-    const actionType = communityActionType(body.actionType)
-    const actionUrl = actionType === 'events' ? '/events' : actionType === 'dinners' ? '/dinners' : actionType === 'contact' ? '/messages' : actionType === 'custom' ? safeCommunityActionUrl(body.actionUrl) : null
+    const actionType = normalizeCommunityActionType(body.actionType)
+    const actionUrl = communityActionHref(actionType, body.actionUrl)
+    if (actionType === 'custom' && !actionUrl) {
+      return NextResponse.json({ error: 'Add a secure https:// link or a valid portal path beginning with / for this button.' }, { status: 400 })
+    }
     const { data: post, error } = await context.admin.from('community_posts').update({
       body: text,
       category: communityCategory(body.category),
