@@ -1,8 +1,11 @@
+import { waitlistWelcomeCopy } from './waitlist-conversion.ts'
+
 type InviteEmailInput = {
   to: string
   camperName: string
   setupUrl: string
   purpose?: 'portal_setup' | 'password_reset'
+  welcomeSite?: string
 }
 
 export function portalInviteEmailConfigured() {
@@ -93,6 +96,7 @@ export async function sendPortalInviteEmail({
   camperName,
   setupUrl,
   purpose = 'portal_setup',
+  welcomeSite,
 }: InviteEmailInput) {
   const providerStatus = portalInviteEmailProviderStatus()
   const from = providerStatus.from
@@ -104,12 +108,13 @@ export async function sendPortalInviteEmail({
 
   const firstName = camperName.trim().split(/\s+/)[0] || 'there'
   const isPasswordReset = purpose === 'password_reset'
+  const welcome = welcomeSite ? waitlistWelcomeCopy(firstName, welcomeSite) : null
   const subject = isPasswordReset
     ? 'NEWEST LINK: Reset your Bur Oaks password'
-    : 'Action needed: Set up your Bur Oaks Camper Portal within 24 hours'
+    : welcome?.subject || 'Action needed: Set up your Bur Oaks Camper Portal within 24 hours'
   const actionDescription = isPasswordReset
     ? 'You requested a password reset for your Bur Oaks Camper Portal.'
-    : 'Bur Oaks Campground has created or refreshed your camper portal setup link.'
+    : welcome?.message || 'Bur Oaks Campground has created or refreshed your camper portal setup link.'
   const actionInstruction = isPasswordReset
     ? 'Use this newest secure link to choose a new password:'
     : 'Please use the newest secure link below and complete your portal setup within 24 hours:'
@@ -120,7 +125,7 @@ export async function sendPortalInviteEmail({
   const portalSetupText = [
     `Hi ${firstName},`,
     '',
-    actionDescription,
+    welcome?.message || actionDescription,
     actionInstruction,
     '',
     setupUrl,
@@ -156,11 +161,11 @@ export async function sendPortalInviteEmail({
       <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2dccf">
         <div style="background:#214b31;color:#fff;padding:24px 28px">
           <div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#d8c18b;font-weight:700">Bur Oaks Campground</div>
-          <h1 style="margin:8px 0 0;font-family:Georgia,serif;font-weight:500">Please set up your camper portal within 24 hours.</h1>
+          <h1 style="margin:8px 0 0;font-family:Georgia,serif;font-weight:500">${escapeHtml(welcome?.heading || 'Please set up your camper portal within 24 hours.')}</h1>
         </div>
         <div style="padding:28px">
           <p style="font-size:16px;line-height:1.55">Hi ${escapeHtml(firstName)},</p>
-          <p style="font-size:16px;line-height:1.55">We created or refreshed your Bur Oaks Camper Portal setup link so you can view documents, invoices, events, weather, maintenance requests, office messages, and campground updates in one place.</p>
+          <p style="font-size:16px;line-height:1.55">${escapeHtml(welcome?.message || 'We created or refreshed your Bur Oaks Camper Portal setup link so you can view documents, invoices, events, weather, maintenance requests, office messages, and campground updates in one place.')}</p>
           <div style="margin:18px 0;padding:16px;border-radius:12px;background:#fff3d6;border:1px solid #ead298;color:#6d5018;font-size:15px;line-height:1.55"><strong>Action required:</strong> Please complete your portal setup within 24 hours. This one-time link will expire after 24 hours.</div>
           <a href="${setupUrl}" style="display:inline-block;margin:4px 0 18px;background:#2f5b3b;color:#fff;text-decoration:none;padding:14px 18px;border-radius:12px;font-weight:700">Set Up My Camper Portal Now</a>
           <p style="font-size:13px;line-height:1.5;color:#69766d">If the button does not work, copy and paste this link into your browser:<br><span style="word-break:break-all">${setupUrl}</span></p>

@@ -1,11 +1,17 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ArrowRight, CheckCircle2, LoaderCircle, Mail, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import { isOperationalCamper } from '../../../lib/camper-records'
+import { canConvertWaitlistStatus, NEW_CAMPER_ANNUAL_RENT, NEW_CAMPER_ASSOCIATION_FEE, waitlistWelcomeCopy } from '../../../lib/waitlist-conversion'
+
+const siteKey = (value: unknown) => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
 
 export default function WaitlistPage() {
   const [people, setPeople] = useState<any[]>([])
+  const [vacantSites, setVacantSites] = useState<string[]>([])
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [phone, setPhone] = useState('')
@@ -14,20 +20,33 @@ export default function WaitlistPage() {
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('Waiting')
   const [message, setMessage] = useState('')
-const [search, setSearch] = useState('')
-const [statusFilter, setStatusFilter] = useState('All')
-const router = useRouter()
-  useEffect(() => {
-    loadWaitlist()
-  }, [])
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('All')
+  const [conversionPerson, setConversionPerson] = useState<any | null>(null)
+  const [conversionForm, setConversionForm] = useState({ firstName: '', lastName: '', phone: '', email: '', lotNumber: '' })
+  const [sendWelcome, setSendWelcome] = useState(true)
+  const [converting, setConverting] = useState(false)
+  const [conversionError, setConversionError] = useState('')
+  const [conversionResult, setConversionResult] = useState<any | null>(null)
+  const router = useRouter()
+
+  useEffect(() => { loadWaitlist() }, [])
 
   async function loadWaitlist() {
-    const { data } = await supabase
-      .from('waitlist')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const [waitlistResult, lotResult, camperResult] = await Promise.all([
+      supabase.from('waitlist').select('*').order('created_at', { ascending: false }),
+      supabase.from('lots').select('lot_number').order('lot_number', { ascending: true }),
+      supabase.from('campers').select('lot_number,role,active').eq('active', true),
+    ])
 
-    setPeople(data || [])
+    setPeople(waitlistResult.data || [])
+    const occupied = new Set((camperResult.data || [])
+      .filter(isOperationalCamper)
+      .map((camper) => siteKey(camper.lot_number))
+      .filter(Boolean))
+    setVacantSites((lotResult.data || [])
+      .map((lot) => String(lot.lot_number || '').trim())
+      .filter((lotNumber) => lotNumber && !occupied.has(siteKey(lotNumber))))
   }
 
   async function addPerson() {
@@ -37,279 +56,196 @@ const router = useRouter()
     }
 
     const { error } = await supabase.from('waitlist').insert({
-      first_name: firstName,
-      last_name: lastName,
-      phone,
-      email,
-      desired_site: desiredSite,
-      notes,
-      status,
+      first_name: firstName, last_name: lastName, phone, email, desired_site: desiredSite, notes, status,
       last_check_in_at: new Date().toISOString(),
     })
-
     if (error) {
       setMessage(error.message)
       return
     }
 
     setMessage('Added to waitlist!')
-    setFirstName('')
-    setLastName('')
-    setPhone('')
-    setEmail('')
-    setDesiredSite('')
-    setNotes('')
-    setStatus('Waiting')
+    setFirstName(''); setLastName(''); setPhone(''); setEmail(''); setDesiredSite(''); setNotes(''); setStatus('Waiting')
     loadWaitlist()
   }
 
   async function updateStatus(id: string, newStatus: string) {
-    const { error } = await supabase
-      .from('waitlist')
-      .update({
-        status: newStatus,
-        removed_at: newStatus === 'Removed' ? new Date().toISOString() : null,
-      })
-      .eq('id', id)
-
+    const { error } = await supabase.from('waitlist').update({
+      status: newStatus,
+      removed_at: newStatus === 'Removed' ? new Date().toISOString() : null,
+    }).eq('id', id)
     if (error) {
       setMessage(error.message)
       return
     }
-
     setMessage('Status updated.')
     loadWaitlist()
   }
 
   async function deletePerson(id: string) {
-  const ok = confirm('Delete this waitlist entry?')
-  if (!ok) return
-
-  const { error } = await supabase
-    .from('waitlist')
-    .delete()
-    .eq('id', id)
-
-  if (error) {
-    setMessage(error.message)
-    return
+    if (!confirm('Delete this waitlist entry?')) return
+    const { error } = await supabase.from('waitlist').delete().eq('id', id)
+    if (error) {
+      setMessage(error.message)
+      return
+    }
+    setMessage('Waitlist entry deleted.')
+    loadWaitlist()
   }
 
-  setMessage('Waitlist entry deleted.')
-  loadWaitlist()
-}
-
-async function moveToCamper(person: any) {
-  const { error } = await supabase
-    .from('campers')
-    .insert({
-      first_name: person.first_name,
-      last_name: person.last_name,
-      email: person.email,
-      phone: person.phone,
-      role: 'camper',
-      is_active: true,
-    })
-
-  if (error) {
-    setMessage(error.message)
-    return
+  function openConversion(person: any) {
+    setConversionPerson(person)
+    setConversionForm({ firstName: String(person.first_name || ''), lastName: String(person.last_name || ''), phone: String(person.phone || ''), email: String(person.email || ''), lotNumber: '' })
+    setSendWelcome(true)
+    setConversionError('')
+    setConversionResult(null)
   }
 
-  await supabase
-    .from('waitlist')
-    .update({
-      status: 'Converted',
-    })
-    .eq('id', person.id)
+  function closeConversion() {
+    if (converting) return
+    setConversionPerson(null)
+    setConversionResult(null)
+    setConversionError('')
+  }
 
-  setMessage('Camper created successfully.')
-  loadWaitlist()
-}
-const waitingCount =
-  people.filter((p) => p.status === 'Waiting').length
+  async function convertToCamper() {
+    if (!conversionPerson) return
+    if (!conversionForm.lotNumber) {
+      setConversionError('Choose the campsite they are moving into.')
+      return
+    }
+    if (!conversionForm.email.trim()) {
+      setConversionError('Add their email so the portal can be prepared.')
+      return
+    }
 
-const contactedCount =
-  people.filter((p) => p.status === 'Contacted').length
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) {
+      setConversionError('Your admin login expired. Sign in again and retry.')
+      return
+    }
 
-const acceptedCount =
-  people.filter((p) => p.status === 'Accepted').length
+    setConverting(true)
+    setConversionError('')
+    try {
+      const response = await fetch('/api/admin-waitlist-convert', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ waitlistId: conversionPerson.id, ...conversionForm, sendWelcome }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setConversionError(result.error || 'This camper could not be converted.')
+        if (result.camperId) setConversionResult({ camperId: result.camperId, existing: true })
+        return
+      }
 
-const declinedCount =
-  people.filter((p) => p.status === 'Declined').length
+      setConversionResult(result)
+      setMessage(`${result.camperName} is now assigned to Site ${result.lotNumber}.`)
+      await loadWaitlist()
+    } catch {
+      setConversionError('The conversion could not be completed. Nothing was sent—please try again.')
+    } finally {
+      setConverting(false)
+    }
+  }
 
-const removedCount =
-  people.filter((p) => p.status === 'Removed').length
-  return (
-    <main className="page">
-      <div className="container">
-        <a
-  href="/admin"
-  style={{
-    display: 'inline-block',
-    marginBottom: '20px',
-    textDecoration: 'none',
-    fontWeight: 'bold',
-  }}
->
-  ← Back to Dashboard
-</a>
-        <section className="card" style={{ marginBottom: '25px' }}>
-          <p className="muted">BUR OAKS CAMPGROUND</p>
-          <button
-  onClick={() => router.push('/admin')}
-  style={{
-    marginBottom: '20px',
-    background: '#6b7280',
-    color: 'white',
-    border: 'none',
-    padding: '10px 16px',
-    borderRadius: '8px',
-    cursor: 'pointer',
-  }}
->
-  ← Back to Dashboard
-</button>
-          <h1>Waitlist Manager</h1>
-          <p className="muted">Track people interested in seasonal sites.</p>
+  const counts = useMemo(() => ({
+    Waiting: people.filter((person) => person.status === 'Waiting').length,
+    Contacted: people.filter((person) => person.status === 'Contacted').length,
+    Accepted: people.filter((person) => person.status === 'Accepted').length,
+    Converted: people.filter((person) => person.status === 'Converted').length,
+    Declined: people.filter((person) => person.status === 'Declined').length,
+    Removed: people.filter((person) => person.status === 'Removed').length,
+  }), [people])
 
-          <input placeholder="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
-          <input placeholder="Last Name" value={lastName} onChange={(e) => setLastName(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
-          <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
-          <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
-          <input placeholder="Desired Site / Notes About Site" value={desiredSite} onChange={(e) => setDesiredSite(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }} />
-
-          <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ display: 'block', width: '100%', marginBottom: '12px' }}>
-            <option>Waiting</option>
-            <option>Contacted</option>
-            <option>Accepted</option>
-            <option>Declined</option>
-            <option>Converted</option>
-            <option>Removed</option>
-          </select>
-
-          <textarea
-            placeholder="Notes"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            style={{ display: 'block', width: '100%', minHeight: '100px', marginBottom: '12px' }}
-          />
-
-          <button onClick={addPerson}>Add to Waitlist</button>
-
-          {message && <p>{message}</p>}
-        </section>
-
-        <section className="card">
-          <h2>Current Waitlist</h2>
-          <div
-  style={{
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-    gap: '15px',
-    margin: '20px 0',
-  }}
->
-  <div className="card">
-    <h3>Waiting</h3>
-    <h1>{waitingCount}</h1>
-  </div>
-
-  <div className="card">
-    <h3>Contacted</h3>
-    <h1>{contactedCount}</h1>
-  </div>
-
-  <div className="card">
-    <h3>Accepted</h3>
-    <h1>{acceptedCount}</h1>
-  </div>
-
-  <div className="card">
-    <h3>Declined</h3>
-    <h1>{declinedCount}</h1>
-  </div>
-
-  <div className="card">
-    <h3>Removed</h3>
-    <h1>{removedCount}</h1>
-  </div>
-</div>
-<div
-  style={{
-    display: 'flex',
-    gap: '10px',
-    marginBottom: '20px',
-    flexWrap: 'wrap',
-  }}
->
-  <input
-    placeholder="Search name, phone, email..."
-    value={search}
-    onChange={(e) => setSearch(e.target.value)}
-    style={{
-      flex: 1,
-    }}
-  />
-
-  <select
-    value={statusFilter}
-    onChange={(e) => setStatusFilter(e.target.value)}
-  >
-    <option>All</option>
-    <option>Waiting</option>
-    <option>Contacted</option>
-    <option>Accepted</option>
-    <option>Declined</option>
-    <option>Converted</option>
-    <option>Removed</option>
-  </select>
-</div>
-          {people.length === 0 && <p className="muted">No waitlist entries yet.</p>}
-
-          {people
-  .filter((person) => {
-    const term = search.toLowerCase()
-
-    const matchesSearch =
-      person.first_name?.toLowerCase().includes(term) ||
-      person.last_name?.toLowerCase().includes(term) ||
-      person.phone?.toLowerCase().includes(term) ||
-      person.email?.toLowerCase().includes(term)
-
-    const matchesStatus =
-      statusFilter === 'All' ||
-      person.status === statusFilter
-
-    return matchesSearch && matchesStatus
+  const visiblePeople = people.filter((person) => {
+    const term = search.trim().toLowerCase()
+    const matchesSearch = !term || [person.first_name, person.last_name, person.phone, person.email].join(' ').toLowerCase().includes(term)
+    return matchesSearch && (statusFilter === 'All' || person.status === statusFilter)
   })
-  .map((person) => (
-            <div key={person.id} style={{ borderTop: '1px solid #e3ded2', padding: '15px 0' }}>
-              <h3>{person.first_name} {person.last_name}</h3>
-              <p><strong>Status:</strong> {person.status}</p>
-              <p><strong>Phone:</strong> {person.phone || 'Not Provided'}</p>
-              <p><strong>Email:</strong> {person.email || 'Not Provided'}</p>
-              <p><strong>Desired Site:</strong> {person.desired_site || 'Not Provided'}</p>
-              <p><strong>Last check-in email:</strong> {person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent yet'}</p>
-              <p><strong>Notes:</strong> {person.notes || 'None'}</p>
+  const welcomePreview = waitlistWelcomeCopy(conversionForm.firstName, conversionForm.lotNumber)
 
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <button onClick={() => updateStatus(person.id, 'Waiting')}>Waiting</button>
-                <button onClick={() => updateStatus(person.id, 'Contacted')}>Contacted</button>
-                <button onClick={() => updateStatus(person.id, 'Accepted')}>Accepted</button>
-                <button onClick={() => updateStatus(person.id, 'Declined')}>Declined</button>
-                <button onClick={() => updateStatus(person.id, 'Removed')}>Removed</button>
-                {person.status === 'Accepted' && (
-  <button onClick={() => moveToCamper(person)}>
-    Move To Camper
-  </button>
-)}
-                <button onClick={() => deletePerson(person.id)}>Delete</button>
-              </div>
+  return (
+    <main className="admin-waitlist-page">
+      <section className="admin-waitlist-hero">
+        <div><small>NEW CAMPER PIPELINE</small><h1>Waitlist Manager</h1><p>Track interested families, assign an open site, and transition them into the camper portal without retyping their information.</p></div>
+        <button type="button" onClick={() => router.push('/admin/site-availability')}><TentTree size={17} /> View open sites</button>
+      </section>
+
+      <section className="admin-waitlist-counts" aria-label="Waitlist status totals">
+        {Object.entries(counts).map(([label, count]) => <article key={label}><small>{label}</small><strong>{count}</strong></article>)}
+      </section>
+      {message && <p className="admin-waitlist-message">{message}</p>}
+
+      <div className="admin-waitlist-layout">
+        <aside className="admin-waitlist-add">
+          <div><small>MANUAL ENTRY</small><h2>Add to waitlist</h2></div>
+          <label><span>First name</span><input value={firstName} onChange={(event) => setFirstName(event.target.value)} /></label>
+          <label><span>Last name</span><input value={lastName} onChange={(event) => setLastName(event.target.value)} /></label>
+          <label><span>Phone</span><input value={phone} onChange={(event) => setPhone(event.target.value)} inputMode="tel" /></label>
+          <label><span>Email</span><input value={email} onChange={(event) => setEmail(event.target.value)} type="email" /></label>
+          <label><span>Desired site or site notes</span><input value={desiredSite} onChange={(event) => setDesiredSite(event.target.value)} /></label>
+          <label><span>Status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Declined</option></select></label>
+          <label><span>Notes</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={5} /></label>
+          <button type="button" onClick={addPerson}>Add to Waitlist</button>
+        </aside>
+
+        <section className="admin-waitlist-directory">
+          <header><div><small>APPLICANTS</small><h2>Current waitlist</h2></div><div><input placeholder="Search name, phone, email…" value={search} onChange={(event) => setSearch(event.target.value)} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Converted</option><option>Declined</option><option>Removed</option></select></div></header>
+
+          {visiblePeople.length === 0 ? <p className="admin-waitlist-empty">No matching waitlist entries.</p> : (
+            <div className="admin-waitlist-list">
+              {visiblePeople.map((person) => (
+                <article key={person.id}>
+                  <header><div><span>{person.first_name?.[0] || '?'}{person.last_name?.[0] || ''}</span><div><h3>{person.first_name} {person.last_name}</h3><small>{person.phone || 'No phone'} · {person.email || 'No email'}</small></div></div><em>{person.status}</em></header>
+                  <dl><div><dt>Site preference</dt><dd>{person.desired_site || 'Not provided'}</dd></div><div><dt>Last waitlist email</dt><dd>{person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent'}</dd></div>{person.notes && <div className="wide"><dt>Notes</dt><dd>{person.notes}</dd></div>}</dl>
+                  <footer>
+                    {canConvertWaitlistStatus(person.status) && <button className="convert" type="button" onClick={() => openConversion(person)}><UserPlus size={16} /> Convert to Camper</button>}
+                    <select aria-label={`Change status for ${person.first_name} ${person.last_name}`} value={person.status} onChange={(event) => updateStatus(person.id, event.target.value)}><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Declined</option><option>Removed</option>{person.status === 'Converted' && <option>Converted</option>}</select>
+                    <button className="delete" type="button" onClick={() => deletePerson(person.id)}>Delete</button>
+                  </footer>
+                </article>
+              ))}
             </div>
-          ))}
+          )}
         </section>
       </div>
+
+      {conversionPerson && (
+        <div className="admin-waitlist-modal-backdrop" role="dialog" aria-modal="true" aria-label="Convert waitlist applicant to camper">
+          <section className="admin-waitlist-modal">
+            <header><div><small>WELCOME WORKFLOW</small><h2>{conversionResult?.camperId && !conversionResult.existing ? 'Camper created' : `Convert ${conversionPerson.first_name} ${conversionPerson.last_name}`}</h2></div><button type="button" onClick={closeConversion} aria-label="Close"><X size={20} /></button></header>
+
+            {conversionResult?.camperId && !conversionResult.existing ? (
+              <div className="admin-waitlist-success">
+                <span><CheckCircle2 size={30} /></span><h3>Welcome to the Bur Oaks family!</h3><p>{conversionResult.camperName} is assigned to Site {conversionResult.lotNumber}. Their camper profile is ready.</p>
+                <strong>{conversionResult.welcomeDelivery === 'sent' ? `Welcome and portal setup email sent to ${conversionForm.email}.` : conversionResult.welcomeDelivery === 'manual' ? 'The profile is ready, but the welcome email needs to be sent manually.' : 'No welcome email was requested.'}</strong>
+                {conversionResult.warning && <p className="error">{conversionResult.warning}</p>}
+                {conversionResult.setupUrl && <label><span>Private one-time setup link</span><textarea readOnly value={conversionResult.setupUrl} rows={3} onFocus={(event) => event.currentTarget.select()} /></label>}
+                <div><a href={`/admin/campers/${conversionResult.camperId}`}>Open camper profile <ArrowRight size={16} /></a><button type="button" onClick={closeConversion}>Done</button></div>
+              </div>
+            ) : (
+              <>
+                <div className="admin-waitlist-conversion-grid">
+                  <label><span>Assigned campsite</span><select value={conversionForm.lotNumber} onChange={(event) => setConversionForm((current) => ({ ...current, lotNumber: event.target.value }))}><option value="">Choose an open site…</option>{vacantSites.map((site) => <option key={site} value={site}>Site {site}</option>)}</select><small>{vacantSites.length} currently vacant site{vacantSites.length === 1 ? '' : 's'} shown</small></label>
+                  <label><span>First name</span><input value={conversionForm.firstName} onChange={(event) => setConversionForm((current) => ({ ...current, firstName: event.target.value }))} /></label>
+                  <label><span>Last name</span><input value={conversionForm.lastName} onChange={(event) => setConversionForm((current) => ({ ...current, lastName: event.target.value }))} /></label>
+                  <label><span>Phone</span><input value={conversionForm.phone} onChange={(event) => setConversionForm((current) => ({ ...current, phone: event.target.value }))} /></label>
+                  <label className="wide"><span>Email for portal access</span><input type="email" value={conversionForm.email} onChange={(event) => setConversionForm((current) => ({ ...current, email: event.target.value }))} /></label>
+                </div>
+
+                <article className="admin-waitlist-welcome-preview"><span><Sparkles size={20} /></span><div><small>WELCOME NOTE PREVIEW</small><h3>{welcomePreview.heading}</h3><p>{welcomePreview.message}</p><em>The secure portal setup button and 24-hour link instructions are added automatically.</em></div></article>
+                <label className="admin-waitlist-send-welcome"><input type="checkbox" checked={sendWelcome} onChange={(event) => setSendWelcome(event.target.checked)} /><span><strong>Send the welcome and portal setup email after conversion</strong><small>You are approving this email by completing the conversion.</small></span></label>
+                <div className="admin-waitlist-transition-list"><p><CheckCircle2 size={16} /> Creates the camper profile with the waitlist contact information</p><p><CheckCircle2 size={16} /> Assigns the selected site only if it is still vacant</p><p><CheckCircle2 size={16} /> Sets ${NEW_CAMPER_ANNUAL_RENT.toLocaleString('en-US')} annual rent as 2 payments</p><p><CheckCircle2 size={16} /> Notes the ${NEW_CAMPER_ASSOCIATION_FEE} association fee due at signing</p><p><CheckCircle2 size={16} /> Preserves the waitlist notes inside the private camper record</p></div>
+                {conversionError && <p className="admin-waitlist-conversion-error">{conversionError}{conversionResult?.camperId && <a href={`/admin/campers/${conversionResult.camperId}`}> Open existing camper record.</a>}</p>}
+                <footer><button type="button" onClick={closeConversion}>Cancel</button><button className="primary" type="button" onClick={convertToCamper} disabled={converting}>{converting ? <LoaderCircle className="admin-spin" size={17} /> : <Mail size={17} />}{converting ? 'Creating camper…' : sendWelcome ? 'Create Camper & Send Welcome' : 'Create Camper'}</button></footer>
+              </>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   )
 }

@@ -8,35 +8,7 @@ import {
 import { getSiteUrl } from '../../../lib/site-url'
 import { phonePortalLoginEmail } from '../../../lib/phone-portal-login'
 import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
-
-async function generateSetupUrl(context: any, email: string, origin: string) {
-  let linkResult = await context.admin.auth.admin.generateLink({
-    type: 'invite',
-    email,
-    options: { redirectTo: `${origin}/set-password` },
-  })
-
-  if (linkResult.error) {
-    linkResult = await context.admin.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-      options: { redirectTo: `${origin}/set-password` },
-    })
-  }
-
-  const properties = linkResult.data?.properties
-  const tokenHash = properties?.hashed_token
-  const verificationType = properties?.verification_type
-  const setupUrl = tokenHash && verificationType
-    ? `${origin}/set-password?token_hash=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(verificationType)}`
-    : ''
-
-  if (linkResult.error || !setupUrl) {
-    throw new Error(linkResult.error?.message || 'Unable to create setup link.')
-  }
-
-  return setupUrl
-}
+import { generatePortalSetupUrl } from '../../../lib/portal-setup-link'
 
 export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(request, 'camper-invite', 30, 10 * 60_000)
@@ -118,7 +90,7 @@ export async function POST(request: Request) {
         .eq('id', camper.id)
       if (saveError) throw saveError
 
-      const setupUrl = await generateSetupUrl(context, email, origin)
+      const setupUrl = await generatePortalSetupUrl(context.admin, email, origin)
       const profileName = `${camper.second_profile_first_name || ''} ${camper.second_profile_last_name || ''}`.trim() || 'Camper'
       const smsResult = await sendTwilioSms({
         to: phone,
@@ -140,7 +112,7 @@ export async function POST(request: Request) {
     }
 
     if (portalInviteEmailConfigured()) {
-      const setupUrl = await generateSetupUrl(context, email, origin)
+      const setupUrl = await generatePortalSetupUrl(context.admin, email, origin)
       try {
         const emailResult = await sendPortalInviteEmail({
           to: email,
@@ -190,7 +162,7 @@ export async function POST(request: Request) {
 
       let setupUrl = ''
       try {
-        setupUrl = await generateSetupUrl(context, email, origin)
+        setupUrl = await generatePortalSetupUrl(context.admin, email, origin)
       } catch {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
