@@ -104,10 +104,46 @@ export async function GET(request: Request) {
     return { ...broadcast, sent_count: sentCount, failed_count: failedCount, pending_count: pendingCount }
   })
 
+  const { data: consentRows, error: consentError } = await context.admin
+    .from('sms_phone_consents')
+    .select('camper_id,phone_number,opted_out_at,source,updated_at')
+    .eq('opted_in', false)
+    .order('opted_out_at', { ascending: false, nullsFirst: false })
+
+  let optedOuts: any[] = []
+  if (!consentError) {
+    const camperIds = Array.from(new Set((consentRows || []).map((row: any) => String(row.camper_id || '')).filter(Boolean)))
+    const { data: optedOutCampers, error: optedOutCamperError } = camperIds.length
+      ? await context.admin
+        .from('campers')
+        .select('id,lot_number,first_name,last_name,active,role')
+        .in('id', camperIds)
+      : { data: [], error: null }
+
+    if (optedOutCamperError) return NextResponse.json({ error: optedOutCamperError.message }, { status: 500 })
+
+    const camperById = new Map((optedOutCampers || []).map((camper: any) => [String(camper.id), camper]))
+    optedOuts = (consentRows || []).flatMap((row: any) => {
+      const camper: any = camperById.get(String(row.camper_id))
+      if (!camper || !isOperationalCamper(camper)) return []
+      return [{
+        camperId: camper.id,
+        lotNumber: camper.lot_number,
+        camperName: camperName(camper),
+        phone: row.phone_number,
+        optedOutAt: row.opted_out_at || row.updated_at,
+        source: row.source || 'unknown',
+      }]
+    })
+  } else if (!['42P01', 'PGRST205'].includes(consentError.code || '')) {
+    return NextResponse.json({ error: consentError.message }, { status: 500 })
+  }
+
   return NextResponse.json({
     success: true,
     twilioConfigured: isTwilioConfigured(),
     recentBroadcasts,
+    optedOuts,
   })
 }
 

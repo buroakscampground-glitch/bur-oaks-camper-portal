@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, CheckCircle2, LoaderCircle, MessageSquareText, Phone, Search, Send, UsersRound } from 'lucide-react'
+import { AlertTriangle, Ban, CheckCircle2, LoaderCircle, MessageSquareText, Phone, Search, Send, UsersRound } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
@@ -33,6 +33,7 @@ export default function AdminTextsPage() {
   const [twilioConfigured, setTwilioConfigured] = useState(false)
   const [sendResults, setSendResults] = useState<any[]>([])
   const [recentBroadcasts, setRecentBroadcasts] = useState<any[]>([])
+  const [optedOuts, setOptedOuts] = useState<any[]>([])
   const sendingRef = useRef(false)
   const requestIdRef = useRef('')
 
@@ -67,6 +68,7 @@ export default function AdminTextsPage() {
       const config = await configResponse.json()
       setTwilioConfigured(Boolean(config.twilioConfigured))
       setRecentBroadcasts(config.recentBroadcasts || [])
+      setOptedOuts(config.optedOuts || [])
     }
   }
 
@@ -173,6 +175,13 @@ export default function AdminTextsPage() {
     compact: true,
   })
 
+  function optOutSource(source?: string) {
+    if (source === 'twilio-keyword') return 'Replied STOP'
+    if (source === 'twilio-provider-rejection') return 'Carrier confirmed opt-out'
+    if (source === 'portal') return 'Turned off in portal'
+    return 'Opted out'
+  }
+
   return (
     <main className="admin-texts-page">
       <section className="admin-texts-hero">
@@ -198,6 +207,10 @@ export default function AdminTextsPage() {
         <article>
           <span><Phone size={20} /></span>
           <div><small>Opted in with phone</small><strong>{optedInCampers.length}</strong></div>
+        </article>
+        <article className={optedOuts.length ? 'attention' : ''}>
+          <span><Ban size={20} /></span>
+          <div><small>Opted-out numbers</small><strong>{optedOuts.length}</strong></div>
         </article>
         <article>
           <span><MessageSquareText size={20} /></span>
@@ -305,33 +318,60 @@ export default function AdminTextsPage() {
           )}
         </article>
 
-        <article className="admin-texts-card">
-          <div className="admin-texts-section-heading">
-            <small>READINESS</small>
-            <h2>Camper opt-ins</h2>
-          </div>
+        <div className="admin-texts-side-column">
+          <article className="admin-texts-card admin-texts-opt-outs" id="opted-out">
+            <div className="admin-texts-section-heading">
+              <small>DO NOT TEXT</small>
+              <h2>Opted out</h2>
+              <p>These individual phone numbers will be excluded from every camper text.</p>
+            </div>
 
-          <label className="admin-texts-search">
-            <Search size={16} />
-            <input
-              value={searchText}
-              onChange={(event) => setSearchText(event.target.value)}
-              placeholder="Search name, lot, phone…"
-            />
-          </label>
-
-          <div className="admin-texts-camper-list">
-            {filteredCampers.map((camper) => (
-              <div key={camper.id}>
-                <span>{camper.first_name?.[0] || '?'}{camper.last_name?.[0] || ''}</span>
-                <p><strong>{camperLabel(camper)}</strong><small>{camper.phone || 'No phone on file'}</small></p>
-                <em className={camper.sms_opt_in && camper.phone ? 'ready' : 'blocked'}>
-                  {camper.sms_opt_in && camper.phone ? 'Ready' : 'Needs opt-in'}
-                </em>
+            {optedOuts.length === 0 ? (
+              <p className="admin-texts-empty compact">No active camper phone numbers are opted out.</p>
+            ) : (
+              <div className="admin-texts-opt-out-list">
+                {optedOuts.map((entry) => (
+                  <a href={`/admin/campers/${entry.camperId}`} key={`${entry.camperId}-${entry.phone}`}>
+                    <span><Ban size={16} /></span>
+                    <p>
+                      <strong>Lot {entry.lotNumber || '—'} · {entry.camperName}</strong>
+                      <small>{entry.phone} · {optOutSource(entry.source)}</small>
+                    </p>
+                    <time>{formatDateTime(entry.optedOutAt)}</time>
+                  </a>
+                ))}
               </div>
-            ))}
-          </div>
-        </article>
+            )}
+          </article>
+
+          <article className="admin-texts-card">
+            <div className="admin-texts-section-heading">
+              <small>READINESS</small>
+              <h2>Camper opt-ins</h2>
+            </div>
+
+            <label className="admin-texts-search">
+              <Search size={16} />
+              <input
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder="Search name, lot, phone…"
+              />
+            </label>
+
+            <div className="admin-texts-camper-list">
+              {filteredCampers.map((camper) => (
+                <div key={camper.id}>
+                  <span>{camper.first_name?.[0] || '?'}{camper.last_name?.[0] || ''}</span>
+                  <p><strong>{camperLabel(camper)}</strong><small>{camper.phone || 'No phone on file'}</small></p>
+                  <em className={camper.sms_opt_in && camper.phone ? 'ready' : 'blocked'}>
+                    {camper.sms_opt_in && camper.phone ? 'Ready' : 'Needs opt-in'}
+                  </em>
+                </div>
+              ))}
+            </div>
+          </article>
+        </div>
       </section>
 
       <section className="admin-texts-card history">
