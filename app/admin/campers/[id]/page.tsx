@@ -154,6 +154,13 @@ export default function CamperDetailPage() {
     loadCamper()
   }, [camperId])
 
+  useEffect(() => {
+    const requestedView = new URLSearchParams(window.location.search).get('history') as HistoryView | null
+    if (requestedView && ['activity', 'documents', 'billing', 'site', 'messages', 'electric'].includes(requestedView)) {
+      setHistoryView(requestedView)
+    }
+  }, [])
+
   async function loadCamper() {
     setLoading(true)
     setMessage('')

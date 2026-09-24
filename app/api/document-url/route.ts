@@ -28,7 +28,7 @@ export async function POST(request: Request) {
 
     const { data: document } = await context.admin
       .from('documents')
-      .select('id,camper_id,file_url')
+      .select('id,camper_id,document_name,document_type,file_url,signature_status,signed_at,signed_name,second_signed_at,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash')
       .eq('id', documentId)
       .single()
 
@@ -72,7 +72,24 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Document could not be opened.' }, { status: 404 })
     }
 
-    return NextResponse.json({ url: data.signedUrl, fileUrl: objectPath })
+    return NextResponse.json({
+      url: data.signedUrl,
+      fileUrl: objectPath,
+      isAdmin,
+      camperId: document.camper_id,
+      document: {
+        name: document.document_name,
+        type: document.document_type,
+        signatureStatus: document.signature_status,
+        signedAt: document.signed_at,
+        signedName: document.signed_name,
+        secondSignedAt: document.second_signed_at,
+        secondSignedName: document.second_signed_name,
+        requiresTwoSignatures: document.requires_two_signatures,
+        signatureRecordHash: document.signature_record_hash,
+        secondSignatureRecordHash: document.second_signature_record_hash,
+      },
+    })
   } catch (error) {
     console.error('Unable to create document link:', error)
     return NextResponse.json({ error: 'Unable to open document.' }, { status: 500 })

@@ -85,6 +85,10 @@ function isCamperOnlyPath(pathname: string) {
   ].some((path) => pathname === path || pathname.startsWith(`${path}/`))
 }
 
+function isSharedDocumentViewerPath(pathname: string) {
+  return pathname.startsWith('/documents/view/')
+}
+
 export default function CamperChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -92,6 +96,9 @@ export default function CamperChrome({ children }: { children: React.ReactNode }
   const theme = getSeasonalTheme()
 
   if (!title) {
+    if (isSharedDocumentViewerPath(pathname)) {
+      return <RoleGuard allowedRoles={['camper', 'admin']}>{children}</RoleGuard>
+    }
     return isCamperOnlyPath(pathname)
       ? <RoleGuard allowedRoles={['camper']}>{children}</RoleGuard>
       : <>{children}</>

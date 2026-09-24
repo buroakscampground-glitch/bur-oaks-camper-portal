@@ -11174,6 +11174,49 @@ tbody tr:hover {
   font-size: 12px;
 }
 
+.document-viewer-signature-record {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 15px 18px;
+  border: 1px solid #bfd5c3;
+  border-radius: 17px;
+  background: #edf6ed;
+  color: #315f3d;
+}
+
+.document-viewer-signature-record > svg {
+  width: 42px;
+  height: 42px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #d8eadb;
+}
+
+.document-viewer-signature-record > div {
+  display: grid;
+  gap: 3px;
+}
+
+.document-viewer-signature-record small {
+  color: #6b7f6f;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+
+.document-viewer-signature-record strong {
+  font-size: 14px;
+}
+
+.document-viewer-signature-record p {
+  margin: 0;
+  color: #64766a;
+  font-size: 11px;
+}
+
 .document-viewer-frame {
   width: 100%;
   min-height: calc(100vh - 190px);
