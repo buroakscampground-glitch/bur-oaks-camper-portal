@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Activity,
   Archive,
   ArrowLeft,
   Bell,
@@ -62,6 +63,7 @@ const pageNames: Record<string, string> = {
   lots: 'Lots & Sites',
   waitlist: 'Waitlist',
   'waitlist-removals': 'Waitlist Opt-Outs',
+  'camper-usage': 'Camper Usage',
   events: 'Events',
   dinners: 'Saturday Dinners',
   rsvps: 'RSVP Tracking',
@@ -123,6 +125,7 @@ const navGroups = [
       { href: '/admin/site-availability', label: 'Site Availability', icon: DoorOpen },
       { href: '/admin/documents', label: 'Documents & Leases', icon: FileText },
       { href: '/admin/waitlist', label: 'Waitlist', icon: BookOpen },
+      { href: '/admin/camper-usage', label: 'Camper Usage', icon: Activity },
       { href: '/admin/waitlist-removals', label: 'Waitlist Opt-Outs', icon: UserX },
       { href: '/admin/directory', label: 'Directory', icon: Mail },
     ],
