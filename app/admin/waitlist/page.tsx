@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, CheckCircle2, LoaderCircle, Mail, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
+import { ArrowRight, CheckCircle2, LoaderCircle, Mail, Sparkles, TentTree, UserPlus, UserX, Users, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { canConvertWaitlistStatus, NEW_CAMPER_ANNUAL_RENT, NEW_CAMPER_ASSOCIATION_FEE, waitlistWelcomeCopy } from '../../../lib/waitlist-conversion'
@@ -22,6 +22,7 @@ export default function WaitlistPage() {
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
+  const [directoryView, setDirectoryView] = useState<'current' | 'removed'>('current')
   const [conversionPerson, setConversionPerson] = useState<any | null>(null)
   const [conversionForm, setConversionForm] = useState({ firstName: '', lastName: '', phone: '', email: '', lotNumber: '' })
   const [sendWelcome, setSendWelcome] = useState(true)
@@ -163,7 +164,8 @@ export default function WaitlistPage() {
   const visiblePeople = people.filter((person) => {
     const term = search.trim().toLowerCase()
     const matchesSearch = !term || [person.first_name, person.last_name, person.phone, person.email].join(' ').toLowerCase().includes(term)
-    return matchesSearch && (statusFilter === 'All' || person.status === statusFilter)
+    const matchesView = directoryView === 'removed' ? person.status === 'Removed' : person.status !== 'Removed'
+    return matchesSearch && matchesView && (directoryView === 'removed' || statusFilter === 'All' || person.status === statusFilter)
   })
   const welcomePreview = waitlistWelcomeCopy(conversionForm.firstName, conversionForm.lotNumber)
 
@@ -193,16 +195,21 @@ export default function WaitlistPage() {
         </aside>
 
         <section className="admin-waitlist-directory">
-          <header><div><small>APPLICANTS</small><h2>Current waitlist</h2></div><div><input placeholder="Search name, phone, email…" value={search} onChange={(event) => setSearch(event.target.value)} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Converted</option><option>Declined</option><option>Removed</option></select></div></header>
+          <nav className="admin-waitlist-directory-tabs" aria-label="Waitlist views">
+            <button className={directoryView === 'current' ? 'active' : ''} type="button" onClick={() => setDirectoryView('current')}><Users size={16} /> Current waitlist <strong>{people.length - counts.Removed}</strong></button>
+            <button className={directoryView === 'removed' ? 'active removed' : ''} type="button" onClick={() => setDirectoryView('removed')}><UserX size={16} /> No longer interested <strong>{counts.Removed}</strong></button>
+          </nav>
+          <header><div><small>{directoryView === 'removed' ? 'REMOVAL RECORD' : 'APPLICANTS'}</small><h2>{directoryView === 'removed' ? 'No Longer Interested' : 'Current waitlist'}</h2>{directoryView === 'removed' && <p>People who used the email removal link or were marked Removed by the office stay here for your records.</p>}</div><div><input placeholder="Search name, phone, email…" value={search} onChange={(event) => setSearch(event.target.value)} />{directoryView === 'current' && <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Converted</option><option>Declined</option></select>}</div></header>
 
-          {visiblePeople.length === 0 ? <p className="admin-waitlist-empty">No matching waitlist entries.</p> : (
+          {visiblePeople.length === 0 ? <p className="admin-waitlist-empty">{directoryView === 'removed' ? 'No one has removed themselves from the waitlist.' : 'No matching waitlist entries.'}</p> : (
             <div className="admin-waitlist-list">
               {visiblePeople.map((person) => (
-                <article key={person.id}>
+                <article className={person.status === 'Removed' ? 'removed' : ''} key={person.id}>
                   <header><div><span>{person.first_name?.[0] || '?'}{person.last_name?.[0] || ''}</span><div><h3>{person.first_name} {person.last_name}</h3><small>{person.phone || 'No phone'} · {person.email || 'No email'}</small></div></div><em>{person.status}</em></header>
-                  <dl><div><dt>Site preference</dt><dd>{person.desired_site || 'Not provided'}</dd></div><div><dt>Last waitlist email</dt><dd>{person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent'}</dd></div>{person.notes && <div className="wide"><dt>Notes</dt><dd>{person.notes}</dd></div>}</dl>
+                  <dl><div><dt>Site preference</dt><dd>{person.desired_site || 'Not provided'}</dd></div>{person.status === 'Removed' ? <div><dt>Removed from waitlist</dt><dd>{person.removed_at ? new Date(person.removed_at).toLocaleString() : 'Date unavailable'}</dd></div> : <div><dt>Last waitlist email</dt><dd>{person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent'}</dd></div>}{person.notes && <div className="wide"><dt>Notes</dt><dd>{person.notes}</dd></div>}</dl>
                   <footer>
                     {canConvertWaitlistStatus(person.status) && <button className="convert" type="button" onClick={() => openConversion(person)}><UserPlus size={16} /> Convert to Camper</button>}
+                    {person.status === 'Removed' && <button className="restore" type="button" onClick={() => updateStatus(person.id, 'Waiting')}><UserPlus size={16} /> Return to waitlist</button>}
                     <select aria-label={`Change status for ${person.first_name} ${person.last_name}`} value={person.status} onChange={(event) => updateStatus(person.id, event.target.value)}><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Declined</option><option>Removed</option>{person.status === 'Converted' && <option>Converted</option>}</select>
                     <button className="delete" type="button" onClick={() => deletePerson(person.id)}>Delete</button>
                   </footer>
