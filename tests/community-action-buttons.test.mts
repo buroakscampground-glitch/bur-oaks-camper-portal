@@ -15,6 +15,12 @@ test('built-in Messenger buttons always resolve to their working camper destinat
   assert.equal(communityActionLabel('events'), 'View events and RSVP')
 })
 
+test('built-in Messenger buttons open the matching admin workspace for staff', () => {
+  assert.equal(communityActionHref('events', '/calendar', 'admin'), '/admin/events')
+  assert.equal(communityActionHref('dinners', '/dinners', 'admin'), '/admin/dinners')
+  assert.equal(communityActionHref('contact', '/messages', 'admin'), '/admin/messages')
+})
+
 test('custom Messenger buttons accept portal paths and secure external links', () => {
   assert.equal(safeCommunityActionUrl('/portal/events/fall-festival'), '/portal/events/fall-festival')
   assert.equal(safeCommunityActionUrl('https://example.com/details'), 'https://example.com/details')

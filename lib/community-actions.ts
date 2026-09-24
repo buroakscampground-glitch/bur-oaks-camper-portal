@@ -1,7 +1,7 @@
 export const communityActions = {
-  events: { label: 'View events and RSVP', href: '/calendar' },
-  dinners: { label: 'View dinner details', href: '/dinners' },
-  contact: { label: 'Contact the office', href: '/messages' },
+  events: { label: 'View events and RSVP', href: '/calendar', adminHref: '/admin/events' },
+  dinners: { label: 'View dinner details', href: '/dinners', adminHref: '/admin/dinners' },
+  contact: { label: 'Contact the office', href: '/messages', adminHref: '/admin/messages' },
 } as const
 
 export type CommunityActionType = keyof typeof communityActions | 'custom'
@@ -26,14 +26,16 @@ export function safeCommunityActionUrl(value: unknown) {
   }
 }
 
-export function communityActionHref(actionType: unknown, storedUrl?: unknown) {
+export function communityActionHref(actionType: unknown, storedUrl?: unknown, surface: 'camper' | 'admin' = 'camper') {
   const normalized = normalizeCommunityActionType(actionType)
   if (!normalized) return null
   if (normalized === 'custom') return safeCommunityActionUrl(storedUrl)
 
   // Resolve known destinations centrally instead of trusting an old saved URL.
   // Existing event buttons that used /events now open the camper RSVP calendar.
-  return communityActions[normalized].href
+  return surface === 'admin'
+    ? communityActions[normalized].adminHref
+    : communityActions[normalized].href
 }
 
 export function communityActionLabel(actionType: unknown) {

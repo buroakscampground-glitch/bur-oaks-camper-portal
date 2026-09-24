@@ -508,7 +508,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
                 return <button className="campground-community-photo-button" type="button" onClick={() => setExpandedPhoto({ url: post.photo_url, alt })} aria-label={`Open full-size photo ${alt}`}><img className="campground-community-photo" src={post.photo_url} alt={alt} /><span><ZoomIn size={16} /> View full picture</span></button>
               })()}
               {(() => {
-                const href = communityActionHref(post.action_type, post.action_url)
+                const href = communityActionHref(post.action_type, post.action_url, adminMode ? 'admin' : 'camper')
                 if (!href) return null
                 const external = href.startsWith('https://')
                 return <a className="campground-community-post-action" href={href} rel={external ? 'noreferrer' : undefined} target={external ? '_blank' : undefined}><span>{communityActionLabel(post.action_type)}</span><ExternalLink size={18} /></a>
