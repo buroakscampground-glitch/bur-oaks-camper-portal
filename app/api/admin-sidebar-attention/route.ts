@@ -40,6 +40,7 @@ export async function GET(request: Request) {
     // camper action items and should not create an admin badge.
     '/admin/documents': 0,
     '/admin/waitlist': notifications.filter((item: any) => item.type === 'website_waitlist').length,
+    '/admin/waitlist-removals': notifications.filter((item: any) => item.type === 'waitlist_removal').length,
     '/admin/maintenance': notifications.filter((item: any) => item.type === 'maintenance_request').length,
     '/admin/maintenance/supplies': (supplyResult.data || []).length,
     '/admin/pump-outs': notifications.filter((item: any) => item.type === 'sewer_pump_out').length,

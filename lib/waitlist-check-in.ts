@@ -80,7 +80,7 @@ export function buildWaitlistCheckIn(firstName: string, manageUrl: string) {
     '',
     'No action is needed to remain on the waitlist.',
     '',
-    `If your plans have changed, you can remove your name here: ${manageUrl}`,
+    `If you are no longer interested, you can remove your name here: ${manageUrl}`,
     '',
     'Bur Oaks Campground',
     '(618) 488-7927',
@@ -103,7 +103,7 @@ export function buildWaitlistCheckIn(firstName: string, manageUrl: string) {
           </div>
           <p style="font-size:16px;line-height:1.6"><strong>No action is needed to remain on the waitlist.</strong></p>
           <p style="font-size:15px;line-height:1.7"><strong>Bur Oaks Campground</strong><br><a href="tel:+16184887927" style="color:#2f5b3b">(618) 488-7927</a><br><a href="mailto:buroakscampground@gmail.com" style="color:#2f5b3b">buroakscampground@gmail.com</a></p>
-          <p style="margin:28px 0 0;padding-top:20px;border-top:1px solid #e2dccf;font-size:13px;line-height:1.6;color:#68756c">Plans changed? <a href="${safeUrl}" style="color:#2f5b3b;font-weight:700">Remove my name from the waitlist</a>.</p>
+          <p style="margin:28px 0 0;padding-top:20px;border-top:1px solid #e2dccf;font-size:13px;line-height:1.6;color:#68756c">Plans changed? <a href="${safeUrl}" style="color:#2f5b3b;font-weight:700">I’m no longer interested — remove me from the waitlist</a>.</p>
           <p style="margin-bottom:0;font-family:Georgia,serif;color:#8a6c35">A Site to Remember · Est. 1972</p>
         </div>
       </div>

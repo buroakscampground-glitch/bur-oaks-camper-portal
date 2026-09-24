@@ -14,7 +14,8 @@ test('waitlist check-in is warm, clear, and includes a removal option', () => {
   assert.match(copy.text, /haven't forgotten about you/i)
   assert.match(copy.text, /right site to open/i)
   assert.match(copy.text, /No action is needed/i)
-  assert.match(copy.html, /Remove my name from the waitlist/i)
+  assert.match(copy.html, /no longer interested/i)
+  assert.match(copy.html, /remove me from the waitlist/i)
 })
 
 test('waitlist check-ins start immediately for existing records and repeat every thirty days', () => {

@@ -12,6 +12,7 @@ const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   event_rsvp: { label: 'RSVP', icon: PartyPopper, href: '/admin/rsvps' },
   direct_message: { label: 'Camper Message', icon: MessageCircle, href: '/admin/messages' },
   website_waitlist: { label: 'Website Waitlist', icon: UsersRound, href: '/admin/waitlist' },
+  waitlist_removal: { label: 'Waitlist Opt-Out', icon: UsersRound, href: '/admin/waitlist-removals' },
   site_care: { label: 'Site Care Review', icon: ClipboardCheck, href: '/admin/site-care' },
   payment_problem: { label: 'Payment Problem', icon: CircleDollarSign, href: '/admin/stripe-deposits' },
   renewal_review: { label: 'Renewal Decision', icon: CalendarClock, href: '/admin/renewals' },
@@ -114,6 +115,7 @@ export default function AdminNotificationsPage() {
           <option value="direct_message">Camper Messages</option>
           <option value="site_care">Site Care Reviews</option>
           <option value="payment_problem">Payment Problems</option>
+          <option value="waitlist_removal">Waitlist Opt-Outs</option>
         </select>
       </section>
 

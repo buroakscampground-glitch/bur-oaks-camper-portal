@@ -3,7 +3,7 @@ import { requiresAdminAttention } from './admin-notification-types'
 import { sendStaffWebPush } from './staff-web-push'
 
 type NotificationInput = {
-  type: 'maintenance_request' | 'payment_received' | 'payment_problem' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message' | 'website_waitlist' | 'site_care'
+  type: 'maintenance_request' | 'payment_received' | 'payment_problem' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message' | 'website_waitlist' | 'waitlist_removal' | 'site_care'
   title: string
   message: string
   lot_number?: string | null
@@ -54,7 +54,9 @@ export async function createAdminNotification(admin: any, input: NotificationInp
       ? '/admin/maintenance'
       : input.type === 'site_care'
         ? '/admin/site-care'
-        : input.type === 'website_waitlist'
+        : input.type === 'waitlist_removal'
+          ? '/admin/waitlist-removals'
+          : input.type === 'website_waitlist'
           ? '/admin/waitlist'
           : '/admin/notifications'
   const pushAlert = shouldStoreForAttention
