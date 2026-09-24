@@ -46,6 +46,15 @@ export function addMonthsToDate(value: string, months: number) {
   return `${targetYear}-${String(targetMonthIndex + 1).padStart(2, '0')}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
 }
 
+export function normalizeLotRentDueDate(value: string) {
+  if (!isDate(value)) return ''
+  const [year, month, day] = value.split('-').map(Number)
+  const firstOfContractMonth = `${year}-${String(month).padStart(2, '0')}-01`
+  return day <= 15
+    ? firstOfContractMonth
+    : addMonthsToDate(firstOfContractMonth, 1)
+}
+
 export function normalizeRentPaymentPlan(value: unknown): RentPaymentPlan {
   return String(value || '').toLowerCase() === 'quarterly' ? 'quarterly' : 'semiannual'
 }
@@ -129,7 +138,7 @@ export function buildContinuedRentSchedule(
       if (amount <= 0) return []
       return [{
         sourceInvoiceId: String(invoice.id || ''),
-        dueDate: addYearsToDate(sourceDueDate, 1),
+        dueDate: normalizeLotRentDueDate(addYearsToDate(sourceDueDate, 1)),
         amount,
         invoiceType: String(invoice.invoice_type || 'Lot Rent').trim() || 'Lot Rent',
         items,
@@ -170,7 +179,7 @@ export function buildRenewalRentSchedule(
 
   return amounts.map((amount, index) => ({
     sourceInvoiceId: priorSchedule[index]?.sourceInvoiceId || '',
-    dueDate: addMonthsToDate(contractEndDate, index * monthStep),
+    dueDate: normalizeLotRentDueDate(addMonthsToDate(contractEndDate, index * monthStep)),
     amount,
     invoiceType,
     items: [{ description: 'Lot Rent', quantity: 1, unit_price: amount, total: amount }],

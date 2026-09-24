@@ -6,6 +6,7 @@ import { reconcileRenewalsWithDocuments } from '../../../lib/renewal-document-re
 import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
 import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-schedule-service'
 import { isDocumentDeliveryExcluded } from '../../../lib/document-delivery-exemptions'
+import { isLotRentInvoice, normalizeLotRentDueDate } from '../../../lib/renewal-rent-schedule'
 
 export const runtime = 'nodejs'
 
@@ -54,6 +55,69 @@ export async function POST(request: Request) {
     } catch (error: any) {
       return NextResponse.json({ error: error?.message || 'Renewal signatures could not be reconciled.' }, { status: 500 })
     }
+  }
+
+  if (action === 'preview-rent-due-dates' || action === 'normalize-rent-due-dates') {
+    const { data: invoices, error: invoiceError } = await context.admin
+      .from('invoices')
+      .select('id,camper_id,invoice_number,invoice_type,due_date,status,total_due')
+      .ilike('invoice_type', '%rent%')
+      .order('due_date', { ascending: true })
+
+    if (invoiceError) {
+      return NextResponse.json({ error: invoiceError.message || 'Lot-rent invoices could not be reviewed.' }, { status: 500 })
+    }
+
+    const terminalStatuses = new Set(['paid', 'void', 'cancelled', 'canceled', 'refunded'])
+    const changes = (invoices || []).flatMap((invoice: any) => {
+      const currentDueDate = String(invoice.due_date || '')
+      const normalizedDueDate = normalizeLotRentDueDate(currentDueDate)
+      const status = String(invoice.status || '').trim().toLowerCase()
+      if (!isLotRentInvoice(invoice) || terminalStatuses.has(status) || !normalizedDueDate || normalizedDueDate === currentDueDate) return []
+      return [{ ...invoice, currentDueDate, normalizedDueDate }]
+    })
+
+    if (action === 'preview-rent-due-dates') {
+      return NextResponse.json({
+        success: true,
+        changed: 0,
+        candidates: changes.length,
+        preview: changes.slice(0, 25).map((invoice: any) => ({
+          invoiceNumber: invoice.invoice_number,
+          currentDueDate: invoice.currentDueDate,
+          normalizedDueDate: invoice.normalizedDueDate,
+          amount: invoice.total_due,
+        })),
+      })
+    }
+
+    let changed = 0
+    const failures: Array<{ invoiceNumber: string; error: string }> = []
+    for (let index = 0; index < changes.length; index += 20) {
+      await Promise.all(changes.slice(index, index + 20).map(async (invoice: any) => {
+        const { error } = await context.admin
+          .from('invoices')
+          .update({ due_date: invoice.normalizedDueDate })
+          .eq('id', invoice.id)
+          .eq('due_date', invoice.currentDueDate)
+        if (error) failures.push({ invoiceNumber: String(invoice.invoice_number || invoice.id), error: error.message })
+        else changed += 1
+      }))
+    }
+
+    if (failures.length) {
+      return NextResponse.json({ error: `${failures.length} lot-rent due date${failures.length === 1 ? '' : 's'} could not be updated.`, changed, failures }, { status: 500 })
+    }
+
+    await context.admin.from('admin_notifications').insert({
+      type: 'rent_due_date_policy',
+      title: 'Lot-rent due dates aligned',
+      message: `${changed} open lot-rent invoice${changed === 1 ? '' : 's'} aligned to the contract-date policy: contract dates on days 1–15 are due on the 1st of that month; days 16–31 are due on the 1st of the next month. Paid history and non-rent bills were not changed.`,
+      source_table: 'invoices',
+      read_at: new Date().toISOString(),
+    })
+
+    return NextResponse.json({ success: true, changed, candidates: changes.length })
   }
 
   const camperId = cleanText(body.camperId, 80)

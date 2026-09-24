@@ -6,7 +6,15 @@ import {
   buildContinuedRentSchedule,
   buildRenewalRentSchedule,
   hasExistingLotRentForTargetMonth,
+  normalizeLotRentDueDate,
 } from '../lib/renewal-rent-schedule.ts'
+
+test('lot rent due dates follow the first-half versus second-half contract rule', () => {
+  assert.equal(normalizeLotRentDueDate('2026-05-01'), '2026-05-01')
+  assert.equal(normalizeLotRentDueDate('2026-05-15'), '2026-05-01')
+  assert.equal(normalizeLotRentDueDate('2026-05-16'), '2026-06-01')
+  assert.equal(normalizeLotRentDueDate('2026-12-31'), '2027-01-01')
+})
 
 test('signed renewal carries the prior lot-rent schedule forward one year', () => {
   const schedule = buildContinuedRentSchedule([
@@ -26,7 +34,7 @@ test('signed renewal carries the prior lot-rent schedule forward one year', () =
   ])
 })
 
-test('renewal schedule preserves actual installments without copying late fees', () => {
+test('renewal schedule preserves actual installments without copying late fees and aligns the due date', () => {
   const schedule = buildContinuedRentSchedule([{
     id: 'split-rent',
     invoice_type: 'Seasonal Lot Rent',
@@ -39,17 +47,17 @@ test('renewal schedule preserves actual installments without copying late fees',
   }], '2027-07-25')
 
   assert.equal(schedule.length, 1)
-  assert.equal(schedule[0].dueDate, '2027-07-25')
+  assert.equal(schedule[0].dueDate, '2027-08-01')
   assert.equal(schedule[0].amount, 420)
   assert.equal(schedule[0].items[0].total, 420)
 })
 
-test('annual schedules and leap-day due dates carry forward safely', () => {
+test('annual schedules and leap-day contract dates carry forward to the correct first', () => {
   assert.equal(addYearsToDate('2028-02-29', 1), '2029-02-28')
   const schedule = buildContinuedRentSchedule([
     { id: 'annual', invoice_type: 'Site Rent', subtotal: 1500, due_date: '2026-10-12', status: 'paid' },
   ], '2027-10-12')
-  assert.deepEqual(schedule.map((installment) => installment.dueDate), ['2027-10-12'])
+  assert.deepEqual(schedule.map((installment) => installment.dueDate), ['2027-10-01'])
 })
 
 test('saved quarterly terms always create four equal renewal payments', () => {
@@ -75,8 +83,8 @@ test('an October 1 quarterly contract stays on the January, April, and July cycl
 test('standard half-and-half terms always create two equal renewal payments', () => {
   const schedule = buildRenewalRentSchedule([], '2027-05-31', 'semiannual', 1500)
   assert.deepEqual(schedule.map((installment) => [installment.dueDate, installment.amount]), [
-    ['2027-05-31', 750],
-    ['2027-11-30', 750],
+    ['2027-06-01', 750],
+    ['2027-12-01', 750],
   ])
 })
 

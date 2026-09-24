@@ -278,6 +278,8 @@ export default function AdminRenewalsPage() {
   const [siteDecisionMessage, setSiteDecisionMessage] = useState('')
   const [repairAnnualRent, setRepairAnnualRent] = useState('')
   const [previousSystemConfirmId, setPreviousSystemConfirmId] = useState('')
+  const [rentDuePreviewCount, setRentDuePreviewCount] = useState<number | null>(null)
+  const [rentDuePolicyWorking, setRentDuePolicyWorking] = useState(false)
   const openedLinkedRecord = useRef(false)
 
   useEffect(() => { loadPage() }, [])
@@ -483,6 +485,42 @@ export default function AdminRenewalsPage() {
       setSiteDecisionMessage(error instanceof Error ? error.message : 'The rent schedule could not be repaired.')
     } finally {
       setSaving('')
+    }
+  }
+
+  async function alignOpenRentDueDates() {
+    setRentDuePolicyWorking(true)
+    setFeedback('')
+    try {
+      const sessionResult = await supabase.auth.getSession()
+      const token = sessionResult.data.session?.access_token
+      if (!token) throw new Error('Your login has expired. Please sign in again.')
+
+      const applying = Number(rentDuePreviewCount || 0) > 0
+      const response = await fetch('/api/admin-renewals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: applying ? 'normalize-rent-due-dates' : 'preview-rent-due-dates' }),
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(result?.error || 'The lot-rent due dates could not be reviewed.')
+
+      if (!applying) {
+        const candidates = Number(result?.candidates || 0)
+        setRentDuePreviewCount(candidates)
+        setFeedback(candidates
+          ? `${candidates} open lot-rent invoice${candidates === 1 ? '' : 's'} need alignment. Tap “Apply to ${candidates} invoices” to make the change. Paid history and all non-rent bills will stay untouched.`
+          : 'Every open lot-rent invoice already follows the contract-date due-date policy.')
+        return
+      }
+
+      const changed = Number(result?.changed || 0)
+      setRentDuePreviewCount(null)
+      setFeedback(`${changed} open lot-rent invoice${changed === 1 ? '' : 's'} updated. Contract dates on days 1–15 are due on the 1st of that month; dates on days 16–31 are due on the 1st of the next month.`)
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'The lot-rent due dates could not be updated.')
+    } finally {
+      setRentDuePolicyWorking(false)
     }
   }
 
@@ -698,7 +736,7 @@ export default function AdminRenewalsPage() {
   return (
     <main className="renewal-page">
       <style>{`
-        .renewal-page{display:grid;gap:18px;color:#263b2e}.renewal-hero{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;padding:30px;border-radius:28px;background:radial-gradient(circle at 85% 12%,rgba(236,199,111,.3),transparent 28%),linear-gradient(135deg,#173722,#386747);color:#fff;box-shadow:0 22px 56px rgba(34,54,38,.16)}.renewal-eyebrow{display:inline-flex;align-items:center;gap:7px;color:#efd288;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.renewal-hero h1{margin:9px 0 0;color:#fff;font:500 clamp(36px,5vw,58px)/1.02 Georgia,serif}.renewal-hero p{max-width:760px;margin:12px 0 0;color:rgba(255,255,255,.84);line-height:1.55}.renewal-hero a{display:inline-flex;align-items:center;gap:8px;padding:12px 15px;border-radius:999px;background:#fff;color:#285237;font-size:12px;font-weight:900;text-decoration:none}
+        .renewal-page{display:grid;gap:18px;color:#263b2e}.renewal-hero{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end;padding:30px;border-radius:28px;background:radial-gradient(circle at 85% 12%,rgba(236,199,111,.3),transparent 28%),linear-gradient(135deg,#173722,#386747);color:#fff;box-shadow:0 22px 56px rgba(34,54,38,.16)}.renewal-eyebrow{display:inline-flex;align-items:center;gap:7px;color:#efd288;font-size:10px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}.renewal-hero h1{margin:9px 0 0;color:#fff;font:500 clamp(36px,5vw,58px)/1.02 Georgia,serif}.renewal-hero p{max-width:760px;margin:12px 0 0;color:rgba(255,255,255,.84);line-height:1.55}.renewal-hero-actions{display:grid;gap:8px;justify-items:stretch}.renewal-hero a,.renewal-hero-actions button{display:inline-flex!important;align-items:center;justify-content:center;gap:8px;padding:12px 15px!important;border:1px solid rgba(255,255,255,.28)!important;border-radius:999px!important;background:#fff!important;color:#285237!important;font-size:12px!important;font-weight:900!important;text-decoration:none;box-shadow:none!important}.renewal-hero-actions button{background:rgba(255,255,255,.12)!important;color:#fff!important}.renewal-hero-actions button.confirm{background:#efd288!important;color:#24442d!important}.renewal-hero-actions button:disabled{opacity:.62}
         .renewal-feedback{margin:0;padding:12px 15px;border-radius:13px;background:#eef5eb;color:#315f3d;font-size:12px;font-weight:800}.renewal-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.renewal-summary button{display:grid;gap:5px;padding:18px!important;border:1px solid #deddd4!important;border-radius:18px!important;background:#fff!important;color:#263b2e!important;text-align:left!important;box-shadow:0 10px 24px rgba(34,54,38,.05)}.renewal-summary button.selected{border-color:#315f3d!important;box-shadow:0 0 0 2px rgba(49,95,61,.12)}.renewal-summary button.delivery{border-color:#b9d0d6!important;background:#f3f8f9!important}.renewal-summary button.delivery.sent{border-color:#bfd5c3!important;background:#f0f7ef!important}.renewal-summary span{color:#7b715c;font-size:10px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.renewal-summary strong{font:600 30px Georgia,serif}.renewal-summary small{color:#6d786f;font-size:11px}
         .renewal-forecast-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.renewal-panel{padding:21px;border:1px solid #deddd4;border-radius:22px;background:#fff;box-shadow:0 12px 30px rgba(34,54,38,.06)}.renewal-panel-head{display:flex;align-items:start;justify-content:space-between;gap:14px}.renewal-panel h2{margin:6px 0 4px;font:500 27px Georgia,serif}.renewal-panel-head p{margin:0;color:#6d786f;font-size:12px;line-height:1.45}.opening-list,.timeline-list{display:grid;gap:8px;margin-top:16px}.opening-row{display:grid;grid-template-columns:auto 1fr auto;gap:11px;align-items:center;padding:12px;border-radius:14px;background:#f6f8f4}.opening-row.possible{background:#fff6eb}.opening-row>span{display:grid;place-items:center;width:37px;height:37px;border-radius:12px;background:#dcebdd;color:#315f3d}.opening-row.possible>span{background:#f5dfba;color:#8a5d1e}.opening-row strong{display:block;font-size:13px}.opening-row small{display:block;margin-top:3px;color:#758078;font-size:10px}.opening-row em{color:#315f3d;font-size:10px;font-style:normal;font-weight:900;text-align:right}.renewal-empty{padding:22px;text-align:center;color:#718078}.renewal-empty strong{display:block;margin-top:7px;color:#315f3d}.timeline-row{display:grid;grid-template-columns:1fr repeat(3,auto);gap:9px;align-items:center;padding:10px 0;border-bottom:1px solid #ecebe5}.timeline-row:last-child{border:0}.timeline-row strong{font-size:12px}.timeline-row span{padding:5px 7px;border-radius:999px;background:#f2f5f0;color:#45634c;font-size:9px;font-weight:900}.timeline-key{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;color:#758078;font-size:10px}
         .renewal-roster{padding:22px;border:1px solid #deddd4;border-radius:24px;background:#fff;box-shadow:0 12px 30px rgba(34,54,38,.06)}.renewal-roster-head{display:flex;align-items:end;justify-content:space-between;gap:15px}.renewal-roster h2{margin:6px 0 4px;font:500 30px Georgia,serif}.renewal-roster-head p{margin:0;color:#6d786f;font-size:12px}.renewal-tools{display:flex;gap:8px}.renewal-search{display:flex;align-items:center;gap:7px;padding:0 11px;border:1px solid #d8ddd5;border-radius:12px;background:#fafbf9}.renewal-search input{min-width:190px;border:0!important;background:transparent!important;box-shadow:none!important}.renewal-tools button{background:#315f3d!important;color:#fff!important}.renewal-list{display:grid;gap:9px;margin-top:17px}.renewal-row{border:1px solid #e2e2da;border-radius:17px;overflow:hidden;background:#fbfcfa}.renewal-row.attention{border-color:#e8c888;background:#fffaf1}.renewal-row.opening{border-color:#bad5b8;background:#f5faf3}.renewal-row-main{display:grid;grid-template-columns:minmax(180px,1.2fr) repeat(3,minmax(120px,.8fr)) auto;gap:12px;align-items:center;padding:15px}.renewal-person small,.renewal-deadline small{display:block;color:#8a7449;font-size:9px;font-weight:900;letter-spacing:.07em;text-transform:uppercase}.renewal-person strong,.renewal-deadline strong{display:block;margin-top:4px;font-size:13px}.renewal-deadline em{display:block;margin-top:4px;color:#315f3d;font-size:10px;font-style:normal;font-weight:900}.renewal-deadline em.overdue{color:#a8443e}.renewal-status{justify-self:start;padding:7px 9px;border-radius:999px;background:#e9eee7;color:#46604b;font-size:9px;font-weight:900;text-transform:uppercase}.renewal-status.leaving{background:#f6dfc6;color:#875321}.renewal-row-main>button{display:inline-flex!important;align-items:center;gap:6px;background:transparent!important;color:#315f3d!important;box-shadow:none!important}.renewal-edit{display:grid;grid-template-columns:repeat(4,1fr);gap:11px;padding:16px;border-top:1px solid #e2e2da;background:#fff}.renewal-edit label{display:grid;gap:6px;color:#526158;font-size:9px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}.renewal-edit input,.renewal-edit select,.renewal-edit textarea{width:100%;border:1px solid #d8ddd5!important;border-radius:11px!important;background:#fbfcfa!important;color:#263b2e!important;box-shadow:none!important}.renewal-edit .notes{grid-column:1/-1}.renewal-edit textarea{min-height:72px;resize:vertical}.renewal-edit-dates{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:8px;padding:10px 12px;border-radius:12px;background:#f2f6ef;color:#58705e;font-size:10px}.renewal-edit-actions{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px}.renewal-edit-actions button{display:inline-flex!important;align-items:center;gap:7px}.renewal-edit-actions .mark-sent{background:#fff!important;color:#315f3d!important}.renewal-edit-actions .save{background:#315f3d!important;color:#fff!important}.renewal-none{padding:36px;text-align:center;color:#718078}.renewal-none strong{display:block;margin-top:8px;color:#315f3d}
@@ -717,7 +755,7 @@ export default function AdminRenewalsPage() {
 
       <section className="renewal-hero">
         <div><span className="renewal-eyebrow"><CalendarClock size={17} /> SEASON PLANNING</span><h1>Know which sites may open next.</h1><p>Contract dates repeat yearly. The renewal form goes into the camper portal four months before the lease expires, and the signed form or decision is due three months before expiration.</p></div>
-        <a href="/admin/waitlist"><BookOpen size={16} /> Open waitlist <ArrowRight size={15} /></a>
+        <div className="renewal-hero-actions"><a href="/admin/waitlist"><BookOpen size={16} /> Open waitlist <ArrowRight size={15} /></a><button type="button" className={Number(rentDuePreviewCount || 0) > 0 ? 'confirm' : ''} onClick={alignOpenRentDueDates} disabled={rentDuePolicyWorking}><ReceiptText size={16} /> {rentDuePolicyWorking ? 'Checking rent…' : Number(rentDuePreviewCount || 0) > 0 ? `Apply to ${rentDuePreviewCount} invoices` : 'Align rent due dates'}</button></div>
       </section>
 
       {feedback && <p className="renewal-feedback">{feedback}</p>}
