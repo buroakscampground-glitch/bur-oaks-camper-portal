@@ -120,7 +120,7 @@ export default function CamperUsagePage() {
   return (
     <main className="admin-camper-usage-page">
       <section className="admin-camper-usage-hero">
-        <div><span><Activity size={17} /> LIVE SEASON ACTIVITY</span><h1>Camper Usage</h1><p>Electric activity from March 15 through November 15 helps identify sites that may deserve an office conversation.</p></div>
+        <div><span><Activity size={17} /> LIVE SEASON ACTIVITY</span><h1>Camper Usage</h1><p>A running total from March 15 through November 15 shows who is actively using their campsite—not simply storing a camper.</p></div>
         <button type="button" onClick={() => loadUsage()} disabled={refreshing}><RefreshCw className={refreshing ? 'admin-spin' : ''} size={17} /> {refreshing ? 'Updating…' : 'Update now'}</button>
       </section>
 
@@ -132,7 +132,7 @@ export default function CamperUsagePage() {
       </section>
 
       <section className="admin-camper-usage-graph">
-        <header><div><small>PLAIN-LANGUAGE USAGE PICTURE</small><h2>How often does each site appear to be used?</h2><p>Tap a bar to see the campers in that group. Bands are based on average electric use per recorded period compared with the rest of the campground.</p></div><button className={bandFilter === 'All' ? 'active' : ''} type="button" onClick={() => setBandFilter('All')}>Show all sites</button></header>
+        <header><div><small>PLAIN-LANGUAGE USAGE PICTURE</small><h2>How much has each site been used this season?</h2><p>Tap a bar to see the campers in that group. Every meter reading is added to the site’s March–November running total, then compared with campground peers.</p></div><button className={bandFilter === 'All' ? 'active' : ''} type="button" onClick={() => setBandFilter('All')}>Show all sites</button></header>
         <div className="admin-camper-usage-bars">
           {bandCounts.map(({ band, count }) => (
             <button className={`${bandFilter === band ? 'active ' : ''}band-${band.toLowerCase().replaceAll(' ', '-')}`} type="button" onClick={() => { setBandFilter(bandFilter === band ? 'All' : band); setFilter('all') }} key={band}>
@@ -141,12 +141,12 @@ export default function CamperUsagePage() {
             </button>
           ))}
         </div>
-        <footer><span><b>Not at all</b> means recorded seasonal usage is zero.</span><span><b>A little → A lot</b> compares positive-use sites with campground peers.</span><span><b>No data</b> means the office needs a reading before judging activity.</span></footer>
+        <footer><span><b>Not at all</b> means the season’s running total is zero.</span><span><b>A little → A lot</b> compares season-to-date totals with campground peers.</span><span><b>Repeated low use</b> highlights consecutive seasons in the lowest-use group.</span><span><b>No data</b> means the office needs a reading before judging activity.</span></footer>
       </section>
 
       <section className="admin-camper-usage-learning">
         <BrainCircuit size={23} />
-        <div><small>PATTERN LEARNING</small><h2>It improves as readings build up.</h2><p>The signal compares each site with campground peers and, when available, that site’s own earlier March–November seasons. It updates immediately after an electric reading is saved.</p></div>
+        <div><small>PATTERN LEARNING</small><h2>One season matters. A pattern matters more.</h2><p>The running total grows with every reading. It also checks earlier March–November seasons so repeated little or no use is clearly identified for an office conversation.</p></div>
         <div><CalendarRange size={16} /><span><strong>{seasonWindow.start}</strong> through <strong>{seasonWindow.end}</strong></span><small>{lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Loading current records'}</small></div>
       </section>
 
@@ -160,13 +160,13 @@ export default function CamperUsagePage() {
       {message && <p className="admin-camper-usage-message">{message}</p>}
       {loading ? <p className="admin-camper-usage-empty">Building the campground usage picture…</p> : (
         <section className="admin-camper-usage-list">
-          <header><span>SITE & CAMPER</span><span>SEASON USAGE</span><span>LATEST PERIOD</span><span>LEARNING</span><span>ACTIVITY SIGNAL</span></header>
+          <header><span>SITE & CAMPER</span><span>SEASON RUNNING TOTAL</span><span>LATEST PERIOD</span><span>SEASON HISTORY</span><span>ACTIVITY SIGNAL</span></header>
           {visibleRows.map((row) => (
             <a href={`/admin/campers/${row.camperId}`} className={`signal-${row.signal}`} key={row.camperId}>
               <div className="identity"><strong>Site {row.lotNumber}</strong><span>{row.camperName}</span></div>
-              <div><strong>{formatKwh(row.totalKwh)}</strong><span><b className={`usage-band band-${row.usageBand.toLowerCase().replaceAll(' ', '-')}`}>{row.usageBand}</b> · {row.readingCount} period{row.readingCount === 1 ? '' : 's'} · {formatKwh(row.averageKwh)} avg.</span></div>
+              <div><strong>{formatKwh(row.totalKwh)}</strong><span><b className={`usage-band band-${row.usageBand.toLowerCase().replaceAll(' ', '-')}`}>{row.usageBand}</b> · {row.readingCount} reading{row.readingCount === 1 ? '' : 's'} added</span></div>
               <div><strong>{row.latestKwh === null ? 'No reading' : formatKwh(row.latestKwh)}</strong><span>{formatDate(row.latestDate)}</span></div>
-              <div><strong>{row.priorSeasonCount ? `${row.changeFromHistoryPercent === null ? '—' : `${Math.abs(row.changeFromHistoryPercent)}% ${row.changeFromHistoryPercent >= 0 ? 'above' : 'below'}`} history` : 'Building baseline'}</strong><span>{row.peerPercentile ? `${row.peerPercentile}th usage percentile` : 'Peer rank pending'} · {row.confidence}</span></div>
+              <div><strong>{row.consecutiveLowSeasonCount >= 2 ? `${row.consecutiveLowSeasonCount} low-use seasons in a row` : row.priorSeasonCount ? `${row.changeFromHistoryPercent === null ? '—' : `${Math.abs(row.changeFromHistoryPercent)}% ${row.changeFromHistoryPercent >= 0 ? 'above' : 'below'}`} prior seasons` : 'Building baseline'}</strong><span>{row.peerPercentile ? `${row.peerPercentile}th running-total percentile` : 'Peer rank pending'} · {row.confidence}</span></div>
               <div className="signal"><Zap size={16} /><span><strong>{row.signalLabel}</strong><small>{row.signalDetail}</small></span></div>
             </a>
           ))}
@@ -174,7 +174,7 @@ export default function CamperUsagePage() {
         </section>
       )}
 
-      <aside className="admin-camper-usage-caution"><AlertTriangle size={18} /><p><strong>Office decision support—not proof of occupancy.</strong> A camper may use very little electricity, have solar power, experience a meter issue, or be away temporarily. Use this list to decide who deserves a friendly conversation, not as an automatic contract decision.</p></aside>
+      <aside className="admin-camper-usage-caution"><AlertTriangle size={18} /><p><strong>Office decision support—not an automatic contract decision.</strong> A single quiet period can happen. Consecutive seasons of little or no activity are highlighted because Bur Oaks is an active campground community, not camper storage. Confirm circumstances before making a final decision.</p></aside>
     </main>
   )
 }

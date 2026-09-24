@@ -35,7 +35,7 @@ test('usage learning compares a site with its own earlier seasons', () => {
     2026,
   )
   assert.equal(rows[0].priorSeasonCount, 1)
-  assert.equal(rows[0].historicalAverageKwh, 200)
+  assert.equal(rows[0].historicalAverageSeasonKwh, 400)
   assert.equal(rows[0].signal, 'low')
   assert.equal(rows[0].changeFromHistoryPercent, -90)
 })
@@ -87,4 +87,52 @@ test('multiple authorized camper records on one site combine into one usage pict
   assert.equal(rows.length, 1)
   assert.equal(rows[0].totalKwh, 50)
   assert.equal(rows[0].readingCount, 1)
+})
+
+test('usage bands rank the season running total instead of the per-reading average', () => {
+  const rows = buildCamperSeasonUsage(
+    [
+      { id: 'steady', lot_number: '1' },
+      { id: 'single', lot_number: '2' },
+      { id: 'middle', lot_number: '3' },
+      { id: 'high', lot_number: '4' },
+    ],
+    [
+      { camper_id: 'steady', reading_date: '2026-04-15', kwh_used: 60 },
+      { camper_id: 'steady', reading_date: '2026-05-15', kwh_used: 60 },
+      { camper_id: 'single', reading_date: '2026-04-15', kwh_used: 100 },
+      { camper_id: 'middle', reading_date: '2026-04-15', kwh_used: 200 },
+      { camper_id: 'high', reading_date: '2026-04-15', kwh_used: 400 },
+    ],
+    2026,
+  )
+  assert.equal(rows.find((row) => row.camperId === 'steady')?.totalKwh, 120)
+  assert.equal(rows.find((row) => row.camperId === 'steady')?.usageBand, 'Sometimes')
+  assert.equal(rows.find((row) => row.camperId === 'single')?.usageBand, 'A little')
+})
+
+test('consecutive seasons in the lowest-use group create a repeated-use warning', () => {
+  const rows = buildCamperSeasonUsage(
+    [
+      { id: 'low', lot_number: '1' },
+      { id: 'regular', lot_number: '2' },
+      { id: 'high', lot_number: '3' },
+      { id: 'highest', lot_number: '4' },
+    ],
+    [
+      { camper_id: 'low', reading_date: '2025-04-15', kwh_used: 10 },
+      { camper_id: 'regular', reading_date: '2025-04-15', kwh_used: 100 },
+      { camper_id: 'high', reading_date: '2025-04-15', kwh_used: 200 },
+      { camper_id: 'highest', reading_date: '2025-04-15', kwh_used: 300 },
+      { camper_id: 'low', reading_date: '2026-04-15', kwh_used: 10 },
+      { camper_id: 'regular', reading_date: '2026-04-15', kwh_used: 100 },
+      { camper_id: 'high', reading_date: '2026-04-15', kwh_used: 200 },
+      { camper_id: 'highest', reading_date: '2026-04-15', kwh_used: 300 },
+    ],
+    2026,
+  )
+  const low = rows.find((row) => row.camperId === 'low')
+  assert.equal(low?.consecutiveLowSeasonCount, 2)
+  assert.equal(low?.signal, 'low')
+  assert.match(low?.signalLabel || '', /Repeated/i)
 })
