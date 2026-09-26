@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import { ArrowRight, CheckCircle2, LoaderCircle, Mail, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { canConvertWaitlistStatus, NEW_CAMPER_ANNUAL_RENT, NEW_CAMPER_ASSOCIATION_FEE, waitlistWelcomeCopy } from '../../../lib/waitlist-conversion'
+import { canConvertWaitlistStatus, NEW_CAMPER_ANNUAL_RENT, NEW_CAMPER_ASSOCIATION_FEE, NEW_CAMPER_INSTALLMENT, TEMPORARY_SITE_OPTION, waitlistWelcomeCopy } from '../../../lib/waitlist-conversion'
 
 const siteKey = (value: unknown) => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
 
 export default function WaitlistPage() {
   const [people, setPeople] = useState<any[]>([])
@@ -23,7 +24,9 @@ export default function WaitlistPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [conversionPerson, setConversionPerson] = useState<any | null>(null)
-  const [conversionForm, setConversionForm] = useState({ firstName: '', lastName: '', phone: '', email: '', lotNumber: '' })
+  const [conversionForm, setConversionForm] = useState({ firstName: '', lastName: '', phone: '', email: '', lotNumber: '', contractStartDate: today() })
+  const [recordFirstPayment, setRecordFirstPayment] = useState(false)
+  const [paymentForm, setPaymentForm] = useState({ method: 'Check', receivedOn: today(), reference: '' })
   const [sendWelcome, setSendWelcome] = useState(true)
   const [converting, setConverting] = useState(false)
   const [conversionError, setConversionError] = useState('')
@@ -95,7 +98,9 @@ export default function WaitlistPage() {
 
   function openConversion(person: any) {
     setConversionPerson(person)
-    setConversionForm({ firstName: String(person.first_name || ''), lastName: String(person.last_name || ''), phone: String(person.phone || ''), email: String(person.email || ''), lotNumber: '' })
+    setConversionForm({ firstName: String(person.first_name || ''), lastName: String(person.last_name || ''), phone: String(person.phone || ''), email: String(person.email || ''), lotNumber: '', contractStartDate: today() })
+    setRecordFirstPayment(false)
+    setPaymentForm({ method: 'Check', receivedOn: today(), reference: '' })
     setSendWelcome(true)
     setConversionError('')
     setConversionResult(null)
@@ -111,7 +116,7 @@ export default function WaitlistPage() {
   async function convertToCamper() {
     if (!conversionPerson) return
     if (!conversionForm.lotNumber) {
-      setConversionError('Choose the campsite they are moving into.')
+      setConversionError('Choose an open campsite or Temporary portal spot.')
       return
     }
     if (!conversionForm.email.trim()) {
@@ -132,7 +137,17 @@ export default function WaitlistPage() {
       const response = await fetch('/api/admin-waitlist-convert', {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ waitlistId: conversionPerson.id, ...conversionForm, sendWelcome }),
+        body: JSON.stringify({
+          waitlistId: conversionPerson.id,
+          ...conversionForm,
+          temporarySpot: conversionForm.lotNumber === TEMPORARY_SITE_OPTION,
+          lotNumber: conversionForm.lotNumber === TEMPORARY_SITE_OPTION ? '' : conversionForm.lotNumber,
+          recordFirstPayment,
+          paymentMethod: paymentForm.method,
+          paymentReceivedOn: paymentForm.receivedOn,
+          paymentReference: paymentForm.reference,
+          sendWelcome,
+        }),
       })
       const result = await response.json().catch(() => ({}))
       if (!response.ok) {
@@ -142,7 +157,7 @@ export default function WaitlistPage() {
       }
 
       setConversionResult(result)
-      setMessage(`${result.camperName} is now assigned to Site ${result.lotNumber}.`)
+      setMessage(result.temporarySpot ? `${result.camperName} now has temporary portal access while a permanent site is pending.` : `${result.camperName} is now assigned to Site ${result.lotNumber}.`)
       await loadWaitlist()
     } catch {
       setConversionError('The conversion could not be completed. Nothing was sent—please try again.')
@@ -165,7 +180,8 @@ export default function WaitlistPage() {
     const matchesSearch = !term || [person.first_name, person.last_name, person.phone, person.email].join(' ').toLowerCase().includes(term)
     return matchesSearch && (statusFilter === 'All' || person.status === statusFilter)
   })
-  const welcomePreview = waitlistWelcomeCopy(conversionForm.firstName, conversionForm.lotNumber)
+  const temporaryConversion = conversionForm.lotNumber === TEMPORARY_SITE_OPTION
+  const welcomePreview = waitlistWelcomeCopy(conversionForm.firstName, conversionForm.lotNumber, temporaryConversion)
 
   return (
     <main className="admin-waitlist-page">
@@ -220,7 +236,8 @@ export default function WaitlistPage() {
 
             {conversionResult?.camperId && !conversionResult.existing ? (
               <div className="admin-waitlist-success">
-                <span><CheckCircle2 size={30} /></span><h3>Welcome to the Bur Oaks family!</h3><p>{conversionResult.camperName} is assigned to Site {conversionResult.lotNumber}. Their camper profile is ready.</p>
+                <span><CheckCircle2 size={30} /></span><h3>Welcome to the Bur Oaks family!</h3><p>{conversionResult.temporarySpot ? `${conversionResult.camperName} has portal access now, with a permanent campsite still pending.` : `${conversionResult.camperName} is assigned to Site ${conversionResult.lotNumber}.`} Their camper profile and two-payment rent schedule are ready.</p>
+                {conversionResult.firstPaymentRecorded && <strong>First ${NEW_CAMPER_INSTALLMENT.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} payment recorded.</strong>}
                 <strong>{conversionResult.welcomeDelivery === 'sent' ? `Welcome and portal setup email sent to ${conversionForm.email}.` : conversionResult.welcomeDelivery === 'manual' ? 'The profile is ready, but the welcome email needs to be sent manually.' : 'No welcome email was requested.'}</strong>
                 {conversionResult.warning && <p className="error">{conversionResult.warning}</p>}
                 {conversionResult.setupUrl && <label><span>Private one-time setup link</span><textarea readOnly value={conversionResult.setupUrl} rows={3} onFocus={(event) => event.currentTarget.select()} /></label>}
@@ -229,16 +246,22 @@ export default function WaitlistPage() {
             ) : (
               <>
                 <div className="admin-waitlist-conversion-grid">
-                  <label><span>Assigned campsite</span><select value={conversionForm.lotNumber} onChange={(event) => setConversionForm((current) => ({ ...current, lotNumber: event.target.value }))}><option value="">Choose an open site…</option>{vacantSites.map((site) => <option key={site} value={site}>Site {site}</option>)}</select><small>{vacantSites.length} currently vacant site{vacantSites.length === 1 ? '' : 's'} shown</small></label>
+                  <label><span>Site or portal access</span><select value={conversionForm.lotNumber} onChange={(event) => setConversionForm((current) => ({ ...current, lotNumber: event.target.value }))}><option value="">Choose one…</option><option value={TEMPORARY_SITE_OPTION}>Temporary spot — portal access now</option>{vacantSites.map((site) => <option key={site} value={site}>Permanent Site {site}</option>)}</select><small>{temporaryConversion ? 'Does not claim an occupied physical site. Assign the permanent site later.' : `${vacantSites.length} currently vacant site${vacantSites.length === 1 ? '' : 's'} shown`}</small></label>
                   <label><span>First name</span><input value={conversionForm.firstName} onChange={(event) => setConversionForm((current) => ({ ...current, firstName: event.target.value }))} /></label>
                   <label><span>Last name</span><input value={conversionForm.lastName} onChange={(event) => setConversionForm((current) => ({ ...current, lastName: event.target.value }))} /></label>
                   <label><span>Phone</span><input value={conversionForm.phone} onChange={(event) => setConversionForm((current) => ({ ...current, phone: event.target.value }))} /></label>
                   <label className="wide"><span>Email for portal access</span><input type="email" value={conversionForm.email} onChange={(event) => setConversionForm((current) => ({ ...current, email: event.target.value }))} /></label>
+                  <label className="wide"><span>12-month contract start date</span><input type="date" value={conversionForm.contractStartDate} onChange={(event) => setConversionForm((current) => ({ ...current, contractStartDate: event.target.value }))} /><small>Creates two ${NEW_CAMPER_INSTALLMENT.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} lot-rent payments, six months apart.</small></label>
                 </div>
+
+                <section className="admin-waitlist-first-payment">
+                  <label><input type="checkbox" checked={recordFirstPayment} onChange={(event) => setRecordFirstPayment(event.target.checked)} /><span><strong>Record the first ${NEW_CAMPER_INSTALLMENT.toLocaleString('en-US', { style: 'currency', currency: 'USD' })} payment now</strong><small>Optional. This marks payment 1 of 2 paid as part of the conversion.</small></span></label>
+                  {recordFirstPayment && <div><label><span>Payment method</span><select value={paymentForm.method} onChange={(event) => setPaymentForm((current) => ({ ...current, method: event.target.value }))}><option>Check</option><option>Cash</option><option>Credit</option><option>Debit</option><option>Other</option></select></label><label><span>Date received</span><input type="date" value={paymentForm.receivedOn} onChange={(event) => setPaymentForm((current) => ({ ...current, receivedOn: event.target.value }))} /></label><label className="wide"><span>Check number or reference (optional)</span><input value={paymentForm.reference} onChange={(event) => setPaymentForm((current) => ({ ...current, reference: event.target.value }))} /></label></div>}
+                </section>
 
                 <article className="admin-waitlist-welcome-preview"><span><Sparkles size={20} /></span><div><small>WELCOME NOTE PREVIEW</small><h3>{welcomePreview.heading}</h3><p>{welcomePreview.message}</p><em>The secure portal setup button and 24-hour link instructions are added automatically.</em></div></article>
                 <label className="admin-waitlist-send-welcome"><input type="checkbox" checked={sendWelcome} onChange={(event) => setSendWelcome(event.target.checked)} /><span><strong>Send the welcome and portal setup email after conversion</strong><small>You are approving this email by completing the conversion.</small></span></label>
-                <div className="admin-waitlist-transition-list"><p><CheckCircle2 size={16} /> Creates the camper profile with the waitlist contact information</p><p><CheckCircle2 size={16} /> Assigns the selected site only if it is still vacant</p><p><CheckCircle2 size={16} /> Sets ${NEW_CAMPER_ANNUAL_RENT.toLocaleString('en-US')} annual rent as 2 payments</p><p><CheckCircle2 size={16} /> Notes the ${NEW_CAMPER_ASSOCIATION_FEE} association fee due at signing</p><p><CheckCircle2 size={16} /> Preserves the waitlist notes inside the private camper record</p></div>
+                <div className="admin-waitlist-transition-list"><p><CheckCircle2 size={16} /> Creates the camper profile with the waitlist contact information</p><p><CheckCircle2 size={16} /> {temporaryConversion ? 'Provides portal access without claiming an occupied campsite' : 'Assigns the selected site only if it is still vacant'}</p><p><CheckCircle2 size={16} /> Creates ${NEW_CAMPER_ANNUAL_RENT.toLocaleString('en-US')} annual rent as 2 payments of ${NEW_CAMPER_INSTALLMENT.toLocaleString('en-US')}</p><p><CheckCircle2 size={16} /> Notes the ${NEW_CAMPER_ASSOCIATION_FEE} association fee due at signing</p><p><CheckCircle2 size={16} /> Preserves the waitlist notes inside the private camper record</p></div>
                 {conversionError && <p className="admin-waitlist-conversion-error">{conversionError}{conversionResult?.camperId && <a href={`/admin/campers/${conversionResult.camperId}`}> Open existing camper record.</a>}</p>}
                 <footer><button type="button" onClick={closeConversion}>Cancel</button><button className="primary" type="button" onClick={convertToCamper} disabled={converting}>{converting ? <LoaderCircle className="admin-spin" size={17} /> : <Mail size={17} />}{converting ? 'Creating camper…' : sendWelcome ? 'Create Camper & Send Welcome' : 'Create Camper'}</button></footer>
               </>

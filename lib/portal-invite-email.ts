@@ -6,6 +6,7 @@ type InviteEmailInput = {
   setupUrl: string
   purpose?: 'portal_setup' | 'password_reset'
   welcomeSite?: string
+  temporaryWelcome?: boolean
 }
 
 export function portalInviteEmailConfigured() {
@@ -97,6 +98,7 @@ export async function sendPortalInviteEmail({
   setupUrl,
   purpose = 'portal_setup',
   welcomeSite,
+  temporaryWelcome = false,
 }: InviteEmailInput) {
   const providerStatus = portalInviteEmailProviderStatus()
   const from = providerStatus.from
@@ -108,7 +110,7 @@ export async function sendPortalInviteEmail({
 
   const firstName = camperName.trim().split(/\s+/)[0] || 'there'
   const isPasswordReset = purpose === 'password_reset'
-  const welcome = welcomeSite ? waitlistWelcomeCopy(firstName, welcomeSite) : null
+  const welcome = welcomeSite ? waitlistWelcomeCopy(firstName, welcomeSite, temporaryWelcome) : null
   const subject = isPasswordReset
     ? 'NEWEST LINK: Reset your Bur Oaks password'
     : welcome?.subject || 'Action needed: Set up your Bur Oaks Camper Portal within 24 hours'
