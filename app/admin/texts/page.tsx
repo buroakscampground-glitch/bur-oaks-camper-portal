@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertTriangle, Ban, CheckCircle2, LoaderCircle, MessageSquareText, Phone, Search, Send, UsersRound } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
-import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
+import { camperTextWithLink, portalPathForTextAlert } from '../../../lib/portal-sms-links'
 import { maskSmsPhone } from '../../../lib/sms-broadcast'
 
 type TargetMode = 'all_opted_in' | 'open_balance' | 'one'
@@ -171,9 +171,17 @@ export default function AdminTextsPage() {
   const selectedCamperRecord = campers.find((camper) => camper.id === selectedCamper)
   const textPreview = camperTextWithLink({
     message: message || 'Your message will appear here.',
-    path: portalPathForTextType(reminderType),
+    path: portalPathForTextAlert(reminderType, message),
     compact: true,
   })
+
+  function changeReminderType(value: string) {
+    requestIdRef.current = ''
+    setReminderType(value)
+    if (value === 'Thanksgiving Signup' && !message.trim()) {
+      setMessage('Bur Oaks Thanksgiving is Nov 7 at 6 PM. Please RSVP and claim one food item.')
+    }
+  }
 
   function optOutSource(source?: string) {
     if (source === 'twilio-keyword') return 'Replied STOP'
@@ -259,11 +267,12 @@ export default function AdminTextsPage() {
 
           <label>
             <span>Type</span>
-            <select value={reminderType} onChange={(event) => { requestIdRef.current = ''; setReminderType(event.target.value) }}>
+            <select value={reminderType} onChange={(event) => changeReminderType(event.target.value)}>
               <option>General Alert</option>
               <option>Invoice Reminder</option>
               <option>Electric Reminder</option>
               <option>Event Reminder</option>
+              <option>Thanksgiving Signup</option>
               <option>Emergency Alert</option>
               <option>Gate Alert</option>
               <option>Weather Alert</option>

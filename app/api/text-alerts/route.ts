@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { isTwilioConfigured, sendTwilioSms } from '../../../lib/twilio-sms'
-import { camperTextWithLink, portalPathForTextType } from '../../../lib/portal-sms-links'
+import { camperTextWithLink, portalPathForTextAlert } from '../../../lib/portal-sms-links'
 import { consentedCamperSmsPhones } from '../../../lib/camper-sms'
 import { loadAuthorizedContactProfiles } from '../../../lib/authorized-billing'
 import {
@@ -20,7 +20,7 @@ function camperName(camper: any) {
 }
 
 function buildTextMessage(message: string, reminderType: string, broadcastId?: string) {
-  const destination = portalPathForTextType(reminderType)
+  const destination = portalPathForTextAlert(reminderType, message)
   const path = destination === '/updates' && broadcastId
     ? `/updates?alert=${encodeURIComponent(broadcastId)}`
     : destination

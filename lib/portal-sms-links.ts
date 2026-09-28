@@ -1,5 +1,5 @@
-import { getSiteUrl } from './site-url'
-import { normalizeGsmSms, singleSegmentSms } from './sms-segments'
+import { getSiteUrl } from './site-url.ts'
+import { normalizeGsmSms, singleSegmentSms } from './sms-segments.ts'
 
 export function portalSmsUrl(path = '/portal') {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`
@@ -19,6 +19,12 @@ export function portalPathForTextType(reminderType: unknown) {
   if (type.includes('pump') || type.includes('sewer')) return '/portal'
 
   return '/updates'
+}
+
+export function portalPathForTextAlert(reminderType: unknown, message: unknown) {
+  const alertText = `${String(reminderType || '')} ${String(message || '')}`.toLowerCase()
+  if (alertText.includes('thanksgiving') || alertText.includes('buroaksgiving')) return '/thanksgiving'
+  return portalPathForTextType(reminderType)
 }
 
 export function camperTextWithLink({
