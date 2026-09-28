@@ -30,6 +30,7 @@ import {
   TentTree,
   UserRound,
   UsersRound,
+  UtensilsCrossed,
   Wrench,
   X,
   Zap,
@@ -997,6 +998,8 @@ export default function CamperPortalPage() {
     (request) => String(request.lot_number || '').trim().toUpperCase() === String(selectedPumpLot || camper?.lot_number || '').trim().toUpperCase()
   )
   const displayedPumpOutFee = getSewerPumpOutFeeForLot(selectedPumpLot || camper?.lot_number, 10)
+  const campgroundToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date())
+  const showThanksgivingFeature = campgroundToday <= '2026-11-07'
 
   return (
     <main className="camper-portal-page">
@@ -1012,6 +1015,18 @@ export default function CamperPortalPage() {
           </div>
           <div className="portal-premium-season"><span aria-hidden="true">{seasonalTheme.symbol}</span><strong>{seasonalTheme.label}</strong><small>{seasonalTheme.detail}</small></div>
         </header>
+
+        {showThanksgivingFeature && (
+          <a className="portal-thanksgiving-feature" href="/thanksgiving">
+            <span className="portal-thanksgiving-icon"><UtensilsCrossed size={29} /></span>
+            <span className="portal-thanksgiving-copy">
+              <small>OUR BIGGEST MEAL OF THE YEAR · NOVEMBER 7</small>
+              <strong>Bur Oaks Thanksgiving</strong>
+              <span>Anthony has the turkeys. RSVP and claim one food dish for our last big meal of the season.</span>
+            </span>
+            <span className="portal-thanksgiving-action">Open Thanksgiving signup <ArrowRight size={18} /></span>
+          </a>
+        )}
 
         <section className="portal-home-console" aria-labelledby="portal-home-console-heading">
           <div className="portal-premium-status"><i /> Portal services operating normally</div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Search, Soup, UsersRound } from 'lucide-react'
+import { CalendarDays, Search, Soup, UsersRound, UtensilsCrossed } from 'lucide-react'
 import { dinnerBringSuggestions, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { supabase } from '../../../lib/supabase'
 
@@ -78,6 +78,11 @@ export default function AdminDinnersPage() {
         </div>
         <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search camper, lot, or dish" /></label>
       </section>
+
+      <a className="admin-thanksgiving-launch" href="/community/thanksgiving">
+        <UtensilsCrossed size={22} />
+        <span><small>SPECIAL DINNER PLANNER</small><strong>Open the Bur Oaks Thanksgiving board</strong><em>Track the 110–120 person headcount and every food category in one place.</em></span>
+      </a>
 
       <section className="admin-dinner-controls">
         <label>

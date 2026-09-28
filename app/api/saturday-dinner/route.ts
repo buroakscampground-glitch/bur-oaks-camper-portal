@@ -4,6 +4,11 @@ import { saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { isUnchangedDinnerSignup } from '../../../lib/saturday-dinner-signup-state'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { sendStaffWebPush } from '../../../lib/staff-web-push'
+import {
+  thanksgivingClaimCounts,
+  thanksgivingDinnerDate,
+  thanksgivingFoodOption,
+} from '../../../lib/thanksgiving-dinner'
 
 export const runtime = 'nodejs'
 
@@ -61,7 +66,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const dinnerDate = String(body.dinnerDate || '')
   const status = String(body.status || 'Going')
-  const bringing = String(body.bringing || '').trim()
+  let bringing = String(body.bringing || '').trim()
   const guestCount = Math.max(1, Math.min(99, Math.round(Number(body.guestCount || 1))))
   const dinner = saturdayDinners2026.find((item) => item.date === dinnerDate)
 
@@ -71,6 +76,34 @@ export async function POST(request: Request) {
 
   if (!allowedStatuses.includes(status)) {
     return NextResponse.json({ error: 'Invalid dinner response.' }, { status: 400 })
+  }
+
+  if (dinnerDate === thanksgivingDinnerDate) {
+    if (status === 'Not Going') {
+      bringing = ''
+    } else {
+      const foodOption = thanksgivingFoodOption(bringing)
+      if (!foodOption) {
+        return NextResponse.json({ error: 'Choose one available Thanksgiving food item before saving.' }, { status: 400 })
+      }
+
+      const { data: thanksgivingSignups, error: thanksgivingError } = await context.admin
+        .from('saturday_dinner_signups')
+        .select('camper_id,attending_status,bringing')
+        .eq('dinner_date', thanksgivingDinnerDate)
+
+      if (thanksgivingError) {
+        return NextResponse.json({ error: thanksgivingError.message }, { status: 500 })
+      }
+
+      const claims = thanksgivingClaimCounts(thanksgivingSignups || [], context.camper.id)
+      if ((claims.get(foodOption.id) || 0) >= foodOption.limit) {
+        return NextResponse.json({
+          error: `${foodOption.label} is already fully covered. Please choose another food item that is still needed.`,
+        }, { status: 409 })
+      }
+      bringing = foodOption.label
+    }
   }
 
   const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'Camper'

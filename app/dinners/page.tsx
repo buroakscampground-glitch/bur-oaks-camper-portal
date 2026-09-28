@@ -5,8 +5,9 @@ import { useSearchParams } from 'next/navigation'
 import { CalendarDays, CheckCircle2, Clock, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
 import { dinnerBringSuggestions, saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
+import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
 
-const months = ['March', 'April', 'May', 'June', 'July', 'August', 'Sept', 'October']
+const months = ['March', 'April', 'May', 'June', 'July', 'August', 'Sept', 'October', 'November']
 
 export default function SaturdayDinnersPage() {
   const searchParams = useSearchParams()
@@ -75,6 +76,11 @@ export default function SaturdayDinnersPage() {
   useEffect(() => {
     const requestedDate = searchParams.get('date')
     const requestedDinner = saturdayDinners2026.find((dinner) => dinner.date === requestedDate && !dinner.closed)
+
+    if (requestedDinner?.date === thanksgivingDinnerDate) {
+      window.location.replace('/thanksgiving')
+      return
+    }
 
     if (!selectedDate && requestedDinner) {
       setSelectedDate(requestedDinner.date)
@@ -158,6 +164,10 @@ export default function SaturdayDinnersPage() {
   }
 
   function openDinner(dinnerDate: string) {
+    if (dinnerDate === thanksgivingDinnerDate) {
+      window.location.href = '/thanksgiving'
+      return
+    }
     setSelectedDate(dinnerDate)
     setMessage('')
     window.requestAnimationFrame(() => {

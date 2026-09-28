@@ -49,6 +49,15 @@ export const saturdayDinners2026: SaturdayDinner[] = [
   { id: '2026-10-17', date: '2026-10-17', month: 'October', day: 17, menu: 'Pasta Bar' },
   { id: '2026-10-24', date: '2026-10-24', month: 'October', day: 24, menu: 'Nacho Bar', theme: 'Buroakstober' },
   { id: '2026-10-31', date: '2026-10-31', month: 'October', day: 31, menu: 'Chili', theme: 'Halloween' },
+  {
+    id: '2026-11-07',
+    date: '2026-11-07',
+    month: 'November',
+    day: 7,
+    menu: 'Bur Oaks Thanksgiving',
+    theme: 'Last Big Meal of the Season',
+    note: 'Anthony is preparing all of the turkeys. Campers should RSVP and claim one food item from the special Thanksgiving signup.',
+  },
 ]
 
 const commonDinnerSuggestions = [
