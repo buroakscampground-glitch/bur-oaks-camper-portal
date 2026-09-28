@@ -15,6 +15,7 @@ export default function AdminEventsPage() {
   const [totalRsvps, setTotalRsvps] = useState(0)
   const [rsvpCounts, setRsvpCounts] = useState<any>({})
   const [goingCounts, setGoingCounts] = useState<any>({})
+  const [goingUnits, setGoingUnits] = useState<Record<string, string>>({})
   const [message, setMessage] = useState('')
   const router = useRouter()
   const pathname = usePathname()
@@ -52,24 +53,21 @@ export default function AdminEventsPage() {
       ).length
     )
 
-    const rsvps = result.rsvps || []
-    setTotalRsvps(rsvps.length)
-
+    const eventCounts = result.eventCounts || {}
     const counts: any = {}
     const going: any = {}
-
-    rsvps.forEach((rsvp: any) => {
-      counts[rsvp.event_id] =
-        (counts[rsvp.event_id] || 0) + 1
-
-      if (rsvp.response === 'Going') {
-        going[rsvp.event_id] =
-          (going[rsvp.event_id] || 0) + 1
-      }
+    const units: Record<string, string> = {}
+    eventList.forEach((event: any) => {
+      counts[event.id] = Number(eventCounts[event.id]?.rsvps || 0)
+      going[event.id] = Number(eventCounts[event.id]?.going || 0)
+      units[event.id] = String(eventCounts[event.id]?.goingUnit || 'campsites')
     })
+
+    setTotalRsvps(Object.values(counts).reduce((total: number, count) => total + Number(count || 0), 0))
 
     setRsvpCounts(counts)
     setGoingCounts(going)
+    setGoingUnits(units)
   }
 
   async function createEvent() {
@@ -260,7 +258,7 @@ export default function AdminEventsPage() {
                 </div>
 
                 <div>
-                  <span>Going</span>
+                  <span>{goingUnits[event.id] === 'people' ? 'Going (people)' : 'Going'}</span>
                   <strong>{goingCounts[event.id] || 0}</strong>
                 </div>
               </div>

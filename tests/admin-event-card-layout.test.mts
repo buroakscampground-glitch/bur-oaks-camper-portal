@@ -10,7 +10,8 @@ test('mobile event totals use one aligned two-column row', async () => {
 
   assert.match(page, /className="admin-event-counts"/)
   assert.match(page, /<span>RSVPs<\/span>\s*<strong>/)
-  assert.match(page, /<span>Going<\/span>\s*<strong>/)
+  assert.match(page, /Going \(people\)/)
+  assert.match(page, /<strong>\{goingCounts\[event\.id\] \|\| 0\}<\/strong>/)
   assert.match(page, /className="admin-event-delete"/)
   assert.match(styles, /\.admin-event-counts\{display:grid;grid-template-columns:repeat\(2,minmax\(110px,150px\)\)/)
   assert.match(styles, /@media\(max-width:600px\)\{\.admin-event-counts\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\);width:100%\}/)
