@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { selectAuthenticatedCamperMatch } from '../lib/server-auth.ts'
+import { selectAuthenticatedCamperMatch, selectAuthenticatedEmailMatch } from '../lib/server-auth.ts'
 
 test('selects one active camper account', () => {
   const camper = { id: 'camper-1', role: 'camper', active: true }
@@ -30,4 +30,15 @@ test('does not guess between multiple staff accounts', () => {
 test('deduplicates a profile matched as both primary and secondary email', () => {
   const coordinator = { id: 'staff-1', role: 'camper', lot_number: 'STAFF-EVENTS', active: true }
   assert.equal(selectAuthenticatedCamperMatch([coordinator, { ...coordinator }])?.id, 'staff-1')
+})
+
+test('prefers the active primary-email profile over authorized-contact profiles', () => {
+  const coordinator = { id: 'staff-1', role: 'camper', lot_number: 'STAFF-EVENTS', active: true }
+  const otherProfile = { id: 'camper-1', role: 'admin', active: true }
+  assert.equal(selectAuthenticatedEmailMatch([coordinator], [otherProfile]), coordinator)
+})
+
+test('uses a secondary-email profile only when there is no active primary match', () => {
+  const camper = { id: 'camper-1', role: 'camper', active: true }
+  assert.equal(selectAuthenticatedEmailMatch([], [camper]), camper)
 })

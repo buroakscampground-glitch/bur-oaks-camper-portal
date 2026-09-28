@@ -22,6 +22,15 @@ export function selectAuthenticatedCamperMatch(matches: any[] = []) {
   return staffMatches.length === 1 ? staffMatches[0] : null
 }
 
+export function selectAuthenticatedEmailMatch(primaryMatches: any[] = [], secondaryMatches: any[] = []) {
+  const activePrimaryMatches = primaryMatches.filter((match) => match?.active !== false)
+  if (activePrimaryMatches.length) {
+    return selectAuthenticatedCamperMatch(activePrimaryMatches)
+  }
+
+  return selectAuthenticatedCamperMatch(secondaryMatches)
+}
+
 async function findCamperForEmail(client: any, userEmail: string) {
   const [primaryMatch, secondaryMatch] = await Promise.all([
     client
@@ -36,12 +45,11 @@ async function findCamperForEmail(client: any, userEmail: string) {
       .limit(10),
   ])
 
-  const camperMatches = [
-    ...(primaryMatch.data || []),
-    ...(secondaryMatch.data || []),
-  ].filter((match, index, all) => all.findIndex((item) => item.id === match.id) === index)
-
-  return selectAuthenticatedCamperMatch(camperMatches)
+  // A person's own login email is authoritative. Secondary emails are used
+  // only when that address is not the primary login on any active profile.
+  // This prevents an authorized-contact copy on another camper from masking
+  // Rachel's dedicated Event Coordinator profile.
+  return selectAuthenticatedEmailMatch(primaryMatch.data || [], secondaryMatch.data || [])
 }
 
 export async function getAuthenticatedContext(request: Request) {
