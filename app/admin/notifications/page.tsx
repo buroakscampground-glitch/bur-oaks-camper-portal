@@ -127,6 +127,7 @@ export default function AdminNotificationsPage() {
             href: '/admin',
           }
           const Icon = config.icon
+          const notificationHref = adminNotificationHref(notification, config.href)
 
           return (
             <article className={notification.read_at ? 'read' : 'unread'} key={notification.id}>
@@ -137,7 +138,14 @@ export default function AdminNotificationsPage() {
                 <p>{notification.message}</p>
               </div>
               <div className="admin-notification-actions">
-                <a href={adminNotificationHref(notification, config.href)}>{String(notification.type || '').includes('renewal') ? 'Open camper record' : 'Open'}</a>
+                <a
+                  href={notificationHref}
+                  onClick={(event) => {
+                    if (notification.read_at) return
+                    event.preventDefault()
+                    void markSeen(notification.id).finally(() => { window.location.href = notificationHref })
+                  }}
+                >{String(notification.type || '').includes('renewal') ? 'Open camper record' : 'Open'}</a>
                 {!notification.read_at && (
                   <button type="button" onClick={() => markSeen(notification.id)}>Handled</button>
                 )}
