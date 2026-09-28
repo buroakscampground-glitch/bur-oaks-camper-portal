@@ -19,5 +19,18 @@ self.addEventListener('notificationclick', function (event) {
   event.notification.close()
   var url = String((event.notification.data && event.notification.data.url) || '/admin')
   if (!url.startsWith('/admin')) url = '/admin'
-  event.waitUntil(self.clients.openWindow(new URL(url, self.location.origin).href))
+  var destination = new URL(url, self.location.origin).href
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (windowClients) {
+    for (var index = 0; index < windowClients.length; index += 1) {
+      var client = windowClients[index]
+      if (new URL(client.url).origin !== self.location.origin) continue
+      if ('navigate' in client) {
+        return client.navigate(destination).then(function (navigatedClient) {
+          return (navigatedClient || client).focus()
+        })
+      }
+      return client.focus()
+    }
+    return self.clients.openWindow(destination)
+  }))
 })

@@ -108,3 +108,17 @@ test('background Admin badges exclude informational payment and dinner notices',
   assert.match(worker, /badgeCount > 0/)
   assert.match(worker, /clearAppBadge/)
 })
+
+test('office-message phone alerts open the exact camper conversation', async () => {
+  const [notifications, worker, inbox] = await Promise.all([
+    readFile(new URL('../lib/admin-notifications.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../public/admin/staff-sw.js', import.meta.url), 'utf8'),
+    readFile(new URL('../app/admin/messages/page.tsx', import.meta.url), 'utf8'),
+  ])
+  assert.match(notifications, /\/admin\/messages\?camperId=\$\{encodeURIComponent\(input\.camper_id\)\}/)
+  assert.match(worker, /clients\.matchAll\(\{ type: 'window', includeUncontrolled: true \}\)/)
+  assert.match(worker, /client\.navigate\(destination\)/)
+  assert.match(worker, /navigatedClient \|\| client\)\.focus\(\)/)
+  assert.match(inbox, /params\.get\('camperId'\)/)
+  assert.match(inbox, /setMobileThreadOpen\(true\)/)
+})

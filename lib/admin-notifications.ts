@@ -49,7 +49,9 @@ export async function createAdminNotification(admin: any, input: NotificationInp
     : { skipped: true, reason: 'Routine activity is included in the daily office summary.' }
 
   const destination = input.type === 'direct_message'
-    ? '/admin/messages'
+    ? input.camper_id
+      ? `/admin/messages?camperId=${encodeURIComponent(input.camper_id)}`
+      : '/admin/messages'
     : input.type === 'maintenance_request'
       ? '/admin/maintenance'
       : input.type === 'site_care'
