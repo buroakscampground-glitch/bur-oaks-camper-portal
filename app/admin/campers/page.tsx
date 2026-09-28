@@ -7,6 +7,7 @@ import { isSystemPortalAccount } from '../../../lib/camper-records'
 import { isPhonePortalLoginEmail } from '../../../lib/phone-portal-login'
 import { isPumpOutWaitingForService } from '../../../lib/pump-out-status'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
+import { camperHouseholdName, labeledCamperPhones } from '../../../lib/camper-household'
 
 export default function AdminCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -618,7 +619,7 @@ export default function AdminCampersPage() {
           <div>
   <div className="admin-camper-name-row">
     <strong className="admin-camper-name-link">
-      Lot {camper.lot_number} - {camper.first_name} {camper.last_name}
+      Lot {camper.lot_number} - {camperHouseholdName(camper)}
     </strong>
     {camper.email?.endsWith('@no-email.buroaks.local') ? (
       <span className="portal-account-status none">Not Set Up</span>
@@ -641,7 +642,10 @@ export default function AdminCampersPage() {
     <div>{isPhonePortalLoginEmail(camper.secondary_email) ? 'Profile 2 login: mobile number' : `Second email: ${camper.secondary_email}`}</div>
   )}
 
-  <div>{camper.phone || 'No phone on file'}</div>
+  <div className="admin-camper-phone-list">
+    {labeledCamperPhones(camper).map((item) => <span key={item.key}><strong>{item.name}:</strong> {item.phone}</span>)}
+    {!labeledCamperPhones(camper).length && <span>No phone on file</span>}
+  </div>
 
   <div className="admin-camper-health-strip">
     <span className={portalStatus === 'accepted' ? 'good' : 'warn'}>

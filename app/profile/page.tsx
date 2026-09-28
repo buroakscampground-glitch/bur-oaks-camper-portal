@@ -7,6 +7,7 @@ import { CakeSlice, CheckCircle2, ClipboardCheck, Eye, FileUp, PartyPopper, Shie
 import AddressFinder from '../../components/AddressFinder'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
 import { isPhonePortalLoginEmail } from '../../lib/phone-portal-login'
+import { camperHouseholdName, labeledCamperPhones, primaryCamperName, secondaryCamperName } from '../../lib/camper-household'
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -252,6 +253,10 @@ export default function ProfilePage() {
   ]
   const completeItems = profileChecklist.filter((item) => item.complete).length
   const completionPercent = Math.round((completeItems / profileChecklist.length) * 100)
+  const primaryName = primaryCamperName(camper)
+  const secondaryName = secondaryCamperName(camper)
+  const householdName = camperHouseholdName(camper)
+  const householdPhones = labeledCamperPhones(camper)
 
   return (
     <main className="page">
@@ -268,7 +273,7 @@ export default function ProfilePage() {
           <p className="muted">BUR OAKS CAMPGROUND</p>
 
           <h1>
-            👤 {camper.first_name} {camper.last_name}
+            👤 {householdName}
           </h1>
 
           <h2 style={{ color: '#2f5d3a' }}>
@@ -420,6 +425,12 @@ export default function ProfilePage() {
           <div className="directory-safety-note">
             <ShieldCheck size={16} /> Text alerts are separate from the camper directory. Your phone number is not shared publicly.
           </div>
+          <div className="camper-sms-number-list" aria-label="Saved household mobile numbers">
+            {householdPhones.map((item) => (
+              <div key={item.key}><span>{item.name}</span><strong>{item.phone}</strong><small>{camper.sms_opt_in ? 'Text alerts on' : 'Text alerts off'}</small></div>
+            ))}
+            {!householdPhones.length && <p>No household mobile numbers are saved yet.</p>}
+          </div>
           <div className="directory-safety-note">
             <ShieldCheck size={16} /> Your SMS opt-in, phone number, and text consent are not sold or shared with third parties or affiliates for marketing. <a href="/sms-terms">SMS Terms</a> · <a href="/privacy">Privacy Policy</a> · <a href="/sms-consent">SMS consent</a>
           </div>
@@ -494,7 +505,7 @@ export default function ProfilePage() {
         </section>
 
         <section className="card" style={{ marginBottom: '25px' }}>
-          <h2>Profile 1 Information</h2>
+          <h2>Profile 1 · {primaryName}</h2>
           <p style={{ marginTop: '-4px', color: '#66736a' }}>
             Primary camper/signature profile for this site.
           </p>
@@ -524,7 +535,8 @@ export default function ProfilePage() {
           />
 
           <input
-            placeholder="Phone Number"
+            placeholder={`${primaryName}'s mobile number`}
+            aria-label={`${primaryName}'s mobile number`}
             value={camper.phone || ''}
             onChange={(e) =>
               setCamper({
@@ -536,7 +548,8 @@ export default function ProfilePage() {
           />
 
           <input
-            placeholder="Second phone number"
+            placeholder={`${primaryName}'s additional phone`}
+            aria-label={`${primaryName}'s additional phone`}
             value={camper.alternate_phone || ''}
             onChange={(e) =>
               setCamper({
@@ -672,7 +685,7 @@ export default function ProfilePage() {
         </section>
 
         <section className="card" style={{ marginBottom: '25px' }}>
-          <h2>Profile 2 Information</h2>
+          <h2>Profile 2 · {secondaryName}</h2>
           <p style={{ marginTop: '-4px', color: '#66736a' }}>
             Optional second camper/signature profile. This helps when two people need to sign leases for the same site.
           </p>
@@ -702,7 +715,8 @@ export default function ProfilePage() {
           />
 
           <input
-            placeholder="Second profile phone"
+            placeholder={`${secondaryName}'s mobile number`}
+            aria-label={`${secondaryName}'s mobile number`}
             value={camper.second_profile_phone || ''}
             onChange={(e) =>
               setCamper({

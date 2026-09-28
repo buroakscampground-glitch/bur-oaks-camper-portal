@@ -35,6 +35,7 @@ import { isPhonePortalLoginEmail } from '../../../../lib/phone-portal-login'
 import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/staff-roles'
 import { rentPaymentBreakdown } from '../../../../lib/rent-payment-summary'
 import { contractPaymentSnapshot } from '../../../../lib/contract-payment-snapshot'
+import { camperHouseholdName, primaryCamperName, secondaryCamperName } from '../../../../lib/camper-household'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 type HistoryView = 'activity' | 'documents' | 'billing' | 'site' | 'messages' | 'electric'
@@ -615,6 +616,9 @@ export default function CamperDetailPage() {
         renewalStatus: history.renewal.status,
       })
     : null
+  const householdName = camperHouseholdName(camper)
+  const primaryName = primaryCamperName(camper)
+  const secondaryName = secondaryCamperName(camper)
 
   return (
     <main className="admin-camper-profile-page">
@@ -626,7 +630,7 @@ export default function CamperDetailPage() {
           <span>{initials || <UserRound size={28} />}</span>
           <div>
             <small>CAMPER PROFILE · LOT {camper.lot_number || 'UNASSIGNED'}</small>
-            <h1>{camper.first_name} {camper.last_name}</h1>
+            <h1>{householdName}</h1>
             <p><Mail size={14} /> {camper.email}{camper.secondary_email ? ` · ${camper.secondary_email}` : ''}</p>
           </div>
         </div>
@@ -882,8 +886,8 @@ export default function CamperDetailPage() {
             {isPhonePortalLoginEmail(camper.secondary_email)
               ? <div className="directory-safety-note"><Phone size={16} /> Profile 2 uses a mobile-number login and does not have an email.</div>
               : <Field label="Second email address" type="email" value={camper.secondary_email} onChange={(value) => updateField('secondary_email', value)} icon={<Mail />} />}
-            <Field label="Profile 1 phone number" type="tel" value={camper.phone} onChange={(value) => updateField('phone', value)} icon={<Phone />} />
-            <Field label="Second phone number" type="tel" value={camper.alternate_phone} onChange={(value) => updateField('alternate_phone', value)} icon={<Phone />} />
+            <Field label={`${primaryName}'s mobile number`} type="tel" value={camper.phone} onChange={(value) => updateField('phone', value)} icon={<Phone />} />
+            <Field label={`${primaryName}'s additional phone`} type="tel" value={camper.alternate_phone} onChange={(value) => updateField('alternate_phone', value)} icon={<Phone />} />
           </div>
           <div className="admin-camper-directory-options sms">
             <label>
@@ -935,11 +939,11 @@ export default function CamperDetailPage() {
           </div>
         </ProfileSection>
 
-        <ProfileSection icon={<UsersRound />} kicker="OPTIONAL" title="Profile 2">
+        <ProfileSection icon={<UsersRound />} kicker="OPTIONAL" title={`Profile 2 · ${secondaryName}`}>
           <div className="admin-camper-form-grid three">
             <Field label="Profile 2 first name" value={camper.second_profile_first_name} onChange={(value) => updateField('second_profile_first_name', value)} />
             <Field label="Profile 2 last name" value={camper.second_profile_last_name} onChange={(value) => updateField('second_profile_last_name', value)} />
-            <Field label="Profile 2 phone" type="tel" value={camper.second_profile_phone} onChange={(value) => updateField('second_profile_phone', value)} icon={<Phone />} />
+            <Field label={`${secondaryName}'s mobile number`} type="tel" value={camper.second_profile_phone} onChange={(value) => updateField('second_profile_phone', value)} icon={<Phone />} />
           </div>
           {camper.second_profile_phone && (!camper.secondary_email || isPhonePortalLoginEmail(camper.secondary_email)) && (
             <button type="button" onClick={sendPhonePortalSetup} disabled={sendingPhoneSetup || saving}>

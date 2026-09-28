@@ -49,6 +49,7 @@ import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 import { getSeasonalTheme } from '../../lib/seasonal-theme'
 import { isInvoiceDueNow, isInvoiceDueWithinDays, isInvoiceOutstanding, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { camperHouseholdName } from '../../lib/camper-household'
 
 const serviceLinks = [
   {
@@ -843,6 +844,7 @@ export default function CamperPortalPage() {
     .map((name) => String(name || '').trim())
     .filter(Boolean)
     .join(' and ') || 'Camper'
+  const householdName = camperHouseholdName(camper)
   const identityBadges = [
     { label: 'Profile', value: `${profileCompletion}%`, complete: profileCompletion >= 80 },
     { label: 'Insurance', value: insuranceOnFile ? 'On file' : 'Optional', complete: true },
@@ -1016,7 +1018,7 @@ export default function CamperPortalPage() {
             <button type="button" onClick={handleLogout}><LogOut size={17} /><span>Sign out</span></button>
           </div>
           <div className="portal-premium-welcome">
-            <div><small>{formatFriendlyToday()}</small><h1>Welcome back, {camper?.first_name || welcomeNames}.</h1></div>
+            <div><small>{formatFriendlyToday()}</small><h1>Welcome back, {welcomeNames}.</h1></div>
             <span>LOT {camper?.lot_number || '—'}</span>
           </div>
           <div className="portal-premium-season"><span aria-hidden="true">{seasonalTheme.symbol}</span><strong>{seasonalTheme.label}</strong><small>{seasonalTheme.detail}</small></div>
@@ -1963,7 +1965,7 @@ export default function CamperPortalPage() {
             <p>One calm place for contact info, second profile details, vehicles, documents, insurance, payments, electric history, and maintenance requests.</p>
           </div>
           <div className="portal-site-command-grid">
-            <article><small>Camper</small><strong>{camper?.first_name || ''} {camper?.last_name || ''}</strong></article>
+            <article><small>Campers</small><strong>{householdName}</strong></article>
             <article><small>Latest electric</small><strong>{latestElectric ? `${latestElectric.kwh_used || 0} kWh` : 'No reading'}</strong></article>
             <article><small>Open balance</small><strong>${totalOpenBalance.toFixed(2)}</strong></article>
             <article><small>Insurance</small><strong>{insuranceOnFile ? 'On file' : 'Optional'}</strong></article>
@@ -1979,7 +1981,7 @@ export default function CamperPortalPage() {
           <span>Bur Oaks Campground</span>
           <span>
             <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a> · Lot{' '}
-            {camper?.lot_number || '—'} · {camper?.first_name} {camper?.last_name}
+            {camper?.lot_number || '—'} · {householdName}
           </span>
         </footer>
 
