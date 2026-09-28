@@ -31,7 +31,7 @@ export function selectAuthenticatedEmailMatch(primaryMatches: any[] = [], second
   return selectAuthenticatedCamperMatch(secondaryMatches)
 }
 
-async function findCamperForEmail(client: any, userEmail: string) {
+async function findCamperForEmail(client: any, userEmail: string, lookupSource: 'service' | 'user') {
   const [primaryMatch, secondaryMatch] = await Promise.all([
     client
       .from('campers')
@@ -49,7 +49,21 @@ async function findCamperForEmail(client: any, userEmail: string) {
   // only when that address is not the primary login on any active profile.
   // This prevents an authorized-contact copy on another camper from masking
   // Rachel's dedicated Event Coordinator profile.
-  return selectAuthenticatedEmailMatch(primaryMatch.data || [], secondaryMatch.data || [])
+  const selected = selectAuthenticatedEmailMatch(primaryMatch.data || [], secondaryMatch.data || [])
+  if (!selected) {
+    const summarize = (matches: any[] = []) => matches
+      .filter((match) => match?.active !== false)
+      .map((match) => effectivePortalRole(match))
+      .sort()
+    console.warn('[server-auth] Portal profile lookup did not resolve', {
+      lookupSource,
+      primaryRoles: summarize(primaryMatch.data || []),
+      secondaryRoles: summarize(secondaryMatch.data || []),
+      primaryError: primaryMatch.error?.code || '',
+      secondaryError: secondaryMatch.error?.code || '',
+    })
+  }
+  return selected
 }
 
 export async function getAuthenticatedContext(request: Request) {
@@ -58,6 +72,11 @@ export async function getAuthenticatedContext(request: Request) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!token || !anonKey || !serviceRoleKey) {
+    console.warn('[server-auth] Authentication prerequisites missing', {
+      hasToken: Boolean(token),
+      hasAnonKey: Boolean(anonKey),
+      hasServiceRoleKey: Boolean(serviceRoleKey),
+    })
     return null
   }
 
@@ -65,12 +84,13 @@ export async function getAuthenticatedContext(request: Request) {
   const { data, error } = await authClient.auth.getUser(token)
 
   if (error || !data.user?.email) {
+    console.warn('[server-auth] Supabase session validation failed', { code: error?.code || '', hasEmail: Boolean(data.user?.email) })
     return null
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey)
   const userEmail = data.user.email.trim().toLowerCase()
-  let camper = await findCamperForEmail(admin, userEmail)
+  let camper = await findCamperForEmail(admin, userEmail, 'service')
 
   if (!camper) {
     const userScopedClient = createClient(supabaseUrl, anonKey, {
@@ -81,7 +101,7 @@ export async function getAuthenticatedContext(request: Request) {
       },
     })
 
-    camper = await findCamperForEmail(userScopedClient, userEmail)
+    camper = await findCamperForEmail(userScopedClient, userEmail, 'user')
   }
 
   if (!camper || camper.active === false) {
