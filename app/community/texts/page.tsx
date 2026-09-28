@@ -65,7 +65,12 @@ export default function CommunityTextsPage() {
   async function loadData() {
     const response = await textServiceFetch()
     if (!response) {
-      window.location.href = '/login'
+      window.location.replace('/community-login?returnTo=%2Fcommunity%2Ftexts')
+      return
+    }
+    if (response.status === 401) {
+      await supabase.auth.signOut()
+      window.location.replace('/community-login?returnTo=%2Fcommunity%2Ftexts')
       return
     }
     const result = await response.json().catch(() => ({}))
@@ -108,7 +113,12 @@ export default function CommunityTextsPage() {
         }),
       })
       if (!response) {
-        window.location.href = '/login'
+        window.location.replace('/community-login?returnTo=%2Fcommunity%2Ftexts')
+        return
+      }
+      if (response.status === 401) {
+        await supabase.auth.signOut()
+        window.location.replace('/community-login?returnTo=%2Fcommunity%2Ftexts')
         return
       }
       const result = await response.json().catch(() => ({}))
