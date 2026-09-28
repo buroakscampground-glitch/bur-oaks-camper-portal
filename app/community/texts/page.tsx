@@ -34,18 +34,40 @@ export default function CommunityTextsPage() {
   const requestIdRef = useRef('')
   const sendingRef = useRef(false)
 
-  async function authToken() {
-    const { data } = await supabase.auth.getSession()
+  async function authToken(forceRefresh = false) {
+    const { data } = forceRefresh
+      ? await supabase.auth.refreshSession()
+      : await supabase.auth.getSession()
     return data.session?.access_token || ''
   }
 
+  async function textServiceFetch(init?: RequestInit) {
+    let token = await authToken()
+    if (!token) return null
+
+    let response = await fetch('/api/text-alerts', {
+      ...init,
+      headers: { ...init?.headers, Authorization: `Bearer ${token}` },
+    })
+
+    if (response.status === 401) {
+      token = await authToken(true)
+      if (!token) return response
+      response = await fetch('/api/text-alerts', {
+        ...init,
+        headers: { ...init?.headers, Authorization: `Bearer ${token}` },
+      })
+    }
+
+    return response
+  }
+
   async function loadData() {
-    const token = await authToken()
-    if (!token) {
+    const response = await textServiceFetch()
+    if (!response) {
       window.location.href = '/login'
       return
     }
-    const response = await fetch('/api/text-alerts', { headers: { Authorization: `Bearer ${token}` } })
     const result = await response.json().catch(() => ({}))
     if (!response.ok) {
       setStatus(result.error || 'Unable to load Event Texts.')
@@ -70,20 +92,14 @@ export default function CommunityTextsPage() {
     if (sendingRef.current || !message.trim()) return
     if (!window.confirm('Send this event text to every opted-in camper phone number?')) return
 
-    const token = await authToken()
-    if (!token) {
-      window.location.href = '/login'
-      return
-    }
-
     sendingRef.current = true
     setSending(true)
     setStatus('Sending the event text…')
     requestIdRef.current ||= crypto.randomUUID()
     try {
-      const response = await fetch('/api/text-alerts', {
+      const response = await textServiceFetch({
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           targetMode: 'all_opted_in',
           reminderType,
@@ -91,6 +107,10 @@ export default function CommunityTextsPage() {
           requestId: requestIdRef.current,
         }),
       })
+      if (!response) {
+        window.location.href = '/login'
+        return
+      }
       const result = await response.json().catch(() => ({}))
       if (!response.ok) {
         setStatus(result.error || 'Unable to send this event text.')

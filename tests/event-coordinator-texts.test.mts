@@ -20,6 +20,8 @@ test('Rachel has a Community text page without billing or emergency choices', as
   assert.doesNotMatch(page, /Invoice Reminder/)
   assert.doesNotMatch(page, /Emergency Alert/)
   assert.match(page, /targetMode: 'all_opted_in'/)
+  assert.match(page, /supabase\.auth\.refreshSession\(\)/)
+  assert.match(page, /response\.status === 401/)
 })
 
 test('the text API enforces Event Coordinator scope on the server', async () => {
