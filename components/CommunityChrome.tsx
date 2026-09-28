@@ -1,6 +1,6 @@
 'use client'
 
-import { BellRing, CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, Soup, Sparkles, UsersRound, X } from 'lucide-react'
+import { BellRing, CakeSlice, CalendarDays, ClipboardList, Home, LogOut, Megaphone, Menu, MessageSquareText, Soup, Sparkles, UsersRound, X } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { syncHomeScreenBadge } from '../lib/home-screen-badge'
@@ -17,6 +17,7 @@ const links = [
   { href: '/community/events', label: 'Events', icon: CalendarDays, countKey: 'events' },
   { href: '/community/dinners', label: 'Saturday Dinners', icon: Soup, countKey: 'dinners' },
   { href: '/community/rsvps', label: 'RSVPs', icon: ClipboardList, countKey: 'rsvps' },
+  { href: '/community/texts', label: 'Event Texts', icon: MessageSquareText, countKey: 'texts' },
 ]
 
 type CommunityCounts = Record<(typeof links)[number]['countKey'], number>
@@ -29,6 +30,7 @@ const emptyCounts: CommunityCounts = {
   events: 0,
   dinners: 0,
   rsvps: 0,
+  texts: 0,
 }
 
 const badgeHelp = {

@@ -11,9 +11,17 @@ import {
   validSmsBroadcastRequestId,
 } from '../../../lib/sms-broadcast'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
+import { canManageCommunity, effectivePortalRole } from '../../../lib/staff-roles'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
+
+const eventCoordinatorTextTypes = [
+  'Event Reminder',
+  'Saturday Dinner Reminder',
+  'Thanksgiving Signup',
+  'Community Update',
+]
 
 function camperName(camper: any) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
@@ -32,10 +40,10 @@ function buildTextMessage(message: string, reminderType: string, broadcastId?: s
   })
 }
 
-async function requireAdmin(request: Request) {
+async function requireTextSender(request: Request) {
   const context = await getAuthenticatedContext(request)
 
-  if (!context || String(context.camper.role || '').toLowerCase() !== 'admin') {
+  if (!context || !canManageCommunity(context.camper.role)) {
     return null
   }
 
@@ -72,15 +80,19 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, alert })
   }
 
-  if (String(context.camper.role || '').toLowerCase() !== 'admin') {
+  const role = effectivePortalRole(context.camper.role)
+  const isAdmin = role === 'admin'
+  if (!isAdmin && role !== 'event_coordinator') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { data: broadcasts, error: broadcastError } = await context.admin
+  let broadcastQuery = context.admin
     .from('sms_broadcasts')
     .select('id,reminder_type,message,status,recipient_count,duplicate_recipient_count,sent_count,failed_count,created_at,completed_at')
     .order('created_at', { ascending: false })
     .limit(10)
+  if (!isAdmin) broadcastQuery = broadcastQuery.in('reminder_type', eventCoordinatorTextTypes)
+  const { data: broadcasts, error: broadcastError } = await broadcastQuery
   if (broadcastError && !['42P01', 'PGRST205'].includes(broadcastError.code || '')) {
     return NextResponse.json({ error: broadcastError.message }, { status: 500 })
   }
@@ -104,14 +116,17 @@ export async function GET(request: Request) {
     return { ...broadcast, sent_count: sentCount, failed_count: failedCount, pending_count: pendingCount }
   })
 
-  const { data: consentRows, error: consentError } = await context.admin
-    .from('sms_phone_consents')
-    .select('camper_id,phone_number,opted_out_at,source,updated_at')
-    .eq('opted_in', false)
-    .order('opted_out_at', { ascending: false, nullsFirst: false })
-
   let optedOuts: any[] = []
-  if (!consentError) {
+  const consentResult = isAdmin
+    ? await context.admin
+      .from('sms_phone_consents')
+      .select('camper_id,phone_number,opted_out_at,source,updated_at')
+      .eq('opted_in', false)
+      .order('opted_out_at', { ascending: false, nullsFirst: false })
+    : { data: [], error: null }
+  const consentRows = consentResult.data
+  const consentError = consentResult.error
+  if (isAdmin && !consentError) {
     const camperIds = Array.from(new Set((consentRows || []).map((row: any) => String(row.camper_id || '')).filter(Boolean)))
     const { data: optedOutCampers, error: optedOutCamperError } = camperIds.length
       ? await context.admin
@@ -135,7 +150,7 @@ export async function GET(request: Request) {
         source: row.source || 'unknown',
       }]
     })
-  } else if (!['42P01', 'PGRST205'].includes(consentError.code || '')) {
+  } else if (isAdmin && consentError && !['42P01', 'PGRST205'].includes(consentError.code || '')) {
     return NextResponse.json({ error: consentError.message }, { status: 500 })
   }
 
@@ -148,7 +163,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const context = await requireAdmin(request)
+  const context = await requireTextSender(request)
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json().catch(() => ({}))
@@ -157,7 +172,17 @@ export async function POST(request: Request) {
   const reminderType = String(body.reminderType || 'General Alert').slice(0, 80)
   const message = String(body.message || '').trim().slice(0, 1200)
   const requestId = String(body.requestId || '')
+  const role = effectivePortalRole(context.camper.role)
+  const isAdmin = role === 'admin'
   const isDirectBillingReminder = targetMode === 'one' && reminderType === 'Invoice Reminder'
+
+  if (!isAdmin && !eventCoordinatorTextTypes.includes(reminderType)) {
+    return NextResponse.json({ error: 'Event Coordinators can send only event, dinner, Thanksgiving, or Community updates.' }, { status: 403 })
+  }
+
+  if (!isAdmin && targetMode !== 'all_opted_in') {
+    return NextResponse.json({ error: 'Event Coordinator texts can be sent only to all opted-in campers.' }, { status: 403 })
+  }
 
   if (!message) {
     return NextResponse.json({ error: 'Type a text message first.' }, { status: 400 })

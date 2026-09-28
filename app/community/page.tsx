@@ -1,4 +1,4 @@
-import { ArrowRight, CakeSlice, CalendarDays, ClipboardList, Megaphone, ShieldCheck, Soup, Sparkles, UsersRound } from 'lucide-react'
+import { ArrowRight, CakeSlice, CalendarDays, ClipboardList, Megaphone, MessageSquareText, ShieldCheck, Soup, Sparkles, UsersRound } from 'lucide-react'
 import CommunityAppBadgePermission from '../../components/CommunityAppBadgePermission'
 import CommunityBadgeOverview from '../../components/CommunityBadgeOverview'
 
@@ -9,6 +9,7 @@ const tools = [
   { href: '/community/events', title: 'All Events', note: 'Create events and keep the campground calendar current.', icon: CalendarDays, tone: 'green' },
   { href: '/community/dinners', title: 'Saturday Dinners', note: 'Plan headcounts and see what everyone is bringing.', icon: Soup, tone: 'orange' },
   { href: '/community/rsvps', title: 'RSVP Organizer', note: 'See Going, Maybe, and Not Going responses by event.', icon: ClipboardList, tone: 'blue' },
+  { href: '/community/texts', title: 'Event Texts', note: 'Send short event, dinner, Thanksgiving, or Community reminders to opted-in campers.', icon: MessageSquareText, tone: 'gold' },
 ]
 
 export default function CommunityHomePage() {

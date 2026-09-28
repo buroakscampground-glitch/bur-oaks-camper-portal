@@ -11,7 +11,9 @@ export function portalPathForTextType(reminderType: unknown) {
 
   if (type.includes('invoice') || type.includes('bill') || type.includes('balance')) return '/invoices'
   if (type.includes('electric') || type.includes('utility')) return '/electric'
-  if (type.includes('event') || type.includes('dinner')) return '/calendar'
+  if (type.includes('dinner')) return '/dinners'
+  if (type.includes('event')) return '/calendar'
+  if (type.includes('community')) return '/campground-community'
   if (type.includes('maintenance')) return '/maintenance'
   if (type.includes('document') || type.includes('renewal')) return '/documents'
   if (type.includes('message') || type.includes('chat')) return '/messages'
