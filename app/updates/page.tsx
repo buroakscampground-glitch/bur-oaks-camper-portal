@@ -161,7 +161,7 @@ export default function CamperUpdatesPage() {
                 <span><Bell size={14} /> OPENED FROM YOUR TEXT ALERT</span>
                 <time><Clock3 size={13} /> {formatUpdateDate(linkedAlert.created_at)}</time>
               </div>
-              <h3>{linkedAlert.reminder_type || 'Bur Oaks alert'}</h3>
+              <h3>Full alert message</h3>
               <p>{linkedAlert.message}</p>
             </article>
           )}
@@ -170,7 +170,7 @@ export default function CamperUpdatesPage() {
           {loading ? (
             <p className="updates-empty">Opening the campground board…</p>
           ) : announcements.length === 0 ? (
-            <div className="updates-empty"><Megaphone size={28} /><p>No active announcements right now.</p></div>
+            <div className="updates-empty"><Megaphone size={28} /><p>{linkedAlert ? 'No other active announcements right now.' : 'No active announcements right now.'}</p></div>
           ) : (
             <div className="updates-board-list">
               {announcements.map((item) => {

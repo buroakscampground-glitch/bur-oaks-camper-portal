@@ -50,15 +50,15 @@ export async function GET(request: Request) {
   if (broadcastId) {
     const isAdmin = String(context.camper.role || '').toLowerCase() === 'admin'
     if (!isAdmin) {
-      const { data: delivery, error: deliveryError } = await context.admin
+      const { data: deliveries, error: deliveryError } = await context.admin
         .from('sms_broadcast_deliveries')
         .select('id')
         .eq('broadcast_id', broadcastId)
         .eq('camper_id', context.camper.id)
-        .maybeSingle()
+        .limit(1)
 
       if (deliveryError) return NextResponse.json({ error: deliveryError.message }, { status: 500 })
-      if (!delivery) return NextResponse.json({ error: 'This alert is not available for this camper account.' }, { status: 404 })
+      if (!deliveries?.length) return NextResponse.json({ error: 'This alert is not available for this camper account.' }, { status: 404 })
     }
 
     const { data: alert, error: alertError } = await context.admin
