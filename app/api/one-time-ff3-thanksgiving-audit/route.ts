@@ -57,7 +57,7 @@ export async function GET(request: Request) {
 
   const campers = (camperRows || []).filter((camper: any) =>
     normalizedSite(camper.lot_number) === 'FF3' ||
-    (/dave/i.test(String(camper.first_name || '')) && normalizedSite(camper.lot_number).includes('FF3'))
+    /dave/i.test(`${camper.first_name || ''} ${camper.last_name || ''}`)
   )
   const camperIds = campers.map((camper: any) => camper.id)
   const phones = Array.from(new Set(campers.flatMap((camper: any) => [camper.phone, camper.alternate_phone, camper.second_profile_phone].map(formatSmsPhone).filter(Boolean))))
