@@ -14,6 +14,16 @@ type Template = {
 
 const quickTemplates: Template[] = [
   {
+    label: 'Power outage',
+    type: 'Emergency Alert',
+    message: 'POWER OUTAGE: Bur Oaks is currently without power. We are monitoring the situation and will send another alert when service is restored.',
+  },
+  {
+    label: 'Power restored',
+    type: 'General Alert',
+    message: 'POWER RESTORED: Electrical service has been restored at Bur Oaks. Please contact the office if your site is still without power.',
+  },
+  {
     label: 'Storm alert',
     type: 'Weather Alert',
     message: 'Weather is moving into the area. Please secure awnings, outdoor items, and check your campsite.',
