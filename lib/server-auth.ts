@@ -5,6 +5,23 @@ const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   'https://mzywctpxnpejglnspyqi.supabase.co'
 
+export function selectAuthenticatedCamperMatch(matches: any[] = []) {
+  const uniqueActiveMatches = matches
+    .filter((match) => match?.active !== false)
+    .filter((match, index, all) => all.findIndex((item) => item?.id === match?.id) === index)
+
+  if (uniqueActiveMatches.length === 1) return uniqueActiveMatches[0]
+
+  // An email can legitimately appear on both a camper profile and a staff
+  // profile. In that case, select the one unambiguous staff identity. Never
+  // guess between multiple ordinary camper profiles or multiple staff roles.
+  const staffMatches = uniqueActiveMatches.filter((match) =>
+    ['admin', 'event_coordinator', 'maintenance'].includes(effectivePortalRole(match))
+  )
+
+  return staffMatches.length === 1 ? staffMatches[0] : null
+}
+
 async function findCamperForEmail(client: any, userEmail: string) {
   const [primaryMatch, secondaryMatch] = await Promise.all([
     client
@@ -24,10 +41,7 @@ async function findCamperForEmail(client: any, userEmail: string) {
     ...(secondaryMatch.data || []),
   ].filter((match, index, all) => all.findIndex((item) => item.id === match.id) === index)
 
-  const activeMatches = camperMatches.filter((match) => match.active !== false)
-
-  // Never choose an arbitrary account when duplicate identities exist.
-  return activeMatches.length === 1 ? activeMatches[0] : null
+  return selectAuthenticatedCamperMatch(camperMatches)
 }
 
 export async function getAuthenticatedContext(request: Request) {
