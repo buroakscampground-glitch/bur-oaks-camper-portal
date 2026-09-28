@@ -1,3 +1,5 @@
+import { thanksgivingFoodLabels } from './thanksgiving-dinner.ts'
+
 export type SaturdayDinner = {
   id: string
   date: string
@@ -91,6 +93,10 @@ const menuSuggestionMap: Array<{ match: RegExp; items: string[] }> = [
 ]
 
 export function dinnerBringSuggestions(menu = '') {
+  if (/bur oaks thanksgiving/i.test(menu)) {
+    return thanksgivingFoodLabels
+  }
+
   if (/many different kinds of soups/i.test(menu)) {
     return ['Crackers', 'Shredded cheese']
   }

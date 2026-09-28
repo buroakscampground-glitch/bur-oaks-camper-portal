@@ -243,7 +243,7 @@ export default function SaturdayDinnersPage() {
         <div className="saturday-dinner-form">
           <label>
             <span>Dinner date</span>
-            <select value={selectedDate} onChange={(event) => setSelectedDate(event.target.value)}>
+            <select value={selectedDate} onChange={(event) => openDinner(event.target.value)}>
               {saturdayDinners2026.map((dinner) => (
                 <option disabled={dinner.closed} value={dinner.date} key={dinner.id}>
                   {dinner.month} {dinner.day} — {dinner.menu}{dinner.closed ? ' (Closed)' : ''}

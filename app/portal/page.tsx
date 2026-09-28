@@ -44,6 +44,7 @@ import { saveSmsConsentPreference } from '../../lib/sms-consent'
 import PortalWeather, { PortalWeatherDockButton, PortalWeatherMini } from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
+import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 import { getSeasonalTheme } from '../../lib/seasonal-theme'
@@ -141,6 +142,11 @@ function formatDate(value?: string) {
     day: 'numeric',
     year: 'numeric',
   })
+}
+
+function dinnerSignupHref(date?: string) {
+  if (!date) return '/dinners'
+  return date === thanksgivingDinnerDate ? '/thanksgiving' : `/dinners?date=${date}`
 }
 
 function getMaintenanceDisplayStatus(ticket?: any) {
@@ -807,7 +813,7 @@ export default function CamperPortalPage() {
       label: 'Next dinner',
       value: nextDinner ? `${nextDinner.month} ${nextDinner.day}` : 'Menu',
       detail: nextDinner?.menu || 'View schedule',
-      href: nextDinner ? `/dinners?date=${nextDinner.date}` : '/dinners',
+      href: dinnerSignupHref(nextDinner?.date),
       icon: Soup,
     },
     {
@@ -899,7 +905,7 @@ export default function CamperPortalPage() {
       : []),
     ...(nextDinner
       ? [{
-          href: `/dinners?date=${nextDinner.date}`,
+          href: dinnerSignupHref(nextDinner.date),
           label: 'Saturday dinner',
           title: `${nextDinner.month} ${nextDinner.day}: ${nextDinner.menu}`,
           tone: 'good',
@@ -1079,7 +1085,7 @@ export default function CamperPortalPage() {
           <div className="portal-premium-section-title"><h2>Around the campground</h2></div>
           <div className="portal-premium-around">
             <a href="/calendar"><CalendarDays size={21} /><span><small>NEXT EVENT{nextEvent?.event_date ? ` · ${formatDate(nextEvent.event_date)}` : ''}</small><strong>{nextEvent?.title || 'Open the campground calendar'}</strong></span><ChevronRight size={17} /></a>
-            <a href={nextDinner ? `/dinners?date=${nextDinner.date}` : '/dinners'}><Soup size={21} /><span><small>NEXT SATURDAY DINNER</small><strong>{nextDinner?.menu || 'View dinner schedule'}</strong></span><ChevronRight size={17} /></a>
+            <a href={dinnerSignupHref(nextDinner?.date)}><Soup size={21} /><span><small>NEXT SATURDAY DINNER</small><strong>{nextDinner?.menu || 'View dinner schedule'}</strong></span><ChevronRight size={17} /></a>
           </div>
         </section>
 
@@ -1112,11 +1118,11 @@ export default function CamperPortalPage() {
               <h2 id="portal-dinner-spotlight-title">{nextDinner.menu}</h2>
               <p>
                 Saturday dinner is coming up. Tell us how many are coming and
-                <strong> choose the side, dessert, or supply you’re bringing.</strong>
+                <strong>{nextDinner.date === thanksgivingDinnerDate ? ' claim one Thanksgiving food item.' : ' choose the side or dessert you’re bringing.'}</strong>
               </p>
               {nextDinner.theme && <em>{nextDinner.theme}</em>}
             </div>
-            <a href={`/dinners?date=${nextDinner.date}`}>
+            <a href={dinnerSignupHref(nextDinner.date)}>
               RSVP + choose what you’re bringing <ArrowRight size={19} />
             </a>
           </section>
@@ -1282,7 +1288,7 @@ export default function CamperPortalPage() {
               <strong>{activeMaintenance.length || '0'}</strong>
               <em>{activeMaintenance.length ? latestMaintenanceStatus : 'No active work'}</em>
             </a>
-            <a href={nextDinner ? `/dinners?date=${nextDinner.date}` : '/dinners'} className="good">
+            <a href={dinnerSignupHref(nextDinner?.date)} className="good">
               <small>Next dinner</small>
               <strong>{nextDinner ? `${nextDinner.month} ${nextDinner.day}` : 'Menu'}</strong>
               <em>{nextDinner?.menu || 'View schedule'}</em>
@@ -1365,7 +1371,7 @@ export default function CamperPortalPage() {
             </span>
           </a>
           <CommunityHomeCard />
-          <a className="portal-dinner-action" href={upcomingDinners[0] ? `/dinners?date=${upcomingDinners[0].date}` : '/dinners'}>
+          <a className="portal-dinner-action" href={dinnerSignupHref(upcomingDinners[0]?.date)}>
             <Soup size={20} />
             <span>
               <small>Saturday dinner + sides</small>
@@ -1636,7 +1642,7 @@ export default function CamperPortalPage() {
                   <span>Saturday dinner</span>
                 </div>
                 {upcomingDinners.map((dinner) => (
-                  <a href={`/dinners?date=${dinner.date}`} key={dinner.id}>
+                  <a href={dinnerSignupHref(dinner.date)} key={dinner.id}>
                     <small>{dinner.month} {dinner.day} · 6 PM</small>
                     <strong>{dinner.menu}</strong>
                     {dinner.theme && <em>{dinner.theme}</em>}

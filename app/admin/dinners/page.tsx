@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CalendarDays, Search, Soup, UsersRound, UtensilsCrossed } from 'lucide-react'
 import { dinnerBringSuggestions, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { supabase } from '../../../lib/supabase'
+import { thanksgivingDinnerDate } from '../../../lib/thanksgiving-dinner'
 
 export default function AdminDinnersPage() {
   const [signups, setSignups] = useState<any[]>([])
@@ -68,6 +69,14 @@ export default function AdminDinnersPage() {
       .map((label) => ({ label, custom: true })),
   ]
 
+  function selectDinner(dinnerDate: string) {
+    if (dinnerDate === thanksgivingDinnerDate) {
+      window.location.href = '/community/thanksgiving'
+      return
+    }
+    setSelectedDate(dinnerDate)
+  }
+
   return (
     <main className="admin-dinners-page">
       <section className="admin-dinners-hero">
@@ -87,7 +96,7 @@ export default function AdminDinnersPage() {
       <section className="admin-dinner-controls">
         <label>
           <span>Dinner date</span>
-          <select value={selectedDinner?.date || ''} onChange={(event) => setSelectedDate(event.target.value)}>
+          <select value={selectedDinner?.date || ''} onChange={(event) => selectDinner(event.target.value)}>
             {saturdayDinners2026.map((dinner) => (
               <option disabled={dinner.closed} value={dinner.date} key={dinner.id}>
                 {dinner.month} {dinner.day} — {dinner.menu}{dinner.closed ? ' (Closed)' : ''}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { saturdayDinners2026 } from '../lib/saturday-dinners.ts'
+import { dinnerBringSuggestions, saturdayDinners2026 } from '../lib/saturday-dinners.ts'
 import {
   thanksgivingClaimCounts,
   thanksgivingDinnerDate,
@@ -29,6 +29,7 @@ test('large-group food limits prevent a flood of the same dishes', () => {
   assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'green-bean-casserole')?.label, 'Green bean casserole')
   assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'cornbread')?.label, 'Cornbread or other bread')
   assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'dessert')?.limit, 2)
+  assert.deepEqual(dinnerBringSuggestions('Bur Oaks Thanksgiving'), thanksgivingFoodOptions.map((option) => option.label))
 })
 
 test('food coverage ignores campers who are not attending and a camper updating their own choice', () => {
@@ -51,6 +52,7 @@ test('the camper portal and office dinner page prominently open the dedicated pl
 
   assert.match(portal, /portal-thanksgiving-feature/)
   assert.match(portal, /Open Thanksgiving signup/)
+  assert.match(portal, /dinnerSignupHref/)
   assert.match(dinners, /Open the Bur Oaks Thanksgiving board/)
   assert.match(signup, /Claim one food item/)
   assert.match(api, /already fully covered/)
