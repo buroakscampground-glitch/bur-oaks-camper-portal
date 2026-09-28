@@ -14,14 +14,21 @@ export const thanksgivingFoodOptions: ThanksgivingFoodOption[] = [
   { id: 'gravy', label: 'Turkey gravy', limit: 2, servingGuide: 'Large crockpot · about 30 servings', group: 'Traditional sides' },
   { id: 'sweet-potatoes', label: 'Sweet potatoes', limit: 2, servingGuide: 'Large pan · about 25 servings', group: 'Traditional sides' },
   { id: 'mac-cheese', label: 'Macaroni & cheese', limit: 2, servingGuide: 'Large pan · about 25 servings', group: 'Traditional sides' },
-  { id: 'green-beans', label: 'Green beans or green bean casserole', limit: 3, servingGuide: 'Large pan · about 25 servings', group: 'Vegetables & salads' },
+  { id: 'cheesy-hash-browns', label: 'Cheesy hash brown casserole', limit: 3, servingGuide: 'Large pan · about 25 servings', group: 'Traditional sides' },
+  { id: 'green-beans', label: 'Green beans', limit: 2, servingGuide: 'Large pan or crockpot · about 25 servings', group: 'Vegetables & salads' },
+  { id: 'green-bean-casserole', label: 'Green bean casserole', limit: 3, servingGuide: 'Large pan · about 25 servings', group: 'Vegetables & salads' },
   { id: 'corn', label: 'Corn', limit: 2, servingGuide: 'Large pan or crockpot · about 25 servings', group: 'Vegetables & salads' },
+  { id: 'glazed-carrots', label: 'Glazed carrots', limit: 2, servingGuide: 'Large pan or crockpot · about 25 servings', group: 'Vegetables & salads' },
+  { id: 'broccoli-casserole', label: 'Broccoli casserole', limit: 2, servingGuide: 'Large pan · about 25 servings', group: 'Vegetables & salads' },
   { id: 'vegetable-side', label: 'Other hot vegetable side', limit: 3, servingGuide: 'Large pan · about 20 servings', group: 'Vegetables & salads' },
   { id: 'salad', label: 'Large salad', limit: 2, servingGuide: 'Large party bowl · about 20 servings', group: 'Vegetables & salads' },
+  { id: 'fruit-salad', label: 'Fruit salad', limit: 2, servingGuide: 'Large party bowl · about 20 servings', group: 'Vegetables & salads' },
   { id: 'deviled-eggs', label: 'Deviled eggs', limit: 3, servingGuide: 'Three dozen egg halves', group: 'Bread & extras' },
   { id: 'cranberry', label: 'Cranberry dish', limit: 2, servingGuide: 'Large serving dish · about 20 servings', group: 'Bread & extras' },
   { id: 'rolls', label: 'Dinner rolls', limit: 3, servingGuide: 'Three dozen rolls', group: 'Bread & extras' },
-  { id: 'pie', label: 'Pies', limit: 4, servingGuide: 'Two full-size pies', group: 'Desserts' },
+  { id: 'cornbread', label: 'Cornbread or other bread', limit: 2, servingGuide: 'Two large pans or loaves · about 25 servings', group: 'Bread & extras' },
+  { id: 'pumpkin-pecan-pie', label: 'Pumpkin or pecan pies', limit: 3, servingGuide: 'Two full-size pies', group: 'Desserts' },
+  { id: 'other-pies', label: 'Other pies', limit: 2, servingGuide: 'Two full-size pies', group: 'Desserts' },
   { id: 'dessert', label: 'Other large dessert', limit: 2, servingGuide: 'One large dessert · about 20 servings', group: 'Desserts' },
 ]
 
@@ -29,6 +36,12 @@ export const thanksgivingFoodLabels = thanksgivingFoodOptions.map((option) => op
 
 export function thanksgivingFoodOption(value: unknown) {
   const normalized = String(value || '').trim().toLowerCase()
+  const legacyOptionIds: Record<string, string> = {
+    'green beans or green bean casserole': 'green-bean-casserole',
+    pies: 'other-pies',
+  }
+  const legacyId = legacyOptionIds[normalized]
+  if (legacyId) return thanksgivingFoodOptions.find((option) => option.id === legacyId)
   return thanksgivingFoodOptions.find((option) => option.label.toLowerCase() === normalized)
 }
 

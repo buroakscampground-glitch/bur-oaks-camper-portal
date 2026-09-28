@@ -5,6 +5,7 @@ import { ArrowLeft, CalendarDays, CheckCircle2, ChefHat, Minus, Plus, Send, User
 import { supabase } from '../../lib/supabase'
 import {
   thanksgivingDinnerDate,
+  thanksgivingFoodOption,
   thanksgivingFoodOptions,
 } from '../../lib/thanksgiving-dinner'
 
@@ -54,7 +55,7 @@ export default function ThanksgivingSignupPage() {
     if (mine) {
       setStatus(mine.attending_status || 'Going')
       setGuestCount(Number(mine.guest_count || 1))
-      setBringing(mine.bringing || '')
+      setBringing(thanksgivingFoodOption(mine.bringing)?.label || mine.bringing || '')
     }
     setLoading(false)
   }

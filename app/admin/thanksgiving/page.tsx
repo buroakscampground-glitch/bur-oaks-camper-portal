@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ChefHat, RefreshCw, Search, UsersRound, UtensilsCrossed } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
-import { thanksgivingDinnerDate, thanksgivingFoodOptions } from '../../../lib/thanksgiving-dinner'
+import { thanksgivingDinnerDate, thanksgivingFoodOption, thanksgivingFoodOptions } from '../../../lib/thanksgiving-dinner'
 
 type Signup = {
   id: string
@@ -57,7 +57,8 @@ export default function ThanksgivingAdminPage() {
   ), [search, signups])
 
   function campersFor(label: string) {
-    return active.filter((signup) => String(signup.bringing || '').trim().toLowerCase() === label.toLowerCase())
+    const optionId = thanksgivingFoodOption(label)?.id
+    return active.filter((signup) => thanksgivingFoodOption(signup.bringing)?.id === optionId)
   }
 
   return (

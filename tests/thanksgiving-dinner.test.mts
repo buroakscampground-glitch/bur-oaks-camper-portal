@@ -24,6 +24,10 @@ test('large-group food limits prevent a flood of the same dishes', () => {
   assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'mashed-potatoes')?.limit, 3)
   assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'mac-cheese')?.limit, 2)
   assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'rolls')?.limit, 3)
+  assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'cheesy-hash-browns')?.limit, 3)
+  assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'green-beans')?.label, 'Green beans')
+  assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'green-bean-casserole')?.label, 'Green bean casserole')
+  assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'cornbread')?.label, 'Cornbread or other bread')
   assert.equal(thanksgivingFoodOptions.find((option) => option.id === 'dessert')?.limit, 2)
 })
 
