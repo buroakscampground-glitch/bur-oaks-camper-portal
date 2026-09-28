@@ -42,8 +42,9 @@ function buildTextMessage(message: string, reminderType: string, broadcastId?: s
 
 async function requireTextSender(request: Request) {
   const context = await getAuthenticatedContext(request)
+  const role = context ? effectivePortalRole(context.camper) : ''
 
-  if (!context || !canManageCommunity(context.camper.role)) {
+  if (!context || !canManageCommunity(role)) {
     return null
   }
 
@@ -80,7 +81,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, alert })
   }
 
-  const role = effectivePortalRole(context.camper.role)
+  const role = effectivePortalRole(context.camper)
   const isAdmin = role === 'admin'
   if (!isAdmin && role !== 'event_coordinator') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -172,7 +173,7 @@ export async function POST(request: Request) {
   const reminderType = String(body.reminderType || 'General Alert').slice(0, 80)
   const message = String(body.message || '').trim().slice(0, 1200)
   const requestId = String(body.requestId || '')
-  const role = effectivePortalRole(context.camper.role)
+  const role = effectivePortalRole(context.camper)
   const isAdmin = role === 'admin'
   const isDirectBillingReminder = targetMode === 'one' && reminderType === 'Invoice Reminder'
 
