@@ -243,10 +243,7 @@ export default function AdminEventsPage() {
           {events.map((event) => (
             <div
               key={event.id}
-              style={{
-                borderTop: '1px solid #e3ded2',
-                padding: '15px 0',
-              }}
+              className="admin-event-list-card"
             >
               <p className="muted">
                 {event.event_date}
@@ -256,22 +253,21 @@ export default function AdminEventsPage() {
 
               <p>{event.description}</p>
 
-              <div
-                style={{
-                  marginTop: '10px',
-                  fontWeight: 'bold',
-                }}
-              >
-                <p>
-                  RSVPs: {rsvpCounts[event.id] || 0}
-                </p>
+              <div className="admin-event-counts" aria-label="Event response totals">
+                <div>
+                  <span>RSVPs</span>
+                  <strong>{rsvpCounts[event.id] || 0}</strong>
+                </div>
 
-                <p>
-                  Going: {goingCounts[event.id] || 0}
-                </p>
+                <div>
+                  <span>Going</span>
+                  <strong>{goingCounts[event.id] || 0}</strong>
+                </div>
               </div>
 
               <button
+                type="button"
+                className="admin-event-delete"
                 onClick={() => deleteEvent(event.id)}
               >
                 Delete
