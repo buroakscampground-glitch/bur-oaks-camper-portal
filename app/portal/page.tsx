@@ -216,6 +216,7 @@ export default function CamperPortalPage() {
   const [maintenanceTickets, setMaintenanceTickets] = useState<any[]>([])
   const [pumpOutRequests, setPumpOutRequests] = useState<any[]>([])
   const [pumpOutServiceLots, setPumpOutServiceLots] = useState<string[]>([])
+  const [pumpOutServiceAccounts, setPumpOutServiceAccounts] = useState<Array<{ serviceLot: string; billingLot: string }>>([])
   const [selectedPumpLot, setSelectedPumpLot] = useState('')
   const [officePendingMessages, setOfficePendingMessages] = useState<any[]>([])
   const [latestElectric, setLatestElectric] = useState<any>(null)
@@ -410,6 +411,7 @@ export default function CamperPortalPage() {
         setUnreadOfficeMessages(messageResult.count || 0)
         setPumpOutRequests(pumpOutResult?.requests || [])
         setPumpOutServiceLots(pumpOutResult?.serviceLots || [camperData.lot_number].filter(Boolean))
+        setPumpOutServiceAccounts(pumpOutResult?.serviceAccounts || [])
         setOfficePendingMessages(pendingOfficeResult.data || [])
         setSiteCareNotices(siteCareResult.data || [])
         if (birthdayResult?.success) {
@@ -1006,6 +1008,18 @@ export default function CamperPortalPage() {
     (request) => String(request.lot_number || '').trim().toUpperCase() === String(selectedPumpLot || camper?.lot_number || '').trim().toUpperCase()
   )
   const displayedPumpOutFee = getSewerPumpOutFeeForLot(selectedPumpLot || camper?.lot_number, 10)
+  const selectedPumpBillingLot = pumpOutServiceAccounts.find(
+    (account) => String(account.serviceLot).trim().toUpperCase() === String(selectedPumpLot || camper?.lot_number || '').trim().toUpperCase()
+  )?.billingLot || selectedPumpLot || camper?.lot_number
+  const selectedPumpBillingAccount = [camper, ...authorizedBillingAccounts].find(
+    (account) => String(account?.lot_number || '').trim().toUpperCase() === String(selectedPumpBillingLot || '').trim().toUpperCase()
+  )
+  const selectedPumpBillingName = `${selectedPumpBillingAccount?.first_name || ''} ${selectedPumpBillingAccount?.last_name || ''}`.trim()
+  function pumpOutAccountFirstName(lot: string) {
+    return String([camper, ...authorizedBillingAccounts].find(
+      (account) => String(account?.lot_number || '').trim().toUpperCase() === String(lot).trim().toUpperCase()
+    )?.first_name || '').trim()
+  }
   const campgroundToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date())
   const showThanksgivingFeature = campgroundToday <= '2026-11-07'
 
@@ -1605,7 +1619,7 @@ export default function CamperPortalPage() {
             <span><Droplets size={18} /> SEWER PUMP-OUT</span>
             <h2>Need your sewer pumped?</h2>
             <p>{availablePumpOutLots.length > 1
-              ? `Choose the campsite that needs service. The charge will stay on your Lot ${camper?.lot_number || 'billing'} account.`
+              ? 'Choose the campsite that needs service. Each charge goes to that campsite’s authorized billing account.'
               : `Tap the red button and the office will add you to the pump-out list. A $${displayedPumpOutFee.toFixed(2)} charge is added to your next electric bill.`}</p>
             {pumpMessage && <small>{pumpMessage}</small>}
           </div>
@@ -1617,7 +1631,11 @@ export default function CamperPortalPage() {
                 onClick={() => { setSelectedPumpLot(lot); setShowPumpConfirm(true) }}
                 disabled={requestingPump}
               >
-                {requestingPump ? 'Sending…' : availablePumpOutLots.length > 1 ? `Pump Lot ${lot}` : 'Request pump-out'}
+                {requestingPump
+                  ? 'Sending…'
+                  : availablePumpOutLots.length > 1
+                    ? `Pump Lot ${lot}${pumpOutAccountFirstName(lot) ? ` — ${pumpOutAccountFirstName(lot)}` : ''}`
+                    : 'Request pump-out'}
               </button>
             ))}
           </div>
@@ -2013,7 +2031,7 @@ export default function CamperPortalPage() {
               </button>
               <span><Droplets size={18} /> Sewer pump-out</span>
               <h2>Request a pump-out for Lot {selectedPumpLot || camper?.lot_number || 'your site'}?</h2>
-              <p>The office will add Lot {selectedPumpLot || camper?.lot_number || 'your site'} to the pump-out list. A <strong>{`$${displayedPumpOutFee.toFixed(2)} charge`}</strong> will be added to the next electric bill for Lot {camper?.lot_number || 'your billing account'}.</p>
+              <p>The office will add Lot {selectedPumpLot || camper?.lot_number || 'your site'} to the pump-out list. A <strong>{`$${displayedPumpOutFee.toFixed(2)} charge`}</strong> will be added to the next electric bill for Lot {selectedPumpBillingLot || 'the authorized billing account'}{selectedPumpBillingName ? ` (${selectedPumpBillingName})` : ''}.</p>
               {activeSelectedPumpOutRequests.length > 0 && (
                 <em>Lot {selectedPumpLot || camper?.lot_number} already appears to be on the pump-out list. Sending again will not add a duplicate charge.</em>
               )}

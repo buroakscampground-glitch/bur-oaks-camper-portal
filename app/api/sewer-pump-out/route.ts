@@ -4,7 +4,12 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge, isHoldingTankPumpOutLot } from '../../../lib/sewer-pump-fees'
 import { checkRateLimit } from '../../../lib/rate-limit'
-import { allowedPumpOutServiceLot, pumpOutServiceLotsForAccount } from '../../../lib/multi-site-pump-outs'
+import {
+  allowedPumpOutServiceLot,
+  pumpOutBillingLotForService,
+  pumpOutServiceAccountsForAccount,
+  pumpOutServiceLotsForAccount,
+} from '../../../lib/multi-site-pump-outs'
 
 export const runtime = 'nodejs'
 
@@ -34,6 +39,7 @@ export async function GET(request: Request) {
     success: true,
     requests: data || [],
     serviceLots,
+    serviceAccounts: pumpOutServiceAccountsForAccount(context.user.email, context.camper.lot_number),
     billingLot: context.camper.lot_number,
   })
 }
@@ -59,7 +65,32 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'That campsite is not connected to your pump-out account.' }, { status: 403 })
   }
 
-  const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'Camper'
+  const billingLot = pumpOutBillingLotForService(
+    context.user.email,
+    context.camper.lot_number,
+    requestedServiceLot
+  )
+  if (!billingLot) {
+    return NextResponse.json({ error: 'The billing account for that campsite could not be verified.' }, { status: 403 })
+  }
+
+  let billingCamper = context.camper
+  if (String(billingLot).toUpperCase() !== String(context.camper.lot_number || '').trim().toUpperCase()) {
+    const { data: billingCampers, error: billingCamperError } = await context.admin
+      .from('campers')
+      .select('id,first_name,last_name,lot_number,role,active')
+      .ilike('lot_number', billingLot)
+      .eq('active', true)
+    if (billingCamperError) {
+      return NextResponse.json({ error: 'The authorized billing account could not be opened.' }, { status: 500 })
+    }
+    billingCamper = (billingCampers || []).find((candidate: any) => String(candidate.role || 'camper').toLowerCase() === 'camper')
+    if (!billingCamper) {
+      return NextResponse.json({ error: `The active camper account for Lot ${billingLot} could not be found.` }, { status: 404 })
+    }
+  }
+
+  const camperName = `${billingCamper.first_name || ''} ${billingCamper.last_name || ''}`.trim() || 'Camper'
   const initiatedBy = `Initiated from camper portal by ${context.user.email}.`
   const billingSettings = await loadCampgroundBillingSettings(context.admin)
   const pumpCharge = getSewerPumpOutFeeForLot(requestedServiceLot, billingSettings.sewerPumpOutFee)
@@ -68,15 +99,18 @@ export async function POST(request: Request) {
     ? ' This is a holding-tank site, so the holding-tank pump-out rate applies.'
     : ''
 
-  const billingNote = requestedServiceLot !== context.camper.lot_number
-    ? `Service site ${requestedServiceLot}; bill to Lot ${context.camper.lot_number}.`
+  const billingNote = requestedServiceLot !== billingLot
+    ? `Service site ${requestedServiceLot}; bill to Lot ${billingLot}.`
+    : `Bill to Lot ${billingLot}.`
+  const authorizedNote = String(billingCamper.id) !== String(context.camper.id)
+    ? `Requested through an authorized family login for ${camperName}.`
     : ''
   const result = await context.admin.rpc('request_sewer_pump_out_atomic', {
-    p_camper_id: context.camper.id,
+    p_camper_id: billingCamper.id,
     p_lot_number: requestedServiceLot,
     p_camper_name: camperName,
     p_charge_amount: pumpCharge,
-    p_notes: [billingNote, initiatedBy, notes].filter(Boolean).join(' ').slice(0, 500),
+    p_notes: [billingNote, authorizedNote, initiatedBy, notes].filter(Boolean).join(' ').slice(0, 500),
   })
   const requestResults = result.data
   const error = result.error
@@ -99,7 +133,7 @@ export async function POST(request: Request) {
       emailStatus: 'skipped',
       emailMessage: `Lot ${requestedServiceLot} already has an open sewer pump-out request.`,
       serviceLot: requestedServiceLot,
-      billingLot: context.camper.lot_number,
+      billingLot,
     })
   }
 
@@ -108,16 +142,14 @@ export async function POST(request: Request) {
   }
 
   const title = `Sewer pump-out requested: Site ${requestedServiceLot || 'Unknown'}`
-  const billingDetail = requestedServiceLot !== context.camper.lot_number
-    ? ` The charge will be billed to ${camperName} at Lot ${context.camper.lot_number}.`
-    : ''
+  const billingDetail = ` The charge will be billed to ${camperName} at Lot ${billingLot}.`
   const message = `${camperName} requested a sewer pump-out at Site ${requestedServiceLot}. This records ${gallonsUsed} gallons and a $${pumpCharge.toFixed(2)} charge is pending for the next electric bill.${billingDetail}${holdingTankNote}${notes ? ` Note: ${notes}` : ''}`
   await createAdminNotification(context.admin, {
     type: 'sewer_pump_out',
     title,
     message,
     lot_number: requestedServiceLot,
-    camper_id: context.camper.id,
+    camper_id: billingCamper.id,
     source_table: 'sewer_pump_out_requests',
     source_id: String(requestRow.id),
   }).catch((notificationError) => console.error('Sewer pump notification failed:', notificationError))
@@ -128,7 +160,7 @@ export async function POST(request: Request) {
     emailStatus: 'daily_summary',
     emailMessage: 'The office receives pump-out activity in the daily report.',
     serviceLot: requestedServiceLot,
-    billingLot: context.camper.lot_number,
+    billingLot,
     chargeAmount: pumpCharge,
   })
 }
