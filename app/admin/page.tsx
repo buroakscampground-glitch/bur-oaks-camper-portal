@@ -93,6 +93,9 @@ type AdminStats = {
   totalUnreadAlerts: number
   pastDueInvoices: number
   pastDueAmount: number
+  electricOwedInvoices: number
+  electricOwedAmount: number
+  electricLateCampers: number
   dueNext7Invoices: number
   dueNext7Amount: number
   due8To30Invoices: number
@@ -158,6 +161,9 @@ const emptyStats: AdminStats = {
   totalUnreadAlerts: 0,
   pastDueInvoices: 0,
   pastDueAmount: 0,
+  electricOwedInvoices: 0,
+  electricOwedAmount: 0,
+  electricLateCampers: 0,
   dueNext7Invoices: 0,
   dueNext7Amount: 0,
   due8To30Invoices: 0,
@@ -345,6 +351,16 @@ export default function AdminPage() {
       const dueDate = new Date(`${invoice.due_date}T12:00:00`)
       return !Number.isNaN(dueDate.getTime()) && dueDate < today
     })
+    const electricOwedInvoices = openInvoices.filter((invoice) =>
+      String(invoice.invoice_type || '').toLowerCase().includes('electric')
+    )
+    const electricLateCamperIds = new Set(
+      electricOwedInvoices
+        .filter((invoice) =>
+          String(invoice.status || '').toLowerCase() !== 'processing' && pastDueInvoices.includes(invoice)
+        )
+        .map((invoice) => String(invoice.camper_id || invoice.id))
+    )
     const dueWithinRange = (invoice: any, minimumDays: number, maximumDays?: number) => {
       if (!invoice.due_date) return false
       const dueDate = new Date(`${invoice.due_date}T12:00:00`)
@@ -461,6 +477,9 @@ export default function AdminPage() {
       totalUnreadAlerts: notifications.filter((notification) => notification.type !== 'event_rsvp' && requiresAdminAttention(notification.type)).length,
       pastDueInvoices: pastDueInvoices.length,
       pastDueAmount: totalInvoiceBalance(pastDueInvoices),
+      electricOwedInvoices: electricOwedInvoices.length,
+      electricOwedAmount: totalInvoiceBalance(electricOwedInvoices),
+      electricLateCampers: electricLateCamperIds.size,
       dueNext7Invoices: dueNext7Invoices.length,
       dueNext7Amount: totalInvoiceBalance(dueNext7Invoices),
       due8To30Invoices: due8To30Invoices.length,
@@ -691,6 +710,11 @@ export default function AdminPage() {
             <a href="/admin/invoices">See every invoice <ArrowRight size={16} /></a>
           </header>
           <div className="admin-money-watch-grid">
+            <a className="electric-owed" href="/admin/invoices?filter=open&search=electric">
+              <small>Electric still owed</small>
+              <strong>${stats.electricOwedAmount.toFixed(2)}</strong>
+              <span>{stats.electricOwedInvoices} open bill{stats.electricOwedInvoices === 1 ? '' : 's'} · {stats.electricLateCampers} late camper{stats.electricLateCampers === 1 ? '' : 's'} · see names</span>
+            </a>
             <a className="late" href="/admin/open-balance?filter=past-due">
               <small>Past due</small>
               <strong>${stats.pastDueAmount.toFixed(2)}</strong>

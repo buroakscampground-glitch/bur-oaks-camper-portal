@@ -136,6 +136,8 @@ export default function AdminInvoicesPage() {
       }
       const requestedMonth = searchParams.get('month') || ''
       if (/^\d{4}-\d{2}$/.test(requestedMonth)) setMonthFilter(requestedMonth)
+      const requestedSearch = searchParams.get('search') || ''
+      if (requestedSearch) setSearchText(requestedSearch)
 
       const [, camperResult, paymentFeeSettings] = await Promise.all([
         loadInvoices(),
