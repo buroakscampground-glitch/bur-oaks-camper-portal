@@ -20,7 +20,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const serviceLots = pumpOutServiceLotsForAccount(context.user.email, context.camper.lot_number)
+  const accountEmails = [context.user.email, context.camper.email, context.camper.secondary_email]
+  const serviceLots = pumpOutServiceLotsForAccount(accountEmails, context.camper.lot_number)
   let requestQuery = context.admin
     .from('sewer_pump_out_requests')
     .select('*')
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     success: true,
     requests: data || [],
     serviceLots,
-    serviceAccounts: pumpOutServiceAccountsForAccount(context.user.email, context.camper.lot_number),
+    serviceAccounts: pumpOutServiceAccountsForAccount(accountEmails, context.camper.lot_number),
     billingLot: context.camper.lot_number,
   })
 }
@@ -56,8 +57,9 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const notes = String(body.notes || '').trim().slice(0, 500)
+  const accountEmails = [context.user.email, context.camper.email, context.camper.secondary_email]
   const requestedServiceLot = allowedPumpOutServiceLot(
-    context.user.email,
+    accountEmails,
     context.camper.lot_number,
     body.serviceLot || context.camper.lot_number
   )
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
   }
 
   const billingLot = pumpOutBillingLotForService(
-    context.user.email,
+    accountEmails,
     context.camper.lot_number,
     requestedServiceLot
   )

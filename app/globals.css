@@ -3358,6 +3358,41 @@ button:hover {
   font-weight: 800;
 }
 
+.portal-pump-lot-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.portal-pump-lot-picker > button {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  padding: 12px;
+  border: 2px solid #d8ddd4;
+  border-radius: 16px;
+  background: #fff;
+  color: #294632;
+  text-align: left;
+}
+
+.portal-pump-lot-picker > button.selected {
+  border-color: #2f6a43;
+  background: #edf6ed;
+  box-shadow: 0 8px 20px rgba(47, 106, 67, .12);
+}
+
+.portal-pump-lot-picker span {
+  font-size: 16px;
+  font-weight: 950;
+}
+
+.portal-pump-lot-picker small {
+  color: #718078;
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .portal-mobile-confirm > div:last-child {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -3377,6 +3412,11 @@ button:hover {
   background: #a44736;
   color: #fff;
   box-shadow: 0 12px 24px rgba(164, 71, 54, .22);
+}
+
+.portal-mobile-confirm > div:last-child button:first-child:disabled {
+  box-shadow: none;
+  opacity: .45;
 }
 
 .portal-mobile-confirm > div:last-child button:last-child {

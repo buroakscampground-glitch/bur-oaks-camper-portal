@@ -14,8 +14,10 @@ const multiSitePumpOutLinks: MultiSitePumpOutLink[] = [
   },
 ]
 
-function normalizeEmail(value: unknown) {
-  return String(value || '').trim().toLowerCase()
+function normalizeEmails(value: unknown) {
+  return (Array.isArray(value) ? value : [value])
+    .map((item) => String(item || '').trim().toLowerCase())
+    .filter(Boolean)
 }
 
 function normalizePumpOutLot(value: unknown) {
@@ -27,10 +29,10 @@ export function pumpOutServiceLotsForAccount(email: unknown, billingLot: unknown
 }
 
 export function pumpOutServiceAccountsForAccount(email: unknown, billingLot: unknown) {
-  const normalizedEmail = normalizeEmail(email)
+  const normalizedEmails = new Set(normalizeEmails(email))
   const normalizedBillingLot = normalizePumpOutLot(billingLot)
   const link = multiSitePumpOutLinks.find((candidate) => (
-    candidate.accountEmail === normalizedEmail &&
+    normalizedEmails.has(candidate.accountEmail) &&
     normalizePumpOutLot(candidate.billingLot) === normalizedBillingLot
   ))
 

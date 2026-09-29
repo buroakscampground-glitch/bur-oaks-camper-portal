@@ -1001,9 +1001,15 @@ export default function CamperPortalPage() {
   ].filter(Boolean)
   const mobileMoreNeedsAttention = documentsNeedingSignature.length > 0 || alerts.length > 0
   const pumpNeedsAttention = activePumpOutRequests.length > 0
-  const availablePumpOutLots = pumpOutServiceLots.length
-    ? pumpOutServiceLots
-    : [camper?.lot_number].filter(Boolean) as string[]
+  const availablePumpOutLots = Array.from(new Set(
+    [
+      camper?.lot_number,
+      ...pumpOutServiceLots,
+      ...authorizedBillingAccounts.map((account) => account?.lot_number),
+    ]
+      .map((lot) => String(lot || '').trim().toUpperCase())
+      .filter(Boolean)
+  ))
   const activeSelectedPumpOutRequests = activePumpOutRequests.filter(
     (request) => String(request.lot_number || '').trim().toUpperCase() === String(selectedPumpLot || camper?.lot_number || '').trim().toUpperCase()
   )
@@ -1019,6 +1025,16 @@ export default function CamperPortalPage() {
     return String([camper, ...authorizedBillingAccounts].find(
       (account) => String(account?.lot_number || '').trim().toUpperCase() === String(lot).trim().toUpperCase()
     )?.first_name || '').trim()
+  }
+  function pumpOutAccountName(lot: string) {
+    const account = [camper, ...authorizedBillingAccounts].find(
+      (candidate) => String(candidate?.lot_number || '').trim().toUpperCase() === String(lot).trim().toUpperCase()
+    )
+    return `${account?.first_name || ''} ${account?.last_name || ''}`.trim()
+  }
+  function openPumpOutChooser() {
+    setSelectedPumpLot(availablePumpOutLots.length === 1 ? availablePumpOutLots[0] : '')
+    setShowPumpConfirm(true)
   }
   const campgroundToday = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date())
   const showThanksgivingFeature = campgroundToday <= '2026-11-07'
@@ -1094,7 +1110,7 @@ export default function CamperPortalPage() {
             <a href="/maintenance"><Wrench size={19} /><span><strong>Maintenance & services</strong><small>{activeMaintenance.length ? `${activeMaintenance.length} active request${activeMaintenance.length === 1 ? '' : 's'}` : 'Requests, status, and history'}</small></span><ChevronRight size={17} /></a>
           </div>
 
-          <button className="portal-premium-pump" type="button" onClick={() => setShowPumpConfirm(true)} disabled={requestingPump}>
+          <button className="portal-premium-pump" type="button" onClick={openPumpOutChooser} disabled={requestingPump}>
             <span><Droplets size={23} /></span><div><small>ONE-TOUCH SERVICE</small><strong>{activePumpOutRequests.length ? 'Pump-out already requested' : 'Request a pump-out'}</strong><em>{activePumpOutRequests.length ? 'Your lot is on the office list' : `$${displayedPumpOutFee.toFixed(2)} added after confirmation`}</em></div><ArrowRight size={19} />
           </button>
 
@@ -2008,7 +2024,7 @@ export default function CamperPortalPage() {
             <ReceiptText size={18} />
             <span>Pay</span>
           </a>
-          <button type="button" className={`portal-dock-pump ${pumpNeedsAttention ? 'attention' : ''}`} onClick={() => setShowPumpConfirm(true)} disabled={requestingPump}>
+          <button type="button" className={`portal-dock-pump ${pumpNeedsAttention ? 'attention' : ''}`} onClick={openPumpOutChooser} disabled={requestingPump}>
             <Droplets size={18} />
             <span>Pump-out</span>
           </button>
@@ -2030,13 +2046,34 @@ export default function CamperPortalPage() {
                 <X size={18} />
               </button>
               <span><Droplets size={18} /> Sewer pump-out</span>
-              <h2>Request a pump-out for Lot {selectedPumpLot || camper?.lot_number || 'your site'}?</h2>
-              <p>The office will add Lot {selectedPumpLot || camper?.lot_number || 'your site'} to the pump-out list. A <strong>{`$${displayedPumpOutFee.toFixed(2)} charge`}</strong> will be added to the next electric bill for Lot {selectedPumpBillingLot || 'the authorized billing account'}{selectedPumpBillingName ? ` (${selectedPumpBillingName})` : ''}.</p>
-              {activeSelectedPumpOutRequests.length > 0 && (
+              <h2>{availablePumpOutLots.length > 1 && !selectedPumpLot
+                ? 'Which lot needs a pump-out?'
+                : `Request a pump-out for Lot ${selectedPumpLot || camper?.lot_number || 'your site'}?`}</h2>
+              {availablePumpOutLots.length > 1 && (
+                <div className="portal-pump-lot-picker" aria-label="Choose a campsite for pump-out service">
+                  {availablePumpOutLots.map((lot) => (
+                    <button
+                      type="button"
+                      className={selectedPumpLot === lot ? 'selected' : ''}
+                      key={lot}
+                      onClick={() => setSelectedPumpLot(lot)}
+                    >
+                      <span>Lot {lot}</span>
+                      <small>{pumpOutAccountName(lot) || 'Authorized campsite'}</small>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedPumpLot ? (
+                <p>The office will add Lot {selectedPumpLot} to the pump-out list. A <strong>{`$${displayedPumpOutFee.toFixed(2)} charge`}</strong> will be added to the next electric bill for Lot {selectedPumpBillingLot || 'the authorized billing account'}{selectedPumpBillingName ? ` (${selectedPumpBillingName})` : ''}.</p>
+              ) : (
+                <p>Choose Denise’s campsite or the authorized family campsite that needs service.</p>
+              )}
+              {selectedPumpLot && activeSelectedPumpOutRequests.length > 0 && (
                 <em>Lot {selectedPumpLot || camper?.lot_number} already appears to be on the pump-out list. Sending again will not add a duplicate charge.</em>
               )}
               <div>
-                <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump}>
+                <button type="button" onClick={requestSewerPumpOut} disabled={requestingPump || !selectedPumpLot}>
                   {requestingPump ? 'Sending…' : 'Request pump-out'}
                 </button>
                 <button type="button" onClick={() => setShowPumpConfirm(false)}>

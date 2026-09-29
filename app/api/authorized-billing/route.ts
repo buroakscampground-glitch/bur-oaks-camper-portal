@@ -10,7 +10,11 @@ export async function GET(request: Request) {
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const accounts = await loadAuthorizedBillingCampers(context.admin, context.user.email)
+    const accounts = await loadAuthorizedBillingCampers(context.admin, [
+      context.user.email,
+      context.camper.email,
+      context.camper.secondary_email,
+    ])
     const accountIds = accounts.map((account: any) => account.id)
     const invoiceId = new URL(request.url).searchParams.get('invoiceId')
 

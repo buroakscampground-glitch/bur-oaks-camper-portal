@@ -22,9 +22,11 @@ export function normalizeBillingLot(value: unknown) {
 }
 
 export function billingOwnerLotsForEmail(email: unknown) {
-  const normalizedEmail = normalizeBillingEmail(email)
+  const normalizedEmails = new Set(
+    (Array.isArray(email) ? email : [email]).map(normalizeBillingEmail).filter(Boolean)
+  )
   return authorizedBillingLinks
-    .filter((link) => link.delegateEmail === normalizedEmail)
+    .filter((link) => normalizedEmails.has(link.delegateEmail))
     .map((link) => link.ownerLot)
 }
 

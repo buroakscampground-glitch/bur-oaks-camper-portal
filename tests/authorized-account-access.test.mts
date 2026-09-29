@@ -12,6 +12,7 @@ test('authorized family payers resolve only to their linked parent campsite', ()
   assert.deepEqual(billingOwnerLotsForEmail('stacymcnish@yahoo.com'), ['FF12'])
   assert.deepEqual(billingOwnerLotsForEmail('neter85@gmail.com'), ['TEMP 1'])
   assert.deepEqual(billingOwnerLotsForEmail('not-linked@example.com'), [])
+  assert.deepEqual(billingOwnerLotsForEmail(['login-alias@example.com', 'dmonke69@yahoo.com']), ['FF2'])
 })
 
 test('William billing and document notices treat Denise like an account holder', () => {
