@@ -45,6 +45,7 @@ const invoiceDescriptionOptions = [
   'Lot Rent',
   'Association Fee',
   'Electric Bill',
+  'Manual Water Charge',
   'Late Fee',
   'Gate Card',
   'Maintenance Charge',

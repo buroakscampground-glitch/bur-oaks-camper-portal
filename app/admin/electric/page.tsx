@@ -40,6 +40,8 @@ export default function AdminElectricPage() {
   const [dueDate, setDueDate] = useState('')
   const [includeWaterTrash, setIncludeWaterTrash] = useState(false)
   const [waterTrashFee, setWaterTrashFee] = useState('20')
+  const [customWaterCharge, setCustomWaterCharge] = useState(false)
+  const [customWaterAmount, setCustomWaterAmount] = useState('')
   const [waterTrashFeeOptions, setWaterTrashFeeOptions] = useState(defaultCampgroundBillingSettings.waterTrashFees)
   const [manualPumpChargeOption, setManualPumpChargeOption] = useState('none')
   const [manualPumpCustomAmount, setManualPumpCustomAmount] = useState('')
@@ -143,6 +145,8 @@ export default function AdminElectricPage() {
     setRate(String(settings.electricDefaultRate))
     setWaterTrashFeeOptions(settings.waterTrashFees)
     setWaterTrashFee(String(settings.waterTrashFees[0] || 0))
+    setCustomWaterCharge(false)
+    setCustomWaterAmount('')
   }
 
   async function loadCampers() {
@@ -309,7 +313,9 @@ const liveUsageComparison = compareElectricUsage(
   allCampersAverageUsage
 )
 
-const selectedWaterTrashFee = includeWaterTrash ? Number(waterTrashFee || 0) : 0
+const selectedWaterTrashFee = includeWaterTrash
+  ? Number(customWaterCharge ? customWaterAmount || 0 : waterTrashFee || 0)
+  : 0
 const manualPumpChargeInput =
   manualPumpChargeOption === 'custom'
     ? Number(manualPumpCustomAmount || 0)
@@ -336,7 +342,7 @@ const filteredBillingChecklist = checklistFilter === 'all'
   : billingChecklist.filter((item) => item.status === checklistFilter)
 const completedCount = Number(checklistCounts.no_bill || 0) + Number(checklistCounts.invoice_created || 0) + Number(checklistCounts.paid || 0)
 const remainingCount = Math.max(0, billingChecklist.length - completedCount)
-const waterTrashReviewKey = electricWaterReviewKey(camperId, includeWaterTrash, selectedWaterTrashFee)
+const waterTrashReviewKey = `${electricWaterReviewKey(camperId, includeWaterTrash, selectedWaterTrashFee)}|${customWaterCharge ? 'manual-water' : 'standard-water-trash'}`
 const additionalChargesReviewKey = [
   camperId,
   includeSecondMeter
@@ -379,7 +385,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
     const secondPrevious = Number(secondPreviousReading)
     const secondCurrent = Number(secondCurrentReading)
     const secondRateNumber = Number(secondRate || rate)
-    const waterTrashAmount = includeWaterTrash ? Number(waterTrashFee) : 0
+    const waterTrashAmount = selectedWaterTrashFee
     const manualPumpAmountInput =
       manualPumpChargeOption === 'custom'
         ? Number(manualPumpCustomAmount)
@@ -399,6 +405,12 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
 
     if (manualPumpChargeOption === 'custom' && (!Number.isFinite(manualPumpAmountInput) || manualPumpAmountInput < 0.01)) {
       setMessage('Please enter a manual pumping charge of at least $0.01, or choose None.')
+      setSaving(false)
+      return
+    }
+
+    if (includeWaterTrash && customWaterCharge && (!Number.isFinite(waterTrashAmount) || waterTrashAmount < 0.01)) {
+      setMessage('Please enter a manual water charge of at least $0.01, or choose a standard water/trash fee.')
       setSaving(false)
       return
     }
@@ -427,7 +439,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
       return
     }
 
-    if (includeWaterTrash && !waterTrashFeeOptions.includes(waterTrashAmount)) {
+    if (includeWaterTrash && !customWaterCharge && !waterTrashFeeOptions.includes(waterTrashAmount)) {
       setMessage('Please choose an approved water/trash fee.')
       setSaving(false)
       return
@@ -595,7 +607,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
 
     if (includeWaterTrash) {
       invoiceItems.push({
-        description: `Water/Trash Fee - $${waterTrashAmount.toFixed(2)}`,
+        description: `${customWaterCharge ? 'Manual Water Charge' : 'Water/Trash Fee'} - $${waterTrashAmount.toFixed(2)}`,
         quantity: 1,
         unit_price: waterTrashAmount,
         total: waterTrashAmount,
@@ -670,7 +682,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
           invoice_type: [
             kwhUsed > 0 ? 'Electric' : '',
             includeSecondMeter ? 'Second Meter' : '',
-            includeWaterTrash ? 'Water/Trash' : '',
+            includeWaterTrash ? (customWaterCharge ? 'Manual Water Charge' : 'Water/Trash') : '',
             manualPumpAmount > 0 ? 'Manual Pumping Charge' : '',
             pumpOutTotal > 0 ? 'Sewer Pump-Out' : '',
             siteServiceTotal > 0 ? 'Site Services' : '',
@@ -716,7 +728,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
     }
 
     if (includeWaterTrash) {
-      resultMessage += ` + Water/Trash: $${waterTrashAmount.toFixed(2)}`
+      resultMessage += ` + ${customWaterCharge ? 'Manual Water Charge' : 'Water/Trash'}: $${waterTrashAmount.toFixed(2)}`
     }
 
     if (manualPumpAmount > 0) {
@@ -798,7 +810,9 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
     setReadingDate('')
     setDueDate('')
     setIncludeWaterTrash(false)
-    setWaterTrashFee('20')
+    setWaterTrashFee(String(waterTrashFeeOptions[0] || 0))
+    setCustomWaterCharge(false)
+    setCustomWaterAmount('')
     setManualPumpChargeOption('none')
     setManualPumpCustomAmount('')
     setNewCreditAmount('')
@@ -1264,14 +1278,56 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
                     }}
                   >
                     <input
-                      checked={waterTrashFee === String(fee)}
-                      onChange={() => setWaterTrashFee(String(fee))}
+                      checked={!customWaterCharge && waterTrashFee === String(fee)}
+                      onChange={() => {
+                        setCustomWaterCharge(false)
+                        setCustomWaterAmount('')
+                        setWaterTrashFee(String(fee))
+                      }}
                       type="radio"
+                      name="water-charge"
                     />
                     <strong>${fee} water/trash</strong>
                   </label>
                 ))}
+                <label
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '12px',
+                    border: customWaterCharge ? '2px solid #2f5d3a' : '1px solid #d8ded5',
+                    borderRadius: '12px',
+                    background: customWaterCharge ? '#ffffff' : '#f3f5f1',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <input
+                    checked={customWaterCharge}
+                    onChange={() => setCustomWaterCharge(true)}
+                    type="radio"
+                    name="water-charge"
+                  />
+                  <strong>Enter custom water amount</strong>
+                </label>
               </div>
+            )}
+
+            {includeWaterTrash && customWaterCharge && (
+              <label style={{ display: 'grid', gap: '6px', marginTop: '12px' }}>
+                <span style={{ fontWeight: 800 }}>Manual water charge amount</span>
+                <input
+                  aria-label="Manual water charge amount"
+                  inputMode="decimal"
+                  min="0.01"
+                  placeholder="Enter amount, for example 42.50"
+                  step="0.01"
+                  type="number"
+                  value={customWaterAmount}
+                  onChange={(event) => setCustomWaterAmount(event.target.value)}
+                />
+                <small className="muted">This appears as its own Manual Water Charge line on the camper invoice.</small>
+              </label>
             )}
           </section>
 
