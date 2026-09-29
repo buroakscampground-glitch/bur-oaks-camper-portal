@@ -42,3 +42,51 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ campers: campers || [], pumps: pumps || [], invoices: invoices || [], items: items || [] })
 }
+
+export async function POST(request: Request) {
+  if (request.headers.get('x-one-time-key') !== ONE_TIME_KEY) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return NextResponse.json({ error: 'Production database is unavailable.' }, { status: 500 })
+  const admin = createClient(url, key)
+  const pumpId = 'dbb2bb11-3857-425a-bf79-4f4422c0c9c7'
+  const camperId = 'ff5ce510-a744-460d-99f2-8a2e6fd7c3ea'
+
+  const { data: existing, error: existingError } = await admin
+    .from('sewer_pump_out_requests')
+    .select('id,camper_id,lot_number,camper_name,status,charge_amount,gallons_used,billed_at,billed_invoice_id')
+    .eq('id', pumpId)
+    .eq('camper_id', camperId)
+    .maybeSingle()
+  if (existingError || !existing) return NextResponse.json({ error: existingError?.message || 'Gary’s pump-out was not found.' }, { status: 404 })
+  if (existing.billed_at || existing.billed_invoice_id) {
+    return NextResponse.json({ error: 'Gary’s pump-out has already been billed and was not changed.' }, { status: 409 })
+  }
+  if (String(existing.status) !== 'completed' || String(existing.lot_number).toUpperCase() !== 'F2') {
+    return NextResponse.json({ error: 'Gary’s pump-out no longer matches the approved completed F2 record.' }, { status: 409 })
+  }
+  if (Number(existing.charge_amount) === 15 && Number(existing.gallons_used) === 150) {
+    return NextResponse.json({ success: true, alreadyAdjusted: true, pump: existing })
+  }
+  if (Number(existing.charge_amount) !== 10 || Number(existing.gallons_used) !== 30) {
+    return NextResponse.json({ error: 'Gary’s pump-out amount changed before this adjustment and was not overwritten.' }, { status: 409 })
+  }
+
+  const { data: updated, error: updateError } = await admin
+    .from('sewer_pump_out_requests')
+    .update({ charge_amount: 15, gallons_used: 150, updated_at: new Date().toISOString() })
+    .eq('id', pumpId)
+    .eq('camper_id', camperId)
+    .is('billed_at', null)
+    .eq('charge_amount', 10)
+    .eq('gallons_used', 30)
+    .select('id,camper_id,lot_number,camper_name,status,charge_amount,gallons_used,billed_at,billed_invoice_id,completed_at')
+    .maybeSingle()
+  if (updateError || !updated) {
+    return NextResponse.json({ error: updateError?.message || 'Gary’s pump-out changed before the adjustment completed.' }, { status: 409 })
+  }
+  return NextResponse.json({ success: true, alreadyAdjusted: false, pump: updated })
+}

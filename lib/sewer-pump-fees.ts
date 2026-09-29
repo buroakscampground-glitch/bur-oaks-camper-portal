@@ -1,5 +1,6 @@
 const holdingTankPumpOutLots = new Set([
   'F1',
+  'F2',
   '4',
   '8',
   '9',
