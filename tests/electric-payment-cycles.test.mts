@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { rollingElectricPaymentCycles } from '../lib/electric-payment-cycles.ts'
+import { activeElectricCollection, rollingElectricPaymentCycles } from '../lib/electric-payment-cycles.ts'
 
 test('electric dashboard keeps previous and current billing months visible', () => {
   const cycles = rollingElectricPaymentCycles({
@@ -24,6 +24,54 @@ test('electric dashboard keeps previous and current billing months visible', () 
   })
   assert.equal(cycles[1].outstanding, 60)
   assert.equal(cycles[1].paidCount, 0)
+})
+
+test('active electric collection shows remaining out of the full issued total', () => {
+  const summary = activeElectricCollection({
+    invoices: [
+      { id: 'paid', invoice_type: 'Electric', status: 'paid', total_due: 0, subtotal: 90, late_fee: 0, created_at: '2026-09-12' },
+      { id: 'open', invoice_type: 'Electric + Water', status: 'open', total_due: 65, created_at: '2026-09-12' },
+      { id: 'ach', invoice_type: 'Electric', status: 'processing', total_due: 45, created_at: '2026-09-12' },
+      { id: 'old-paid', invoice_type: 'Electric', status: 'paid', total_due: 70, created_at: '2026-08-12' },
+      { id: 'rent', invoice_type: 'Lot Rent', status: 'open', total_due: 400, created_at: '2026-09-12' },
+    ],
+    readings: [],
+  })
+
+  assert.deepEqual(summary.months, ['2026-09'])
+  assert.equal(summary.billed, 200)
+  assert.equal(summary.paid, 90)
+  assert.equal(summary.outstanding, 110)
+  assert.equal(summary.openCount, 2)
+})
+
+test('active electric collection keeps every month that still has an unpaid bill', () => {
+  const summary = activeElectricCollection({
+    invoices: [
+      { id: 'aug-open', invoice_type: 'Electric', status: 'overdue', total_due: 25, created_at: '2026-08-10' },
+      { id: 'aug-paid', invoice_type: 'Electric', status: 'paid', total_due: 75, created_at: '2026-08-10' },
+      { id: 'sep-open', invoice_type: 'Electric', status: 'sent', total_due: 40, created_at: '2026-09-10' },
+      { id: 'sep-paid', invoice_type: 'Electric', status: 'paid', total_due: 60, created_at: '2026-09-10' },
+    ],
+    readings: [],
+  })
+
+  assert.deepEqual(summary.months, ['2026-08', '2026-09'])
+  assert.equal(summary.billed, 200)
+  assert.equal(summary.outstanding, 65)
+})
+
+test('active electric collection keeps the original total after a partial payment', () => {
+  const summary = activeElectricCollection({
+    invoices: [
+      { id: 'partial', invoice_type: 'Electric', status: 'open', total_due: 40, subtotal: 100, late_fee: 0, created_at: '2026-09-10' },
+    ],
+    readings: [],
+  })
+
+  assert.equal(summary.billed, 100)
+  assert.equal(summary.paid, 60)
+  assert.equal(summary.outstanding, 40)
 })
 
 test('an electric due date in the next month does not move its billing cycle', () => {

@@ -9,6 +9,16 @@ export type ElectricPaymentCycle = {
   openCount: number
 }
 
+export type ActiveElectricCollection = {
+  billed: number
+  paid: number
+  outstanding: number
+  invoiceCount: number
+  paidCount: number
+  openCount: number
+  months: string[]
+}
+
 function previousMonth(monthKey: string) {
   const [year, month] = monthKey.split('-').map(Number)
   const date = new Date(Date.UTC(year, month - 2, 1, 12))
@@ -24,6 +34,70 @@ function money(value: number) {
   return Number(value.toFixed(2))
 }
 
+function electricInvoiceOriginalTotal(invoice: any) {
+  const currentTotal = Number(invoice.total_due || 0)
+  return Math.max(currentTotal, Number(invoice.subtotal || 0) + Number(invoice.late_fee || 0))
+}
+
+function electricBillingMonthByInvoice(readings: any[]) {
+  const result = new Map<string, string>()
+
+  for (const reading of readings) {
+    const invoiceId = String(reading.invoice_id || '')
+    const month = String(reading.reading_date || '').slice(0, 7)
+    if (!invoiceId || !/^\d{4}-\d{2}$/.test(month)) continue
+    const existing = result.get(invoiceId)
+    if (!existing || month > existing) result.set(invoiceId, month)
+  }
+
+  return result
+}
+
+export function activeElectricCollection({
+  invoices = [],
+  readings = [],
+}: {
+  invoices?: any[]
+  readings?: any[]
+}): ActiveElectricCollection {
+  const billingMonthByInvoice = electricBillingMonthByInvoice(readings)
+  const issuedStatuses = new Set(['open', 'sent', 'overdue', 'processing', 'paid'])
+  const openStatuses = new Set(['open', 'sent', 'overdue', 'processing'])
+  const electricInvoices = invoices
+    .filter((invoice) => String(invoice.invoice_type || '').toLowerCase().includes('electric'))
+    .filter((invoice) => issuedStatuses.has(String(invoice.status || '').toLowerCase()))
+    .map((invoice) => ({
+      invoice,
+      month: billingMonthByInvoice.get(String(invoice.id)) || String(invoice.created_at || '').slice(0, 7),
+    }))
+    .filter(({ month }) => /^\d{4}-\d{2}$/.test(month))
+
+  const openMonths = new Set(
+    electricInvoices
+      .filter(({ invoice }) => openStatuses.has(String(invoice.status || '').toLowerCase()))
+      .map(({ month }) => month)
+  )
+  const latestMonth = electricInvoices.reduce((latest, item) => item.month > latest ? item.month : latest, '')
+  const months = openMonths.size > 0 ? [...openMonths].sort() : latestMonth ? [latestMonth] : []
+  const trackedInvoices = electricInvoices
+    .filter(({ month }) => months.includes(month))
+    .map(({ invoice }) => invoice)
+  const openInvoices = trackedInvoices.filter((invoice) => openStatuses.has(String(invoice.status || '').toLowerCase()))
+  const paidInvoices = trackedInvoices.filter((invoice) => String(invoice.status || '').toLowerCase() === 'paid')
+  const billed = money(trackedInvoices.reduce((sum, invoice) => sum + electricInvoiceOriginalTotal(invoice), 0))
+  const outstanding = money(openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0))
+
+  return {
+    billed,
+    paid: money(Math.max(0, billed - outstanding)),
+    outstanding,
+    invoiceCount: trackedInvoices.length,
+    paidCount: paidInvoices.length,
+    openCount: openInvoices.length,
+    months,
+  }
+}
+
 export function rollingElectricPaymentCycles({
   invoices = [],
   readings = [],
@@ -34,15 +108,7 @@ export function rollingElectricPaymentCycles({
   currentMonth: string
 }): ElectricPaymentCycle[] {
   const months = [previousMonth(currentMonth), currentMonth]
-  const readingMonthByInvoice = new Map<string, string>()
-
-  for (const reading of readings) {
-    const invoiceId = String(reading.invoice_id || '')
-    const month = String(reading.reading_date || '').slice(0, 7)
-    if (!invoiceId || !/^\d{4}-\d{2}$/.test(month)) continue
-    const existing = readingMonthByInvoice.get(invoiceId)
-    if (!existing || month > existing) readingMonthByInvoice.set(invoiceId, month)
-  }
+  const readingMonthByInvoice = electricBillingMonthByInvoice(readings)
 
   return months.map((month) => {
     const cycleInvoices = invoices.filter((invoice) => {

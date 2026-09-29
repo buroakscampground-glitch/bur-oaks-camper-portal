@@ -60,6 +60,7 @@ import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 import { requiresAdminAttention } from '../../lib/admin-notification-types'
 import { isCompletedTicketStatus } from '../../lib/maintenance-status'
 import { paidInvoiceCollectedTotal } from '../../lib/monthly-billing-report'
+import { activeElectricCollection } from '../../lib/electric-payment-cycles'
 
 type AdminStats = {
   campers: number
@@ -95,6 +96,7 @@ type AdminStats = {
   pastDueAmount: number
   electricOwedInvoices: number
   electricOwedAmount: number
+  electricBilledAmount: number
   electricLateCampers: number
   dueNext7Invoices: number
   dueNext7Amount: number
@@ -163,6 +165,7 @@ const emptyStats: AdminStats = {
   pastDueAmount: 0,
   electricOwedInvoices: 0,
   electricOwedAmount: 0,
+  electricBilledAmount: 0,
   electricLateCampers: 0,
   dueNext7Invoices: 0,
   dueNext7Amount: 0,
@@ -354,6 +357,10 @@ export default function AdminPage() {
     const electricOwedInvoices = openInvoices.filter((invoice) =>
       String(invoice.invoice_type || '').toLowerCase().includes('electric')
     )
+    const electricCollection = activeElectricCollection({
+      invoices,
+      readings: electricResult.data || [],
+    })
     const electricLateCamperIds = new Set(
       electricOwedInvoices
         .filter((invoice) =>
@@ -479,6 +486,7 @@ export default function AdminPage() {
       pastDueAmount: totalInvoiceBalance(pastDueInvoices),
       electricOwedInvoices: electricOwedInvoices.length,
       electricOwedAmount: totalInvoiceBalance(electricOwedInvoices),
+      electricBilledAmount: electricCollection.billed,
       electricLateCampers: electricLateCamperIds.size,
       dueNext7Invoices: dueNext7Invoices.length,
       dueNext7Amount: totalInvoiceBalance(dueNext7Invoices),
@@ -713,6 +721,7 @@ export default function AdminPage() {
             <a className="electric-owed" href="/admin/invoices?filter=open&search=electric">
               <small>Electric still owed</small>
               <strong>${stats.electricOwedAmount.toFixed(2)}</strong>
+              <span className="electric-total-line">remaining out of ${stats.electricBilledAmount.toFixed(2)} total billed</span>
               <span>{stats.electricOwedInvoices} open bill{stats.electricOwedInvoices === 1 ? '' : 's'} · {stats.electricLateCampers} late camper{stats.electricLateCampers === 1 ? '' : 's'} · see names</span>
             </a>
             <a className="late" href="/admin/open-balance?filter=past-due">
