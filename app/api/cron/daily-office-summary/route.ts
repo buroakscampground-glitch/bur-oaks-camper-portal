@@ -64,18 +64,18 @@ export async function GET(request: Request) {
     const communityDetails = [
       ...posts.map((row: any) => `Post — ${row.author_name}${row.lot_number ? ` (Lot ${row.lot_number})` : ''}: ${compact(row.body)}`),
       ...comments.map((row: any) => `Comment — ${row.author_name}${row.lot_number ? ` (Lot ${row.lot_number})` : ''}: ${compact(row.body)}`),
-    ].slice(0, 12).join(' | ')
-    const dinnerDetails = dinners.slice(0, 12).map((row: any) => `${row.camper_name} (Lot ${row.lot_number || '?'}) — ${row.attending_status}, ${row.guest_count || 1} plate${Number(row.guest_count || 1) === 1 ? '' : 's'}${row.bringing ? `, bringing ${row.bringing}` : ''}`).join(' | ')
-    const textDetails = texts.slice(0, 8).map((row: any) => `${row.reminder_type}: ${row.sent_count || 0}/${row.recipient_count || 0} sent${row.failed_count ? `, ${row.failed_count} failed` : ''} — ${compact(row.message)}`).join(' | ')
+    ].slice(0, 12)
+    const dinnerDetails = dinners.slice(0, 12).map((row: any) => `${row.camper_name} (Lot ${row.lot_number || '?'}) — ${row.attending_status}, ${row.guest_count || 1} plate${Number(row.guest_count || 1) === 1 ? '' : 's'}${row.bringing ? `, bringing ${row.bringing}` : ''}`)
+    const textDetails = texts.slice(0, 8).map((row: any) => `${row.reminder_type}: ${row.sent_count || 0}/${row.recipient_count || 0} sent${row.failed_count ? `, ${row.failed_count} failed` : ''} — ${compact(row.message)}`)
     const result: any = await sendAdminAlertEmail({
       subject: `Bur Oaks evening office summary - ${current.date}`,
       heading: 'Today at Bur Oaks',
       message: 'Here is the routine admin activity collected into one daily email. Nothing listed here needs to be cleared from Needs Attention.',
       details: [
-        { label: 'Community', value: `${posts.length} post${posts.length === 1 ? '' : 's'}, ${comments.length} comment${comments.length === 1 ? '' : 's'}, ${reactions.length} like${reactions.length === 1 ? '' : 's'}, ${reports.length} report${reports.length === 1 ? '' : 's'}` },
-        { label: 'Messenger activity', value: communityDetails || (reactions.length ? 'Likes only today; open Campground Messenger to view them.' : 'None today') },
-        { label: 'Dinner responses', value: dinners.length ? dinnerDetails : 'None today' },
-        { label: 'Text activity', value: texts.length ? textDetails : 'None today' },
+        { label: 'Community totals', value: `${posts.length} post${posts.length === 1 ? '' : 's'} · ${comments.length} comment${comments.length === 1 ? '' : 's'} · ${reactions.length} like${reactions.length === 1 ? '' : 's'} · ${reports.length} report${reports.length === 1 ? '' : 's'}` },
+        { label: 'Messenger activity', items: communityDetails.length ? communityDetails : [reactions.length ? 'Likes only today; open Campground Messenger to view them.' : 'None today'] },
+        { label: 'Dinner responses', items: dinnerDetails.length ? dinnerDetails : ['None today'] },
+        { label: 'Text activity', items: textDetails.length ? textDetails : ['None today'] },
       ],
       actionUrl: `${getSiteUrl()}/admin`,
       actionLabel: 'Open the admin portal',

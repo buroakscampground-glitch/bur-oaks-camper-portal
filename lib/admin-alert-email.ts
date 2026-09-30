@@ -5,7 +5,11 @@ type AdminAlertEmailInput = {
   subject: string
   heading: string
   message: string
-  details?: Array<{ label: string; value: string | number | null | undefined }>
+  details?: Array<{
+    label: string
+    value?: string | number | null
+    items?: string[]
+  }>
   actionUrl?: string
   actionLabel?: string
   recipients?: string[]
@@ -153,13 +157,20 @@ export async function sendAdminAlertEmail({
     }
   }
 
-  const visibleDetails = details.filter((detail) => detail.value !== null && detail.value !== undefined && detail.value !== '')
+  const visibleDetails = details.filter((detail) => (
+    (detail.value !== null && detail.value !== undefined && detail.value !== '') || detail.items?.length
+  ))
   const text = [
     heading,
     '',
     message,
     '',
-    ...visibleDetails.map((detail) => `${detail.label}: ${detail.value}`),
+    ...visibleDetails.flatMap((detail) => [
+      detail.label,
+      ...(detail.value !== null && detail.value !== undefined && detail.value !== '' ? [String(detail.value)] : []),
+      ...(detail.items || []).map((item) => `- ${item}`),
+      '',
+    ]),
     safeActionUrl ? `\nOpen: ${safeActionUrl}` : '',
   ].join('\n')
 
@@ -167,25 +178,34 @@ export async function sendAdminAlertEmail({
     .map(
       (detail) => `
         <tr>
-          <td style="padding:9px 0;color:#718078;font-size:13px">${escapeHtml(detail.label)}</td>
-          <td style="padding:9px 0;text-align:right;color:#26382d;font-weight:700;font-size:13px">${escapeHtml(String(detail.value))}</td>
+          <td style="padding:16px 0;border-bottom:1px solid #e8e1d4;word-break:break-word">
+            <div style="margin-bottom:7px;color:#8a6c35;font-size:11px;line-height:1.3;font-weight:800;letter-spacing:.08em;text-transform:uppercase">${escapeHtml(detail.label)}</div>
+            ${detail.value !== null && detail.value !== undefined && detail.value !== ''
+              ? `<div style="color:#26382d;font-size:16px;line-height:1.45;font-weight:700">${escapeHtml(String(detail.value))}</div>`
+              : ''}
+            ${(detail.items || []).map((item) => `
+              <div style="margin-top:8px;padding:11px 12px;border-radius:10px;background:#f6f8f3;color:#26382d;font-size:15px;line-height:1.5">
+                <span style="color:#2f5b3b;font-weight:900">&bull;</span>&nbsp; ${escapeHtml(item)}
+              </div>
+            `).join('')}
+          </td>
         </tr>
       `
     )
     .join('')
 
   const html = `
-    <div style="font-family:Arial,sans-serif;background:#f5f1e8;padding:28px;color:#26382d">
-      <div style="max-width:620px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2dccf">
-        <div style="background:#214b31;color:#fff;padding:24px 28px">
+    <div style="font-family:Arial,sans-serif;background:#f5f1e8;padding:12px;color:#26382d;-webkit-text-size-adjust:100%">
+      <div style="max-width:680px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #e2dccf">
+        <div style="background:#214b31;color:#fff;padding:22px">
           <div style="font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:#d8c18b;font-weight:700">Bur Oaks admin alert</div>
           <h1 style="margin:8px 0 0;font-family:Georgia,serif;font-weight:500">${escapeHtml(heading)}</h1>
         </div>
-        <div style="padding:28px">
+        <div style="padding:22px">
           <p style="font-size:16px;line-height:1.55;margin-top:0">${escapeHtml(message)}</p>
           ${
             detailRows
-              ? `<table style="width:100%;border-collapse:collapse;margin:18px 0;border-top:1px solid #e8e1d4;border-bottom:1px solid #e8e1d4">${detailRows}</table>`
+              ? `<table role="presentation" style="width:100%;border-collapse:collapse;margin:18px 0;border-top:1px solid #e8e1d4">${detailRows}</table>`
               : ''
           }
           ${
