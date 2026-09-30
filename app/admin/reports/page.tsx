@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, BarChart3, BookOpenCheck, CalendarDays, Chevr
 import { supabase } from '../../../lib/supabase'
 import { getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding } from '../../../lib/invoice-balance'
-import { futureOpenSchedule, invoiceReportLines, monthlyDueSummary, officePaymentRecorded, paidInvoiceCollectedTotal } from '../../../lib/monthly-billing-report'
+import { collectedCategorySummary, futureOpenSchedule, invoiceReportLines, monthlyDueSummary, officePaymentRecorded, paidInvoiceCollectedTotal } from '../../../lib/monthly-billing-report'
 
 const categoryColors: Record<string, string> = {
   Electric: '#2f6fad',
@@ -307,27 +307,49 @@ export default function AdminMonthlyReportsPage() {
   const amountDueInvoices = outstandingInvoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
   const amountDueBalance = amountDueInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const dueMonthSummary = monthlyDueSummary(dueInvoices, month)
+  const monthCollectedTotal = invoices.reduce((sum, invoice) => sum + paidInvoiceCollectedTotal(invoice), 0)
+  const monthCollectedLines = invoices
+    .filter((invoice) => paidInvoiceCollectedTotal(invoice) > 0)
+    .flatMap(invoiceLineItems)
+    .filter((line) => Number(line.item.total || 0) > 0)
+  const monthCollectedCategories = collectedCategorySummary(invoices)
+  const monthlyCategoryComparison = Array.from(new Set([
+    ...dueMonthSummary.categories.map((category) => category.label),
+    ...monthCollectedCategories.map((category) => category.label),
+  ])).map((label) => ({
+    label,
+    due: dueMonthSummary.categories.find((category) => category.label === label) || { label, count: 0, total: 0 },
+    collected: monthCollectedCategories.find((category) => category.label === label) || { label, count: 0, total: 0 },
+  }))
   const carryoverInvoices = outstandingInvoices.filter((invoice) => invoice.due_date && invoice.due_date < `${month}-01`)
   const carryoverBalance = carryoverInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const carryoverLines = carryoverInvoices.flatMap(invoiceLineItems)
-  const monthlyDetailLines = monthlyDetail === 'carryover'
-    ? carryoverLines
-    : dueMonthSummary.lines.filter((line) => {
-        const status = String(line.invoice.status || '').toLowerCase()
-        if (monthlyDetail === 'paid') return status === 'paid'
-        if (monthlyDetail === 'open') return isInvoiceOutstanding(line.invoice)
-        if (monthlyDetail.startsWith('category:')) return line.category === monthlyDetail.slice('category:'.length)
-        return true
-      })
+  const monthlyDetailLines = monthlyDetail === 'collected'
+    ? monthCollectedLines
+    : monthlyDetail.startsWith('collected-category:')
+      ? monthCollectedLines.filter((line) => line.category === monthlyDetail.slice('collected-category:'.length))
+      : monthlyDetail === 'carryover'
+        ? carryoverLines
+        : dueMonthSummary.lines.filter((line) => {
+            const status = String(line.invoice.status || '').toLowerCase()
+            if (monthlyDetail === 'paid') return status === 'paid'
+            if (monthlyDetail === 'open') return isInvoiceOutstanding(line.invoice)
+            if (monthlyDetail.startsWith('category:')) return line.category === monthlyDetail.slice('category:'.length)
+            return true
+          })
   const monthlyDetailLabel = monthlyDetail === 'paid'
     ? `Already paid in ${range.label}`
-    : monthlyDetail === 'open'
-      ? `Still open for ${range.label}`
-      : monthlyDetail === 'carryover'
-        ? 'Earlier-month unpaid carryover'
-        : monthlyDetail.startsWith('category:')
-          ? `${monthlyDetail.slice('category:'.length)} charges in ${range.label}`
-          : `All charges due in ${range.label}`
+    : monthlyDetail === 'collected'
+      ? `Money collected in ${range.label}`
+      : monthlyDetail === 'open'
+        ? `Still open for ${range.label}`
+        : monthlyDetail === 'carryover'
+          ? 'Earlier-month unpaid carryover'
+          : monthlyDetail.startsWith('collected-category:')
+            ? `${monthlyDetail.slice('collected-category:'.length)} collected in ${range.label}`
+            : monthlyDetail.startsWith('category:')
+              ? `${monthlyDetail.slice('category:'.length)} due in ${range.label}`
+              : `All charges due in ${range.label}`
   const futureDueMonths = futureOpenSchedule(outstandingInvoices, month)
   const futureDueTotal = futureDueMonths.reduce((sum, row) => sum + row.total, 0)
   const today = new Date().toISOString().slice(0, 10)
@@ -622,34 +644,65 @@ export default function AdminMonthlyReportsPage() {
               <strong className="admin-report-prepared">{dueMonthSummary.invoices.length} invoices · {formatMoney(dueMonthSummary.total)}</strong>
             </div>
 
-            <p className="admin-report-month-click-hint">Tap any box to see every camper, invoice, and charge included in that number.</p>
+            <p className="admin-report-month-click-hint">Due means the bill belongs to this month. Collected means the payment actually arrived this month. Tap either number to see the campers behind it.</p>
+
+            <div className="admin-report-month-compare" aria-label={`${range.label} due and collected comparison`}>
+              <button type="button" className={monthlyDetail === 'all' ? 'active due' : 'due'} onClick={() => showMonthlyDetail('all')}>
+                <small>BILLS DUE IN {range.label.toUpperCase()}</small>
+                <strong>{formatMoney(dueMonthSummary.total)}</strong>
+                <em>Based on invoice due dates</em>
+                <i>See bills due →</i>
+              </button>
+              <button type="button" className={monthlyDetail === 'collected' ? 'active collected' : 'collected'} onClick={() => showMonthlyDetail('collected')}>
+                <small>MONEY COLLECTED IN {range.label.toUpperCase()}</small>
+                <strong>{formatMoney(monthCollectedTotal)}</strong>
+                <em>Based on the date each payment arrived</em>
+                <i>See payments received →</i>
+              </button>
+            </div>
 
             <div className="admin-report-month-totals">
-              <button type="button" className={monthlyDetail === 'all' ? 'active' : ''} onClick={() => showMonthlyDetail('all')}><small>Total due in {range.label}</small><strong>{formatMoney(dueMonthSummary.total)}</strong><em>Paid and unpaid scheduled for this month</em><i>View details →</i></button>
-              <button type="button" className={monthlyDetail === 'paid' ? 'active' : ''} onClick={() => showMonthlyDetail('paid')}><small>Already paid</small><strong>{formatMoney(dueMonthSummary.paid)}</strong><em>Invoices from this due month marked paid</em><i>View details →</i></button>
+              <button type="button" className={monthlyDetail === 'paid' ? 'active' : ''} onClick={() => showMonthlyDetail('paid')}><small>Due this month and paid</small><strong>{formatMoney(dueMonthSummary.paid)}</strong><em>Bills due this month that are now marked paid</em><i>View details →</i></button>
               <button type="button" className={monthlyDetail === 'open' ? 'active' : ''} onClick={() => showMonthlyDetail('open')}><small>Still open</small><strong>{formatMoney(dueMonthSummary.open)}</strong><em>Unpaid invoices due this month</em><i>View details →</i></button>
               <button type="button" className={monthlyDetail === 'carryover' ? 'active' : ''} onClick={() => showMonthlyDetail('carryover')}><small>Earlier-month carryover</small><strong>{formatMoney(carryoverBalance)}</strong><em>{carryoverInvoices.length} unpaid invoice{carryoverInvoices.length === 1 ? '' : 's'} shown separately</em><i>View details →</i></button>
             </div>
 
-            <div className="admin-report-month-categories" aria-label={`${range.label} charges by category`}>
-              {dueMonthSummary.categories.length ? dueMonthSummary.categories.map((category) => {
+            <div className="admin-report-month-categories" aria-label={`${range.label} due and collected by category`}>
+              {monthlyCategoryComparison.length ? monthlyCategoryComparison.map((category) => {
                 const categoryLines = dueMonthSummary.lines.filter((line) => line.category === category.label)
                 const categoryPaid = categoryLines
                   .filter((line) => String(line.invoice.status || '').toLowerCase() === 'paid')
                   .reduce((sum, line) => sum + Number(line.item.total || 0), 0)
-                const categoryDetail = `category:${category.label}`
+                const dueDetail = `category:${category.label}`
+                const collectedDetail = `collected-category:${category.label}`
                 return (
-                  <button type="button" className={monthlyDetail === categoryDetail ? 'active' : ''} onClick={() => showMonthlyDetail(categoryDetail)} key={`due-category-${category.label}`}>
+                  <article key={`month-category-${category.label}`}>
                     <span style={{ background: colorForCategory(category.label) }} />
-                    <div><small>{category.label}</small><strong>{formatMoney(category.total)}</strong><em>{formatMoney(categoryPaid)} paid · {formatMoney(category.total - categoryPaid)} open · {category.count} line{category.count === 1 ? '' : 's'}</em><i>View details →</i></div>
-                  </button>
+                    <div>
+                      <h3>{category.label}</h3>
+                      <div className="admin-report-month-category-choices">
+                        <button type="button" className={monthlyDetail === dueDetail ? 'active due' : 'due'} onClick={() => showMonthlyDetail(dueDetail)} disabled={!category.due.count}>
+                          <small>Due in {range.label}</small>
+                          <strong>{formatMoney(category.due.total)}</strong>
+                          <em>{formatMoney(categoryPaid)} paid · {formatMoney(category.due.total - categoryPaid)} open · {category.due.count} line{category.due.count === 1 ? '' : 's'}</em>
+                          <i>{category.due.count ? 'See due bills →' : 'No bills due'}</i>
+                        </button>
+                        <button type="button" className={monthlyDetail === collectedDetail ? 'active collected' : 'collected'} onClick={() => showMonthlyDetail(collectedDetail)} disabled={!category.collected.count}>
+                          <small>Collected in {range.label}</small>
+                          <strong>{formatMoney(category.collected.total)}</strong>
+                          <em>{category.collected.count} paid charge line{category.collected.count === 1 ? '' : 's'}</em>
+                          <i>{category.collected.count ? 'See payments →' : 'No payments received'}</i>
+                        </button>
+                      </div>
+                    </div>
+                  </article>
                 )
-              }) : <p className="admin-report-empty">No invoices are scheduled for this month.</p>}
+              }) : <p className="admin-report-empty">No bills were due and no payments were collected in this month.</p>}
             </div>
 
             <div className="admin-report-month-detail-heading" id="admin-report-month-detail">
               <div><small>SELECTED BREAKDOWN</small><h3>{monthlyDetailLabel}</h3><p>{monthlyDetailLines.length} itemized charge{monthlyDetailLines.length === 1 ? '' : 's'} shown below.</p></div>
-              {monthlyDetail !== 'all' && <button type="button" onClick={() => showMonthlyDetail('all')}>Show all {range.label} charges</button>}
+              {monthlyDetail !== 'all' && <button type="button" onClick={() => showMonthlyDetail('all')}>Show all bills due in {range.label}</button>}
             </div>
 
             <div className="admin-report-table-wrap">

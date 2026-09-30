@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { billingCategory, futureOpenSchedule, genuineCreditApplied, monthlyDueSummary, officePaymentRecorded, paidInvoiceCollectedTotal } from '../lib/monthly-billing-report.ts'
+import { billingCategory, collectedCategorySummary, futureOpenSchedule, genuineCreditApplied, monthlyDueSummary, officePaymentRecorded, paidInvoiceCollectedTotal } from '../lib/monthly-billing-report.ts'
 
 test('monthly report separates itemized charges and excludes future due months', () => {
   const invoices = [
@@ -85,4 +85,40 @@ test('reports subtract only real account credits from collected income', () => {
   assert.equal(officePaymentRecorded(invoice), 0)
   assert.equal(genuineCreditApplied(invoice), 164.49)
   assert.equal(paidInvoiceCollectedTotal(invoice), 0)
+})
+
+test('collected category totals follow payment dates and allocate only money actually received', () => {
+  const result = collectedCategorySummary([
+    {
+      id: 'rent-paid-early',
+      status: 'paid',
+      paid_at: '2026-09-12T12:00:00Z',
+      due_date: '2026-10-01',
+      subtotal: 400,
+      total_due: 400,
+      invoice_type: 'Lot Rent',
+      invoice_items: [{ description: 'Quarterly Lot Rent', total: 400 }],
+    },
+    {
+      id: 'part-credit',
+      status: 'paid',
+      paid_at: '2026-09-14T12:00:00Z',
+      due_date: '2026-09-20',
+      subtotal: 100,
+      total_due: 0,
+      invoice_type: 'Electric + Water/Trash',
+      invoice_items: [
+        { description: 'Electric usage', total: 60 },
+        { description: 'Water/Trash', total: 40 },
+        { description: 'Account credit applied', total: -25 },
+      ],
+    },
+  ])
+
+  assert.deepEqual(result, [
+    { label: 'Electric', count: 1, total: 45 },
+    { label: 'Water / Trash', count: 1, total: 30 },
+    { label: 'Lot Rent', count: 1, total: 400 },
+  ])
+  assert.equal(result.reduce((sum, row) => sum + row.total, 0), 475)
 })

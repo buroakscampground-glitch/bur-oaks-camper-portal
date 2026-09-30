@@ -101,6 +101,38 @@ export function invoiceReportLines(invoice: ReportInvoice) {
   return items.map((item) => ({ invoice, item, category: billingCategory(item, invoice) }))
 }
 
+export function collectedCategorySummary(invoices: ReportInvoice[]) {
+  const grouped = new Map<string, { label: string; count: number; total: number }>()
+
+  for (const invoice of invoices) {
+    const collected = paidInvoiceCollectedTotal(invoice)
+    if (collected <= 0) continue
+
+    const chargeLines = invoiceReportLines(invoice).filter((line) => Number(line.item.total || 0) > 0)
+    const grossCharges = chargeLines.reduce((sum, line) => sum + Number(line.item.total || 0), 0)
+    if (grossCharges <= 0) continue
+
+    let allocated = 0
+    chargeLines.forEach((line, index) => {
+      const amount = Number(line.item.total || 0)
+      const categoryAmount = index === chargeLines.length - 1
+        ? Number((collected - allocated).toFixed(2))
+        : Number((collected * (amount / grossCharges)).toFixed(2))
+      allocated += categoryAmount
+
+      const current = grouped.get(line.category) || { label: line.category, count: 0, total: 0 }
+      current.count += 1
+      current.total += categoryAmount
+      grouped.set(line.category, current)
+    })
+  }
+
+  return billingCategoryOrder
+    .map((label) => grouped.get(label))
+    .filter((row): row is { label: string; count: number; total: number } => Boolean(row))
+    .map((row) => ({ ...row, total: Number(row.total.toFixed(2)) }))
+}
+
 export function isInvoiceInDueMonth(invoice: ReportInvoice, month: string) {
   const status = String(invoice.status || '').toLowerCase()
   return !['cancelled', 'canceled', 'void', 'refunded'].includes(status) && String(invoice.due_date || '').slice(0, 7) === month
