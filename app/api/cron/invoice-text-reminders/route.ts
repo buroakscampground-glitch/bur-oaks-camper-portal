@@ -10,6 +10,7 @@ import {
   shouldAssessLateFee,
 } from '../../../../lib/invoice-reminder-schedule'
 import { isInvoiceOutstanding } from '../../../../lib/invoice-balance'
+import { isInvoiceReadyForAccountCredit } from '../../../../lib/due-account-credits'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,13 +52,77 @@ export async function GET(request: Request) {
   const today = todayInCentral()
   const { data: invoices, error } = await admin
     .from('invoices')
-    .select('id,due_date,status,total_due,late_fee')
+    .select('id,camper_id,due_date,status,total_due,late_fee')
     .neq('status', 'paid')
     .neq('status', 'processing')
     .gt('total_due', 0)
     .not('due_date', 'is', null)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const camperIds = Array.from(new Set((invoices || []).map((invoice) => String(invoice.camper_id || '')).filter(Boolean)))
+  const { data: activeCredits, error: activeCreditError } = camperIds.length
+    ? await admin
+      .from('account_credits')
+      .select('camper_id,remaining_amount')
+      .in('camper_id', camperIds)
+      .eq('status', 'active')
+      .gt('remaining_amount', 0)
+    : { data: [], error: null }
+
+  if (activeCreditError && !['42P01', 'PGRST205'].includes(activeCreditError.code || '')) {
+    return NextResponse.json({ error: activeCreditError.message }, { status: 500 })
+  }
+  const availableCreditByCamper = new Map<string, number>()
+  for (const credit of activeCredits || []) {
+    const camperId = String(credit.camper_id || '')
+    availableCreditByCamper.set(camperId, (availableCreditByCamper.get(camperId) || 0) + Number(credit.remaining_amount || 0))
+  }
+
+  const creditSummary = {
+    checked: 0,
+    applied: 0,
+    fullyPaid: 0,
+    partiallyPaid: 0,
+    amountApplied: 0,
+    failed: 0,
+    results: [] as any[],
+  }
+
+  for (const invoice of invoices || []) {
+    if (!isInvoiceReadyForAccountCredit(invoice, today)) continue
+    creditSummary.checked += 1
+    const { data: creditResult, error: creditError } = await admin.rpc('apply_account_credits_to_invoice_atomic', {
+      p_camper_id: invoice.camper_id,
+      p_invoice_id: invoice.id,
+      p_invoice_total: invoice.total_due,
+      p_applied_by: 'invoice-reminder-cron',
+    })
+
+    if (creditError) {
+      creditSummary.failed += 1
+      creditSummary.results.push({ invoiceId: invoice.id, error: creditError.message })
+      continue
+    }
+
+    const appliedTotal = Number(creditResult?.appliedTotal || 0)
+    const remainingDue = Number(creditResult?.remainingDue ?? invoice.total_due ?? 0)
+    const paidInFull = creditResult?.paidInFull === true
+    if (appliedTotal <= 0) continue
+
+    const camperId = String(invoice.camper_id || '')
+    availableCreditByCamper.set(
+      camperId,
+      Math.max(0, Number(((availableCreditByCamper.get(camperId) || 0) - appliedTotal).toFixed(2)))
+    )
+    creditSummary.applied += 1
+    creditSummary.amountApplied += appliedTotal
+    if (paidInFull) creditSummary.fullyPaid += 1
+    else creditSummary.partiallyPaid += 1
+    invoice.total_due = remainingDue
+    invoice.status = paidInFull ? 'paid' : invoice.status
+    creditSummary.results.push({ invoiceId: invoice.id, appliedTotal, remainingDue, paidInFull })
+  }
 
   const openInvoices = (invoices || []).filter(isInvoiceOutstanding)
   const invoiceIds = openInvoices.map((invoice) => invoice.id)
@@ -84,6 +149,18 @@ export async function GET(request: Request) {
 
   for (const invoice of openInvoices) {
     const daysUntilDue = daysUntilDate(String(invoice.due_date), today)
+    const heldCredit = availableCreditByCamper.get(String(invoice.camper_id || '')) || 0
+    if (daysUntilDue > 0 && heldCredit > 0) {
+      summary.skipped += 1
+      summary.results.push({
+        invoiceId: invoice.id,
+        dueDate: invoice.due_date,
+        kind: 'credit_held_until_due',
+        availableCredit: heldCredit,
+        reason: 'Account credit is reserved until the invoice due date. Any uncovered remainder will be sent then.',
+      })
+      continue
+    }
     const daysPastDue = Math.max(0, -daysUntilDue)
     const lateFeeWaived = waivedInvoiceIds.has(String(invoice.id))
     let lateFeeWarningCompletedBeforeToday = Number(invoice.late_fee || 0) > 0
@@ -274,5 +351,5 @@ export async function GET(request: Request) {
     })
   }
 
-  return NextResponse.json({ success: true, today, ...summary })
+  return NextResponse.json({ success: true, today, creditSummary, ...summary })
 }

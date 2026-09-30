@@ -5,6 +5,7 @@ import { CheckCircle2, CircleDollarSign, Search, Undo2, WalletCards, XCircle } f
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { formatCreditMoney } from '../../../lib/account-credits'
+import { todayInCentral } from '../../../lib/invoice-balance'
 
 function camperName(camper: any) {
   return `${camper?.first_name || ''} ${camper?.last_name || ''}`.trim() || 'Camper'
@@ -90,14 +91,59 @@ export default function AdminCreditsPage() {
       created_by: user?.email || null,
     })
 
-    setSaving(false)
-
     if (error) {
+      setSaving(false)
       setMessage(error.message)
       return
     }
 
-    setMessage(`${formatCreditMoney(creditAmount)} credit added for Lot ${selectedCamper.lot_number || '—'}.`)
+    const today = todayInCentral()
+    const { data: dueInvoices, error: dueInvoiceError } = await supabase
+      .from('invoices')
+      .select('id,camper_id,total_due,due_date,status')
+      .eq('camper_id', selectedCamper.id)
+      .in('status', ['open', 'sent', 'overdue'])
+      .lte('due_date', today)
+      .gt('total_due', 0)
+      .order('due_date', { ascending: true })
+
+    let appliedNow = 0
+    let dueRemainder = 0
+    let applicationError = dueInvoiceError?.message || ''
+    if (!dueInvoiceError) {
+      for (const invoice of dueInvoices || []) {
+        const { data: result, error: applyError } = await supabase.rpc('apply_account_credits_to_invoice_atomic', {
+          p_camper_id: selectedCamper.id,
+          p_invoice_id: invoice.id,
+          p_invoice_total: invoice.total_due,
+          p_applied_by: user?.email || 'office-credit-entry',
+        })
+        if (applyError) {
+          applicationError = applyError.message
+          break
+        }
+        appliedNow += Number(result?.appliedTotal || 0)
+        dueRemainder += Number(result?.remainingDue || 0)
+      }
+    }
+
+    const { data: remainingCredits } = await supabase
+      .from('account_credits')
+      .select('remaining_amount')
+      .eq('camper_id', selectedCamper.id)
+      .eq('status', 'active')
+      .gt('remaining_amount', 0)
+    const remainingCredit = (remainingCredits || []).reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0)
+
+    setSaving(false)
+    let resultMessage = `${formatCreditMoney(creditAmount)} credit added for Lot ${selectedCamper.lot_number || '—'}.`
+    if (appliedNow > 0) {
+      resultMessage += ` ${formatCreditMoney(appliedNow)} applied to bills already due.`
+      if (dueRemainder > 0) resultMessage += ` ${formatCreditMoney(dueRemainder)} remains due for payment.`
+    }
+    resultMessage += ` ${formatCreditMoney(remainingCredit)} remains available for later bills.`
+    if (applicationError) resultMessage += ` The credit was saved, but due bills need another review: ${applicationError}`
+    setMessage(resultMessage)
     setAmount('')
     setNotes('')
     await loadData()
@@ -150,7 +196,7 @@ export default function AdminCreditsPage() {
         <a href="/admin">← Back to dashboard</a>
         <span><WalletCards size={17} /> ACCOUNT CREDITS</span>
         <h1>Track overpayments and office credits.</h1>
-        <p>Add a credit when someone overpays, you make an adjustment, or you work something out. Future invoices automatically use available credits first.</p>
+        <p>Add a credit when someone overpays, you make an adjustment, or you work something out. The balance stays available until a bill reaches its due date, then that bill uses the credit first.</p>
       </section>
 
       <section className="admin-credit-stats">
@@ -163,7 +209,7 @@ export default function AdminCreditsPage() {
         <div>
           <span><CircleDollarSign size={16} /> Add credit</span>
           <h2>Create account credit</h2>
-          <p>This does not charge the camper. It reduces future bills until the credit is used up.</p>
+          <p>This does not charge the camper. It waits for each bill’s due date, then reduces that bill until the credit is used up.</p>
         </div>
 
         <label>

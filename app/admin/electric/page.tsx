@@ -671,7 +671,7 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
     } = await supabase.auth.getUser()
     const camperName = `${selectedCamper?.first_name || ''} ${selectedCamper?.last_name || ''}`.trim() || 'Camper'
     let invoice: any
-    let creditResult = { appliedTotal: 0, remainingDue: totalDue, paidInFull: false }
+    let creditResult = { appliedTotal: 0, remainingDue: totalDue, paidInFull: false, heldUntilDue: false, dueDate: dueDate || null }
     try {
       const bundle = await createInvoiceBundle({
         client: supabase,
@@ -758,6 +758,8 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
 
     if (creditResult.paidInFull) {
       resultMessage += ' Credit covered the full invoice.'
+    } else if (creditResult.heldUntilDue) {
+      resultMessage += ` Account credit is reserved until ${creditResult.dueDate || dueDate}. Any uncovered remainder will be sent for payment then.`
     } else {
       try {
         const autoPay = await attemptAutoPay(invoice.id)
@@ -774,11 +776,13 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
       }
     }
 
-    try {
-      const textResult = await notifyInvoiceCreated(invoice.id)
-      resultMessage += invoiceTextSummary(textResult)
-    } catch (error: any) {
-      resultMessage += ` Text alert failed: ${error.message || 'unknown error'}.`
+    if (!creditResult.heldUntilDue) {
+      try {
+        const textResult = await notifyInvoiceCreated(invoice.id)
+        resultMessage += invoiceTextSummary(textResult)
+      } catch (error: any) {
+        resultMessage += ` Text alert failed: ${error.message || 'unknown error'}.`
+      }
     }
 
     if (meterDraft?.id) {
@@ -1470,9 +1474,9 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
                 background: estimatedCreditTotal > 0 ? '#eef6eb' : '#f8faf7',
               }}
             >
-              <strong>Account credits for this electric bill</strong>
+              <strong>Account credit available for this electric bill</strong>
               <p className="muted" style={{ marginBottom: '12px' }}>
-                Existing credits apply automatically. You can also add a one-time credit here before creating this electric invoice.
+                Existing credit stays on the account until this bill reaches its due date. You can also add a credit here before creating the invoice.
               </p>
 
               {availableCreditTotal > 0 && (
@@ -1516,11 +1520,11 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
                     <strong>${liveInvoiceTotal.toFixed(2)}</strong>
                   </p>
                   <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0, color: '#2f5d3a' }}>
-                    <span>Estimated credit applied</span>
+                    <span>Credit that will apply on the due date</span>
                     <strong>-{formatCreditMoney(Math.min(estimatedCreditTotal, liveInvoiceTotal))}</strong>
                   </p>
                   <p style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', margin: 0 }}>
-                    <span>Estimated amount camper will owe</span>
+                    <span>Amount camper will owe after credit</span>
                     <strong>{formatCreditMoney(liveInvoiceAfterCredits)}</strong>
                   </p>
                 </div>

@@ -87,6 +87,14 @@ function formatDate(value?: string) {
 
 function invoiceStatusBadge(invoice: any) {
   if (invoice.status === 'paid') {
+    const paidByAccountCredit = /account credit/i.test(String(invoice.payment_method || ''))
+    if (paidByAccountCredit) {
+      return {
+        label: 'Paid by account credit',
+        className: 'paid',
+        detail: 'Your Bur Oaks account credit paid this invoice in full.',
+      }
+    }
     return { label: 'Paid', className: 'paid', detail: 'Thank you — this invoice is complete.' }
   }
 

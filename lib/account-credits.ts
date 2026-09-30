@@ -60,6 +60,8 @@ export async function applyAvailableCreditsToInvoice({
     appliedTotal: Number(data?.appliedTotal || 0),
     remainingDue: Number(data?.remainingDue ?? startingTotal),
     paidInFull: data?.paidInFull === true,
+    heldUntilDue: data?.heldUntilDue === true,
+    dueDate: data?.dueDate || null,
   }
 }
 
@@ -129,6 +131,8 @@ export async function createInvoiceBundle({
       appliedTotal: Number(data?.credit?.appliedTotal || 0),
       remainingDue: Number(data?.credit?.remainingDue ?? invoice.total_due ?? 0),
       paidInFull: data?.credit?.paidInFull === true,
+      heldUntilDue: data?.credit?.heldUntilDue === true,
+      dueDate: data?.credit?.dueDate || invoice.due_date || null,
     },
   }
 }

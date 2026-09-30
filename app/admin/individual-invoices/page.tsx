@@ -42,6 +42,7 @@ export default function BulkInvoicesPage() {
     let autoPaid = 0
     let creditPaid = 0
     let creditApplied = 0
+    let creditHeld = 0
     let textSent = 0
     let textSkipped = 0
     let textFailed = 0
@@ -81,15 +82,21 @@ export default function BulkInvoicesPage() {
         if (creditResult.appliedTotal > 0) creditApplied++
         if (creditResult.paidInFull) {
           creditPaid++
+        } else if (creditResult.heldUntilDue) {
+          creditHeld++
         } else {
           const autoPay = await attemptAutoPay(invoice.id)
           if (autoPay.charged) autoPaid++
         }
-        const textResult = await notifyInvoiceCreated(invoice.id)
-        const invoiceTextResult = textResult?.text || textResult
-        if (invoiceTextResult.status === 'sent') textSent++
-        else if (invoiceTextResult.status === 'failed') textFailed++
-        else textSkipped++
+        if (creditResult.heldUntilDue) {
+          textSkipped++
+        } else {
+          const textResult = await notifyInvoiceCreated(invoice.id)
+          const invoiceTextResult = textResult?.text || textResult
+          if (invoiceTextResult.status === 'sent') textSent++
+          else if (invoiceTextResult.status === 'failed') textFailed++
+          else textSkipped++
+        }
         created++
       } catch (error: any) {
         console.error('Bulk invoice failed:', error)
@@ -100,7 +107,7 @@ export default function BulkInvoicesPage() {
     }
 
     setMessage(
-      `Created ${created} invoices successfully. ${creditApplied} used account credits, ${creditPaid} fully covered by credit, ${autoPaid} paid automatically. Text alerts: ${textSent} sent, ${textSkipped} skipped, ${textFailed} failed.`
+      `Created ${created} invoices successfully. ${creditHeld} account credit${creditHeld === 1 ? '' : 's'} held until the due date, ${creditApplied} used account credits, ${creditPaid} fully covered by credit, ${autoPaid} paid automatically. Text alerts: ${textSent} sent, ${textSkipped} skipped, ${textFailed} failed.`
     )
   }
 

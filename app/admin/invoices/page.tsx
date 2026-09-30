@@ -227,6 +227,8 @@ export default function AdminInvoicesPage() {
 
       if (creditResult.paidInFull) {
         resultMessage += ' Credit covered the full invoice.'
+      } else if (creditResult.heldUntilDue) {
+        resultMessage += ` Account credit is reserved until ${creditResult.dueDate || dueDate}. Any uncovered remainder will be sent for payment then.`
       } else {
         try {
           const autoPay = await attemptAutoPay(invoice.id)
@@ -237,11 +239,13 @@ export default function AdminInvoicesPage() {
         }
       }
 
-      try {
-        const textResult = await notifyInvoiceCreated(invoice.id)
-        resultMessage += invoiceTextSummary(textResult)
-      } catch (error: any) {
-        resultMessage += ` Text alert failed: ${error.message || 'unknown error'}.`
+      if (!creditResult.heldUntilDue) {
+        try {
+          const textResult = await notifyInvoiceCreated(invoice.id)
+          resultMessage += invoiceTextSummary(textResult)
+        } catch (error: any) {
+          resultMessage += ` Text alert failed: ${error.message || 'unknown error'}.`
+        }
       }
 
       setMessage(resultMessage)
