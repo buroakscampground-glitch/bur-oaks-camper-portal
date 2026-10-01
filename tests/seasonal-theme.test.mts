@@ -13,7 +13,12 @@ test('Labor Day theme begins a full week early and changes to fall afterward', (
 })
 
 test('Halloween covers all October and Christmas covers all December', () => {
-  assert.equal(getSeasonalTheme(centralNoon(2026, 10, 1)).key, 'halloween')
+  assert.deepEqual(getSeasonalTheme(centralNoon(2026, 10, 1)), {
+    key: 'halloween',
+    label: 'Halloween at Bur Oaks',
+    detail: 'Pumpkins, costumes, and spooky campfire nights',
+    symbol: '🎃',
+  })
   assert.equal(getSeasonalTheme(centralNoon(2026, 10, 31)).key, 'halloween')
   assert.equal(getSeasonalTheme(centralNoon(2026, 12, 1)).key, 'christmas')
   assert.equal(getSeasonalTheme(centralNoon(2026, 12, 31)).key, 'christmas')

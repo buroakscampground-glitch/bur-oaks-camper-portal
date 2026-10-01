@@ -74,7 +74,7 @@ export function getSeasonalTheme(date = new Date()): SeasonalTheme {
   if (mmdd <= 102) return { key: 'new-year', label: 'Happy New Year', detail: 'A fresh season at Bur Oaks', symbol: '✦' }
   if (parts.month === 12) return { key: 'christmas', label: 'Christmas at Bur Oaks', detail: 'Warm wishes from the campground', symbol: '★' }
   if (parts.month === 11 && parts.day >= thanksgiving - 7 && parts.day <= thanksgiving + 2) return { key: 'thanksgiving', label: 'Thanksgiving at Bur Oaks', detail: 'Grateful for our campground family', symbol: '◆' }
-  if (parts.month === 10) return { key: 'halloween', label: 'Halloween at Bur Oaks', detail: 'Campfire nights and autumn fun', symbol: '☾' }
+  if (parts.month === 10) return { key: 'halloween', label: 'Halloween at Bur Oaks', detail: 'Pumpkins, costumes, and spooky campfire nights', symbol: '🎃' }
   if (laborDayDistance >= -7 && laborDayDistance <= 0) return { key: 'patriotic', label: 'Labor Day Weekend', detail: 'One more summer weekend together', symbol: '★' }
   if (mmdd >= 629 && mmdd <= 705) return { key: 'patriotic', label: 'Fourth of July', detail: 'Summer celebration at Bur Oaks', symbol: '★' }
   if (parts.month === 5 && parts.day >= memorialDay - 3 && parts.day <= memorialDay + 1) return { key: 'patriotic', label: 'Memorial Day Weekend', detail: 'Remembering and honoring together', symbol: '★' }
