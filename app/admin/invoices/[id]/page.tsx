@@ -38,13 +38,31 @@ type EditableInvoiceItem = {
   unitPrice: string
 }
 
+function withInvoiceLoadTimeout<T>(operation: PromiseLike<T>, timeoutMs = 12_000) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error('The invoice request took too long.')), timeoutMs)
+    Promise.resolve(operation).then(
+      (value) => {
+        window.clearTimeout(timer)
+        resolve(value)
+      },
+      (error) => {
+        window.clearTimeout(timer)
+        reject(error)
+      },
+    )
+  })
+}
+
 export default function InvoiceDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const routeInvoiceId = Array.isArray(params.id) ? params.id[0] : String(params.id || '')
 
   const [invoice, setInvoice] = useState<any>(null)
   const [invoiceItems, setInvoiceItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
@@ -64,8 +82,12 @@ export default function InvoiceDetailPage() {
   const [paymentInvoices, setPaymentInvoices] = useState<any[]>([])
 
   useEffect(() => {
-    loadInvoice()
-  }, [])
+    if (routeInvoiceId) loadInvoice()
+    else {
+      setLoadError('This invoice link is missing its invoice number.')
+      setLoading(false)
+    }
+  }, [routeInvoiceId])
 
   useEffect(() => {
     const refreshStatus = () => loadInvoice(false)
@@ -81,7 +103,7 @@ export default function InvoiceDetailPage() {
       window.removeEventListener('focus', refreshStatus)
       window.removeEventListener('pageshow', refreshStatus)
     }
-  }, [])
+  }, [routeInvoiceId])
 
   useEffect(() => {
     if (editing && (isInvoicePaid(invoice || {}) || isInvoiceClosed(invoice || {}) || normalizedInvoiceStatus(invoice || {}) === 'processing')) {
@@ -92,57 +114,71 @@ export default function InvoiceDetailPage() {
 
   async function loadInvoice(showLoading = true) {
     if (showLoading) setLoading(true)
-    const invoiceId = String(params.id || '')
+    setLoadError('')
+    const invoiceId = routeInvoiceId
 
-    const [invoiceResult, itemResult, creditResult, paymentFeeSettings] = await Promise.all([
-      supabase
-        .from('invoices')
-        .select(`
-          *,
-          campers (
-            id,
-            first_name,
-            last_name,
-            lot_number,
-            phone,
-            active
-          )
-        `)
-        .eq('id', invoiceId)
-        .single(),
-      supabase
-        .from('invoice_items')
-        .select('*')
-        .eq('invoice_id', invoiceId)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('account_credit_applications')
-        .select('amount_applied')
-        .eq('invoice_id', invoiceId),
-      loadPaymentFeeSettings(supabase),
-    ])
+    try {
+      if (!invoiceId) throw new Error('This invoice link is missing its invoice number.')
 
-    setFeeSettings(paymentFeeSettings)
-    setInvoice(invoiceResult.data || null)
-    if (invoiceResult.data?.id && !manualPaymentAmount) {
-      setManualPaymentAmount(String(Number(invoiceResult.data.total_due || 0).toFixed(2)))
+      const [invoiceResult, itemResult, creditResult, paymentFeeSettings] = await withInvoiceLoadTimeout(Promise.all([
+        supabase
+          .from('invoices')
+          .select(`
+            *,
+            campers (
+              id,
+              first_name,
+              last_name,
+              lot_number,
+              phone,
+              active
+            )
+          `)
+          .eq('id', invoiceId)
+          .single(),
+        supabase
+          .from('invoice_items')
+          .select('*')
+          .eq('invoice_id', invoiceId)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('account_credit_applications')
+          .select('amount_applied')
+          .eq('invoice_id', invoiceId),
+        loadPaymentFeeSettings(supabase),
+      ]))
+
+      if (invoiceResult.error) throw invoiceResult.error
+
+      setFeeSettings(paymentFeeSettings)
+      setInvoice(invoiceResult.data || null)
+      if (invoiceResult.data?.id && !manualPaymentAmount) {
+        setManualPaymentAmount(String(Number(invoiceResult.data.total_due || 0).toFixed(2)))
+      }
+      if (!finalPaymentPhone && invoiceResult.data?.campers?.phone) {
+        setFinalPaymentPhone(String(invoiceResult.data.campers.phone))
+      }
+      setInvoiceItems(itemResult.data || [])
+      setAppliedCredit(
+        (creditResult.data || []).reduce((sum, application) => sum + Number(application.amount_applied || 0), 0)
+      )
+      if (invoiceResult.data?.camper_id) {
+        const openInvoiceResult = await withInvoiceLoadTimeout(
+          supabase
+            .from('invoices')
+            .select('id,invoice_number,invoice_type,due_date,created_at,status,total_due')
+            .eq('camper_id', invoiceResult.data.camper_id)
+            .order('due_date', { ascending: true }),
+        )
+        setPaymentInvoices(openInvoiceResult.data || [])
+      }
+    } catch (error: any) {
+      console.error('Unable to load admin invoice detail:', error)
+      if (showLoading) setInvoice(null)
+      setLoadError(error?.message || 'The invoice could not be loaded. Please try again.')
+    } finally {
+      if (showLoading) setLoading(false)
     }
-    if (!finalPaymentPhone && invoiceResult.data?.campers?.phone) {
-      setFinalPaymentPhone(String(invoiceResult.data.campers.phone))
-    }
-    setInvoiceItems(itemResult.data || [])
-    setAppliedCredit(
-      (creditResult.data || []).reduce((sum, application) => sum + Number(application.amount_applied || 0), 0)
-    )
-    if (invoiceResult.data?.camper_id) {
-      const { data: openInvoices } = await supabase
-        .from('invoices')
-        .select('id,invoice_number,invoice_type,due_date,created_at,status,total_due')
-        .eq('camper_id', invoiceResult.data.camper_id)
-        .order('due_date', { ascending: true })
-      setPaymentInvoices(openInvoices || [])
-    }
-    if (showLoading) setLoading(false)
   }
 
   async function deleteInvoice() {
@@ -413,7 +449,9 @@ export default function InvoiceDetailPage() {
       <main className="admin-invoice-detail-page">
         <div className="camper-invoice-detail-empty">
           <FileText size={34} />
-          <h1>Invoice not found</h1>
+          <h1>{loadError ? 'Invoice could not load' : 'Invoice not found'}</h1>
+          {loadError && <p>{loadError}</p>}
+          {loadError && <button type="button" onClick={() => loadInvoice(true)}>Try again</button>}
           <a href="/admin/invoices"><ArrowLeft size={16} /> Back to invoices</a>
         </div>
       </main>
