@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const admin = createClient(url, key)
   const [{ data: campers, error: camperError }, { data: documents, error: documentError }, { data: renewals, error: renewalError }] = await Promise.all([
     admin.from('campers').select('id,lot_number,first_name,last_name,email,secondary_email,active,role').in('id', camperIds),
-    admin.from('documents').select('id,camper_id,document_name,document_type,signature_status,requires_two_signatures,signed_at,signed_email,second_signed_at,second_signed_email,created_at').in('camper_id', camperIds).order('created_at', { ascending: false }),
+    admin.from('documents').select('id,camper_id,document_name,document_type,signature_status,requires_two_signatures,signed_at,signed_email,second_signed_at,second_signed_email').in('camper_id', camperIds),
     admin.from('season_renewals').select('id,camper_id,lot_number,contract_start_date,contract_end_date,annual_rent,rent_payment_plan,status,renewal_document_id,decision_recorded_at').in('camper_id', camperIds),
   ])
 
