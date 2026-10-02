@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { groupInvoicesByDueMonth, invoiceRecordedTotal, invoiceTimingBucket, isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
+import { groupInvoicesByDueMonth, invoiceRecordedTotal, invoiceTimingBucket, isInvoiceDueAfterCurrentMonthWithinDays, isInvoiceDueNow, isInvoiceDueNowOrWithinDays, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, isInvoiceDueWithinDays, isInvoiceUpcoming, totalInvoiceBalance } from '../lib/invoice-balance.ts'
 
 test('amount due excludes future invoices while keeping them upcoming', () => {
   const today = '2026-08-28'
@@ -75,6 +75,17 @@ test('the upcoming window includes future open invoices through day 30 only', ()
   assert.equal(isInvoiceDueWithinDays({ status: 'open', due_date: '2026-10-05' }, 30, today), false)
   assert.equal(isInvoiceDueWithinDays({ status: 'open', due_date: today }, 30, today), false)
   assert.equal(isInvoiceDueWithinDays({ status: 'paid', due_date: '2026-09-10' }, 30, today), false)
+})
+
+test('the camper portal balance includes anything due now or within 15 days', () => {
+  const today = '2026-10-02'
+
+  assert.equal(isInvoiceDueNowOrWithinDays({ status: 'sent', due_date: '2026-09-29' }, 15, today), true)
+  assert.equal(isInvoiceDueNowOrWithinDays({ status: 'sent', due_date: '2026-10-02' }, 15, today), true)
+  assert.equal(isInvoiceDueNowOrWithinDays({ status: 'sent', due_date: '2026-10-17' }, 15, today), true)
+  assert.equal(isInvoiceDueNowOrWithinDays({ status: 'sent', due_date: '2026-10-18' }, 15, today), false)
+  assert.equal(isInvoiceDueNowOrWithinDays({ status: 'paid', due_date: '2026-10-12' }, 15, today), false)
+  assert.equal(isInvoiceDueNowOrWithinDays({ status: 'canceled', due_date: '2026-10-12' }, 15, today), false)
 })
 
 test('the admin later-bills window does not repeat bills already shown in the current-month amount due', () => {

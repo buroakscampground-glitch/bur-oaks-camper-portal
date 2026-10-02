@@ -149,6 +149,11 @@ export function isInvoiceDueWithinDays(invoice: BalanceInvoice, days: number, to
   return invoice.due_date <= cutoff
 }
 
+export function isInvoiceDueNowOrWithinDays(invoice: BalanceInvoice, days: number, today = todayInCentral()) {
+  if (days < 0) return false
+  return isInvoiceDueNow(invoice, today) || isInvoiceDueWithinDays(invoice, days, today)
+}
+
 export function isInvoiceDueAfterCurrentMonthWithinDays(invoice: BalanceInvoice, days: number, today = todayInCentral()) {
   return isInvoiceDueWithinDays(invoice, days, today) && Boolean(
     invoice.due_date && invoice.due_date.slice(0, 7) > today.slice(0, 7)

@@ -48,7 +48,7 @@ import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
 import { getSeasonalTheme } from '../../lib/seasonal-theme'
-import { isInvoiceDueNow, isInvoiceDueWithinDays, isInvoiceOutstanding, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { isInvoiceDueNow, isInvoiceDueNowOrWithinDays, isInvoiceDueWithinDays, isInvoiceOutstanding, totalInvoiceBalance } from '../../lib/invoice-balance'
 import { camperHouseholdName } from '../../lib/camper-household'
 
 const serviceLinks = [
@@ -658,6 +658,9 @@ export default function CamperPortalPage() {
 
   const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
   const openBalance = totalInvoiceBalance(dueNowInvoices)
+  const balanceWindowInvoices = invoices.filter((invoice) => isInvoiceDueNowOrWithinDays(invoice, 15))
+  const balanceWindowTotal = totalInvoiceBalance(balanceWindowInvoices)
+  const upcomingBalanceWindowCount = balanceWindowInvoices.length - dueNowInvoices.length
   const ownedOpenInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice))
   const totalOpenBalance = totalInvoiceBalance(ownedOpenInvoices)
   const nextOwnedOpenInvoice = [...ownedOpenInvoices]
@@ -1072,8 +1075,14 @@ export default function CamperPortalPage() {
           <div className="portal-home-account-strip">
             <a href="/invoices">
               <small>Balance</small>
-              <strong>${openBalance.toFixed(2)}</strong>
-              <span>{dueNowInvoices.length ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} to review` : 'No payment due now'}</span>
+              <strong>${balanceWindowTotal.toFixed(2)}</strong>
+              <span>{dueNowInvoices.length && upcomingBalanceWindowCount
+                ? `${dueNowInvoices.length} due now · ${upcomingBalanceWindowCount} coming within 15 days`
+                : dueNowInvoices.length
+                  ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due now`
+                  : upcomingBalanceWindowCount
+                    ? `${upcomingBalanceWindowCount} invoice${upcomingBalanceWindowCount === 1 ? '' : 's'} due within 15 days`
+                    : 'No payment due within 15 days'}</span>
             </a>
             <a href="/invoices">
               <small>Next payment</small>
