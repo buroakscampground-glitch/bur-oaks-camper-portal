@@ -145,6 +145,10 @@ export async function POST(request: Request) {
     }
     camper.rent_payment_plan = rentPaymentPlan
   }
+  const submittedAnnualRent = Number(body.annualRent)
+  const annualRent = Number.isFinite(submittedAnnualRent) && submittedAnnualRent > 0
+    ? Math.round(submittedAnnualRent * 100) / 100
+    : 0
 
   const { data: existing } = await context.admin
     .from('season_renewals')
@@ -421,6 +425,9 @@ export async function POST(request: Request) {
   if (action === 'save' && !annualDate) {
     return NextResponse.json({ error: 'Choose the annual contract month and day.' }, { status: 400 })
   }
+  if (['approve', 'mark-sent'].includes(action) && annualRent <= 0) {
+    return NextResponse.json({ error: `Enter and verify the annual lot rent for Lot ${camper.lot_number || '—'} before approving this renewal.` }, { status: 400 })
+  }
 
   if (action === 'send-nonrenewal') {
     if (!existing || existing.status !== 'Campground Not Renewing') {
@@ -555,6 +562,18 @@ export async function POST(request: Request) {
       ? today
       : null,
     automation_error: action === 'approve' ? null : existing?.automation_error || null,
+    annual_rent: annualRent > 0 ? annualRent : existing?.annual_rent || null,
+    rent_payment_plan: rentPaymentPlan,
+  }
+
+  if (annualRent > 0 && camper.lot_number) {
+    const { data: lot } = await context.admin.from('lots').select('id').eq('lot_number', camper.lot_number).limit(1).maybeSingle()
+    const lotWrite = lot?.id
+      ? await context.admin.from('lots').update({ lot_rent_amount: annualRent }).eq('id', lot.id)
+      : await context.admin.from('lots').insert({ lot_number: camper.lot_number, camper_id: camper.id, lot_rent_amount: annualRent })
+    if (lotWrite.error) {
+      return NextResponse.json({ error: lotWrite.error.message || 'The site-specific annual rent could not be saved.' }, { status: 500 })
+    }
   }
 
   const { data: renewal, error } = await context.admin

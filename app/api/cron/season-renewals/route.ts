@@ -9,6 +9,7 @@ import { singleSegmentSms } from '../../../../lib/sms-segments'
 import { reconcileRenewalsWithDocuments } from '../../../../lib/renewal-document-reconciliation'
 import { isDocumentDeliveryExcluded } from '../../../../lib/document-delivery-exemptions'
 import { renewalOfficeReviewDate, renewalResponseDueDate, renewalSendDate } from '../../../../lib/renewal-timeline'
+import { createPersonalizedRenewalPdf, renewalTermDates } from '../../../../lib/personalized-renewal-pdf'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,15 +70,13 @@ export async function GET(request: Request) {
   const [
     { data: records, error: recordError },
     { data: nonRenewals, error: nonRenewalError },
-    { data: templates, error: templateError },
   ] = await Promise.all([
-    admin.from('season_renewals').select('id,camper_id,lot_number,contract_end_date,renewal_sent_at,status,auto_send_approved,review_notified_at').is('renewal_sent_at', null).eq('status', 'Not Started'),
+    admin.from('season_renewals').select('id,camper_id,lot_number,contract_end_date,renewal_sent_at,status,auto_send_approved,review_notified_at,annual_rent,rent_payment_plan').is('renewal_sent_at', null).eq('status', 'Not Started'),
     admin.from('season_renewals').select('id,camper_id,lot_number,contract_end_date,renewal_sent_at,status,auto_send_approved,review_notified_at').is('renewal_sent_at', null).eq('status', 'Campground Not Renewing'),
-    admin.from('document_templates').select('*').order('created_at', { ascending: false }),
   ])
 
-  if (recordError || nonRenewalError || templateError) {
-    return NextResponse.json({ error: recordError?.message || nonRenewalError?.message || templateError?.message }, { status: 500 })
+  if (recordError || nonRenewalError) {
+    return NextResponse.json({ error: recordError?.message || nonRenewalError?.message }, { status: 500 })
   }
 
   // Give the office a two-week review window. A renewal can never auto-send
@@ -152,12 +151,13 @@ export async function GET(request: Request) {
   }
 
   const due = operationalRecords.filter((record) => record.auto_send_approved && record.contract_end_date && renewalSendDate(record.contract_end_date) <= today)
-  const renewalTemplate = (templates || []).find((template) => /renewal/i.test(`${template.document_name || ''} ${template.document_type || ''}`))
   const results: any[] = []
 
   for (const record of due) {
-    if (!renewalTemplate) {
-      const message = 'No renewal form was found in the admin document library.'
+    const annualRent = Number(record.annual_rent || 0)
+    const paymentPlan = record.rent_payment_plan === 'quarterly' ? 'quarterly' : record.rent_payment_plan === 'semiannual' ? 'semiannual' : null
+    if (annualRent <= 0 || !paymentPlan) {
+      const message = 'The renewal is held because its site-specific annual rent or payment plan has not been verified.'
       await admin.from('season_renewals').update({ automation_error: message, last_automation_at: new Date().toISOString() }).eq('id', record.id)
       results.push({ renewalId: record.id, status: 'failed', error: message })
       continue
@@ -187,10 +187,20 @@ export async function GET(request: Request) {
       continue
     }
 
-    const originalName = String(renewalTemplate.storage_path).split('/').pop() || 'seasonal-renewal.pdf'
-    const cleanName = originalName.replace(/^[0-9a-f-]{36}-/i, '')
-    const destinationPath = `${camper.id}/${crypto.randomUUID()}-${cleanName}`
-    const { error: copyError } = await admin.storage.from('camper-documents').copy(renewalTemplate.storage_path, destinationPath)
+    const camperName = `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
+    const termDates = renewalTermDates(record.contract_end_date)
+    const pdfBytes = await createPersonalizedRenewalPdf({
+      camperName,
+      lotNumber: String(record.lot_number || camper.lot_number || ''),
+      currentAgreementEnd: record.contract_end_date,
+      renewalStart: termDates.renewalStart,
+      renewalEnd: termDates.renewalEnd,
+      annualRent,
+      paymentPlan,
+    })
+    const cycleYear = String(termDates.renewalStart).slice(0, 4)
+    const destinationPath = `${camper.id}/${crypto.randomUUID()}-${cycleYear}-Lot-${record.lot_number}-Personalized-Renewal.pdf`
+    const { error: copyError } = await admin.storage.from('camper-documents').upload(destinationPath, pdfBytes, { contentType: 'application/pdf', upsert: false })
 
     if (copyError) {
       await admin.from('season_renewals').update({ automation_error: copyError.message, last_automation_at: new Date().toISOString() }).eq('id', record.id)
@@ -198,11 +208,10 @@ export async function GET(request: Request) {
       continue
     }
 
-    const cycleYear = String(record.contract_end_date).slice(0, 4)
     const { data: document, error: documentError } = await admin.from('documents').insert({
       camper_id: camper.id,
-      document_name: `${cycleYear} ${renewalTemplate.document_name}`,
-      document_type: renewalTemplate.document_type || 'Seasonal Renewal',
+      document_name: `${cycleYear} Lot ${record.lot_number} Personalized Renewal - ${annualRent.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}`,
+      document_type: 'Seasonal Renewal',
       file_url: destinationPath,
       signature_status: 'pending',
     }).select('id').single()

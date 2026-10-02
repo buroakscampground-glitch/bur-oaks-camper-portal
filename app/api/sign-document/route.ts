@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     if (isRenewal) {
       const { data: renewal, error: renewalError } = await context.admin
         .from('season_renewals')
-        .select('id,lot_number,contract_start_date,contract_end_date,status')
+        .select('id,lot_number,contract_start_date,contract_end_date,status,annual_rent,rent_payment_plan')
         .eq('camper_id', document.camper_id)
         .eq('renewal_document_id', document.id)
         .maybeSingle()
@@ -118,6 +118,8 @@ export async function POST(request: Request) {
         lotNumber: readyRenewal.lot_number,
         contractStartDate: readyRenewal.contract_start_date || null,
         contractEndDate: readyRenewal.contract_end_date,
+        annualRent: Number(readyRenewal.annual_rent),
+        rentPaymentPlan: readyRenewal.rent_payment_plan,
         status: readyRenewal.status || null,
       })
     }

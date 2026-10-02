@@ -62,6 +62,8 @@ type Renewal = {
   review_notified_at?: string | null
   notes?: string | null
   updated_at?: string | null
+  annual_rent?: number | null
+  rent_payment_plan?: 'quarterly' | 'semiannual' | null
 }
 
 type SavedRenewal = Renewal & {
@@ -93,6 +95,7 @@ type Draft = {
   renewal_sent_at: string
   status: RenewalStatus
   notes: string
+  annual_rent: string
 }
 
 type View = 'Action' | 'Openings' | 'All' | 'Setup' | 'ToSend' | 'Sent'
@@ -248,7 +251,7 @@ function annualContractDate(record?: Renewal) {
   return nextAnnualDate(String(Number(savedDate.slice(5, 7))), String(Number(savedDate.slice(8, 10))))
 }
 
-function draftFrom(record?: Renewal): Draft {
+function draftFrom(record?: Renewal, inferredAnnualRent = 0): Draft {
   const annualDate = annualContractDate(record)
   return {
     annual_month: annualDate ? String(Number(annualDate.slice(5, 7))) : '',
@@ -256,6 +259,7 @@ function draftFrom(record?: Renewal): Draft {
     renewal_sent_at: record?.renewal_sent_at || '',
     status: record?.status || 'Not Started',
     notes: record?.notes || '',
+    annual_rent: Number(record?.annual_rent || inferredAnnualRent || 0) > 0 ? String(Number(record?.annual_rent || inferredAnnualRent)) : '',
   }
 }
 
@@ -320,24 +324,38 @@ export default function AdminRenewalsPage() {
         body: JSON.stringify({ action: 'reconcile' }),
       }).catch(() => null)
     }
-    const [camperResult, renewalResult, documentResult] = await Promise.all([
+    const [camperResult, renewalResult, documentResult, lotResult, rentInvoiceResult] = await Promise.all([
       supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,role,rent_payment_plan').eq('active', true).order('lot_number', { ascending: true }),
       supabase.from('season_renewals').select('*').order('contract_end_date', { ascending: true, nullsFirst: false }),
       supabase.from('documents').select('id,camper_id,document_name,document_type,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash'),
+      supabase.from('lots').select('lot_number,lot_rent_amount'),
+      supabase.from('invoices').select('camper_id,subtotal,due_date,invoice_type').ilike('invoice_type', '%rent%').order('due_date', { ascending: false }),
     ])
 
-    if (camperResult.error || renewalResult.error || documentResult.error) {
-      setFeedback(camperResult.error?.message || renewalResult.error?.message || documentResult.error?.message || 'Unable to load renewal records.')
+    if (camperResult.error || renewalResult.error || documentResult.error || lotResult.error || rentInvoiceResult.error) {
+      setFeedback(camperResult.error?.message || renewalResult.error?.message || documentResult.error?.message || lotResult.error?.message || rentInvoiceResult.error?.message || 'Unable to load renewal records.')
       setLoading(false)
       return
     }
 
     const activeCampers = (camperResult.data || []).filter(isOperationalCamper)
     const records = (renewalResult.data || []) as Renewal[]
+    const lotRates = new Map((lotResult.data || []).map((lot) => [String(lot.lot_number || '').trim().toUpperCase(), Number(lot.lot_rent_amount || 0)]))
+    const latestRentInvoice = new Map<string, number>()
+    for (const invoice of rentInvoiceResult.data || []) {
+      const camperId = String(invoice.camper_id || '')
+      if (camperId && !latestRentInvoice.has(camperId) && Number(invoice.subtotal || 0) > 0) latestRentInvoice.set(camperId, Number(invoice.subtotal))
+    }
+    const inferredAnnualRent = (camper: Camper) => {
+      const savedLotRate = lotRates.get(String(camper.lot_number || '').trim().toUpperCase()) || 0
+      if (savedLotRate > 0) return savedLotRate
+      const installment = latestRentInvoice.get(camper.id) || 0
+      return installment * (camper.rent_payment_plan === 'quarterly' ? 4 : 2)
+    }
     setCampers(activeCampers)
     setRenewals(records)
     setRenewalDocuments((documentResult.data || []) as RenewalDocument[])
-    setDrafts(Object.fromEntries(activeCampers.map((camper) => [camper.id, draftFrom(records.find((record) => record.camper_id === camper.id))])))
+    setDrafts(Object.fromEntries(activeCampers.map((camper) => [camper.id, draftFrom(records.find((record) => record.camper_id === camper.id), inferredAnnualRent(camper))])))
     setLoading(false)
   }
 
@@ -419,6 +437,7 @@ export default function AdminRenewalsPage() {
           status: draft.status,
           notes: draft.notes,
           rentPaymentPlan: camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual',
+          annualRent: Number(draft.annual_rent),
           ...(action === 'signed-previous-system' ? { confirmed: true } : {}),
           ...(documentId ? { documentId } : {}),
         }),
@@ -849,6 +868,7 @@ export default function AdminRenewalsPage() {
                 <label>Day<select value={draft.annual_day} onChange={(event) => updateDraft(row.camper.id, 'annual_day', event.target.value)}><option value="">Choose day</option>{Array.from({ length: 31 }, (_, index) => index + 1).map((day) => <option key={day} value={day}>{day}</option>)}</select></label>
                 <label>Decision<select value={draft.status} onChange={(event) => updateDraft(row.camper.id, 'status', event.target.value)}>{statuses.map((status) => <option key={status} value={status} disabled={status === 'Renewing' && row.renewal?.status !== 'Renewing'}>{statusLabels[status]}</option>)}</select><small>{signatureExempt ? 'This camper is signature-exempt and receives no renewal documents.' : '“Camper Renewing” is assigned automatically only after the camper completes the required signature.'}</small></label>
                 <label>Rent payment plan<select value={row.camper.rent_payment_plan || 'semiannual'} onChange={(event) => setCampers((current) => current.map((camper) => camper.id === row.camper.id ? { ...camper, rent_payment_plan: event.target.value === 'quarterly' ? 'quarterly' : 'semiannual' } : camper))}><option value="semiannual">Half-and-half · 2 payments</option><option value="quarterly">Quarterly · 4 payments</option></select><small>Saved with this renewal record and used when the camper signs.</small></label>
+                <label>Annual lot rent for Lot {row.camper.lot_number || '—'}<input type="number" min="1" step="0.01" value={draft.annual_rent} onChange={(event) => updateDraft(row.camper.id, 'annual_rent', event.target.value)} placeholder="Required before approval" /><small><strong>{draft.annual_rent ? `${formatMoney(Number(draft.annual_rent))} per year · ${row.camper.rent_payment_plan === 'quarterly' ? `4 payments of ${formatMoney(Number(draft.annual_rent) / 4)}` : `2 payments of ${formatMoney(Number(draft.annual_rent) / 2)}`}` : 'No price entered — this renewal cannot be approved or sent.'}</strong> This exact site price is printed on and locked into the signed renewal.</small></label>
                 <div className="renewal-annual-help"><strong>Enter this once.</strong><span>The year does not matter. Every renewal is for 12 months, so the system automatically moves this date forward each year.</span></div>
                 {annualPreview && <div className="renewal-edit-dates"><span>Annual date <strong>{formatAnnualDate(annualPreview)}</strong></span><span>Next automatic send <strong>{formatDate(renewalSendDate(annualPreview))}</strong></span><span>Camper reply due <strong>{formatDate(renewalResponseDueDate(annualPreview))}</strong></span><span>Possible opening <strong>{formatDate(shiftDate(annualPreview, 0, 1))}</strong></span>{row.renewal?.automation_error && <span><strong>Needs attention:</strong> {row.renewal.automation_error}</span>}</div>}
                 {row.renewal?.renewal_document_id && <section className={`renewal-document-record ${String(renewalDocument?.signature_status || 'pending').toLowerCase()}`}>

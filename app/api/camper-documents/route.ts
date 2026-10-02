@@ -17,27 +17,21 @@ export async function GET(request: Request) {
     const ownerIds = owners.map((owner) => owner.id)
     const ownerById = new Map(owners.map((owner) => [String(owner.id), owner]))
 
-    const [{ data, error }, { data: renewals, error: renewalError }, { data: lots, error: lotError }] = await Promise.all([
+    const [{ data, error }, { data: renewals, error: renewalError }] = await Promise.all([
       context.admin.from('documents').select('*').in('camper_id', ownerIds),
       context.admin
         .from('season_renewals')
-        .select('id,camper_id,lot_number,contract_start_date,contract_end_date,renewal_document_id,status')
+        .select('id,camper_id,lot_number,contract_start_date,contract_end_date,renewal_document_id,status,annual_rent,rent_payment_plan')
         .in('camper_id', ownerIds),
-      context.admin
-        .from('lots')
-        .select('lot_number,lot_rent_amount')
-        .in('lot_number', owners.map((owner) => String(owner.lot_number || '')).filter(Boolean)),
     ])
 
-    if (error || renewalError || lotError) throw error || renewalError || lotError
+    if (error || renewalError) throw error || renewalError
 
     const renewalByDocumentId = new Map(
       (renewals || [])
         .filter((renewal) => renewal.renewal_document_id)
         .map((renewal) => [String(renewal.renewal_document_id), renewal])
     )
-    const lotRentByNumber = new Map((lots || []).map((lot) => [String(lot.lot_number || ''), Number(lot.lot_rent_amount || 0)]))
-
     const documents = (data || []).map((document) => {
       const owner = ownerById.get(String(document.camper_id))
       const isDelegated = String(document.camper_id) !== String(context.camper.id)
@@ -54,8 +48,8 @@ export async function GET(request: Request) {
           contract_start_date: renewal.contract_start_date || null,
           contract_end_date: renewal.contract_end_date || null,
           response_due_date: contractEndDate ? renewalResponseDueDate(contractEndDate) : null,
-          annual_rent: lotRentByNumber.get(String(renewal.lot_number || owner?.lot_number || '')) || null,
-          payment_plan: owner?.rent_payment_plan === 'quarterly' ? 'Four quarterly payments' : 'Two half payments',
+          annual_rent: Number(renewal.annual_rent || 0) || null,
+          payment_plan: renewal.rent_payment_plan === 'quarterly' ? 'Four quarterly payments' : 'Two half payments',
           status: renewal.status || null,
           complete: renewalDocumentHasRequiredDetails({ ...renewal, lot_number: renewal.lot_number || owner?.lot_number }, owner),
         } : null,

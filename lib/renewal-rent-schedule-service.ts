@@ -61,19 +61,21 @@ export async function continueSignedRenewalRentSchedule({
     }
   }
 
-  const [{ data: camper, error: camperError }, { data: lots, error: lotError }] = await Promise.all([
-    client.from('campers').select('rent_payment_plan,lot_number,first_name,last_name').eq('id', camperId).maybeSingle(),
-    client.from('lots').select('lot_rent_amount').eq('lot_number', renewal.lot_number).limit(1),
-  ])
+  const { data: camper, error: camperError } = await client
+    .from('campers')
+    .select('rent_payment_plan,lot_number,first_name,last_name')
+    .eq('id', camperId)
+    .maybeSingle()
   if (camperError) throw camperError
-  if (lotError) throw lotError
 
   if (isLotRentExemptCamper(camper || {})) {
     return { status: 'lot-rent-exempt', created: 0, skipped: 0 }
   }
 
-  const paymentPlan = normalizeRentPaymentPlan(camper?.rent_payment_plan)
-  const annualRent = Number(lots?.[0]?.lot_rent_amount || 0)
+  // Use the immutable values printed on the signed renewal. A later lot-rate
+  // edit must never change the payment schedule created from this signature.
+  const paymentPlan = normalizeRentPaymentPlan(renewal.rent_payment_plan || camper?.rent_payment_plan)
+  const annualRent = Number(renewal.annual_rent || 0)
 
   const { data: invoices, error: invoiceError } = await client
     .from('invoices')
