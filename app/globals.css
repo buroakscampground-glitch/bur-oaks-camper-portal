@@ -4532,9 +4532,7 @@ button:hover {
   width: 100%;
 }
 
-/* Keep the full admin navigation visible on ordinary desktop and laptop
-   screens. It changes to the compact top menu only on tablet-sized screens. */
-@media(max-width:1000px) {
+@media(max-width:1280px) {
   .admin-workspace-shell {
     grid-template-columns: 1fr;
   }
