@@ -11,6 +11,7 @@ export default function DocumentsPage() {
   const [signingDocument, setSigningDocument] = useState<any | null>(null)
   const [typedName, setTypedName] = useState('')
   const [consentAccepted, setConsentAccepted] = useState(false)
+  const [renewalDecision, setRenewalDecision] = useState<'renew' | 'not-renew' | ''>('')
   const [signing, setSigning] = useState(false)
   const [decliningId, setDecliningId] = useState('')
   const [message, setMessage] = useState('')
@@ -75,6 +76,7 @@ export default function DocumentsPage() {
           setSigningDocument(requestedDocument)
           setTypedName(signerName)
           setConsentAccepted(false)
+          setRenewalDecision('')
           setMessage('')
           setSigningPreviewUrl('')
           void loadSigningPreview(String(requestedDocument.id))
@@ -115,6 +117,7 @@ export default function DocumentsPage() {
         documentId: signingDocument.id,
         typedName,
         consentAccepted,
+        renewalDecision,
       }),
     })
 
@@ -154,6 +157,7 @@ export default function DocumentsPage() {
     setSigningPreviewError('')
     setTypedName('')
     setConsentAccepted(false)
+    setRenewalDecision('')
     setSigning(false)
     setMessage(result.signatureStatus === 'pending_second_signature'
       ? '✅ Your signature was recorded. This document is waiting for the second signer.'
@@ -189,6 +193,11 @@ export default function DocumentsPage() {
     }
 
     setDocuments((current) => current.map((item) => item.id === document.id ? { ...item, signature_status: 'declined' } : item))
+    if (signingDocument?.id === document.id) {
+      setSigningDocument(null)
+      setRenewalDecision('')
+      setSigningPreviewUrl('')
+    }
     setMessage('Your decision not to renew was recorded. The campground office has been notified.')
   }
 
@@ -269,6 +278,8 @@ export default function DocumentsPage() {
 
   function closeSigning() {
     setSigningDocument(null)
+    setRenewalDecision('')
+    setConsentAccepted(false)
     setSigningPreviewUrl('')
     setSigningPreviewError('')
     setSigningPreviewLoading(false)
@@ -278,6 +289,7 @@ export default function DocumentsPage() {
     setSigningDocument(document)
     setTypedName(suggestedSignerName)
     setConsentAccepted(false)
+    setRenewalDecision('')
     setMessage('')
     setSigningPreviewUrl('')
     void loadSigningPreview(String(document.id))
@@ -476,6 +488,43 @@ export default function DocumentsPage() {
                 </section>
               )
             )}
+            {isRenewalDocument(signingDocument) && (
+              <section className="signature-renewal-choice" aria-labelledby="renewal-choice-heading">
+                <small>RENEWAL CHOICE</small>
+                <h3 id="renewal-choice-heading">Are you renewing Lot {signingDocument.renewal_details?.lot_number || signingDocument.access_lot_number || '—'}?</h3>
+                <p>Choose here—the PDF preview below is read-only and its printed boxes cannot be clicked.</p>
+                <div>
+                  <label className={renewalDecision === 'renew' ? 'selected' : ''}>
+                    <input
+                      type="radio"
+                      name={`renewal-decision-${signingDocument.id}`}
+                      value="renew"
+                      checked={renewalDecision === 'renew'}
+                      onChange={() => { setRenewalDecision('renew'); setConsentAccepted(false) }}
+                    />
+                    <span><strong>Yes</strong><small>I am renewing this site</small></span>
+                  </label>
+                  <label className={renewalDecision === 'not-renew' ? 'selected danger' : ''}>
+                    <input
+                      type="radio"
+                      name={`renewal-decision-${signingDocument.id}`}
+                      value="not-renew"
+                      checked={renewalDecision === 'not-renew'}
+                      onChange={() => { setRenewalDecision('not-renew'); setConsentAccepted(false) }}
+                    />
+                    <span><strong>No</strong><small>I am not renewing this site</small></span>
+                  </label>
+                </div>
+                {renewalDecision === 'renew' && <p className="signature-renewal-choice-confirmed"><CheckCircle2 size={16} /> Yes selected. Review the document, then sign below.</p>}
+                {renewalDecision === 'not-renew' && (
+                  signingDocument.access_is_delegated
+                    ? <p className="signature-renewal-choice-warning">The primary account holder must record a non-renewal decision for this site. Please contact the office if that person cannot sign in.</p>
+                    : <button type="button" className="signature-renewal-decline" disabled={decliningId === String(signingDocument.id)} onClick={() => declineRenewal(signingDocument)}>
+                        <DoorOpen size={15} /> {decliningId === String(signingDocument.id) ? 'Recording…' : 'Confirm I Am Not Renewing'}
+                      </button>
+                )}
+              </section>
+            )}
             <div className="signature-inline-document" aria-label="Document to review before signing">
               <div className="signature-inline-document-heading">
                 <FileText size={17} />
@@ -495,44 +544,51 @@ export default function DocumentsPage() {
                 <strong>Two signatures are required.</strong> Yours will be saved now; the other person can sign from their own login afterward.
               </p>
             )}
-            <label className="signature-consent">
-              <input
-                type="checkbox"
-                checked={consentAccepted}
-                onChange={(event) => setConsentAccepted(event.target.checked)}
-              />
-              <span><strong>I reviewed and agree to this document.</strong> I agree to use electronic records and understand that typing my full legal name and selecting “Sign &amp; Finish” is my electronic signature and shows my intent to sign this document.</span>
-            </label>
-            <label className="signature-name-field">
-              <span>Full legal name</span>
-              <input
-                value={typedName}
-                onChange={(event) => setTypedName(event.target.value)}
-                placeholder="Full legal name"
-                autoComplete="name"
-                autoCapitalize="words"
-              />
-              <small>{suggestedSignerName ? 'We filled this in from your profile. Check that it is correct.' : 'Type your name exactly as you want it recorded.'}</small>
-            </label>
-            <p className={consentAccepted && typedName.trim().length >= 3 ? 'signature-submit-note ready' : 'signature-submit-note'}>
-              <Check size={15} />
-              {!consentAccepted
-                ? 'Check the agreement box above to enable signing.'
-                : typedName.trim().length < 3
-                  ? 'Enter your full legal name to enable signing.'
-                  : 'Ready. Nothing is submitted until you tap the green button.'}
-            </p>
-            <div className="signature-modal-actions">
-              <button type="button" onClick={closeSigning}>Cancel</button>
-              <button
-                type="button"
-                className="primary"
-                onClick={signDocument}
-                disabled={signing || !consentAccepted || typedName.trim().length < 3 || (isRenewalDocument(signingDocument) && !signingDocument.renewal_details?.complete)}
-              >
-                {signing ? 'Signing securely…' : 'Sign & Finish'}
-              </button>
-            </div>
+            {(!isRenewalDocument(signingDocument) || renewalDecision === 'renew') && (
+              <>
+                <label className="signature-consent">
+                  <input
+                    type="checkbox"
+                    checked={consentAccepted}
+                    onChange={(event) => setConsentAccepted(event.target.checked)}
+                  />
+                  <span><strong>I reviewed and agree to this document.</strong> I agree to use electronic records and understand that typing my full legal name and selecting “Sign &amp; Finish” is my electronic signature and shows my intent to sign this document.</span>
+                </label>
+                <label className="signature-name-field">
+                  <span>Full legal name</span>
+                  <input
+                    value={typedName}
+                    onChange={(event) => setTypedName(event.target.value)}
+                    placeholder="Full legal name"
+                    autoComplete="name"
+                    autoCapitalize="words"
+                  />
+                  <small>{suggestedSignerName ? 'We filled this in from your profile. Check that it is correct.' : 'Type your name exactly as you want it recorded.'}</small>
+                </label>
+                <p className={consentAccepted && typedName.trim().length >= 3 ? 'signature-submit-note ready' : 'signature-submit-note'}>
+                  <Check size={15} />
+                  {!consentAccepted
+                    ? 'Check the agreement box above to enable signing.'
+                    : typedName.trim().length < 3
+                      ? 'Enter your full legal name to enable signing.'
+                      : 'Ready. Nothing is submitted until you tap the green button.'}
+                </p>
+                <div className="signature-modal-actions">
+                  <button type="button" onClick={closeSigning}>Cancel</button>
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={signDocument}
+                    disabled={signing || !consentAccepted || typedName.trim().length < 3 || (isRenewalDocument(signingDocument) && (renewalDecision !== 'renew' || !signingDocument.renewal_details?.complete))}
+                  >
+                    {signing ? 'Signing securely…' : 'Sign & Finish'}
+                  </button>
+                </div>
+              </>
+            )}
+            {isRenewalDocument(signingDocument) && !renewalDecision && (
+              <p className="signature-renewal-choice-required">Select Yes or No above to continue.</p>
+            )}
           </section>
         </div>
       )}

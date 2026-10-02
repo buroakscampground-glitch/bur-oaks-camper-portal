@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { documentId, typedName, consentAccepted } = await request.json()
+    const { documentId, typedName, consentAccepted, renewalDecision } = await request.json()
     const cleanName = String(typedName || '').trim().replace(/\s+/g, ' ')
 
     if (!documentId || typeof documentId !== 'string') {
@@ -78,6 +78,10 @@ export async function POST(request: Request) {
     let renewalTerms = ''
     const isRenewal = isRenewalDocument(document)
     if (isRenewal) {
+      if (renewalDecision !== 'renew') {
+        return NextResponse.json({ error: 'Select Yes to confirm that you are renewing this site before signing.' }, { status: 400 })
+      }
+
       const { data: renewal, error: renewalError } = await context.admin
         .from('season_renewals')
         .select('id,lot_number,contract_start_date,contract_end_date,status,annual_rent,rent_payment_plan')
@@ -114,6 +118,7 @@ export async function POST(request: Request) {
 
       const readyRenewal = renewal!
       renewalTerms = JSON.stringify({
+        decision: 'renew',
         renewalId: readyRenewal.id,
         lotNumber: readyRenewal.lot_number,
         contractStartDate: readyRenewal.contract_start_date || null,
