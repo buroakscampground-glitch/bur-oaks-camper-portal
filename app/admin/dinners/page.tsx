@@ -71,7 +71,7 @@ export default function AdminDinnersPage() {
 
   function selectDinner(dinnerDate: string) {
     if (dinnerDate === thanksgivingDinnerDate) {
-      window.location.href = '/community/thanksgiving'
+      window.location.href = '/admin/thanksgiving'
       return
     }
     setSelectedDate(dinnerDate)
@@ -88,7 +88,7 @@ export default function AdminDinnersPage() {
         <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search camper, lot, or dish" /></label>
       </section>
 
-      <a className="admin-thanksgiving-launch" href="/community/thanksgiving">
+      <a className="admin-thanksgiving-launch" href="/admin/thanksgiving">
         <UtensilsCrossed size={22} />
         <span><small>SPECIAL DINNER PLANNER</small><strong>Open the Bur Oaks Thanksgiving board</strong><em>Track the 110–120 person headcount and every food category in one place.</em></span>
       </a>

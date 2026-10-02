@@ -69,7 +69,7 @@ export default function ThanksgivingAdminPage() {
           <h1>Bur Oaks Thanksgiving planner</h1>
           <p>One live view of attendance and the food needed for 110–120 people. Anthony is providing all turkeys.</p>
         </div>
-        <a href="/community/dinners"><ArrowLeft size={16} /> All dinners</a>
+        <a href="/admin/dinners"><ArrowLeft size={16} /> All dinners</a>
       </section>
 
       <section className="admin-thanksgiving-stats">
