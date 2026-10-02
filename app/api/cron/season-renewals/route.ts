@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { todayInCentral } from '../../../../lib/invoice-texting'
 import { formatSmsPhone, sendTwilioSms } from '../../../../lib/twilio-sms'
 import { consentedCamperSmsPhones } from '../../../../lib/camper-sms'
-import { isSystemPortalAccount } from '../../../../lib/camper-records'
+import { isOperationalCamper, isSystemPortalAccount } from '../../../../lib/camper-records'
 import { runPendingDocumentSignatureReminders } from '../../../../lib/document-reminders'
 import { singleSegmentSms } from '../../../../lib/sms-segments'
 import { reconcileRenewalsWithDocuments } from '../../../../lib/renewal-document-reconciliation'
@@ -79,9 +79,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: recordError?.message || nonRenewalError?.message }, { status: 500 })
   }
 
+  const renewalCamperIds = Array.from(new Set(
+    [...(records || []), ...(nonRenewals || [])]
+      .map((record) => String(record.camper_id || ''))
+      .filter(Boolean),
+  ))
+  const { data: renewalCampers, error: renewalCamperError } = renewalCamperIds.length
+    ? await admin.from('campers').select('id,lot_number,role,active').in('id', renewalCamperIds)
+    : { data: [], error: null }
+
+  if (renewalCamperError) {
+    return NextResponse.json({ error: renewalCamperError.message }, { status: 500 })
+  }
+
+  const operationalCamperIds = new Set(
+    (renewalCampers || [])
+      .filter((camper) => camper.active !== false && isOperationalCamper(camper))
+      .map((camper) => String(camper.id)),
+  )
+
   // Give the office a two-week review window. A renewal can never auto-send
   // unless the office explicitly approves it on the Renewal Forecast page.
-  const operationalRecords = (records || []).filter((record) => !isSystemPortalAccount(record))
+  const operationalRecords = (records || []).filter((record) =>
+    !isSystemPortalAccount(record) && operationalCamperIds.has(String(record.camper_id || ''))
+  )
   const reviewQueue = operationalRecords.filter((record) => {
     if (!record.contract_end_date || record.review_notified_at || record.auto_send_approved) return false
     return renewalOfficeReviewDate(record.contract_end_date) <= today
@@ -119,7 +140,7 @@ export async function GET(request: Request) {
   // the normal renewal would have gone out, alert the owner and hold the
   // professional letter until an administrator reviews and sends it.
   const nonRenewalReviewQueue = (nonRenewals || [])
-    .filter((record) => !isSystemPortalAccount(record))
+    .filter((record) => !isSystemPortalAccount(record) && operationalCamperIds.has(String(record.camper_id || '')))
     .filter((record) => record.contract_end_date && !record.review_notified_at && renewalSendDate(record.contract_end_date) <= today)
 
   if (nonRenewalReviewQueue.length) {

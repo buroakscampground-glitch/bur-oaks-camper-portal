@@ -17,6 +17,7 @@ test('community access does not grant owner or maintenance roles', () => {
   assert.equal(canManageCommunity('camper'), false)
   assert.equal(canAdministerCommunity('camper'), false)
   assert.equal(isOperationalCamper({ role: 'event_coordinator', lot_number: 'STAFF' }), false)
+  assert.equal(isOperationalCamper({ role: 'maintenance', lot_number: '10' }), false)
   assert.equal(isOperationalCamper({ role: 'camper', lot_number: 'STAFF-EVENTS' }), false)
   assert.equal(effectivePortalRole({ role: 'camper', lot_number: 'STAFF-EVENTS' }), 'event_coordinator')
 })
