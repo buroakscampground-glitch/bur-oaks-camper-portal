@@ -35,6 +35,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Lot ${correction.lotNumber} no longer matches the audited renewal. Nothing further was sent.`, results }, { status: 409 })
     }
 
+    if (Number(renewal.annual_rent || 0) === correction.annualRent && renewal.rent_payment_plan === 'semiannual' && renewal.renewal_document_id) {
+      const { data: existingCorrected } = await admin.from('documents')
+        .select('*')
+        .eq('id', renewal.renewal_document_id)
+        .eq('camper_id', correction.camperId)
+        .ilike('document_name', '%Corrected Personalized Renewal%')
+        .in('signature_status', ['pending', 'pending_second_signature'])
+        .maybeSingle()
+      if (existingCorrected) {
+        const delivery = await runPendingDocumentSignatureReminders(admin, [String(existingCorrected.id)])
+        await admin.from('admin_notifications').update({ read_at: new Date().toISOString() })
+          .eq('type', 'renewal_document_incomplete')
+          .eq('source_id', existingCorrected.id)
+          .is('read_at', null)
+        results.push({ lot: correction.lotNumber, annualRent: correction.annualRent, documentId: existingCorrected.id, reused: true, delivery })
+        continue
+      }
+    }
+
     const { data: existingLot } = await admin.from('lots').select('id').eq('lot_number', correction.lotNumber).limit(1).maybeSingle()
     const lotWrite = existingLot?.id
       ? await admin.from('lots').update({ camper_id: correction.camperId, lot_rent_amount: correction.annualRent }).eq('id', existingLot.id)

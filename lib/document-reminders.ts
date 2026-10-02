@@ -276,7 +276,7 @@ export async function runPendingDocumentSignatureReminders(client: any, document
   const { data: renewals, error: renewalError } = renewalDocumentIds.length
     ? await client
         .from('season_renewals')
-        .select('id,camper_id,lot_number,contract_end_date,renewal_document_id')
+        .select('id,camper_id,lot_number,contract_end_date,renewal_document_id,annual_rent,rent_payment_plan')
         .in('renewal_document_id', renewalDocumentIds)
     : { data: [], error: null }
   if (renewalError) throw new Error(renewalError.message)
