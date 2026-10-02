@@ -24,6 +24,15 @@ test('billing reminder does not call a future balance past due', () => {
   assert.doesNotMatch(message, /past due/)
 })
 
+test('billing reminder never calls an ACH payment in processing past due', () => {
+  const message = buildBillingReminderMessage([
+    { status: 'processing', total_due: 400, due_date: '2026-10-01' },
+  ], '2026-10-02')
+
+  assert.match(message, /open balance of \$400\.00/)
+  assert.doesNotMatch(message, /past due/)
+})
+
 test('billing reminder excludes paid invoices', () => {
   const message = buildBillingReminderMessage([
     { status: 'paid', total_due: 750, due_date: '2026-09-01' },

@@ -68,7 +68,11 @@ export async function loadOperationsSnapshot(client: any) {
   const campers = camperResult.rows.filter((camper: any) => camper.active !== false && isOperationalCamper(camper))
   const invoices = invoiceResult.rows
   const openInvoices = invoices.filter((invoice: any) => isOpenStatus(invoice.status))
-  const pastDueInvoices = openInvoices.filter((invoice: any) => invoice.due_date && invoice.due_date < today)
+  const pastDueInvoices = openInvoices.filter((invoice: any) => (
+    String(invoice.status || '').toLowerCase() !== 'processing'
+    && invoice.due_date
+    && invoice.due_date < today
+  ))
   const unsignedDocuments = documentResult.rows.filter((document: any) => !['signed', 'not_required', 'declined'].includes(String(document.signature_status || '').toLowerCase()))
   const openMaintenance = maintenanceResult.rows.filter((ticket: any) => isOpenStatus(ticket.status))
   const pendingMaintenance = openMaintenance.filter((ticket: any) => ticket.admin_approved !== true)

@@ -12330,6 +12330,35 @@ tbody tr:hover {
   color: #397047;
 }
 
+.admin-open-status.processing {
+  background: #e4edf8;
+  color: #315f86;
+}
+
+.admin-open-row.processing {
+  background: #f7fbff;
+}
+
+.admin-processing-heading {
+  display: flex;
+  grid-column: 1 / -1;
+  align-items: baseline;
+  gap: 10px;
+  padding: 18px;
+  border-top: 1px solid #dce7f2;
+  border-bottom: 1px solid #dce7f2;
+  background: #edf5fc;
+  color: #315f86;
+}
+
+.admin-processing-heading strong {
+  font-size: 14px;
+}
+
+.admin-processing-heading span {
+  font-size: 11px;
+}
+
 .admin-open-row button {
   display: inline-flex;
   align-items: center;

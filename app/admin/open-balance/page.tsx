@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Download, Search, WalletCards } from 'lucide-react'
 import { supabase } from "../../../lib/supabase"
-import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding } from '../../../lib/invoice-balance'
+import { achExpectedLabel } from '../../../lib/ach-expected-date'
+import { invoiceTimingBucket, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, todayInCentral } from '../../../lib/invoice-balance'
 
 export default function OpenBalancePage() {
   const [balances, setBalances] = useState<any[]>([])
@@ -39,8 +40,7 @@ export default function OpenBalancePage() {
     const dueInvoices = (invoices || []).filter((invoice) =>
       isInvoiceOutstanding(invoice) && isInvoiceDueThroughCurrentMonth(invoice)
     )
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
+    const today = todayInCentral()
 
     dueInvoices.forEach((invoice) => {
       const camperId = invoice.camper_id
@@ -54,7 +54,11 @@ export default function OpenBalancePage() {
           invoiceCount: 0,
           pastDueBalance: 0,
           pastDueInvoiceCount: 0,
+          processingBalance: 0,
+          processingInvoiceCount: 0,
+          achExpectedDates: [],
           oldestDue: invoice.due_date,
+          oldestPastDue: null,
           daysLate: 0,
           status: 'Current',
         }
@@ -63,12 +67,19 @@ export default function OpenBalancePage() {
       grouped[camperId].balance += Number(invoice.total_due || 0)
       grouped[camperId].invoiceCount += 1
 
-      if (invoice.due_date) {
-        const invoiceDueDate = new Date(`${invoice.due_date}T12:00:00`)
-        if (!Number.isNaN(invoiceDueDate.getTime()) && invoiceDueDate < today) {
-          grouped[camperId].pastDueBalance += Number(invoice.total_due || 0)
-          grouped[camperId].pastDueInvoiceCount += 1
+      const timing = invoiceTimingBucket(invoice, today)
+      if (timing === 'late') {
+        grouped[camperId].pastDueBalance += Number(invoice.total_due || 0)
+        grouped[camperId].pastDueInvoiceCount += 1
+        if (!grouped[camperId].oldestPastDue || invoice.due_date < grouped[camperId].oldestPastDue) {
+          grouped[camperId].oldestPastDue = invoice.due_date
         }
+      }
+
+      if (timing === 'processing') {
+        grouped[camperId].processingBalance += Number(invoice.total_due || 0)
+        grouped[camperId].processingInvoiceCount += 1
+        if (invoice.ach_expected_date) grouped[camperId].achExpectedDates.push(invoice.ach_expected_date)
       }
 
       if (invoice.due_date && (!grouped[camperId].oldestDue || invoice.due_date < grouped[camperId].oldestDue)) {
@@ -77,11 +88,20 @@ export default function OpenBalancePage() {
     })
 
     Object.values(grouped).forEach((row: any) => {
-      if (row.oldestDue) {
-        const dueDate = new Date(`${row.oldestDue}T00:00:00`)
-        row.daysLate = Math.max(0, Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)))
-        row.status = row.daysLate > 0 ? "Late" : "Current"
+      if (row.oldestPastDue) {
+        const dueDate = new Date(`${row.oldestPastDue}T00:00:00Z`)
+        const todayDate = new Date(`${today}T00:00:00Z`)
+        row.daysLate = Math.max(0, Math.floor((todayDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)))
+        row.status = "Late"
+      } else if (row.processingInvoiceCount > 0) {
+        row.status = "Processing"
       }
+      row.achExpectedDate = [...row.achExpectedDates].sort()[0] || null
+      row.achStatus = achExpectedLabel({
+        status: 'processing',
+        payment_method: 'Online ACH processing',
+        ach_expected_date: row.achExpectedDate,
+      })
     })
 
     const results = Object.values(grouped).sort((a: any, b: any) => b.balance - a.balance)
@@ -97,6 +117,15 @@ export default function OpenBalancePage() {
     [balances, pastDueOnly]
   )
 
+  const processingBalances = useMemo(
+    () => pastDueOnly
+      ? balances
+          .filter((row) => row.pastDueInvoiceCount === 0 && row.processingInvoiceCount > 0)
+          .map((row) => ({ ...row, balance: row.processingBalance, invoiceCount: row.processingInvoiceCount }))
+      : [],
+    [balances, pastDueOnly]
+  )
+
   const filteredBalances = useMemo(() => {
     const term = search.trim().toLowerCase()
     if (!term) return scopedBalances
@@ -104,6 +133,14 @@ export default function OpenBalancePage() {
       `${row.camper} ${row.lot} ${row.status}`.toLowerCase().includes(term)
     )
   }, [scopedBalances, search])
+
+  const filteredProcessingBalances = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    if (!term) return processingBalances
+    return processingBalances.filter((row) =>
+      `${row.camper} ${row.lot} ${row.status} ${row.achStatus}`.toLowerCase().includes(term)
+    )
+  }, [processingBalances, search])
 
   const scopedTotalBalance = scopedBalances.reduce((sum, row) => sum + row.balance, 0)
 
@@ -130,7 +167,7 @@ export default function OpenBalancePage() {
           <span><WalletCards size={18} /> Billing command center</span>
           <h1>{pastDueOnly ? 'Late Payments' : 'Amount Due This Month'}</h1>
           <p>{pastDueOnly
-            ? 'Only campers with invoices past their due date are shown below. Open any camper to see every invoice involved.'
+            ? 'Truly late invoices appear first. ACH payments already underway are shown separately and are never counted as late.'
             : 'Current-month invoices plus every unpaid balance carried forward from earlier months. Later months stay out until their month begins.'}</p>
         </div>
         <button type="button" className="admin-open-export" onClick={exportToSpreadsheet}>
@@ -142,7 +179,7 @@ export default function OpenBalancePage() {
         <article><small>{pastDueOnly ? 'Late amount' : 'Amount due'}</small><strong>${scopedTotalBalance.toFixed(2)}</strong><em>{pastDueOnly ? 'Past the due date' : 'This month + carryover'}</em></article>
         <article><small>Campers owing</small><strong>{scopedBalances.length}</strong><em>{pastDueOnly ? 'With a late payment' : 'Through the current month'}</em></article>
         <article><small>Invoices included</small><strong>{scopedBalances.reduce((sum, row) => sum + row.invoiceCount, 0)}</strong><em>{pastDueOnly ? 'On these accounts' : 'Current and earlier months'}</em></article>
-        <article><small>Late accounts</small><strong>{scopedBalances.filter((row) => row.daysLate > 0).length}</strong><em>Past the due date</em></article>
+        <article><small>ACH processing</small><strong>{balances.reduce((sum, row) => sum + row.processingInvoiceCount, 0)}</strong><em>Underway · not late</em></article>
       </section>
 
       <section className="admin-open-balance-panel">
@@ -156,7 +193,7 @@ export default function OpenBalancePage() {
               onChange={(event) => setSearch(event.target.value)}
             />
           </label>
-          <span>{filteredBalances.length} account{filteredBalances.length === 1 ? '' : 's'} shown</span>
+          <span>{filteredBalances.length + filteredProcessingBalances.length} account{filteredBalances.length + filteredProcessingBalances.length === 1 ? '' : 's'} shown</span>
         </div>
 
         <div className="admin-open-balance-list">
@@ -166,10 +203,10 @@ export default function OpenBalancePage() {
                 <span>Lot {row.lot}</span>
                 <strong>{row.camper}</strong>
               </div>
-              <div><small>Balance Due</small><strong>${row.balance.toFixed(2)}</strong></div>
-              <div><small>Invoices Due</small><strong>{row.invoiceCount}</strong></div>
-              <div><small>Oldest Due</small><strong>{row.oldestDue || '—'}</strong></div>
-              <div><small>Days Late</small><strong>{row.daysLate}</strong></div>
+              <div><small>{row.status === 'Processing' ? 'Payment Processing' : 'Balance Due'}</small><strong>${row.balance.toFixed(2)}</strong></div>
+              <div><small>{row.status === 'Processing' ? 'Invoices' : 'Invoices Due'}</small><strong>{row.invoiceCount}</strong></div>
+              <div><small>{row.status === 'Processing' ? 'Original Due Date' : 'Oldest Due'}</small><strong>{row.oldestPastDue || row.oldestDue || '—'}</strong></div>
+              <div><small>{row.status === 'Processing' ? 'ACH Status' : 'Days Late'}</small><strong>{row.status === 'Processing' ? row.achStatus : row.daysLate}</strong></div>
               <span className={`admin-open-status ${String(row.status).toLowerCase()}`}>{row.status}</span>
               <button type="button" onClick={() => router.push(`/admin/open-balance/${row.camperId}`)}>
                 View Invoices <ArrowRight size={15} />
@@ -177,7 +214,31 @@ export default function OpenBalancePage() {
             </article>
           ))}
 
-          {filteredBalances.length === 0 && (
+          {pastDueOnly && filteredProcessingBalances.length > 0 && (
+            <div className="admin-processing-heading">
+              <strong>ACH payments underway</strong>
+              <span>These payments are already submitted and are not late.</span>
+            </div>
+          )}
+
+          {filteredProcessingBalances.map((row) => (
+            <article key={`processing-${row.camperId}`} className="admin-open-row processing">
+              <div className="admin-open-camper">
+                <span>Lot {row.lot}</span>
+                <strong>{row.camper}</strong>
+              </div>
+              <div><small>Payment Processing</small><strong>${row.balance.toFixed(2)}</strong></div>
+              <div><small>Invoices</small><strong>{row.invoiceCount}</strong></div>
+              <div><small>Original Due Date</small><strong>{row.oldestDue || '—'}</strong></div>
+              <div><small>ACH Status</small><strong>{row.achStatus}</strong></div>
+              <span className="admin-open-status processing">Processing</span>
+              <button type="button" onClick={() => router.push(`/admin/open-balance/${row.camperId}`)}>
+                View Invoices <ArrowRight size={15} />
+              </button>
+            </article>
+          ))}
+
+          {filteredBalances.length === 0 && filteredProcessingBalances.length === 0 && (
             <div className="admin-open-empty">
               <WalletCards size={32} />
               <h2>{pastDueOnly ? 'No late payments' : 'No payments are due this month'}</h2>

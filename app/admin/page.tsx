@@ -350,6 +350,7 @@ export default function AdminPage() {
     const openInvoices = invoices.filter((invoice) => ['open', 'sent', 'overdue', 'processing'].includes(String(invoice.status || '').toLowerCase()))
     const amountDueInvoices = openInvoices.filter((invoice) => isInvoiceDueThroughCurrentMonth(invoice))
     const pastDueInvoices = openInvoices.filter((invoice) => {
+      if (String(invoice.status || '').toLowerCase() === 'processing') return false
       if (!invoice.due_date) return false
       const dueDate = new Date(`${invoice.due_date}T12:00:00`)
       return !Number.isNaN(dueDate.getTime()) && dueDate < today
@@ -435,7 +436,14 @@ export default function AdminPage() {
       .slice(0, 5)
       .map((invoice) => {
         const pastDue = pastDueInvoices.includes(invoice)
-        return moneyItem(invoice, pastDue ? 'Past due' : 'Due soon', `${pastDue ? 'Was due' : 'Due'} ${activityDate(invoice.due_date)}`)
+        const processing = String(invoice.status || '').toLowerCase() === 'processing'
+        return moneyItem(
+          invoice,
+          processing ? 'ACH processing' : pastDue ? 'Past due' : 'Due soon',
+          processing
+            ? `Payment underway${invoice.ach_expected_date ? ` · Expected ${activityDate(invoice.ach_expected_date)}` : ''}`
+            : `${pastDue ? 'Was due' : 'Due'} ${activityDate(invoice.due_date)}`,
+        )
       })
 
     setRecentPayments(newestPayments)

@@ -1,4 +1,4 @@
-import { isInvoiceOutstanding, totalInvoiceBalance, type BalanceInvoice } from './invoice-balance.ts'
+import { invoiceTimingBucket, isInvoiceOutstanding, totalInvoiceBalance, type BalanceInvoice } from './invoice-balance.ts'
 
 type ReminderInvoice = BalanceInvoice & {
   invoice_number?: string | null
@@ -40,7 +40,7 @@ export function buildBillingReminderMessage(invoices: ReminderInvoice[], today =
     isInvoiceOutstanding(invoice) && Number(invoice.total_due || 0) > 0
   )
   const openBalance = totalInvoiceBalance(openInvoices)
-  const pastDueInvoices = openInvoices.filter((invoice) => Boolean(invoice.due_date && invoice.due_date < today))
+  const pastDueInvoices = openInvoices.filter((invoice) => invoiceTimingBucket(invoice, today) === 'late')
   const pastDueBalance = totalInvoiceBalance(pastDueInvoices)
   const oldestPastDueDate = pastDueInvoices
     .map((invoice) => invoice.due_date)
