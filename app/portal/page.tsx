@@ -666,6 +666,9 @@ export default function CamperPortalPage() {
   const nextOwnedOpenInvoice = [...ownedOpenInvoices]
     .filter((invoice) => invoice.due_date)
     .sort((left, right) => String(left.due_date).localeCompare(String(right.due_date)))[0]
+  const nextPaymentHref = nextOwnedOpenInvoice?.id
+    ? `/invoices/${encodeURIComponent(String(nextOwnedOpenInvoice.id))}`
+    : '/invoices'
   const accessibleInvoices = Array.from(new Map<string, any>([
     ...invoices,
     ...authorizedBillingAccounts.flatMap((account) => account.invoices || []),
@@ -1084,7 +1087,7 @@ export default function CamperPortalPage() {
                     ? `${upcomingBalanceWindowCount} invoice${upcomingBalanceWindowCount === 1 ? '' : 's'} due within 15 days`
                     : 'No payment due within 15 days'}</span>
             </a>
-            <a href="/invoices">
+            <a href={nextPaymentHref}>
               <small>Next payment</small>
               <strong>{nextOwnedOpenInvoice?.due_date ? formatDate(nextOwnedOpenInvoice.due_date) : 'Nothing scheduled'}</strong>
               <span>{nextOwnedOpenInvoice ? `$${totalInvoiceBalance([nextOwnedOpenInvoice]).toFixed(2)} remaining` : 'Your account is clear'}</span>
