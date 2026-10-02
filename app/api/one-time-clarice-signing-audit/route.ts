@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { renewalDocumentHasRequiredDetails } from '../../../lib/renewal-document-readiness'
+import { finalizeStoredPersonalizedRenewal } from '../../../lib/signed-renewal-document'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -40,4 +41,41 @@ export async function GET(request: Request) {
       signingReady: renewalDocumentHasRequiredDetails(renewal, camperById.get(String(renewal.camper_id))),
     })),
   })
+}
+
+export async function POST(request: Request) {
+  if (request.headers.get('x-one-time-token') !== auditToken) {
+    return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return NextResponse.json({ error: 'Database is not configured.' }, { status: 500 })
+
+  const admin = createClient(url, key)
+  const documentIds = [
+    'd12b4168-8866-4354-9042-7a050a5dedd1',
+    '66706a2e-25b4-4b76-9f67-d98c27668e13',
+  ]
+  const { data: documents, error } = await admin
+    .from('documents')
+    .select('id,camper_id,document_name,file_url,signature_status,signed_name,signed_at')
+    .in('id', documentIds)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const results = []
+  for (const document of documents || []) {
+    if (document.signature_status !== 'signed' || !document.signed_name || !document.signed_at || !/personalized renewal/i.test(document.document_name)) {
+      return NextResponse.json({ error: `Document ${document.id} is not a completed personalized renewal.`, results }, { status: 409 })
+    }
+    const storage = await finalizeStoredPersonalizedRenewal({
+      client: admin,
+      fileUrl: document.file_url,
+      signerName: document.signed_name,
+      signedAt: document.signed_at,
+    })
+    results.push({ documentId: document.id, camperId: document.camper_id, ...storage })
+  }
+
+  return NextResponse.json({ success: results.length === documentIds.length, results })
 }

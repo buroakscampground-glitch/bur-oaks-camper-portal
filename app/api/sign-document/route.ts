@@ -5,6 +5,7 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 import { loadAuthorizedDocumentCamper } from '../../../lib/authorized-billing'
 import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-schedule-service'
 import { isRenewalDocument, renewalDocumentHasRequiredDetails } from '../../../lib/renewal-document-readiness'
+import { finalizeStoredPersonalizedRenewal } from '../../../lib/signed-renewal-document'
 
 const consentText =
   'I reviewed and agree to this document. I agree to use electronic records and understand that typing my full legal name and selecting Sign Document Securely is my electronic signature and shows my intent to sign this document.'
@@ -179,6 +180,26 @@ export async function POST(request: Request) {
     let renewalRentSchedule: Awaited<ReturnType<typeof continueSignedRenewalRentSchedule>> | null = null
 
     if (nextSignatureStatus === 'signed') {
+      if (isRenewal && /personalized renewal/i.test(String(document.document_name || ''))) {
+        try {
+          await finalizeStoredPersonalizedRenewal({
+            client: context.admin,
+            fileUrl: document.file_url,
+            signerName: cleanName,
+            signedAt,
+          })
+        } catch (pdfError: any) {
+          await context.admin.from('admin_notifications').insert({
+            type: 'signed_renewal_pdf_error',
+            title: 'Signed renewal PDF needs office review',
+            message: `The electronic signature was recorded, but the completed PDF could not be marked: ${String(pdfError?.message || pdfError).slice(0, 1200)}`,
+            camper_id: document.camper_id,
+            source_table: 'documents',
+            source_id: document.id,
+          })
+        }
+      }
+
       try {
         renewalRentSchedule = await continueSignedRenewalRentSchedule({
           client: context.admin,

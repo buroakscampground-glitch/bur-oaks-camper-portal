@@ -10,6 +10,12 @@ export type PersonalizedRenewalTerms = {
   paymentPlan: 'semiannual' | 'quarterly'
 }
 
+export type PersonalizedRenewalCompletion = {
+  decision: 'renew'
+  signerName: string
+  signedAt: string
+}
+
 const green = rgb(0.08, 0.28, 0.17)
 const gold = rgb(0.69, 0.48, 0.16)
 const ink = rgb(0.11, 0.12, 0.11)
@@ -60,7 +66,44 @@ export function renewalTermDates(currentAgreementEnd: string) {
   return { renewalStart, renewalEnd: addYear(currentAgreementEnd) }
 }
 
-export async function createPersonalizedRenewalPdf(terms: PersonalizedRenewalTerms) {
+function signedDateLabel(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) throw new Error('A valid signing date is required.')
+  return date.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric', timeZone: 'America/Chicago',
+  })
+}
+
+export async function stampPersonalizedRenewalPdf(
+  source: Uint8Array | ArrayBuffer,
+  completion: PersonalizedRenewalCompletion,
+) {
+  const signerName = completion.signerName.trim().replace(/\s+/g, ' ')
+  if (completion.decision !== 'renew' || signerName.length < 3) throw new Error('A valid renewal signature is required.')
+
+  const pdf = await PDFDocument.load(source)
+  const page = pdf.getPage(0)
+  if (!page || page.getWidth() < 600 || page.getHeight() < 780) {
+    throw new Error('This is not a supported personalized renewal document.')
+  }
+
+  const regular = await pdf.embedFont(StandardFonts.Helvetica)
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold)
+  const signature = await pdf.embedFont(StandardFonts.HelveticaOblique)
+  const decisionY = 210.9
+
+  page.drawText('X', { x: 54, y: decisionY + 0.5, size: 10.5, font: bold, color: green })
+  page.drawText(signerName, { x: 51, y: decisionY - 64, size: 12, font: signature, color: green, maxWidth: 334 })
+  page.drawText(signedDateLabel(completion.signedAt), { x: 423, y: decisionY - 64, size: 10.5, font: regular, color: green, maxWidth: 138 })
+  page.drawText('Electronically completed in the Bur Oaks camper portal', { x: 48, y: 91, size: 7.5, font: bold, color: green })
+
+  return pdf.save()
+}
+
+export async function createPersonalizedRenewalPdf(
+  terms: PersonalizedRenewalTerms,
+  completion?: PersonalizedRenewalCompletion,
+) {
   if (!terms.camperName.trim() || !terms.lotNumber.trim()) throw new Error('Camper name and lot number are required.')
   if (!Number.isFinite(terms.annualRent) || terms.annualRent <= 0) throw new Error('A valid annual lot rent is required.')
 
@@ -117,5 +160,6 @@ export async function createPersonalizedRenewalPdf(terms: PersonalizedRenewalTer
   page.drawText('Date', { x: 420, y: decisionY - 84, size: 7.5, font: regular, color: muted })
 
   page.drawText('Dawn  |  Bur Oaks Resort, Inc.', { x, y: 30, size: 8.5, font: regular, color: muted })
-  return pdf.save()
+  const bytes = await pdf.save()
+  return completion ? stampPersonalizedRenewalPdf(bytes, completion) : bytes
 }
