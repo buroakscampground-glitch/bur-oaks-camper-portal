@@ -26,7 +26,7 @@ export async function GET() {
   const { data: invoices, error: invoiceError } = ids.length
     ? await admin
         .from('invoices')
-        .select('id,invoice_number,invoice_type,description,amount,total_amount,amount_paid,status,due_date,camper_id,created_at,invoice_items(*)')
+        .select('id,invoice_number,invoice_type,subtotal,total_due,late_fee,status,due_date,paid_at,payment_method,payment_reference,camper_id,created_at,invoice_items(*)')
         .in('camper_id', ids)
         .order('created_at', { ascending: false })
     : { data: [], error: null }
