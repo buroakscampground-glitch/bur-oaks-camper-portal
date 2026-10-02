@@ -6,6 +6,7 @@ import { reconcileRenewalsWithDocuments } from '../../../lib/renewal-document-re
 import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
 import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-schedule-service'
 import { isDocumentDeliveryExcluded } from '../../../lib/document-delivery-exemptions'
+import { isOperationalCamper } from '../../../lib/camper-records'
 import { isLotRentInvoice, normalizeLotRentDueDate } from '../../../lib/renewal-rent-schedule'
 
 export const runtime = 'nodejs'
@@ -125,12 +126,15 @@ export async function POST(request: Request) {
 
   const { data: camper } = await context.admin
     .from('campers')
-    .select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,email,secondary_email,active,rent_payment_plan')
+    .select('id,lot_number,first_name,last_name,second_profile_first_name,second_profile_last_name,email,secondary_email,active,role,rent_payment_plan')
     .eq('id', camperId)
     .eq('active', true)
     .maybeSingle()
 
   if (!camper) return NextResponse.json({ error: 'The active camper record could not be found.' }, { status: 404 })
+  if (!isOperationalCamper(camper)) {
+    return NextResponse.json({ error: 'Staff and system accounts are excluded from renewals.' }, { status: 409 })
+  }
 
   const rentPaymentPlan = body.rentPaymentPlan === 'quarterly' || body.rentPaymentPlan === 'semiannual'
     ? body.rentPaymentPlan

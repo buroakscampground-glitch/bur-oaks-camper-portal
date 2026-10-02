@@ -21,3 +21,8 @@ test('community access does not grant owner or maintenance roles', () => {
   assert.equal(isOperationalCamper({ role: 'camper', lot_number: 'STAFF-EVENTS' }), false)
   assert.equal(effectivePortalRole({ role: 'camper', lot_number: 'STAFF-EVENTS' }), 'event_coordinator')
 })
+
+test('maintenance staff on a numbered lot remain excluded from camper renewals', () => {
+  assert.equal(isOperationalCamper({ role: 'maintenance', lot_number: '10' }), false)
+  assert.equal(isOperationalCamper({ role: 'camper', lot_number: '10' }), true)
+})
