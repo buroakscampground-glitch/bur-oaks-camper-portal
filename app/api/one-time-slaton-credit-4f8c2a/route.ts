@@ -159,6 +159,26 @@ export async function GET() {
   if (!admin) return NextResponse.json({ error: 'Service key unavailable.' }, { status: 500 })
   try {
     const state = await currentState(admin)
+    const { data: creditHistory, error: creditHistoryError } = await admin
+      .from('account_credits')
+      .select('id,camper_id,lot_number,camper_name,original_amount,remaining_amount,reason,notes,status,created_by,created_at,updated_at')
+      .or(`camper_id.eq.${CAMPER_ID},lot_number.eq.43,camper_name.ilike.%slat%`)
+      .order('created_at', { ascending: false })
+    if (creditHistoryError) throw creditHistoryError
+    const creditIds = (creditHistory || []).map((credit: any) => credit.id)
+    const { data: applications, error: applicationError } = creditIds.length
+      ? await admin
+        .from('account_credit_applications')
+        .select('id,credit_id,camper_id,invoice_id,amount_applied,applied_by,applied_at,invoices(invoice_number,invoice_type,due_date,total_due,status)')
+        .in('credit_id', creditIds)
+        .order('applied_at', { ascending: false })
+      : { data: [], error: null }
+    if (applicationError) throw applicationError
+    const { data: invoiceItems, error: itemError } = await admin
+      .from('invoice_items')
+      .select('id,description,quantity,unit_price,total')
+      .eq('invoice_id', INVOICE_ID)
+    if (itemError) throw itemError
     const reminders = await Promise.all(state.reminders.map(async (reminder: any) => ({
       phone: maskPhone(reminder.recipient_phone),
       databaseStatus: reminder.status,
@@ -170,6 +190,9 @@ export async function GET() {
       camper: { name: `${state.camper.first_name} ${state.camper.last_name}`, lot: state.camper.lot_number },
       invoice: { totalDue: Number(state.invoice.total_due), dueDate: state.invoice.due_date, status: state.invoice.status, lateFee: Number(state.invoice.late_fee || 0) },
       availableCredit: state.availableCredit,
+      creditHistory,
+      applications,
+      invoiceItems,
       reminders,
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error: any) {
