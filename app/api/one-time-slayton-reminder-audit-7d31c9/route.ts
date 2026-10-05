@@ -37,7 +37,7 @@ export async function GET() {
   const { data: campers, error: camperError } = await admin
     .from('campers')
     .select('id,lot_number,first_name,last_name,phone,alternate_phone,second_profile_phone,sms_opt_in,active')
-    .ilike('last_name', '%slayton%')
+    .ilike('last_name', '%slat%')
 
   if (camperError) return NextResponse.json({ error: camperError.message }, { status: 500 })
   const camperIds = (campers || []).map((camper) => camper.id)
