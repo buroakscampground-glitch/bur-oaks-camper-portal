@@ -68,7 +68,34 @@ export async function POST() {
     }
 
     let appliedTotal = 0
-    if (Number(before.invoice.total_due) === 375 && before.availableCredit === 125) {
+    let createdHistoricalCredit = false
+    let availableCredit = before.availableCredit
+    if (Number(before.invoice.total_due) === 375 && availableCredit === 0) {
+      const { data: existingCreditHistory, error: historyError } = await admin
+        .from('account_credits')
+        .select('id,status,original_amount,remaining_amount')
+        .or(`camper_id.eq.${CAMPER_ID},lot_number.eq.43,camper_name.ilike.%slat%`)
+      if (historyError) throw historyError
+      if ((existingCreditHistory || []).length) {
+        return NextResponse.json({ error: 'A prior Slaton credit record exists but is not active. Nothing was duplicated.' }, { status: 409 })
+      }
+      const { error: createCreditError } = await admin.from('account_credits').insert({
+        camper_id: CAMPER_ID,
+        lot_number: '43',
+        camper_name: 'Shawn Slaton',
+        original_amount: 125,
+        remaining_amount: 125,
+        reason: 'Historical account credit',
+        notes: 'Existing $125.00 credit carried into the portal and applied at the office request on October 5, 2026.',
+        status: 'active',
+        created_by: 'office-request-2026-10-05',
+      })
+      if (createCreditError) throw createCreditError
+      availableCredit = 125
+      createdHistoricalCredit = true
+    }
+
+    if (Number(before.invoice.total_due) === 375 && availableCredit === 125) {
       const { data, error } = await admin.rpc('apply_account_credits_to_invoice_atomic', {
         p_camper_id: CAMPER_ID,
         p_invoice_id: INVOICE_ID,
@@ -77,11 +104,11 @@ export async function POST() {
       })
       if (error) throw error
       appliedTotal = Number(data?.appliedTotal || 0)
-    } else if (!(Number(before.invoice.total_due) === 250 && before.availableCredit === 0)) {
+    } else if (!(Number(before.invoice.total_due) === 250 && availableCredit === 0)) {
       return NextResponse.json({
         error: 'The invoice or available credit changed, so nothing was applied or texted.',
         currentInvoiceTotal: Number(before.invoice.total_due),
-        availableCredit: before.availableCredit,
+        availableCredit,
       }, { status: 409 })
     }
 
@@ -144,6 +171,7 @@ export async function POST() {
 
     return NextResponse.json({
       success: results.length > 0 && results.every((result) => ['sent', 'already_sent'].includes(result.status)),
+      createdHistoricalCredit,
       appliedTotal,
       invoice: { totalDue: Number(afterCredit.invoice.total_due), dueDate: afterCredit.invoice.due_date, lateFee: Number(afterCredit.invoice.late_fee || 0) },
       message,
