@@ -39,7 +39,7 @@ const badgeHelp = {
   '/community/announcements': { title: 'Announcements to review', detail: 'The badge counts announcements added since Rachel last opened this page. Opening it clears the badge.' },
   '/community/events': { title: 'Events to review', detail: 'The badge counts upcoming events added since Rachel last opened this page. Opening it clears the badge.' },
   '/community/dinners': { title: 'New dinner responses', detail: 'The badge counts new or changed responses for the next dinner. Opening this page clears the badge.' },
-  '/community/rsvps': { title: 'New event responses', detail: 'The badge counts event RSVPs received since Rachel last opened this page. Opening it clears the badge.' },
+  '/community/rsvps': { title: 'New event responses', detail: 'The badge counts event RSVPs and special Thanksgiving responses received since Rachel last opened this page. Opening it clears the badge.' },
 } as const
 
 const viewedSections = {

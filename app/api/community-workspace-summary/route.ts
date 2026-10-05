@@ -4,6 +4,8 @@ import { centralDate } from '../../../lib/camper-celebrations'
 import { nextSaturdayDinner } from '../../../lib/saturday-dinners'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { canManageCommunity } from '../../../lib/staff-roles'
+import { isThanksgivingCommunityEvent } from '../../../lib/community-event-counts'
+import { thanksgivingDinnerDate } from '../../../lib/thanksgiving-dinner'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,21 +27,31 @@ function normalizeSeen(value: unknown): SeenItems {
 
 async function loadTrackableItems(context: NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>, today: string) {
   const dinner = nextSaturdayDinner(new Date(`${today}T12:00:00`))
-  const [announcements, upcomingEvents, dinnerResponses] = await Promise.all([
+  const [announcements, upcomingEvents, dinnerResponses, thanksgivingResponses] = await Promise.all([
     context.admin.from('announcements').select('id').eq('is_active', true),
-    context.admin.from('events').select('id').gte('event_date', today),
-    dinner
+    context.admin.from('events').select('id,title,event_date').gte('event_date', today),
+    dinner && dinner.date !== thanksgivingDinnerDate
       ? context.admin.from('saturday_dinner_signups').select('id, updated_at').eq('dinner_date', dinner.date).neq('attending_status', 'Not Going')
       : Promise.resolve({ data: [], error: null }),
+    context.admin.from('saturday_dinner_signups').select('id, updated_at').eq('dinner_date', thanksgivingDinnerDate),
   ])
-  const queryError = announcements.error || upcomingEvents.error || dinnerResponses.error
+  const queryError = announcements.error || upcomingEvents.error || dinnerResponses.error || thanksgivingResponses.error
   if (queryError) throw queryError
 
-  const eventIds = (upcomingEvents.data || []).map((event: { id: string | number }) => String(event.id))
+  const events = upcomingEvents.data || []
+  const eventIds = events.map((event: { id: string | number }) => String(event.id))
+  const thanksgivingEventIds = new Set(events.filter(isThanksgivingCommunityEvent).map((event) => String(event.id)))
   const rsvps = eventIds.length
-    ? await context.admin.from('event_rsvps').select('id').in('event_id', eventIds)
+    ? await context.admin.from('event_rsvps').select('id,event_id').in('event_id', eventIds)
     : { data: [], error: null }
   if (rsvps.error) throw rsvps.error
+
+  const regularRsvpItems = (rsvps.data || [])
+    .filter((item: { event_id: string | number }) => !thanksgivingEventIds.has(String(item.event_id)))
+    .map((item: { id: string | number }) => String(item.id))
+  const thanksgivingRsvpItems = thanksgivingEventIds.size > 0
+    ? (thanksgivingResponses.data || []).map((item: { id: string | number; updated_at?: string | null }) => `thanksgiving-${item.id}:${item.updated_at || ''}`)
+    : []
 
   return {
     dinnerDate: dinner?.date || null,
@@ -47,7 +59,7 @@ async function loadTrackableItems(context: NonNullable<Awaited<ReturnType<typeof
       announcements: (announcements.data || []).map((item: { id: string | number }) => String(item.id)),
       events: eventIds,
       dinners: (dinnerResponses.data || []).map((item: { id: string | number; updated_at?: string | null }) => `${item.id}:${item.updated_at || ''}`),
-      rsvps: (rsvps.data || []).map((item: { id: string | number }) => String(item.id)),
+      rsvps: [...regularRsvpItems, ...thanksgivingRsvpItems],
     } satisfies SeenItems,
   }
 }

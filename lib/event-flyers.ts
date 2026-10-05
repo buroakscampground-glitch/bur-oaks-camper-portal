@@ -101,8 +101,8 @@ export const eventFlyers2026: EventFlyer[] = [
     title: 'BurOaksGiving Feast',
     date: '2026-11-07',
     displayDate: 'November 7, 2026',
-    time: 'Dinner at 4 PM',
-    description: 'A Thanksgiving-style campground feast. Bring a Thanksgiving side to share.',
+    time: 'Dinner at 6 PM',
+    description: 'Our final big meal of the season. RSVP with your campsite headcount and claim one food item to share.',
     flyer: '/events-2026/2026-11-07-buroaksgiving.jpg',
   },
 ]

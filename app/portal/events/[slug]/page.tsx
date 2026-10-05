@@ -51,12 +51,17 @@ export default function PortalEventDetailPage() {
   const router = useRouter()
   const slug = params?.slug
   const event = useMemo(() => eventFlyers2026.find((item) => item.slug === slug), [slug])
+  const isThanksgiving = event?.slug === 'buroaksgiving'
   const [status, setStatus] = useState<RsvpStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
+    if (slug === 'buroaksgiving') {
+      setLoading(false)
+      return
+    }
     loadStatus()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slug])
@@ -185,49 +190,64 @@ export default function PortalEventDetailPage() {
               </article>
             </div>
 
-            <section className="portal-event-rsvp-panel">
-              <div>
-                <span>Overall event RSVP</span>
-                <h2>Is your campsite attending this event?</h2>
-                <p>Choose one response for your campsite&apos;s overall attendance at this event or weekend.</p>
-              </div>
+            {isThanksgiving ? (
+              <section className="portal-event-rsvp-panel portal-event-thanksgiving-panel">
+                <div>
+                  <span>Thanksgiving meal signup</span>
+                  <h2>One response handles attendance, headcount, and food.</h2>
+                  <p>Use the special Thanksgiving board so Rachel and the office see the same information you see.</p>
+                </div>
+                <div className="portal-event-rsvp-scope">
+                  <strong>Anthony is providing all of the turkeys.</strong>
+                  <p>Tell us how many people are coming from your campsite and claim one food item that is still needed.</p>
+                </div>
+                <a className="portal-thanksgiving-rsvp-link" href="/thanksgiving">Open Thanksgiving signup</a>
+              </section>
+            ) : (
+              <section className="portal-event-rsvp-panel">
+                <div>
+                  <span>Overall event RSVP</span>
+                  <h2>Is your campsite attending this event?</h2>
+                  <p>Choose one response for your campsite&apos;s overall attendance at this event or weekend.</p>
+                </div>
 
-              <div className="portal-event-rsvp-scope">
-                <strong>One RSVP covers the whole event.</strong>
-                <p>
-                  You do not need to text the office separately for each activity or food item shown on the flyer,
-                  unless the flyer specifically asks for another sign-up, ticket, or preorder.
-                </p>
-                <p>
-                  Saturday Dinner meal counts are separate. <a href="/dinners">Open Saturday Dinner RSVPs</a> to reserve those meals.
-                </p>
-              </div>
+                <div className="portal-event-rsvp-scope">
+                  <strong>One RSVP covers the whole event.</strong>
+                  <p>
+                    You do not need to text the office separately for each activity or food item shown on the flyer,
+                    unless the flyer specifically asks for another sign-up, ticket, or preorder.
+                  </p>
+                  <p>
+                    Saturday Dinner meal counts are separate. <a href="/dinners">Open Saturday Dinner RSVPs</a> to reserve those meals.
+                  </p>
+                </div>
 
-              <div className="portal-event-rsvp-actions">
-                {responseButtons.map(({ label, icon: Icon, helper }) => (
-                  <button
-                    className={status?.myResponse === label ? 'active' : ''}
-                    disabled={saving !== ''}
-                    key={label}
-                    onClick={() => saveResponse(label)}
-                    type="button"
-                  >
-                    <Icon size={18} />
-                    <strong>{saving === label ? 'Saving...' : label}</strong>
-                    <small>{helper}</small>
-                  </button>
-                ))}
-              </div>
+                <div className="portal-event-rsvp-actions">
+                  {responseButtons.map(({ label, icon: Icon, helper }) => (
+                    <button
+                      className={status?.myResponse === label ? 'active' : ''}
+                      disabled={saving !== ''}
+                      key={label}
+                      onClick={() => saveResponse(label)}
+                      type="button"
+                    >
+                      <Icon size={18} />
+                      <strong>{saving === label ? 'Saving...' : label}</strong>
+                      <small>{helper}</small>
+                    </button>
+                  ))}
+                </div>
 
-              {message && <p className="portal-event-message">{message}</p>}
-              {loading && <p className="portal-event-message">Loading your current RSVP...</p>}
+                {message && <p className="portal-event-message">{message}</p>}
+                {loading && <p className="portal-event-message">Loading your current RSVP...</p>}
 
-              <div className="portal-event-count-row">
-                <span>{status?.counts.going || 0} going</span>
-                <span>{status?.counts.maybe || 0} maybe</span>
-                <span>{status?.counts.notGoing || 0} not going</span>
-              </div>
-            </section>
+                <div className="portal-event-count-row">
+                  <span>{status?.counts.going || 0} going</span>
+                  <span>{status?.counts.maybe || 0} maybe</span>
+                  <span>{status?.counts.notGoing || 0} not going</span>
+                </div>
+              </section>
+            )}
 
             <section className="portal-event-extras">
               <article>
@@ -240,7 +260,7 @@ export default function PortalEventDetailPage() {
                 </div>
               </article>
 
-              <article>
+              {!isThanksgiving && <article>
                 <UsersRound size={21} />
                 <div>
                   <small>Who's going</small>
@@ -257,7 +277,7 @@ export default function PortalEventDetailPage() {
                     )}
                   </div>
                 </div>
-              </article>
+              </article>}
             </section>
           </div>
 

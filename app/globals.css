@@ -11029,6 +11029,24 @@ tbody tr:hover {
   opacity: .72;
 }
 
+.portal-thanksgiving-rsvp-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 0 18px;
+  border-radius: 16px;
+  background: #315f3d;
+  color: #fff;
+  font-weight: 950;
+  text-align: center;
+  text-decoration: none;
+}
+
+.portal-thanksgiving-rsvp-link:hover {
+  background: #244b31;
+}
+
 .portal-event-message {
   margin-top: 14px !important;
   font-weight: 800;

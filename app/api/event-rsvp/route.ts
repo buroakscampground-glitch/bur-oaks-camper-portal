@@ -101,6 +101,9 @@ export async function GET(request: Request) {
   }
 
   const slug = new URL(request.url).searchParams.get('slug') || ''
+  if (slug === 'buroaksgiving') {
+    return NextResponse.json({ error: 'Use the special Thanksgiving signup.', redirect: '/thanksgiving' }, { status: 409 })
+  }
 
   try {
     const status = await getEventStatus(context, slug)
@@ -129,6 +132,10 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const slug = String(body.slug || '')
   const response = String(body.response || '')
+
+  if (slug === 'buroaksgiving') {
+    return NextResponse.json({ error: 'Use the special Thanksgiving signup.', redirect: '/thanksgiving' }, { status: 409 })
+  }
 
   if (!allowedResponses.includes(response)) {
     return NextResponse.json({ error: 'Invalid response' }, { status: 400 })

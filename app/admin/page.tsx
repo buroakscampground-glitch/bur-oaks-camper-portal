@@ -61,6 +61,8 @@ import { requiresAdminAttention } from '../../lib/admin-notification-types'
 import { isCompletedTicketStatus } from '../../lib/maintenance-status'
 import { paidInvoiceCollectedTotal } from '../../lib/monthly-billing-report'
 import { activeElectricCollection } from '../../lib/electric-payment-cycles'
+import { unifiedCommunityRsvps } from '../../lib/community-rsvp-records'
+import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
 
 type AdminStats = {
   campers: number
@@ -305,6 +307,11 @@ export default function AdminPage() {
     const campers = (campersResult.data || []).filter(isOperationalCamper)
     const rsvps = rsvpsResult.data || []
     const dinnerSignups = dinnerResult.data || []
+    const unifiedRsvps = unifiedCommunityRsvps(
+      eventsResult.data || [],
+      rsvps,
+      dinnerSignups.filter((signup) => signup.dinner_date === thanksgivingDinnerDate),
+    ).rsvps
     const pumpOuts = pumpOutResult.data || []
     const unreadMessages = messageResult.data || []
     const activeSupplyRequests = supplyRequestResult.data || []
@@ -455,7 +462,7 @@ export default function AdminPage() {
       balance: totalInvoiceBalance(amountDueInvoices),
       events: eventsResult.data?.length || 0,
       announcements: activeAnnouncements.length,
-      rsvps: rsvpsResult.data?.length || 0,
+      rsvps: unifiedRsvps.length,
       electric: electricResult.data?.length || 0,
       electricSitesLeft,
       waitlist: waitlistResult.data?.length || 0,
@@ -509,7 +516,7 @@ export default function AdminPage() {
       nextDinnerMaybe: nextDinnerMaybe.length,
       nextDinnerGuests: nextDinnerGoing.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0),
       nextDinnerDishes: nextDinnerSignups.filter((signup) => String(signup.bringing || '').trim()).length,
-      nextEventRsvps: rsvps.filter((rsvp) => upcomingEventIds.has(String(rsvp.event_id))).length,
+      nextEventRsvps: unifiedRsvps.filter((rsvp) => upcomingEventIds.has(String(rsvp.event_id))).length,
       nextEventTitle: nextEvent?.title || '',
       nextEventDate: nextEvent?.event_date || '',
       currentAnnouncementTitle: activeAnnouncements[0]?.title || '',

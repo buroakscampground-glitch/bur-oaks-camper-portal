@@ -60,10 +60,12 @@ export default function EventFlyerShowcase({
       </div>
 
       <div className="event-flyer-grid">
-        {visibleEvents.map((event, index) => (
+        {visibleEvents.map((event, index) => {
+          const isThanksgiving = event.slug === 'buroaksgiving'
+          return (
           <a
             className="event-flyer-link"
-            href={context === 'portal' ? `/portal/events/${event.slug}` : '/events'}
+            href={context === 'portal' ? (isThanksgiving ? '/thanksgiving' : `/portal/events/${event.slug}`) : '/events'}
             key={event.slug}
           >
             <article className={index === 0 ? 'featured' : ''}>
@@ -76,13 +78,14 @@ export default function EventFlyerShowcase({
                 {context === 'portal' && (
                   <div className="event-flyer-rsvp-prompt">
                     <CheckCircle2 size={14} />
-                    RSVP is for the overall event — tap for details
+                    {isThanksgiving ? 'RSVP + choose your food item' : 'RSVP is for the overall event — tap for details'}
                   </div>
                 )}
               </div>
             </article>
           </a>
-        ))}
+          )
+        })}
       </div>
     </section>
   )

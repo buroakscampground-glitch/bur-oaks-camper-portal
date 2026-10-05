@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { communityEventCounts, isThanksgivingCommunityEvent } from '../../../lib/community-event-counts'
+import { unifiedCommunityRsvps } from '../../../lib/community-rsvp-records'
 import { thanksgivingDinnerDate } from '../../../lib/thanksgiving-dinner'
 
 export const dynamic = 'force-dynamic'
@@ -26,6 +27,7 @@ export async function GET() {
   const signups = dinnerResult.data || []
   const campers = new Map((camperResult.data || []).map((camper: any) => [String(camper.id), camper]))
   const eventCounts = communityEventCounts(events, rsvps, signups)
+  const unified = unifiedCommunityRsvps(events, rsvps, signups)
   const eventRows = events.map((event: any) => {
     const eventRsvps = rsvps.filter((rsvp: any) => String(rsvp.event_id) === String(event.id))
     return {
@@ -60,6 +62,12 @@ export async function GET() {
     thanksgivingDinnerDate,
     eventRows,
     thanksgivingSignups: signups,
+    unifiedSummary: {
+      responses: unified.rsvps.filter((rsvp) => isThanksgivingCommunityEvent(events.find((event: any) => String(event.id) === rsvp.event_id) || {})).length,
+      goingSites: unified.rsvps.filter((rsvp) => rsvp.source === 'thanksgiving' && rsvp.response === 'Going').length,
+      peopleGoing: unified.rsvps.filter((rsvp) => rsvp.source === 'thanksgiving' && rsvp.response === 'Going').reduce((sum, rsvp) => sum + rsvp.guest_count, 0),
+      incompleteLegacyResponses: unified.incompleteThanksgivingRsvps,
+    },
     duplicateDates,
   }, { headers: { 'Cache-Control': 'no-store' } })
 }
