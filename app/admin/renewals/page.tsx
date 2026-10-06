@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Activity,
   AlertTriangle,
@@ -301,14 +302,30 @@ export default function AdminRenewalsPage() {
 
   useEffect(() => {
     if (!selectedSiteId) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    const body = document.body
+    const root = document.documentElement
+    const scrollY = window.scrollY
+    const previousBodyPosition = body.style.position
+    const previousBodyTop = body.style.top
+    const previousBodyWidth = body.style.width
+    const previousBodyOverflow = body.style.overflow
+    const previousRootOverflow = root.style.overflow
+    body.style.position = 'fixed'
+    body.style.top = `-${scrollY}px`
+    body.style.width = '100%'
+    body.style.overflow = 'hidden'
+    root.style.overflow = 'hidden'
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setSelectedSiteId('')
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => {
-      document.body.style.overflow = previousOverflow
+      body.style.position = previousBodyPosition
+      body.style.top = previousBodyTop
+      body.style.width = previousBodyWidth
+      body.style.overflow = previousBodyOverflow
+      root.style.overflow = previousRootOverflow
+      window.scrollTo(0, scrollY)
       window.removeEventListener('keydown', closeOnEscape)
     }
   }, [selectedSiteId])
@@ -767,9 +784,10 @@ export default function AdminRenewalsPage() {
         .renewal-edit-actions .previous-system{border:1px solid #b7ceb8!important;background:#eef5eb!important;color:#315f3d!important}
         .renewal-annual-help{grid-column:1/-1;display:flex;gap:7px;padding:12px 13px;border-radius:12px;background:#eef5ec;color:#49624f;font-size:11px}.renewal-annual-help strong{white-space:nowrap}.renewal-document-record{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:12px;padding:14px;border:1px solid #c8d9dd;border-radius:14px;background:#f1f7f8}.renewal-document-record>span{display:grid;width:38px;height:38px;place-items:center;border-radius:11px;background:#dcebee;color:#356574}.renewal-document-record small{color:#56747b;font-size:8px;font-weight:900;letter-spacing:.1em}.renewal-document-record strong{display:block;margin-top:3px;font-size:13px}.renewal-document-record p{margin:4px 0 0;color:#60726d;font-size:10px;line-height:1.4}.renewal-document-record em{display:block;margin-top:5px;color:#397047;font-size:9px;font-style:normal;font-weight:900}.renewal-document-record>a{display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:0 11px;border-radius:999px;background:#315f3d;color:#fff;font-size:10px;font-weight:900;text-decoration:none;white-space:nowrap}.renewal-document-record.signed{border-color:#bdd4bd;background:#edf7ed}.renewal-document-record.signed>span{background:#dcebdd;color:#397047}.renewal-document-record.declined{border-color:#e7bbb4;background:#fff0ed}.renewal-board{order:-1}
         .site-history-overlay{position:fixed;inset:0;z-index:1200;display:flex;height:100dvh;max-height:100dvh;justify-content:flex-end;overflow:hidden}.site-history-backdrop{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;border:0!important;border-radius:0!important;background:rgba(10,30,18,.52)!important;box-shadow:none!important;backdrop-filter:blur(4px)}.site-history-panel{position:relative;width:min(720px,calc(100vw - 40px));height:100dvh;max-height:100dvh;overflow-x:hidden;overflow-y:scroll;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch;background:#f4f5ef;box-shadow:-24px 0 65px rgba(16,42,25,.24);animation:siteHistoryIn .2s ease-out}.site-history-header{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 24px;border-bottom:1px solid #dce1d8;background:rgba(248,249,245,.96);backdrop-filter:blur(16px)}.site-history-header small{display:block;color:#9a762c;font-size:9px;font-weight:900;letter-spacing:.14em}.site-history-header h2{margin:5px 0 0;font:500 29px Georgia,serif}.site-history-header p{margin:4px 0 0;color:#68736b;font-size:11px}.site-history-close{display:grid!important;place-items:center!important;flex:0 0 42px!important;width:42px!important;height:42px!important;padding:0!important;border:1px solid #d6ddd3!important;border-radius:50%!important;background:#fff!important;color:#294632!important;box-shadow:none!important}.site-history-content{display:grid;gap:15px;padding:20px 24px calc(30px + env(safe-area-inset-bottom))}.site-history-loading{display:grid;place-items:center;min-height:360px;text-align:center;color:#607066}.site-history-loading svg{animation:siteHistorySpin 1s linear infinite}.site-history-loading strong{display:block;margin-top:12px}.site-history-error{padding:18px;border:1px solid #edc7bd;border-radius:16px;background:#fff1ed;color:#873e35}.site-history-error button{display:block!important;margin-top:12px!important;background:#315f3d!important;color:#fff!important}.site-history-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:9px}.site-history-stat{padding:14px;border:1px solid #dde1d8;border-radius:15px;background:#fff}.site-history-stat span{display:flex;align-items:center;gap:6px;color:#7b806f;font-size:9px;font-weight:900;text-transform:uppercase}.site-history-stat strong{display:block;margin-top:7px;color:#294632;font:600 23px Georgia,serif}.site-history-stat small{display:block;margin-top:4px;color:#748078;font-size:8px;line-height:1.3}.site-history-stat.warning{border-color:#edd4a1;background:#fff8e8}.site-history-stat.alert{border-color:#e9bbb4;background:#fff1ee}.site-history-usage-callout{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:12px;border:1px solid #d8dfd5;border-radius:13px;background:#f5f8f3;color:#36533e}.site-history-usage-callout.warning{border-color:#e6c886;background:#fff7e2;color:#785718}.site-history-usage-callout.alert{border-color:#e1afa7;background:#fff0ed;color:#8d3931}.site-history-usage-callout strong{display:block;font-size:11px}.site-history-usage-callout p{margin:3px 0 0;font-size:9px;line-height:1.45}.site-history-rent-repair{display:grid;grid-template-columns:minmax(180px,1fr) auto;gap:9px;align-items:end;padding:13px;border:1px solid #d7dfd4;border-radius:15px;background:#fff}.site-history-rent-repair label{display:grid;gap:5px;color:#657269;font-size:9px;font-weight:900;letter-spacing:.08em;text-transform:uppercase}.site-history-rent-repair input{width:100%;min-height:40px;border:1px solid #d4dcd1!important;border-radius:11px!important;background:#fbfcfa!important;color:#294632!important}.site-history-rent-repair button{min-height:40px!important;background:#315f3d!important;color:#fff!important}.site-history-actions{display:flex;flex-wrap:wrap;gap:8px}.site-history-actions button,.site-history-actions a{display:inline-flex!important;align-items:center;justify-content:center;gap:7px;min-height:40px;padding:10px 13px!important;border:1px solid #d4dcd1!important;border-radius:999px!important;background:#fff!important;color:#315f3d!important;font-size:11px!important;font-weight:900!important;text-decoration:none;box-shadow:none!important}.site-history-actions button:first-child{border-color:#315f3d!important;background:#315f3d!important;color:#fff!important}.site-history-tabs{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:5px;border:1px solid #dce1d8;border-radius:14px;background:#e9ede6}.site-history-tabs button{display:flex!important;align-items:center;justify-content:center;gap:7px;padding:10px!important;border:0!important;border-radius:10px!important;background:transparent!important;color:#5e6d63!important;font-size:11px!important;box-shadow:none!important}.site-history-tabs button.active{background:#fff!important;color:#315f3d!important;box-shadow:0 5px 14px rgba(35,59,41,.08)!important}.site-history-list{display:grid;gap:9px}.site-history-list-head{display:flex;align-items:end;justify-content:space-between;gap:10px;padding:5px 2px}.site-history-list-head h3{margin:0;font:500 22px Georgia,serif}.site-history-list-head span{color:#7b806f;font-size:10px}.site-history-item{padding:15px;border:1px solid #dde1d8;border-radius:16px;background:#fff}.site-history-item-top{display:flex;align-items:start;justify-content:space-between;gap:12px}.site-history-item strong{font-size:12px}.site-history-item p{margin:8px 0 0;color:#647067;font-size:11px;line-height:1.45}.site-history-item small{display:block;margin-top:8px;color:#899088;font-size:9px}.site-history-badge{flex:0 0 auto;padding:5px 8px;border-radius:999px;background:#eaf2e8;color:#376143;font-size:8px;font-weight:900;text-transform:uppercase}.site-history-badge.open,.site-history-badge.late{background:#fae2dd;color:#933e35}.site-history-badge.review{background:#fff0cb;color:#835b16}.site-history-payment{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}.site-history-payment-amount{text-align:right}.site-history-payment-amount strong{display:block;font:600 18px Georgia,serif}.site-history-payment-amount small{margin-top:3px}.site-history-empty{padding:34px 18px;border:1px dashed #cfd8cc;border-radius:17px;background:rgba(255,255,255,.55);color:#718078;text-align:center}.site-history-empty strong{display:block;margin-top:8px;color:#315f3d}.site-history-footnote{margin:0;color:#7e877f;font-size:9px;line-height:1.5}@keyframes siteHistoryIn{from{transform:translateX(24px);opacity:.55}to{transform:translateX(0);opacity:1}}@keyframes siteHistorySpin{to{transform:rotate(360deg)}}
+        .site-history-overlay{z-index:2147483000;width:100vw;isolation:isolate}.site-history-panel{display:flex;flex-direction:column;overflow:hidden}.site-history-header{position:relative;flex:0 0 auto}.site-history-scroll{flex:1 1 auto;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;touch-action:pan-y;-webkit-overflow-scrolling:touch}
         .site-renewal-decision{padding:15px;border:1px solid #d7ddd3;border-radius:17px;background:#fff}.site-renewal-decision-head strong{font-size:13px}.site-renewal-decision-head small{display:block;margin-top:4px;color:#748078;font-size:10px;line-height:1.4}.site-renewal-decision-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.site-renewal-decision-buttons button{display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;min-height:48px!important;padding:11px!important;border-radius:13px!important;font-size:11px!important;font-weight:900!important;box-shadow:none!important}.site-renewal-decision-buttons .renew{border:1px solid #315f3d!important;background:#315f3d!important;color:#fff!important}.site-renewal-decision-buttons .do-not-renew{border:1px solid #a8443e!important;background:#a8443e!important;color:#fff!important}.site-renewal-decision-buttons button.selected{box-shadow:0 0 0 3px rgba(230,191,102,.5)!important}.site-renewal-decision-buttons button:disabled{opacity:.72!important}.site-renewal-clear{display:block!important;margin:10px auto 0!important;padding:4px 7px!important;border:0!important;background:transparent!important;color:#69756d!important;font-size:9px!important;text-decoration:underline!important;box-shadow:none!important}.site-decision-message{margin:10px 0 0;padding:9px 11px;border-radius:10px;background:#eef4eb;color:#315f3d;font-size:10px;font-weight:800}
         @media(max-width:680px){.renewal-hero{display:none}.renewal-summary{grid-template-columns:1fr 1fr}.renewal-board{padding:14px}.renewal-board-grid{grid-template-columns:1fr}.renewal-bucket{min-height:0}.renewal-annual-help{align-items:flex-start;flex-direction:column}.renewal-document-record{grid-template-columns:auto 1fr}.renewal-document-record>a{grid-column:1/-1;justify-content:center}.renewal-edit-actions .mark-sent{display:none!important}}
-        @media(max-width:680px){.site-history-panel{width:100vw}.site-history-header{padding:17px 16px}.site-history-header h2{font-size:25px}.site-history-content{padding:15px 14px calc(24px + env(safe-area-inset-bottom))}.site-history-summary{grid-template-columns:1fr 1fr}.site-history-rent-repair{grid-template-columns:1fr}.site-history-rent-repair button{width:100%}.site-history-actions{display:grid;grid-template-columns:1fr 1fr}.site-history-actions>*{width:100%}.site-history-payment{align-items:start}.site-history-payment-amount strong{font-size:16px}}
+        @media(max-width:680px){.site-history-panel{width:100vw;max-width:none;border-radius:0}.site-history-header{padding:calc(17px + env(safe-area-inset-top)) 16px 17px}.site-history-header h2{font-size:25px}.site-history-content{padding:15px 14px calc(24px + env(safe-area-inset-bottom))}.site-history-summary{grid-template-columns:1fr 1fr}.site-history-rent-repair{grid-template-columns:1fr}.site-history-rent-repair button{width:100%}.site-history-actions{display:grid;grid-template-columns:1fr 1fr}.site-history-actions>*{width:100%}.site-history-payment{align-items:start}.site-history-payment-amount strong{font-size:16px}}
       `}</style>
 
       <section className="renewal-hero">
@@ -904,7 +922,7 @@ export default function AdminRenewalsPage() {
         </div>
       </section>
 
-      {selectedSiteId && <div className="site-history-overlay">
+      {selectedSiteId && typeof document !== 'undefined' && createPortal(<div className="site-history-overlay">
         <button className="site-history-backdrop" type="button" onClick={() => setSelectedSiteId('')} aria-label="Close site history" />
         <aside className="site-history-panel" role="dialog" aria-modal="true" aria-labelledby="site-history-title">
           <header className="site-history-header">
@@ -916,6 +934,7 @@ export default function AdminRenewalsPage() {
             <button className="site-history-close" type="button" onClick={() => setSelectedSiteId('')} aria-label="Close site history"><X size={20} /></button>
           </header>
 
+          <div className="site-history-scroll">
           {siteHistoryLoading && <div className="site-history-loading"><div><LoaderCircle size={30} /><strong>Pulling the complete site record…</strong></div></div>}
 
           {!siteHistoryLoading && siteHistoryError && <div className="site-history-content"><div className="site-history-error"><strong>Site history did not load.</strong><p>{siteHistoryError}</p>{selectedRow && <button type="button" onClick={() => openSiteHistory(selectedRow.camper)}>Try again</button>}</div></div>}
@@ -998,8 +1017,9 @@ export default function AdminRenewalsPage() {
               <p className="site-history-footnote">“Times late” counts invoices with a late fee, invoices paid after their due date, and invoices that are currently past due. Cancelled, void, and refunded invoices are not counted.</p>
             </section>}
           </div>}
+          </div>
         </aside>
-      </div>}
+      </div>, document.body)}
     </main>
   )
 }
