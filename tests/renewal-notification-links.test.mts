@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { adminNotificationHref } from '../lib/admin-notification-links.ts'
+import { adminNotificationHref, adminNotificationStaysOpenUntilResolved } from '../lib/admin-notification-links.ts'
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -22,7 +22,8 @@ test('renewal record deep link opens the complete history and decision panel', (
   const historyRoute = source('app/api/admin-site-history/route.ts')
 
   assert.match(notifications, /adminNotificationHref\(notification, config\.href\)/)
-  assert.match(notifications, /markSeen\(notification\.id\).*window\.location\.href = notificationHref/s)
+  assert.match(notifications, /staysOpenUntilResolved/)
+  assert.match(notifications, /Review & choose/)
   assert.match(renewals, /new URLSearchParams\(window\.location\.search\)\.get\('camper'\)/)
   assert.match(renewals, /openSiteHistory\(camper\)/)
   assert.match(renewals, /Renew this camper’s site\?/)
@@ -34,4 +35,17 @@ test('renewal record deep link opens the complete history and decision panel', (
   assert.match(historyRoute, /maintenance_tickets/)
   assert.match(historyRoute, /electric_readings/)
   assert.match(historyRoute, /season_renewals/)
+})
+
+test('opening a renewal record never clears the decision alert', () => {
+  for (const type of ['renewal_review', 'nonrenewal_letter_review', 'renewal_declined', 'renewal_document_incomplete', 'renewal_rent_schedule', 'renewal_rent_schedule_error']) {
+    assert.equal(adminNotificationStaysOpenUntilResolved(type), true)
+  }
+  assert.equal(adminNotificationStaysOpenUntilResolved('maintenance_request'), false)
+
+  const notifications = source('app/admin/notifications/page.tsx')
+  const renewalApi = source('app/api/admin-renewals/route.ts')
+  assert.match(notifications, /notification\.read_at \|\| staysOpenUntilResolved/)
+  assert.match(renewalApi, /action === 'approve' \|\| action === 'decline'/)
+  assert.match(renewalApi, /\.eq\('type', 'renewal_review'\)/)
 })

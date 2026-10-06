@@ -12,6 +12,11 @@ const renewalRecordTypes = new Set([
   'renewal_rent_schedule_error',
 ])
 
+export function adminNotificationStaysOpenUntilResolved(typeValue: unknown) {
+  const type = String(typeValue || '').trim().toLowerCase()
+  return renewalRecordTypes.has(type)
+}
+
 export function adminNotificationHref(notification: AdminNotificationLinkInput, fallback = '/admin') {
   const type = String(notification.type || '').trim().toLowerCase()
   const camperId = String(notification.camper_id || '').trim()

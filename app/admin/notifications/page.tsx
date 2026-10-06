@@ -5,7 +5,7 @@ import { BellRing, CalendarClock, CheckCheck, CircleDollarSign, ClipboardCheck, 
 import { supabase } from '../../../lib/supabase'
 import AdminQuickText from '../../../components/AdminQuickText'
 import { informationalAdminNotificationTypes } from '../../../lib/admin-notification-types'
-import { adminNotificationHref } from '../../../lib/admin-notification-links'
+import { adminNotificationHref, adminNotificationStaysOpenUntilResolved } from '../../../lib/admin-notification-links'
 
 const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   maintenance_request: { label: 'Maintenance', icon: Wrench, href: '/admin/maintenance' },
@@ -128,6 +128,7 @@ export default function AdminNotificationsPage() {
           }
           const Icon = config.icon
           const notificationHref = adminNotificationHref(notification, config.href)
+          const staysOpenUntilResolved = adminNotificationStaysOpenUntilResolved(notification.type)
 
           return (
             <article className={notification.read_at ? 'read' : 'unread'} key={notification.id}>
@@ -141,11 +142,11 @@ export default function AdminNotificationsPage() {
                 <a
                   href={notificationHref}
                   onClick={(event) => {
-                    if (notification.read_at) return
+                    if (notification.read_at || staysOpenUntilResolved) return
                     event.preventDefault()
                     void markSeen(notification.id).finally(() => { window.location.href = notificationHref })
                   }}
-                >{String(notification.type || '').includes('renewal') ? 'Open camper record' : 'Open'}</a>
+                >{notification.type === 'renewal_review' ? 'Review & choose' : String(notification.type || '').includes('renewal') ? 'Open renewal record' : 'Open'}</a>
                 {!notification.read_at && (
                   <button type="button" onClick={() => markSeen(notification.id)}>Handled</button>
                 )}

@@ -590,5 +590,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error?.message || 'The renewal could not be saved.' }, { status: 500 })
   }
 
+  if (action === 'approve' || action === 'decline') {
+    await context.admin
+      .from('admin_notifications')
+      .update({ read_at: now })
+      .eq('type', 'renewal_review')
+      .eq('camper_id', camper.id)
+      .is('read_at', null)
+  } else if (action === 'clear') {
+    await context.admin
+      .from('admin_notifications')
+      .update({ read_at: null })
+      .eq('type', 'renewal_review')
+      .eq('camper_id', camper.id)
+  }
+
   return NextResponse.json({ success: true, renewal })
 }
