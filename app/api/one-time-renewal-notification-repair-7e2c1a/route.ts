@@ -51,13 +51,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}))
     const requested = Array.isArray(body.ids) ? body.ids.map(String).slice(0, 2) : []
-    const { admin, rows } = await candidates()
-    const allowed = new Set(rows.map((row) => String(row.id)))
+    const { admin, rows, allNotifications } = await candidates()
+    const allowed = new Set([
+      ...rows.map((row) => String(row.id)),
+      ...allNotifications.filter((row) => row.read_at && renewalTypes.includes(String(row.type))).map((row) => String(row.id)),
+    ])
     const ids = requested.filter((id: string) => allowed.has(id))
     if (!ids.length) return NextResponse.json({ error: 'No matching false-cleared renewal alerts.' }, { status: 400 })
-    const { error } = await admin.from('admin_notifications').update({ read_at: null }).in('id', ids).eq('type', 'renewal_review')
+    const { error } = await admin.from('admin_notifications').update({ read_at: null }).in('id', ids).in('type', renewalTypes)
     if (error) throw error
-    return NextResponse.json({ success: true, restored: rows.filter((row) => ids.includes(String(row.id))) })
+    return NextResponse.json({ success: true, restored: allNotifications.filter((row) => ids.includes(String(row.id))) })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Repair failed.' }, { status: 500 })
   }
