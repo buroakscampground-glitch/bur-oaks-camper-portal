@@ -41,6 +41,14 @@ function paymentIntentInvoiceIds(intent: Stripe.PaymentIntent) {
   }
 }
 
+function extraPaymentDetails(metadata?: Stripe.Metadata | null) {
+  const amountCents = Math.max(0, Math.round(Number(metadata?.extra_payment_cents || 0)))
+  return {
+    amountCents,
+    destination: metadata?.extra_payment_destination === 'lot_rent' ? 'lot_rent' : 'general',
+  } as const
+}
+
 export async function POST(request: Request) {
   const stripeKey = process.env.STRIPE_SECRET_KEY
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
@@ -86,6 +94,58 @@ export async function POST(request: Request) {
   // During migration rollout, continue only when the ledger table is not present yet.
   const ledgerActive = !ledgerError
 
+  async function recordExtraPaymentCredit({
+    paymentReference,
+    camperId,
+    metadata,
+  }: {
+    paymentReference: string
+    camperId: string
+    metadata?: Stripe.Metadata | null
+  }) {
+    const extra = extraPaymentDetails(metadata)
+    if (extra.amountCents <= 0) return 0
+
+    const sourceReference = `stripe-extra:${paymentReference}`
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from('account_credits')
+      .select('id')
+      .eq('source_reference', sourceReference)
+      .limit(1)
+
+    if (existingError) throw existingError
+    if (existing?.length) return extra.amountCents / 100
+
+    const { data: camper, error: camperError } = await supabaseAdmin
+      .from('campers')
+      .select('lot_number,first_name,last_name')
+      .eq('id', camperId)
+      .single()
+    if (camperError) throw camperError
+
+    const amount = extra.amountCents / 100
+    const { error: creditError } = await supabaseAdmin.from('account_credits').insert({
+      camper_id: camperId,
+      lot_number: camper.lot_number,
+      camper_name: `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || `Lot ${camper.lot_number || '—'}`,
+      original_amount: amount,
+      remaining_amount: amount,
+      reason: extra.destination === 'lot_rent' ? 'Future lot rent credit' : 'General account credit',
+      notes: extra.destination === 'lot_rent'
+        ? 'Camper chose to reserve this online extra payment for future lot rent.'
+        : 'Camper chose to use this online extra payment for any future bill.',
+      applies_to: extra.destination,
+      source_reference: sourceReference,
+      status: 'active',
+      created_by: 'Stripe camper checkout',
+    })
+
+    if (creditError?.code !== '23505') {
+      if (creditError) throw creditError
+    }
+    return amount
+  }
+
   async function loadAndVerifyCheckoutInvoices(session: Stripe.Checkout.Session) {
     const invoiceIds = checkoutInvoiceIds(session)
     if (invoiceIds.length === 0) return null
@@ -104,10 +164,11 @@ export async function POST(request: Request) {
       0
     )
     const processingFeeCents = Math.max(0, Math.round(Number(session.metadata?.processing_fee_cents || 0)))
+    const extraPaymentCents = extraPaymentDetails(session.metadata).amountCents
     const camperIds = new Set(invoices.map((invoice) => String(invoice.camper_id)))
 
     if (
-      expectedAmount + processingFeeCents !== session.amount_total ||
+      expectedAmount + extraPaymentCents + processingFeeCents !== session.amount_total ||
       camperIds.size !== 1 ||
       (session.metadata?.camper_id && !camperIds.has(session.metadata.camper_id))
     ) {
@@ -166,6 +227,7 @@ export async function POST(request: Request) {
     if (alreadyPaid) {
       const review = priorPaymentReview(invoices, paymentReference)
       if (review.needsReview) await notifyDuplicatePayment(paymentReference, Number(session.amount_total || 0), invoices)
+      else await recordExtraPaymentCredit({ paymentReference, camperId: String(invoices[0]?.camper_id || ''), metadata: session.metadata })
       return
     }
 
@@ -188,7 +250,13 @@ export async function POST(request: Request) {
       return
     }
 
-    const amountPaid = invoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+    const extraPayment = await recordExtraPaymentCredit({
+      paymentReference,
+      camperId: String(invoices[0]?.camper_id || ''),
+      metadata: session.metadata,
+    })
+
+    const amountPaid = invoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0) + extraPayment
 
     await sendPaymentReceivedAlert({
       admin: supabaseAdmin,
@@ -324,11 +392,12 @@ export async function POST(request: Request) {
             0
           )
           const processingFeeCents = Math.max(0, Math.round(Number(intent.metadata.processing_fee_cents || 0)))
+          const extraPaymentCents = extraPaymentDetails(intent.metadata).amountCents
           const camperIds = new Set(invoices.map((invoice) => String(invoice.camper_id)))
           const receivedAmount = intent.amount_received || intent.amount
 
           if (
-            invoiceSubtotalCents + processingFeeCents !== receivedAmount ||
+            invoiceSubtotalCents + extraPaymentCents + processingFeeCents !== receivedAmount ||
             camperIds.size !== 1 ||
             (intent.metadata.camper_id && !camperIds.has(intent.metadata.camper_id))
           ) {
@@ -340,6 +409,7 @@ export async function POST(request: Request) {
           if (alreadyPaid) {
             const review = priorPaymentReview(invoices, intent.id)
             if (review.needsReview) await notifyDuplicatePayment(intent.id, receivedAmount, invoices)
+            else await recordExtraPaymentCredit({ paymentReference: intent.id, camperId: String(invoices[0]?.camper_id || ''), metadata: intent.metadata })
           } else {
             const isAch = intent.payment_method_types.includes('us_bank_account')
             const { data: updatedInvoices, error: invoiceUpdateError } = await supabaseAdmin
@@ -360,11 +430,16 @@ export async function POST(request: Request) {
             if (!updatedInvoices || updatedInvoices.length !== invoiceIds.length) {
               await notifyIfDistinctPayment(intent.id, receivedAmount, invoiceIds)
             } else {
+              const extraPayment = await recordExtraPaymentCredit({
+                paymentReference: intent.id,
+                camperId: String(invoices[0]?.camper_id || ''),
+                metadata: intent.metadata,
+              })
               await sendPaymentReceivedAlert({
                 admin: supabaseAdmin,
                 invoiceIds,
                 camperId: invoices[0]?.camper_id,
-                amountPaid: invoiceSubtotalCents / 100,
+                amountPaid: invoiceSubtotalCents / 100 + extraPayment,
                 paymentType: 'Online payment',
                 origin: getSiteUrl(),
               })

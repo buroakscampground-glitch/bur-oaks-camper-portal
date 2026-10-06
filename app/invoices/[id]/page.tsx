@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 import { useParams } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../../lib/supabase'
-import { checkoutItems, type InvoicePaymentMethod } from '../../../lib/stripe'
+import { checkoutItems, type ExtraPaymentDestination, type InvoicePaymentMethod } from '../../../lib/stripe'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../../lib/invoice-display'
 import {
   achProcessingFeeLabel,
@@ -63,6 +63,8 @@ export default function CamperInvoiceDetailPage() {
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
   const [authorizedFamilyBilling, setAuthorizedFamilyBilling] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>('card')
+  const [extraPayment, setExtraPayment] = useState('')
+  const [extraPaymentDestination, setExtraPaymentDestination] = useState<ExtraPaymentDestination>('lot_rent')
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [smsSaving, setSmsSaving] = useState(false)
   const [smsMessage, setSmsMessage] = useState('')
@@ -240,6 +242,9 @@ export default function CamperInvoiceDetailPage() {
         `${window.location.origin}/invoices`,
         [invoice.id],
         paymentMethod,
+        extraPaymentAmount > 0
+          ? { amountCents: Math.round(extraPaymentAmount * 100), destination: extraPaymentDestination }
+          : undefined,
       )
     } catch (error: any) {
       setMessage(error.message || 'Unable to start secure checkout.')
@@ -290,10 +295,12 @@ export default function CamperInvoiceDetailPage() {
   const isProcessing = normalizedInvoiceStatus(invoice) === 'processing'
   const isClosed = isInvoiceClosed(invoice)
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
+  const extraPaymentAmount = Math.min(10_000, Math.max(0, Number(extraPayment) || 0))
+  const paymentSubtotal = Number(invoice.total_due || 0) + extraPaymentAmount
   const processingFee = paymentMethod === 'card'
-    ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
-    : calculateAchProcessingFee(Number(invoice.total_due || 0))
-  const payToday = Number(invoice.total_due || 0) + processingFee
+    ? calculateCardProcessingFee(paymentSubtotal, feeSettings)
+    : calculateAchProcessingFee(paymentSubtotal)
+  const payToday = paymentSubtotal + processingFee
   const visibleItemLines = items.length
     ? items.map((item) => ({
         key: item.id || item.description,
@@ -407,6 +414,15 @@ export default function CamperInvoiceDetailPage() {
             </div>
           )}
 
+          {!isPaid && !isProcessing && !isClosed && (
+            <div className="camper-invoice-extra-payment account-extra-payment">
+              <div><strong>Want to pay extra?</strong><small>Optional. Choose exactly where the extra money may be used.</small></div>
+              <label><span>Extra amount</span><input type="number" min="0" max="10000" step="0.01" inputMode="decimal" value={extraPayment} onChange={(event) => setExtraPayment(event.target.value)} placeholder="$0.00" /></label>
+              <label><span>Use the extra for</span><select value={extraPaymentDestination} onChange={(event) => setExtraPaymentDestination(event.target.value === 'general' ? 'general' : 'lot_rent')}><option value="lot_rent">Future lot rent only</option><option value="general">Any future bill</option></select></label>
+              {extraPaymentAmount > 0 && <p><CheckCircle2 size={15} /><span><strong>{formatMoney(extraPaymentAmount)} extra</strong> will be saved for {extraPaymentDestination === 'lot_rent' ? 'future lot rent only' : 'the next bill that becomes due'}.</span></p>}
+            </div>
+          )}
+
           <div className="camper-invoice-total-box">
             <p><span>Subtotal</span><strong>{formatMoney(subtotal || invoice.subtotal || invoice.total_due)}</strong></p>
             <p><span>Late fee</span><strong>{formatMoney(invoice.late_fee)}</strong></p>
@@ -414,6 +430,7 @@ export default function CamperInvoiceDetailPage() {
             {!isPaid && !isProcessing && !isClosed && (
               <>
                 <p><span>{paymentMethod === 'ach' ? achProcessingFeeLabel : feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>
+                {extraPaymentAmount > 0 && <p><span>Extra payment · {extraPaymentDestination === 'lot_rent' ? 'future lot rent only' : 'any future bill'}</span><strong>{formatMoney(extraPaymentAmount)}</strong></p>}
                 <p className="grand-total"><span>{paymentMethod === 'ach' ? 'ACH bank payment' : 'Total charged by card today'}</span><strong>{formatMoney(payToday)}</strong></p>
                 <small className="camper-invoice-processing-note">
                   {paymentMethod === 'ach'

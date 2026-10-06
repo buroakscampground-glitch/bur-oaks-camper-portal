@@ -23,7 +23,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
-import { checkoutItems, type InvoicePaymentMethod } from '../../lib/stripe'
+import { checkoutItems, type ExtraPaymentDestination, type InvoicePaymentMethod } from '../../lib/stripe'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
 import { fallbackInvoiceLine, invoiceLineDetails } from '../../lib/invoice-display'
 import {
@@ -145,6 +145,7 @@ export default function InvoicesPage() {
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [processingInvoiceId, setProcessingInvoiceId] = useState('')
   const [creditBalance, setCreditBalance] = useState(0)
+  const [creditDetails, setCreditDetails] = useState({ lotRent: 0, general: 0 })
   const [autoPayStatus, setAutoPayStatus] = useState<any>({ enabled: false })
   const [autoPayPreference, setAutoPayPreference] = useState<AutoPayPreference>('both')
   const [autoPayPaymentMethod, setAutoPayPaymentMethod] = useState<AutoPayPaymentMethod>('card')
@@ -157,6 +158,8 @@ export default function InvoicesPage() {
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
   const [familyBillingAccounts, setFamilyBillingAccounts] = useState<any[]>([])
   const [invoicePaymentMethod, setInvoicePaymentMethod] = useState<InvoicePaymentMethod>('card')
+  const [extraPayment, setExtraPayment] = useState('')
+  const [extraPaymentDestination, setExtraPaymentDestination] = useState<ExtraPaymentDestination>('lot_rent')
 
   useEffect(() => {
     async function loadAccount() {
@@ -195,11 +198,15 @@ export default function InvoicesPage() {
               .catch(async () => {
                 const [invoiceFallback, creditFallback] = await Promise.all([
                   supabase.from('invoices').select('*, invoice_items(*)').eq('camper_id', camperData.id).order('due_date', { ascending: false }),
-                  supabase.from('account_credits').select('remaining_amount,status').eq('camper_id', camperData.id).eq('status', 'active').gt('remaining_amount', 0),
+                  supabase.from('account_credits').select('remaining_amount,status,applies_to').eq('camper_id', camperData.id).eq('status', 'active').gt('remaining_amount', 0),
                 ])
                 return {
                   invoices: invoiceFallback.data || [],
                   accountCredit: (creditFallback.data || []).reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+                  accountCreditDetails: {
+                    lotRent: (creditFallback.data || []).filter((credit) => credit.applies_to === 'lot_rent').reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+                    general: (creditFallback.data || []).filter((credit) => credit.applies_to !== 'lot_rent').reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+                  },
                 }
               })
           : Promise.resolve({ invoices: [], accountCredit: 0 }),
@@ -214,6 +221,10 @@ export default function InvoicesPage() {
       setInvoices(invoiceAccount.invoices || [])
       setFeeSettings(paymentFeeSettings)
       setCreditBalance(Number(invoiceAccount.accountCredit || 0))
+      setCreditDetails({
+        lotRent: Number(invoiceAccount.accountCreditDetails?.lotRent || 0),
+        general: Number(invoiceAccount.accountCreditDetails?.general || 0),
+      })
       if (familyBillingResponse?.ok) {
         const familyBilling = await familyBillingResponse.json()
         setFamilyBillingAccounts(familyBilling.accounts || [])
@@ -348,12 +359,14 @@ export default function InvoicesPage() {
   const selectedTotal = payableInvoices
     .filter((invoice) => selectedInvoices.includes(invoice.id))
     .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+  const extraPaymentAmount = Math.min(10_000, Math.max(0, Number(extraPayment) || 0))
+  const selectedPaymentSubtotal = selectedTotal + (selectedInvoices.length ? extraPaymentAmount : 0)
   const selectedProcessingFee = selectedInvoices.length
     ? invoicePaymentMethod === 'card'
-      ? calculateCardProcessingFee(selectedTotal, feeSettings)
-      : calculateAchProcessingFee(selectedTotal)
+      ? calculateCardProcessingFee(selectedPaymentSubtotal, feeSettings)
+      : calculateAchProcessingFee(selectedPaymentSubtotal)
     : 0
-  const selectedChargeTotal = selectedTotal + selectedProcessingFee
+  const selectedChargeTotal = selectedPaymentSubtotal + selectedProcessingFee
   const groupedInvoices = Object.fromEntries(
     [...invoiceFilterOptions.map((option) => option.key), 'processing'].map((key) => [
       key,
@@ -396,7 +409,10 @@ export default function InvoicesPage() {
         `${window.location.origin}/success`,
         `${window.location.origin}/invoices`,
         invoicesToPay.map((invoice) => invoice.id),
-        invoicePaymentMethod
+        invoicePaymentMethod,
+        extraPaymentAmount > 0
+          ? { amountCents: Math.round(extraPaymentAmount * 100), destination: extraPaymentDestination }
+          : undefined,
       )
     } catch (error: any) {
       window.alert(error.message || 'Unable to start Stripe checkout.')
@@ -485,7 +501,7 @@ export default function InvoicesPage() {
 
         <section className="account-summary" aria-label="Account summary">
           <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>Open balance</small><strong>{formatMoney(totalOpenBalance)}</strong></span></div>
-          <div><span className="account-summary-icon green"><WalletCards size={21} /></span><span><small>Account credit</small><strong>{formatMoney(creditBalance)}</strong></span></div>
+          <div><span className="account-summary-icon green"><WalletCards size={21} /></span><span><small>Account credit</small><strong>{formatMoney(creditBalance)}</strong>{creditBalance > 0 && <em>{creditDetails.lotRent > 0 ? `${formatMoney(creditDetails.lotRent)} lot rent only` : ''}{creditDetails.lotRent > 0 && creditDetails.general > 0 ? ' · ' : ''}{creditDetails.general > 0 ? `${formatMoney(creditDetails.general)} any bill` : ''}</em>}</span></div>
           <div><span className="account-summary-icon green"><CheckCircle2 size={21} /></span><span><small>Paid invoices</small><strong>{paidInvoices.length}</strong></span></div>
           <div><span className="account-summary-icon blue"><FileText size={21} /></span><span><small>Total history</small><strong>{invoices.length}</strong></span></div>
           <div><span className="account-summary-icon plum"><CreditCard size={21} /></span><span><small>AutoPay</small><strong>{autoPayStatus.enabled ? 'Active' : 'Not enrolled'}</strong></span></div>
@@ -648,6 +664,15 @@ export default function InvoicesPage() {
             )}
 
             {visiblePayableInvoices.length > 0 && (
+              <div className="account-extra-payment">
+                <div><strong>Want to pay extra?</strong><small>Optional. The extra becomes a protected credit after Stripe confirms the payment.</small></div>
+                <label><span>Extra amount</span><input type="number" min="0" max="10000" step="0.01" inputMode="decimal" value={extraPayment} onChange={(event) => setExtraPayment(event.target.value)} placeholder="$0.00" /></label>
+                <label><span>Use the extra for</span><select value={extraPaymentDestination} onChange={(event) => setExtraPaymentDestination(event.target.value === 'general' ? 'general' : 'lot_rent')}><option value="lot_rent">Future lot rent only</option><option value="general">Any future bill</option></select></label>
+                {extraPaymentAmount > 0 && <p><ShieldCheck size={15} /><span><strong>{formatMoney(extraPaymentAmount)} extra</strong> will be saved for {extraPaymentDestination === 'lot_rent' ? 'future lot rent only' : 'the next bill that becomes due'}.</span></p>}
+              </div>
+            )}
+
+            {visiblePayableInvoices.length > 0 && (
               <div className="account-selection-bar">
                 <div>
                   <strong>{selectedInvoices.length || 'No'} selected</strong>
@@ -655,8 +680,8 @@ export default function InvoicesPage() {
                   {selectedInvoices.length > 0 && (
                     <small className="account-processing-fee-note">
                       {invoicePaymentMethod === 'ach'
-                        ? `ACH bank payment: invoice balance ${formatMoney(selectedTotal)} + ACH fee ${formatMoney(selectedProcessingFee)} = ACH total ${formatMoney(selectedChargeTotal)}`
-                        : `Card checkout: invoice balance ${formatMoney(selectedTotal)} + card fee ${formatMoney(selectedProcessingFee)} = card total ${formatMoney(selectedChargeTotal)}`}
+                        ? `ACH: ${formatMoney(selectedTotal)} bills${extraPaymentAmount > 0 ? ` + ${formatMoney(extraPaymentAmount)} extra` : ''} + ${formatMoney(selectedProcessingFee)} fee = ${formatMoney(selectedChargeTotal)}`
+                        : `Card: ${formatMoney(selectedTotal)} bills${extraPaymentAmount > 0 ? ` + ${formatMoney(extraPaymentAmount)} extra` : ''} + ${formatMoney(selectedProcessingFee)} fee = ${formatMoney(selectedChargeTotal)}`}
                     </small>
                   )}
                 </div>
@@ -695,9 +720,9 @@ export default function InvoicesPage() {
                   const statusBadge = invoiceStatusBadge(invoice)
                   const timingBucket = invoiceTimingBucket(invoice)
                   const processingFee = invoicePaymentMethod === 'card'
-                    ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
-                    : calculateAchProcessingFee(Number(invoice.total_due || 0))
-                  const payToday = Number(invoice.total_due || 0) + processingFee
+                    ? calculateCardProcessingFee(Number(invoice.total_due || 0) + extraPaymentAmount, feeSettings)
+                    : calculateAchProcessingFee(Number(invoice.total_due || 0) + extraPaymentAmount)
+                  const payToday = Number(invoice.total_due || 0) + extraPaymentAmount + processingFee
                   const invoiceItems = Array.isArray(invoice.invoice_items)
                     ? invoice.invoice_items
                     : []
@@ -752,8 +777,8 @@ export default function InvoicesPage() {
                         {!isPaid && !isProcessing && (
                           <small>
                             {invoicePaymentMethod === 'ach'
-                              ? `ACH bank payment: ${formatMoney(invoice.total_due)} invoice + ${formatMoney(processingFee)} ACH fee = ${formatMoney(payToday)}`
-                              : `Card checkout: ${formatMoney(invoice.total_due)} invoice + ${formatMoney(processingFee)} card fee = ${formatMoney(payToday)}`}
+                              ? `ACH: ${formatMoney(invoice.total_due)} invoice${extraPaymentAmount > 0 ? ` + ${formatMoney(extraPaymentAmount)} extra` : ''} + ${formatMoney(processingFee)} fee = ${formatMoney(payToday)}`
+                              : `Card: ${formatMoney(invoice.total_due)} invoice${extraPaymentAmount > 0 ? ` + ${formatMoney(extraPaymentAmount)} extra` : ''} + ${formatMoney(processingFee)} fee = ${formatMoney(payToday)}`}
                           </small>
                         )}
                       </div>

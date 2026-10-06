@@ -38,6 +38,11 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const paymentMethod = body.paymentMethod === 'ach' ? 'ach' : 'card'
+    const extraPaymentCents = Math.max(0, Math.round(Number(body.extraPayment?.amountCents || 0)))
+    const extraPaymentDestination = body.extraPayment?.destination === 'lot_rent' ? 'lot_rent' : 'general'
+    if (!Number.isSafeInteger(extraPaymentCents) || extraPaymentCents > 1_000_000) {
+      return NextResponse.json({ error: 'Extra payments must be between $0 and $10,000.' }, { status: 400 })
+    }
     const finalInvoiceToken = typeof body.finalInvoiceToken === 'string' ? body.finalInvoiceToken : ''
     const finalPayload = finalInvoiceToken ? verifyFinalInvoiceToken(finalInvoiceToken) : null
     let requestedIds = Array.isArray(body.invoiceIds)
@@ -158,10 +163,11 @@ export async function POST(request: Request) {
     const invoiceSubtotalCents = invoices.reduce((sum, invoice) => {
       return sum + Math.round(Number(invoice.total_due || 0) * 100)
     }, 0)
+    const paymentSubtotalCents = invoiceSubtotalCents + extraPaymentCents
     const feeSettings = await loadPaymentFeeSettings(admin)
     const processingFeeCents = paymentMethod === 'card'
-      ? calculateCardProcessingFeeCents(invoiceSubtotalCents, feeSettings)
-      : calculateAchProcessingFeeCents(invoiceSubtotalCents)
+      ? calculateCardProcessingFeeCents(paymentSubtotalCents, feeSettings)
+      : calculateAchProcessingFeeCents(paymentSubtotalCents)
 
     const lineItems = invoices.map((invoice) => {
       const amount = Math.round(Number(invoice.total_due || 0) * 100)
@@ -181,6 +187,21 @@ export async function POST(request: Request) {
         quantity: 1,
       }
     })
+
+    if (extraPaymentCents > 0) {
+      lineItems.push({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: extraPaymentDestination === 'lot_rent'
+              ? 'Extra payment — future lot rent only'
+              : 'Extra payment — any future bill',
+          },
+          unit_amount: extraPaymentCents,
+        },
+        quantity: 1,
+      })
+    }
 
     if (processingFeeCents > 0) {
       lineItems.push({
@@ -225,6 +246,8 @@ export async function POST(request: Request) {
         billedCamperId,
         [...verifiedInvoiceIds].sort().join(','),
         String(invoiceSubtotalCents),
+        String(extraPaymentCents),
+        extraPaymentDestination,
         String(processingFeeCents),
         paymentMethod,
         String(checkoutWindow),
@@ -254,6 +277,8 @@ export async function POST(request: Request) {
         purpose: 'invoice_payment',
         payment_method: paymentMethod,
         invoice_subtotal_cents: String(invoiceSubtotalCents),
+        extra_payment_cents: String(extraPaymentCents),
+        extra_payment_destination: extraPaymentDestination,
         processing_fee_cents: String(processingFeeCents),
       },
       payment_intent_data: {
@@ -265,6 +290,8 @@ export async function POST(request: Request) {
           purpose: 'invoice_payment',
           payment_method: paymentMethod,
           invoice_subtotal_cents: String(invoiceSubtotalCents),
+          extra_payment_cents: String(extraPaymentCents),
+          extra_payment_destination: extraPaymentDestination,
           processing_fee_cents: String(processingFeeCents),
         },
       },

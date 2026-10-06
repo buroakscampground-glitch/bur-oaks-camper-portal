@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       query,
       context.admin
         .from('account_credits')
-        .select('remaining_amount,status')
+        .select('remaining_amount,status,applies_to')
         .eq('camper_id', context.camper.id)
         .eq('status', 'active')
         .gt('remaining_amount', 0),
@@ -36,17 +36,22 @@ export async function GET(request: Request) {
       (sum: number, credit: any) => sum + Number(credit.remaining_amount || 0),
       0,
     )
+    const accountCreditDetails = {
+      lotRent: (credits || []).filter((credit: any) => credit.applies_to === 'lot_rent').reduce((sum: number, credit: any) => sum + Number(credit.remaining_amount || 0), 0),
+      general: (credits || []).filter((credit: any) => credit.applies_to !== 'lot_rent').reduce((sum: number, credit: any) => sum + Number(credit.remaining_amount || 0), 0),
+    }
 
     if (invoiceId) {
       const invoice = (invoices || [])[0] || null
       if (!invoice) return NextResponse.json({ error: 'This invoice is not available for your camper account.' }, { status: 404 })
-      return NextResponse.json({ camper: context.camper, invoice, accountCredit }, { headers: { 'Cache-Control': 'no-store' } })
+      return NextResponse.json({ camper: context.camper, invoice, accountCredit, accountCreditDetails }, { headers: { 'Cache-Control': 'no-store' } })
     }
 
     return NextResponse.json({
       camper: context.camper,
       invoices: (invoices || []).filter((invoice) => !isInvoiceClosed(invoice)),
       accountCredit,
+      accountCreditDetails,
     }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Unable to load camper invoices.' }, { status: 500 })
