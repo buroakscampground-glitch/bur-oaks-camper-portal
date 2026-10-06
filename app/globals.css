@@ -15405,6 +15405,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 .account-extra-payment input,.account-extra-payment select { width: 100%; min-height: 44px; border: 1px solid #d6c68d!important; border-radius: 11px!important; background: #fff!important; color: #294632!important; }
 .account-extra-payment > p { grid-column: 1/-1; display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 11px; background: #eaf4e7; color: #315f3d; font-size: 11px; }
 .account-extra-payment > p strong { display: inline; }
+.account-extra-payment > p.error { background: #fae7e2; color: #953f35; }
 
 @media (max-width: 760px) {
   .account-payment-method-choice > div,

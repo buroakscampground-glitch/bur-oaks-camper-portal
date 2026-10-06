@@ -12,8 +12,11 @@ test('camper checkout offers an explicit extra-payment destination', () => {
   for (const page of [invoices, invoice]) {
     assert.match(page, /Future lot rent only/)
     assert.match(page, /Any future bill/)
-    assert.match(page, /amountCents: Math\.round\(extraPaymentAmount \* 100\)/)
+    assert.match(page, /Total payment amount/)
+    assert.match(page, /remainder/)
   }
+  assert.match(invoices, /amountCents: Math\.round\(extraAmount \* 100\)/)
+  assert.match(invoice, /amountCents: Math\.round\(extraPaymentAmount \* 100\)/)
   assert.match(checkout, /extra_payment_destination/)
   assert.match(checkout, /Extra payment — future lot rent only/)
   assert.match(checkout, /paymentSubtotalCents = invoiceSubtotalCents \+ extraPaymentCents/)

@@ -63,7 +63,7 @@ export default function CamperInvoiceDetailPage() {
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
   const [authorizedFamilyBilling, setAuthorizedFamilyBilling] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>('card')
-  const [extraPayment, setExtraPayment] = useState('')
+  const [paymentTotal, setPaymentTotal] = useState('')
   const [extraPaymentDestination, setExtraPaymentDestination] = useState<ExtraPaymentDestination>('lot_rent')
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [smsSaving, setSmsSaving] = useState(false)
@@ -224,6 +224,10 @@ export default function CamperInvoiceDetailPage() {
 
   async function payInvoice() {
     if (!invoice) return
+    if (paymentUnderAmount) {
+      setMessage(`This invoice requires ${formatMoney(invoice.total_due)}. Enter at least the amount due.`)
+      return
+    }
 
     setPaying(true)
     setMessage('')
@@ -295,8 +299,11 @@ export default function CamperInvoiceDetailPage() {
   const isProcessing = normalizedInvoiceStatus(invoice) === 'processing'
   const isClosed = isInvoiceClosed(invoice)
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
-  const extraPaymentAmount = Math.min(10_000, Math.max(0, Number(extraPayment) || 0))
-  const paymentSubtotal = Number(invoice.total_due || 0) + extraPaymentAmount
+  const invoiceBalance = Number(invoice.total_due || 0)
+  const enteredPaymentTotal = Math.min(10_000, Math.max(0, Number(paymentTotal) || 0))
+  const paymentUnderAmount = enteredPaymentTotal > 0 && enteredPaymentTotal < invoiceBalance
+  const paymentSubtotal = Math.max(invoiceBalance, enteredPaymentTotal || invoiceBalance)
+  const extraPaymentAmount = Math.max(0, paymentSubtotal - invoiceBalance)
   const processingFee = paymentMethod === 'card'
     ? calculateCardProcessingFee(paymentSubtotal, feeSettings)
     : calculateAchProcessingFee(paymentSubtotal)
@@ -416,10 +423,11 @@ export default function CamperInvoiceDetailPage() {
 
           {!isPaid && !isProcessing && !isClosed && (
             <div className="camper-invoice-extra-payment account-extra-payment">
-              <div><strong>Want to pay extra?</strong><small>Optional. Choose exactly where the extra money may be used.</small></div>
-              <label><span>Extra amount</span><input type="number" min="0" max="10000" step="0.01" inputMode="decimal" value={extraPayment} onChange={(event) => setExtraPayment(event.target.value)} placeholder="$0.00" /></label>
-              <label><span>Use the extra for</span><select value={extraPaymentDestination} onChange={(event) => setExtraPaymentDestination(event.target.value === 'general' ? 'general' : 'lot_rent')}><option value="lot_rent">Future lot rent only</option><option value="general">Any future bill</option></select></label>
-              {extraPaymentAmount > 0 && <p><CheckCircle2 size={15} /><span><strong>{formatMoney(extraPaymentAmount)} extra</strong> will be saved for {extraPaymentDestination === 'lot_rent' ? 'future lot rent only' : 'the next bill that becomes due'}.</span></p>}
+              <div><strong>Pay the bill—or pay more</strong><small>Enter the total amount you want charged. We will identify and protect any remainder.</small></div>
+              <label><span>Total payment amount</span><input type="number" min={invoiceBalance} max="10000" step="0.01" inputMode="decimal" value={paymentTotal} onChange={(event) => setPaymentTotal(event.target.value)} placeholder={formatMoney(invoiceBalance)} /></label>
+              <label><span>Put any remainder toward</span><select value={extraPaymentDestination} onChange={(event) => setExtraPaymentDestination(event.target.value === 'general' ? 'general' : 'lot_rent')}><option value="lot_rent">Future lot rent only</option><option value="general">Any future bill</option></select></label>
+              {extraPaymentAmount > 0 && <p><CheckCircle2 size={15} /><span>Payment covers <strong>{formatMoney(invoiceBalance)}</strong>. The <strong>{formatMoney(extraPaymentAmount)} remainder</strong> will be saved for {extraPaymentDestination === 'lot_rent' ? 'future lot rent only' : 'the next bill that becomes due'}.</span></p>}
+              {paymentUnderAmount && <p className="error"><span>This invoice requires <strong>{formatMoney(invoiceBalance)}</strong>. The payment cannot be lower than the amount due.</span></p>}
             </div>
           )}
 
@@ -449,7 +457,7 @@ export default function CamperInvoiceDetailPage() {
             ) : isClosed ? (
               <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice was canceled. Nothing is owed.</span>
             ) : (
-              <button type="button" onClick={payInvoice} disabled={paying}>
+              <button type="button" onClick={payInvoice} disabled={paying || paymentUnderAmount}>
                 <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : `${paymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} ${formatMoney(payToday)}`} <ChevronRight size={16} />
               </button>
             )}
