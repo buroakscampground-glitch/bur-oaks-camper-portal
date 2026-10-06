@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   UserRound,
   UsersRound,
+  WalletCards,
   Wrench,
   Zap,
 } from 'lucide-react'
@@ -38,7 +39,7 @@ import { contractPaymentSnapshot } from '../../../../lib/contract-payment-snapsh
 import { camperHouseholdName, primaryCamperName, secondaryCamperName } from '../../../../lib/camper-household'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
-type HistoryView = 'activity' | 'documents' | 'billing' | 'site' | 'messages' | 'electric'
+type HistoryView = 'activity' | 'documents' | 'billing' | 'credits' | 'site' | 'messages' | 'electric'
 
 type Camper = {
   id: string
@@ -157,7 +158,7 @@ export default function CamperDetailPage() {
 
   useEffect(() => {
     const requestedView = new URLSearchParams(window.location.search).get('history') as HistoryView | null
-    if (requestedView && ['activity', 'documents', 'billing', 'site', 'messages', 'electric'].includes(requestedView)) {
+    if (requestedView && ['activity', 'documents', 'billing', 'credits', 'site', 'messages', 'electric'].includes(requestedView)) {
       setHistoryView(requestedView)
     }
   }, [])
@@ -603,6 +604,7 @@ export default function CamperDetailPage() {
     activity: Number(history?.summary?.activityItems || 0),
     documents: Number(history?.summary?.totalDocuments || 0),
     billing: Number(history?.summary?.totalInvoices || 0),
+    credits: Number(history?.summary?.totalCredits || 0),
     site: Number(history?.summary?.totalNotices || 0) + Number(history?.summary?.maintenanceItems || 0) + Number(history?.summary?.pumpOuts || 0),
     messages: Number(history?.summary?.messages || 0),
     electric: Number(history?.summary?.electricReadings || 0),
@@ -652,6 +654,10 @@ export default function CamperDetailPage() {
         <article>
           <span className="plum"><CalendarDays size={20} /></span>
           <div><small>Annual lot rent</small><strong>{annualLotRent ? `$${Number(annualLotRent).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Not entered'}</strong></div>
+        </article>
+        <article>
+          <span className="green"><WalletCards size={20} /></span>
+          <div><small>Available credit</small><strong>${Number(history?.summary?.activeCreditBalance || 0).toFixed(2)}</strong></div>
         </article>
       </section>
 
@@ -742,6 +748,7 @@ export default function CamperDetailPage() {
             <article><small>Signed documents</small><strong>{history.summary.signedDocuments} of {history.summary.totalDocuments}</strong><span>Signature records kept</span></article>
             <article><small>Paid invoices</small><strong>{history.summary.paidInvoices} of {history.summary.totalInvoices}</strong><span>{history.summary.lateInvoices} paid late / past due</span></article>
             <article><small>Current balance</small><strong>${Number(history.summary.openBalance || 0).toFixed(2)}</strong><span>All open invoices</span></article>
+            <article><small>Account credit</small><strong>${Number(history.summary.activeCreditBalance || 0).toFixed(2)}</strong><span>${Number(history.summary.creditsApplied || 0).toFixed(2)} applied in full history</span></article>
             <article className={history.usage?.signal === 'no_activity' ? 'usage-alert' : history.usage && history.usage.signal !== 'regular' ? 'usage-warning' : ''}><small>Season usage</small><strong>{history.usage ? `${Math.round(history.usage.totalKwh).toLocaleString()} kWh` : 'No data'}</strong><span>{history.usage ? `${history.usage.usageBand} · ${history.usage.readingCount} reading${history.usage.readingCount === 1 ? '' : 's'}` : 'No seasonal baseline'}</span></article>
           </div>
 
@@ -749,6 +756,7 @@ export default function CamperDetailPage() {
             <HistoryTab active={historyView === 'activity'} onClick={() => setHistoryView('activity')} icon={<History />} label="All activity" count={historyCounts.activity} />
             <HistoryTab active={historyView === 'documents'} onClick={() => setHistoryView('documents')} icon={<FileText />} label="Documents" count={historyCounts.documents} />
             <HistoryTab active={historyView === 'billing'} onClick={() => setHistoryView('billing')} icon={<ReceiptText />} label="Billing & payments" count={historyCounts.billing} />
+            <HistoryTab active={historyView === 'credits'} onClick={() => setHistoryView('credits')} icon={<WalletCards />} label="Credits" count={historyCounts.credits} />
             <HistoryTab active={historyView === 'site'} onClick={() => setHistoryView('site')} icon={<Wrench />} label="Site & maintenance" count={historyCounts.site} />
             <HistoryTab active={historyView === 'messages'} onClick={() => setHistoryView('messages')} icon={<MessageCircle />} label="Messages" count={historyCounts.messages} />
             <HistoryTab active={historyView === 'electric'} onClick={() => setHistoryView('electric')} icon={<Zap />} label="Electric" count={historyCounts.electric} />
@@ -779,6 +787,37 @@ export default function CamperDetailPage() {
                 {!!invoice.invoice_items?.length && <ul>{invoice.invoice_items.map((item: any) => <li key={item.id}><span>{item.description || 'Charge'}</span><strong>${Number(item.total ?? item.unit_price ?? 0).toFixed(2)}</strong></li>)}</ul>}
                 <button type="button" onClick={() => router.push(`/admin/invoices/${invoice.id}`)}>Open invoice</button>
               </article>)}
+            </HistoryList>}
+
+            {historyView === 'credits' && <HistoryList empty="No account credits are saved for this camper yet.">
+              {(history.credits || []).map((credit: any) => {
+                const original = Number(credit.original_amount || 0)
+                const remaining = Number(credit.remaining_amount || 0)
+                const applied = Math.max(0, original - remaining)
+                const applications = (history.creditApplications || []).filter((application: any) => application.credit_id === credit.id)
+                return <article className="admin-history-credit" key={credit.id}>
+                  <header>
+                    <div><small>{credit.reason || 'ACCOUNT CREDIT'}</small><strong>${original.toFixed(2)} original credit</strong></div>
+                    <span className={remaining > 0 ? 'active' : 'used'}>{remaining > 0 ? `$${remaining.toFixed(2)} available` : 'Fully used'}</span>
+                  </header>
+                  <div className="admin-history-credit-totals">
+                    <span><small>Applied</small><strong>${applied.toFixed(2)}</strong></span>
+                    <span><small>Remaining</small><strong>${remaining.toFixed(2)}</strong></span>
+                    <span><small>Created</small><strong>{formatHistoryDate(credit.created_at)}</strong></span>
+                  </div>
+                  {credit.notes && <p>{credit.notes}</p>}
+                  {applications.length > 0 && <div className="admin-history-credit-applications">
+                    <b>Applied to</b>
+                    {applications.map((application: any) => {
+                      const invoice = Array.isArray(application.invoices) ? application.invoices[0] : application.invoices
+                      return <button type="button" key={application.id} onClick={() => invoice?.id && router.push(`/admin/invoices/${invoice.id}`)}>
+                        <span><strong>${Number(application.amount_applied || 0).toFixed(2)} → {invoice?.invoice_type || 'Invoice'}</strong><small>{invoice?.invoice_number || 'Invoice record'} · due {formatHistoryDate(invoice?.due_date)}</small></span>
+                        <em>Applied {formatHistoryDate(application.applied_at)}</em>
+                      </button>
+                    })}
+                  </div>}
+                </article>
+              })}
             </HistoryList>}
 
             {historyView === 'site' && <HistoryList empty="No site-care, maintenance, or pump-out history is saved yet.">

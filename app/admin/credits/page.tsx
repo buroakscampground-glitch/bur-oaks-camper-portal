@@ -51,7 +51,7 @@ export default function AdminCreditsPage() {
     const [camperResult, creditResult, applicationResult] = await Promise.all([
       supabase.from('campers').select('id,first_name,last_name,lot_number,email,active,role').eq('active', true).order('lot_number'),
       supabase.from('account_credits').select('*').order('created_at', { ascending: false }),
-      supabase.from('account_credit_applications').select('*, invoices(invoice_number)').order('applied_at', { ascending: false }).limit(200),
+      supabase.from('account_credit_applications').select('*, invoices(id,invoice_number,invoice_type,due_date,status,total_due)').order('applied_at', { ascending: false }).limit(500),
     ])
 
     if (camperResult.error) setMessage(camperResult.error.message)
@@ -272,9 +272,16 @@ export default function AdminCreditsPage() {
                 <h2>{credit.camper_name}</h2>
                 <p>{credit.reason}{credit.notes ? ` · ${credit.notes}` : ''}</p>
                 {creditApplications.length > 0 && (
-                  <em>
-                    Applied to {creditApplications.length} invoice{creditApplications.length === 1 ? '' : 's'}.
-                  </em>
+                  <div className="admin-credit-application-ledger">
+                    <strong>Where this credit went</strong>
+                    {creditApplications.map((application) => {
+                      const invoice = Array.isArray(application.invoices) ? application.invoices[0] : application.invoices
+                      return <a href={invoice?.id ? `/admin/invoices/${invoice.id}` : '#'} key={application.id}>
+                        <span>{formatCreditMoney(application.amount_applied)} applied to {invoice?.invoice_type || 'invoice'}</span>
+                        <small>{invoice?.invoice_number || 'Invoice record'} · due {formatDate(invoice?.due_date)} · applied {formatDate(application.applied_at)}</small>
+                      </a>
+                    })}
+                  </div>
                 )}
               </div>
               <div className="admin-credit-amount">

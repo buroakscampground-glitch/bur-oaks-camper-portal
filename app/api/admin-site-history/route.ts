@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const camperId = new URL(request.url).searchParams.get('camperId')?.trim() || ''
   if (!camperId) return NextResponse.json({ error: 'A camper is required.' }, { status: 400 })
 
-  const [camperResult, invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, usageCamperResult, usageReadingResult] = await Promise.all([
+  const [camperResult, invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, creditResult, creditApplicationResult, usageCamperResult, usageReadingResult] = await Promise.all([
     context.admin
       .from('campers')
       .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,phone,alternate_phone,second_profile_phone,active,camper_since_date')
@@ -40,6 +40,18 @@ export async function GET(request: Request) {
     context.admin.from('office_messages').select('id,sender_role,sender_name,body,read_by_admin_at,created_at').eq('camper_id', camperId).order('created_at', { ascending: false }).limit(1000),
     context.admin.from('electric_readings').select('id,reading_date,previous_reading,current_reading,kwh_used,rate_per_kwh,amount_due,invoice_id').eq('camper_id', camperId).order('reading_date', { ascending: false }).limit(1000),
     context.admin.from('season_renewals').select('id,status,contract_start_date,contract_end_date,renewal_sent_at,decision_recorded_at,renewal_document_id,notes,created_at,updated_at').eq('camper_id', camperId).maybeSingle(),
+    context.admin
+      .from('account_credits')
+      .select('id,original_amount,remaining_amount,reason,notes,status,applies_to,source_reference,created_by,created_at,updated_at')
+      .eq('camper_id', camperId)
+      .order('created_at', { ascending: false })
+      .limit(1000),
+    context.admin
+      .from('account_credit_applications')
+      .select('id,credit_id,invoice_id,amount_applied,applied_by,applied_at,invoices(id,invoice_number,invoice_type,due_date,status,total_due)')
+      .eq('camper_id', camperId)
+      .order('applied_at', { ascending: false })
+      .limit(1000),
     context.admin.from('campers').select('id,first_name,last_name,lot_number,role,active').eq('active', true),
     context.admin.from('electric_readings').select('camper_id,reading_date,kwh_used').order('reading_date', { ascending: true }),
   ])
@@ -47,7 +59,7 @@ export async function GET(request: Request) {
   if (camperResult.error || !camperResult.data) {
     return NextResponse.json({ error: camperResult.error?.message || 'The camper record could not be found.' }, { status: 404 })
   }
-  const relatedError = [invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, usageCamperResult, usageReadingResult].find((result) => result.error)?.error
+  const relatedError = [invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, creditResult, creditApplicationResult, usageCamperResult, usageReadingResult].find((result) => result.error)?.error
   if (relatedError) {
     return NextResponse.json({ error: relatedError.message || 'Site history could not be loaded.' }, { status: 500 })
   }
@@ -66,6 +78,8 @@ export async function GET(request: Request) {
   const messages = messageResult.data || []
   const readings = readingResult.data || []
   const renewal = renewalResult.data || null
+  const credits = creditResult.data || []
+  const creditApplications = creditApplicationResult.data || []
   const currentYear = Number(today.slice(0, 4))
   const usageRows = buildCamperSeasonUsage(
     usageCampersBySite(usageCamperResult.data || []),
@@ -82,6 +96,17 @@ export async function GET(request: Request) {
     ...documents.map((item) => ({ id: `document-${item.id}`, source_id: item.id, type: 'Document', title: item.document_name || item.document_type || 'Document', detail: item.signature_status || 'Pending', date: item.signed_at || null })),
     ...messages.map((item) => ({ id: `message-${item.id}`, type: 'Message', title: item.sender_role === 'camper' ? 'Camper messaged office' : 'Office messaged camper', detail: String(item.body || '').slice(0, 140), date: item.created_at })),
     ...readings.map((item) => ({ id: `electric-${item.id}`, type: 'Electric', title: `${Number(item.current_reading || 0).toLocaleString()} meter reading`, detail: `${Number(item.kwh_used || 0).toLocaleString()} kWh · $${Number(item.amount_due || 0).toFixed(2)}${item.invoice_id ? ' · invoiced' : ''}`, date: item.reading_date })),
+    ...creditApplications.map((item) => {
+      const invoice = Array.isArray(item.invoices) ? item.invoices[0] : item.invoices
+      return {
+        id: `credit-application-${item.id}`,
+        source_id: item.credit_id,
+        type: 'Credit',
+        title: `$${Number(item.amount_applied || 0).toFixed(2)} credit applied`,
+        detail: `${invoice?.invoice_type || 'Invoice'} · ${invoice?.invoice_number || 'invoice record'}`,
+        date: item.applied_at,
+      }
+    }),
     ...(renewal ? [{ id: `renewal-${renewal.id}`, source_id: renewal.renewal_document_id, type: 'Renewal', title: `Renewal decision: ${renewal.status}`, detail: renewal.contract_end_date ? `Contract through ${renewal.contract_end_date}` : 'Contract date not entered', date: renewal.decision_recorded_at || renewal.renewal_sent_at || renewal.updated_at || renewal.created_at }] : []),
   ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
 
@@ -95,6 +120,8 @@ export async function GET(request: Request) {
     messages,
     readings,
     renewal,
+    credits,
+    creditApplications,
     usage,
     activity,
     summary: {
@@ -110,6 +137,9 @@ export async function GET(request: Request) {
       pumpOuts: pumpOuts.length,
       messages: messages.length,
       electricReadings: readings.length,
+      totalCredits: credits.length,
+      activeCreditBalance: credits.reduce((total, credit) => total + (credit.status === 'active' ? Number(credit.remaining_amount || 0) : 0), 0),
+      creditsApplied: creditApplications.reduce((total, application) => total + Number(application.amount_applied || 0), 0),
       usageSignal: usage?.signal || 'no_data',
       activityItems: activity.length,
     },
