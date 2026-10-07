@@ -8,6 +8,64 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(dimensions.document).toBeLessThanOrEqual(dimensions.viewport + 1)
 }
 
+async function installSyntheticCamperSession(page: Page) {
+  const now = Math.floor(Date.now() / 1000)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'release-check-user', email: 'release-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.release-check`
+  const user = {
+    id: 'release-check-user',
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: 'release-check@example.invalid',
+    user_metadata: {},
+    app_metadata: {},
+    created_at: new Date(0).toISOString(),
+  }
+
+  await page.addInitScript(({ session }) => {
+    const originalGetItem = Storage.prototype.getItem
+    Storage.prototype.getItem = function getItem(key: string) {
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) return JSON.stringify(session)
+      return originalGetItem.call(this, key)
+    }
+  }, {
+    session: {
+      access_token: accessToken,
+      refresh_token: 'release-check-refresh-token',
+      token_type: 'bearer',
+      expires_in: 3600,
+      expires_at: now + 3600,
+      user,
+    },
+  })
+
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/.*/, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/auth/v1/user') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
+      return
+    }
+    if (url.pathname === '/rest/v1/campers') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'content-range': '0-0/1' },
+        body: JSON.stringify([{ id: 'release-check-camper', lot_number: 'TEST', first_name: 'Release', last_name: 'Check', email: user.email, role: 'camper', active: true }]),
+      })
+      return
+    }
+    await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic release-check read failure' }) })
+  })
+
+  for (const endpoint of ['/api/messages', '/api/camper-documents']) {
+    await page.route(endpoint, (route) => route.fulfill({
+      status: 503,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Synthetic release-check outage' }),
+    }))
+  }
+}
+
 test('health endpoint identifies the release without caching or customer data', async ({ request }) => {
   const response = await request.get('/api/health')
   expect(response.ok()).toBeTruthy()
@@ -90,5 +148,25 @@ test('signed-out visitors are returned to login with their private destination p
       url.pathname === login && url.searchParams.get('returnTo') === destination,
     )
     await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+  }
+})
+
+test('weak-connection recovery is actionable and contained on priority camper screens', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One required phone width covers synthetic failure recovery without touching production data.')
+  await installSyntheticCamperSession(page)
+
+  const recoveryChecks = [
+    { path: '/messages', message: 'We could not open your conversation' },
+    { path: '/documents', message: 'We could not open your documents' },
+    { path: '/maintenance', message: 'We could not open your maintenance requests' },
+  ]
+
+  for (const recovery of recoveryChecks) {
+    await page.goto(recovery.path)
+    await expect(page.getByRole('alert').filter({ hasText: recovery.message })).toBeVisible()
+    const retry = page.getByRole('button', { name: 'Try again' })
+    await expect(retry).toBeVisible()
+    expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(42)
+    await expectNoHorizontalOverflow(page)
   }
 })
