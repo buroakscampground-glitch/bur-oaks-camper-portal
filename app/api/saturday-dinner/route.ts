@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
+import { canonicalSaturdayDinnerSignups } from '../../../lib/saturday-dinner-metrics'
 import { saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { isUnchangedDinnerSignup } from '../../../lib/saturday-dinner-signup-state'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
@@ -42,8 +43,8 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     success: true,
-    signups: data || [],
-    publicSignups: (publicData || []).map((signup: any) => ({
+    signups: canonicalSaturdayDinnerSignups(data || []),
+    publicSignups: canonicalSaturdayDinnerSignups(publicData || []).map((signup: any) => ({
       id: signup.id,
       dinner_date: signup.dinner_date,
       lot_number: signup.lot_number,
@@ -77,6 +78,8 @@ export async function POST(request: Request) {
   if (!allowedStatuses.includes(status)) {
     return NextResponse.json({ error: 'Invalid dinner response.' }, { status: 400 })
   }
+
+  if (status === 'Not Going') bringing = ''
 
   if (dinnerDate === thanksgivingDinnerDate) {
     if (status === 'Not Going') {

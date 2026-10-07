@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { CalendarDays, CheckCircle2, Clock, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
+import { saturdayDinnerMetrics } from '../../lib/saturday-dinner-metrics'
 import { dinnerBringSuggestions, saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
@@ -59,6 +60,7 @@ export default function SaturdayDinnersPage() {
   const remainingMonthDinners = monthDinners.filter((dinner) => dinner.date >= new Date().toISOString().slice(0, 10) && !dinner.closed)
   const selectedDinnerSignups = publicSignups.filter((signup) => signup.dinner_date === selectedDinner?.date)
   const visibleDinnerSignups = selectedDinnerSignups.filter((signup) => signup.attending_status !== 'Not Going')
+  const selectedDinnerMetrics = saturdayDinnerMetrics(selectedDinnerSignups)
   const selectedDinnerSuggestions = dinnerBringSuggestions(selectedDinner?.menu || '')
   const normalizedCurrentBringing = String(
     bringChoice === 'Other' ? customBringing : bringChoice
@@ -276,30 +278,44 @@ export default function SaturdayDinnersPage() {
             </div>
             <small className="saturday-dinner-count-help">Your campsite total</small>
           </label>
-          <label className="bring-field bring-field-featured">
-            <span className="bring-field-callout">
-              <strong>{isSoupDay ? 'What kind of soup are you bringing?' : 'What side are you bringing?'}</strong>
-              <small>{isSoupDay ? 'Choose crackers or cheese below, or select soup and type the kind you plan to make.' : 'Choose a side, dessert, or helpful supply so everyone can see what is covered.'}</small>
-            </span>
-            <select aria-label={isSoupDay ? 'Soup, crackers, or cheese you are bringing' : 'Side, dessert, or supply you are bringing'} value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
-              <option value="">Nothing / not sure yet</option>
-              {availableBringSuggestions.map((item) => (
-                <option value={item} key={item}>{item}</option>
-              ))}
-              <option value="Other">{isSoupDay ? 'Soup — I will type the kind' : 'Other — I will type it in'}</option>
-            </select>
-          </label>
-          {bringChoice === 'Other' && (
+          {status !== 'Not Going' && <label className="bring-field bring-field-featured">
+              <span className="bring-field-callout">
+                <strong>{isSoupDay ? 'What kind of soup are you bringing?' : 'What side are you bringing?'}</strong>
+                <small>{isSoupDay ? 'Choose crackers or cheese below, or select soup and type the kind you plan to make.' : 'Choose a side, dessert, or helpful supply so everyone can see what is covered.'}</small>
+              </span>
+              <select aria-label={isSoupDay ? 'Soup, crackers, or cheese you are bringing' : 'Side, dessert, or supply you are bringing'} value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
+                <option value="">Nothing / not sure yet</option>
+                {availableBringSuggestions.map((item) => (
+                  <option value={item} key={item}>{item}</option>
+                ))}
+                <option value="Other">{isSoupDay ? 'Soup — I will type the kind' : 'Other — I will type it in'}</option>
+              </select>
+            </label>}
+          {status !== 'Not Going' && bringChoice === 'Other' && (
             <label className="bring-field">
               <span>{isSoupDay ? 'Kind of soup' : 'Other item'}</span>
               <input value={customBringing} onChange={(event) => setCustomBringing(event.target.value)} placeholder={isSoupDay ? 'Example: potato soup, chili, chicken noodle' : 'Example: brownies, fruit salad, lemonade'} />
             </label>
           )}
           <button className="saturday-dinner-save" type="button" onClick={saveDinnerSignup} disabled={saving || selectedDinner?.closed}>
-            <Send size={18} /> {saving ? 'Saving…' : 'Save RSVP + what I’m bringing'}
+            <Send size={18} /> {saving ? 'Saving…' : status === 'Not Going' ? 'Save not going' : 'Save RSVP + what I’m bringing'}
           </button>
         </div>
         {message && <p className="saturday-dinner-message">{message}</p>}
+
+        <section className="saturday-dinner-live-counts" aria-label="Current dinner response totals">
+          <header>
+            <small>LIVE DINNER COUNT</small>
+            <h3>{selectedDinner?.month} {selectedDinner?.day} responses</h3>
+            <p>People and campsite responses are shown separately so the totals always make sense.</p>
+          </header>
+          <div>
+            <article><small>People attending</small><strong>{selectedDinnerMetrics.confirmedPeople}</strong><span>{selectedDinnerMetrics.goingCampsites} campsite{selectedDinnerMetrics.goingCampsites === 1 ? '' : 's'} going</span></article>
+            <article><small>Maybe</small><strong>{selectedDinnerMetrics.maybeCampsites}</strong><span>{selectedDinnerMetrics.possiblePeople} possible people</span></article>
+            <article><small>Not going</small><strong>{selectedDinnerMetrics.notGoingCampsites}</strong><span>campsite responses</span></article>
+            <article><small>Dishes promised</small><strong>{selectedDinnerMetrics.confirmedDishes}</strong><span>{selectedDinnerMetrics.possibleDishes} more from maybe</span></article>
+          </div>
+        </section>
 
         <div className="saturday-dinner-bringing-board">
           <div>

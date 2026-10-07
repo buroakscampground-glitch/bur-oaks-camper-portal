@@ -44,6 +44,7 @@ import AdminWeather, { AdminWeatherNow } from '../../components/AdminWeather'
 import CommunityUnreadBadge from '../../components/CommunityUnreadBadge'
 import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { isOperationalCamper } from '../../lib/camper-records'
+import { saturdayDinnerMetrics } from '../../lib/saturday-dinner-metrics'
 import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 import { removeStaffPushFromThisPhone } from '../../lib/staff-push-client'
@@ -349,8 +350,7 @@ export default function AdminPage() {
     const todayIso = today.toISOString().slice(0, 10)
     const nextDinner = saturdayDinners2026.find((dinner) => dinner.date >= todayIso && !dinner.closed) || saturdayDinners2026.find((dinner) => !dinner.closed)
     const nextDinnerSignups = dinnerSignups.filter((signup) => signup.dinner_date === nextDinner?.date)
-    const nextDinnerGoing = nextDinnerSignups.filter((signup) => signup.attending_status === 'Going')
-    const nextDinnerMaybe = nextDinnerSignups.filter((signup) => signup.attending_status === 'Maybe')
+    const nextDinnerMetrics = saturdayDinnerMetrics(nextDinnerSignups)
     const upcomingEventIds = new Set((eventsResult.data || [])
       .filter((event: any) => !event.event_date || event.event_date >= todayIso)
       .map((event: any) => String(event.id)))
@@ -512,10 +512,10 @@ export default function AdminPage() {
       waitingToBill: electricSitesLeft + unbilledPumpOuts.length + unbilledSiteServices.length,
       dueSoonInvoices: dueSoonInvoices.length,
       almostDueAmount: dueSoonInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0),
-      nextDinnerGoing: nextDinnerGoing.length,
-      nextDinnerMaybe: nextDinnerMaybe.length,
-      nextDinnerGuests: nextDinnerGoing.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0),
-      nextDinnerDishes: nextDinnerSignups.filter((signup) => String(signup.bringing || '').trim()).length,
+      nextDinnerGoing: nextDinnerMetrics.goingCampsites,
+      nextDinnerMaybe: nextDinnerMetrics.maybeCampsites,
+      nextDinnerGuests: nextDinnerMetrics.confirmedPeople,
+      nextDinnerDishes: nextDinnerMetrics.confirmedDishes,
       nextEventRsvps: unifiedRsvps.filter((rsvp) => upcomingEventIds.has(String(rsvp.event_id))).length,
       nextEventTitle: nextEvent?.title || '',
       nextEventDate: nextEvent?.event_date || '',
@@ -602,7 +602,7 @@ export default function AdminPage() {
         { href: '/admin/birthdays', title: 'Birthday office', detail: 'Today, missed & upcoming', icon: CakeSlice },
         { href: '/admin/events', title: 'Events', detail: `${stats.events} scheduled`, icon: CalendarDays },
         { href: '/admin/rsvps', title: 'Event RSVPs', detail: `${stats.rsvps} responses`, icon: UsersRound },
-        { href: '/admin/dinners', title: 'Saturday dinners', detail: `${stats.nextDinnerGoing} going`, icon: Soup },
+        { href: '/admin/dinners', title: 'Saturday dinners', detail: `${stats.nextDinnerGoing} campsites going`, icon: Soup },
         { href: '/admin/notifications', title: 'Notifications', detail: `${stats.totalUnreadAlerts} unread`, icon: BellRing },
         { href: '/admin/settings', title: 'Settings', detail: 'Campground options', icon: Settings },
         { href: '/admin/launch', title: 'Launch checklist', detail: 'System readiness', icon: Rocket },
@@ -802,8 +802,8 @@ export default function AdminPage() {
             <a href="/admin/dinners">
               <Soup size={21} />
               <small>Saturday dinner</small>
-              <strong>{stats.nextDinnerGoing} going · {stats.nextDinnerMaybe} maybe</strong>
-              <span>{stats.nextDinnerGuests} guests · {stats.nextDinnerDishes} dishes listed</span>
+              <strong>{stats.nextDinnerGuests} people · {stats.nextDinnerGoing} campsites going</strong>
+              <span>{stats.nextDinnerMaybe} maybe · {stats.nextDinnerDishes} confirmed dishes</span>
             </a>
             <a href="/admin/events">
               <CalendarDays size={21} />

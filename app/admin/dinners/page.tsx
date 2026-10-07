@@ -1,15 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, Search, Soup, UsersRound, UtensilsCrossed } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { CalendarDays, CheckCircle2, CircleHelp, Search, Soup, UsersRound, UtensilsCrossed, XCircle } from 'lucide-react'
+import { saturdayDinnerMetrics } from '../../../lib/saturday-dinner-metrics'
 import { dinnerBringSuggestions, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { supabase } from '../../../lib/supabase'
 import { thanksgivingDinnerDate } from '../../../lib/thanksgiving-dinner'
 
 export default function AdminDinnersPage() {
+  const pathname = usePathname()
   const [signups, setSignups] = useState<any[]>([])
+  const [campers, setCampers] = useState<any[]>([])
   const [selectedDate, setSelectedDate] = useState('')
   const [search, setSearch] = useState('')
+  const [participationSearch, setParticipationSearch] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -37,6 +42,7 @@ export default function AdminDinnersPage() {
     const result = await response.json().catch(() => ({}))
     if (!response.ok) setMessage(result.error || 'Unable to load dinner responses.')
     setSignups(result.signups || [])
+    setCampers(result.campers || [])
   }
 
   const nextDinner = useMemo(() => {
@@ -56,9 +62,7 @@ export default function AdminDinnersPage() {
       .toLowerCase()
       .includes(search.toLowerCase())
   )
-  const going = dinnerSignups.filter((signup) => signup.attending_status === 'Going')
-  const maybe = dinnerSignups.filter((signup) => signup.attending_status === 'Maybe')
-  const totalGuests = going.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0)
+  const metrics = saturdayDinnerMetrics(dinnerSignups)
   const activeSignups = dinnerSignups.filter((signup) => signup.attending_status !== 'Not Going')
   const suggestedBringItems = dinnerBringSuggestions(selectedDinner?.menu || '')
   const bringOptions = [
@@ -68,6 +72,38 @@ export default function AdminDinnersPage() {
       .filter((item) => item && !suggestedBringItems.some((suggestion) => suggestion.toLowerCase() === item.toLowerCase()))))
       .map((label) => ({ label, custom: true })),
   ]
+  const trackedDinnerDates = useMemo(() => {
+    const respondedDates = signups.map((signup) => String(signup.dinner_date || '')).filter(Boolean).sort()
+    const firstTrackedDate = respondedDates[0] || nextDinner?.date || ''
+    const throughDate = nextDinner?.date || selectedDinner?.date || ''
+    return saturdayDinners2026
+      .filter((dinner) => !dinner.closed && dinner.date >= firstTrackedDate && dinner.date <= throughDate)
+      .map((dinner) => dinner.date)
+  }, [nextDinner?.date, selectedDinner?.date, signups])
+  const participationRows = useMemo(() => campers.map((camper) => {
+    const camperCreatedDate = String(camper.created_at || '').slice(0, 10)
+    const eligibleDates = trackedDinnerDates.filter((date) => !camperCreatedDate || date >= camperCreatedDate)
+    const camperSignups = signups.filter((signup) => String(signup.camper_id || '') === String(camper.id || '') && eligibleDates.includes(String(signup.dinner_date || '')))
+    const responseByDate = new Map(camperSignups.map((signup) => [String(signup.dinner_date || ''), signup]))
+    const goingCount = camperSignups.filter((signup) => signup.attending_status === 'Going').length
+    const maybeCount = camperSignups.filter((signup) => signup.attending_status === 'Maybe').length
+    const notGoingCount = camperSignups.filter((signup) => signup.attending_status === 'Not Going').length
+    const noResponseCount = eligibleDates.filter((date) => !responseByDate.has(date)).length
+    const name = `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper'
+    return {
+      id: String(camper.id || ''),
+      lotNumber: String(camper.lot_number || '—'),
+      name,
+      dinnersTracked: eligibleDates.length,
+      responded: camperSignups.length,
+      goingCount,
+      maybeCount,
+      notGoingCount,
+      noResponseCount,
+      responseRate: eligibleDates.length ? Math.round((camperSignups.length / eligibleDates.length) * 100) : 0,
+    }
+  }).filter((row) => `${row.name} ${row.lotNumber}`.toLowerCase().includes(participationSearch.toLowerCase()))
+    .sort((left, right) => right.noResponseCount - left.noResponseCount || left.responseRate - right.responseRate || left.lotNumber.localeCompare(right.lotNumber, undefined, { numeric: true })), [campers, participationSearch, signups, trackedDinnerDates])
 
   function selectDinner(dinnerDate: string) {
     if (dinnerDate === thanksgivingDinnerDate) {
@@ -104,9 +140,14 @@ export default function AdminDinnersPage() {
             ))}
           </select>
         </label>
-        <article><small>Going</small><strong>{going.length}</strong></article>
-        <article><small>Maybe</small><strong>{maybe.length}</strong></article>
-        <article><small>Expected plates</small><strong>{totalGuests}</strong></article>
+        <div className="admin-dinner-metric-grid" aria-label="Dinner response totals">
+          <article><small>People attending</small><strong>{metrics.confirmedPeople}</strong><span>{metrics.goingCampsites} campsite{metrics.goingCampsites === 1 ? '' : 's'} going</span></article>
+          <article><small>Maybe</small><strong>{metrics.maybeCampsites}</strong><span>{metrics.possiblePeople} possible people</span></article>
+          <article><small>Not going</small><strong>{metrics.notGoingCampsites}</strong><span>campsite responses</span></article>
+          <article><small>Total responses</small><strong>{metrics.responses}</strong><span>one per campsite</span></article>
+          <article><small>Confirmed dishes</small><strong>{metrics.confirmedDishes}</strong><span>{metrics.possibleDishes} more from maybe</span></article>
+          <article><small>Going, no dish</small><strong>{metrics.goingWithoutDish}</strong><span>follow-up list</span></article>
+        </div>
       </section>
 
       <p className="admin-dinner-message" role="status">Live updates are on — camper responses refresh automatically.</p>
@@ -138,9 +179,9 @@ export default function AdminDinnersPage() {
                   <span>{option.custom ? 'CAMPER ADDED' : selectedBy.length ? 'SELECTED' : 'AVAILABLE'}</span>
                   <strong>{option.label}</strong>
                   <p>{selectedBy.length
-                    ? selectedBy.map((signup) => `${signup.camper_name} · Lot ${signup.lot_number || 'N/A'}`).join(', ')
+                    ? selectedBy.map((signup) => `${signup.camper_name} · Lot ${signup.lot_number || 'N/A'} (${signup.attending_status})`).join(', ')
                     : 'No one has selected this yet.'}</p>
-                  {selectedBy.length > 0 && <em>{selectedBy.length} campsite{selectedBy.length === 1 ? '' : 's'}</em>}
+                  {selectedBy.length > 0 && <em>{selectedBy.length} promised dish{selectedBy.length === 1 ? '' : 'es'}</em>}
                 </article>
               )
             })}
@@ -161,12 +202,13 @@ export default function AdminDinnersPage() {
           {saturdayDinners2026.filter((dinner) => !dinner.closed).map((dinner) => {
             const mealSignups = signups.filter((signup) => signup.dinner_date === dinner.date && signup.attending_status !== 'Not Going')
             const selectedSides = Array.from(new Set(mealSignups.map((signup) => String(signup.bringing || '').trim()).filter(Boolean)))
+            const promisedDishes = mealSignups.filter((signup) => String(signup.bringing || '').trim()).length
             return (
               <details key={dinner.id}>
                 <summary>
                   <span>{dinner.month} {dinner.day}</span>
                   <strong>{dinner.menu}</strong>
-                  <em>{selectedSides.length} camper dish{selectedSides.length === 1 ? '' : 'es'}</em>
+                  <em>{promisedDishes} promised dish{promisedDishes === 1 ? '' : 'es'}</em>
                 </summary>
                 <div>
                   <p><strong>{dinner.date === '2026-09-26' ? 'Soup Day extras:' : 'Suggested side dishes:'}</strong> {dinnerBringSuggestions(dinner.menu).join(', ')}</p>
@@ -177,6 +219,38 @@ export default function AdminDinnersPage() {
           })}
         </div>
       </section>
+
+      {pathname.startsWith('/admin') && (
+        <section className="admin-dinner-participation">
+          <header>
+            <div>
+              <small>RESPONSE HISTORY</small>
+              <h2>Who answers—and who stays silent</h2>
+              <p>One dinner response per campsite. “No response” only counts tracked dinners through the next upcoming meal, never later dinners that are still too early to answer.</p>
+            </div>
+            <label><Search size={16} /><input value={participationSearch} onChange={(event) => setParticipationSearch(event.target.value)} placeholder="Search camper or lot" /></label>
+          </header>
+          <div className="admin-dinner-participation-key">
+            <span><CheckCircle2 size={15} /> Going</span>
+            <span><CircleHelp size={15} /> Maybe</span>
+            <span><XCircle size={15} /> Not going</span>
+            <strong>{trackedDinnerDates.length} tracked dinner{trackedDinnerDates.length === 1 ? '' : 's'}</strong>
+          </div>
+          <div className="admin-dinner-participation-list">
+            {participationRows.map((row) => (
+              <article key={row.id} className={row.noResponseCount > 0 ? 'needs-response' : 'complete'}>
+                <div><small>LOT {row.lotNumber}</small><strong>{row.name}</strong><span>{row.responseRate}% response rate · {row.responded} of {row.dinnersTracked}</span></div>
+                <dl>
+                  <div><dt>Going</dt><dd>{row.goingCount}</dd></div>
+                  <div><dt>Maybe</dt><dd>{row.maybeCount}</dd></div>
+                  <div><dt>Not going</dt><dd>{row.notGoingCount}</dd></div>
+                  <div className={row.noResponseCount ? 'missed' : ''}><dt>No response</dt><dd>{row.noResponseCount}</dd></div>
+                </dl>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="admin-dinner-signup-list">
         {visibleSignups.map((signup) => (
