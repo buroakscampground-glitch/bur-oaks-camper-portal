@@ -16214,3 +16214,6 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 /* Interior admin tools must never sit behind the full-screen photo layer. */
 .admin-workspace-interior-page .seasonal-campground-scene{display:none!important}
 .admin-workspace-interior-page.admin-workspace-page.seasonal-theme{background:linear-gradient(135deg,#f4f1e9,#eef4eb)!important}
+
+/* Message composers: keep the keyboard hint visible across camper and office inboxes. */
+.office-message-compose-help{grid-column:1/-1;color:#6f7c73;font-size:10px;font-weight:800;text-align:right}

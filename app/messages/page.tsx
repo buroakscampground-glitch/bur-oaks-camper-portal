@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { ArrowLeft, Bell, CheckCircle2, MessageCircle, Send, ShieldCheck, Trash2 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 
@@ -21,6 +21,7 @@ export default function CamperMessagesPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
+  const sendingRef = useRef(false)
 
   useEffect(() => {
     loadMessages()
@@ -58,34 +59,50 @@ export default function CamperMessagesPage() {
     setLoading(false)
   }
 
-  async function sendMessage() {
+  async function sendMessage(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    if (sendingRef.current) return
+
     const text = draft.trim()
     if (!text) return
 
+    sendingRef.current = true
     setSending(true)
     setNotice('')
 
-    const response = await fetch('/api/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(await authHeaders()),
-      },
-      body: JSON.stringify({ message: text }),
-    })
-    const result = await response.json().catch(() => ({}))
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify({ message: text }),
+      })
+      const result = await response.json().catch(() => ({}))
 
-    if (!response.ok) {
-      setNotice(result.error || 'Unable to send message.')
-    } else {
-      setDraft('')
-      setMessages((current) => [...current, result.message])
-      if (result.emailStatus === 'failed') setNotice(`Message saved, but email alert failed: ${result.emailMessage || 'unknown error'}`)
-      else if (result.emailStatus === 'skipped') setNotice(`Message saved. Email alert skipped: ${result.emailMessage || 'not configured'}`)
-      else setNotice('Message sent to the office.')
+      if (!response.ok) {
+        setNotice(result.error || 'Unable to send message. Your draft is still here.')
+      } else {
+        setDraft('')
+        setMessages((current) => [...current, result.message])
+        if (result.emailStatus === 'failed') setNotice(`Message saved, but the office email alert failed: ${result.emailMessage || 'unknown error'}. The office can still see it in the portal.`)
+        else if (result.emailStatus === 'skipped') setNotice(`Message saved in the portal. Office email alert skipped: ${result.emailMessage || 'not configured'}`)
+        else setNotice('Message sent to the office.')
+      }
+    } catch {
+      setNotice('We could not confirm whether the message was sent. Your draft is still here—check the conversation before trying again.')
+    } finally {
+      sendingRef.current = false
+      setSending(false)
     }
+  }
 
-    setSending(false)
+  function submitWithKeyboard(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.ctrlKey || event.metaKey) && (event.key === 'Enter' || event.key === 'NumpadEnter')) {
+      event.preventDefault()
+      event.currentTarget.form?.requestSubmit()
+    }
   }
 
   async function clearMessages(mode: 'read' | 'all') {
@@ -190,19 +207,28 @@ export default function CamperMessagesPage() {
             )}
           </div>
 
-          <div className="office-message-compose">
+          <form className="office-message-compose" onSubmit={sendMessage} aria-label="Send a message to the Bur Oaks office">
             <textarea
+              name="message"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={submitWithKeyboard}
               placeholder="Type your message to the office…"
+              aria-label="Message to the office"
+              aria-describedby="camper-message-help"
+              maxLength={1200}
               rows={4}
+              required
             />
-            <button type="button" onClick={sendMessage} disabled={sending || !draft.trim()}>
+            <button type="submit" disabled={sending || !draft.trim()}>
               <Send size={16} /> {sending ? 'Sending…' : 'Send message'}
             </button>
-          </div>
+            <small className="office-message-compose-help" id="camper-message-help">
+              {draft.length.toLocaleString()} / 1,200 characters · Press Ctrl+Enter or Command+Enter to send
+            </small>
+          </form>
 
-          {notice && <p className="office-inbox-notice">{notice}</p>}
+          {notice && <p className="office-inbox-notice" role="status" aria-live="polite">{notice}</p>}
         </section>
       </section>
     </main>

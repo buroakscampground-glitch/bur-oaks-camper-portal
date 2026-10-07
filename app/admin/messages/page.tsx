@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { ArrowLeft, Bell, CheckCircle2, Clock3, Inbox, Mail, MessageCircle, RefreshCw, Search, Send, UserRound, UsersRound, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
@@ -32,6 +32,7 @@ export default function AdminMessagesPage() {
   const [notice, setNotice] = useState('')
   const activeThreadRequest = useRef('')
   const messageListRef = useRef<HTMLDivElement>(null)
+  const sendingRef = useRef(false)
 
   useEffect(() => {
     loadConversations()
@@ -108,54 +109,78 @@ export default function AdminMessagesPage() {
     }
   }
 
-  async function sendMessage() {
+  async function sendMessage(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
+    if (sendingRef.current) return
+
     const text = draft.trim()
     const bulkMode = selectedCamperIds.length > 0
 
     if (!text || (!selectedCamperId && !bulkMode)) return
 
+    if (bulkMode) {
+      const preview = text.length > 180 ? `${text.slice(0, 177)}…` : text
+      const confirmed = window.confirm(
+        `Send this message to exactly ${selectedCamperIds.length} camper${selectedCamperIds.length === 1 ? '' : 's'}?\n\n${preview}`
+      )
+      if (!confirmed) return
+    }
+
+    sendingRef.current = true
     setSending(true)
     setNotice('')
 
-    const response = await fetch('/api/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(await authHeaders()),
-      },
-      body: JSON.stringify(
-        bulkMode
-          ? { camperIds: selectedCamperIds, message: text }
-          : { camperId: selectedCamperId, message: text }
-      ),
-    })
-    const result = await response.json().catch(() => ({}))
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify(
+          bulkMode
+            ? { camperIds: selectedCamperIds, message: text }
+            : { camperId: selectedCamperId, message: text }
+        ),
+      })
+      const result = await response.json().catch(() => ({}))
 
-    if (!response.ok) {
-      setNotice(result.error || (bulkMode ? 'Unable to send mass message.' : 'Unable to send reply.'))
-    } else {
-      setDraft('')
-      if (bulkMode) {
-        setSelectedCamperIds([])
-        setNotice(
-          `Mass message sent to ${result.sentCount || selectedCamperIds.length} camper${Number(result.sentCount || selectedCamperIds.length) === 1 ? '' : 's'}. ` +
-          `Email alerts: ${result.emailSentCount || 0} sent, ${result.emailSkippedCount || 0} skipped, ${result.emailFailedCount || 0} failed. ` +
-          `Text alerts with the full message: ${result.smsSentCount || 0} sent, ${result.smsSkippedCount || 0} skipped, ${result.smsFailedCount || 0} failed.`
-        )
+      if (!response.ok) {
+        setNotice(result.error || `${bulkMode ? 'Mass message' : 'Reply'} was not confirmed. Your draft is still here.`)
       } else {
-        setMessages((current) => [...current, result.message])
-        setNotice(
-          result.emailStatus === 'failed'
-            ? `Reply saved, but camper email failed: ${result.emailMessage || 'unknown error'}`
-            : result.emailStatus === 'skipped'
-              ? `Reply saved. Camper email skipped: ${result.emailMessage || 'not configured'}`
-              : 'Reply sent and camper email alert triggered.'
-        )
+        setDraft('')
+        if (bulkMode) {
+          setSelectedCamperIds([])
+          setNotice(
+            `Mass message sent to ${result.sentCount || selectedCamperIds.length} camper${Number(result.sentCount || selectedCamperIds.length) === 1 ? '' : 's'}. ` +
+            `Email alerts: ${result.emailSentCount || 0} sent, ${result.emailSkippedCount || 0} skipped, ${result.emailFailedCount || 0} failed. ` +
+            `Text alerts with the full message: ${result.smsSentCount || 0} sent, ${result.smsSkippedCount || 0} skipped, ${result.smsFailedCount || 0} failed.`
+          )
+        } else {
+          setMessages((current) => [...current, result.message])
+          setNotice(
+            result.emailStatus === 'failed'
+              ? `Reply saved, but camper email failed: ${result.emailMessage || 'unknown error'}. The camper can still see it in the portal.`
+              : result.emailStatus === 'skipped'
+                ? `Reply saved in the portal. Camper email skipped: ${result.emailMessage || 'not configured'}`
+                : 'Reply sent and camper email alert triggered.'
+          )
+        }
+        void loadConversations()
       }
-      loadConversations()
+    } catch {
+      setNotice(`We could not confirm whether the ${bulkMode ? 'mass message' : 'reply'} was sent. Your draft is still here—check the conversation before trying again.`)
+    } finally {
+      sendingRef.current = false
+      setSending(false)
     }
+  }
 
-    setSending(false)
+  function submitWithKeyboard(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if ((event.ctrlKey || event.metaKey) && (event.key === 'Enter' || event.key === 'NumpadEnter')) {
+      event.preventDefault()
+      event.currentTarget.form?.requestSubmit()
+    }
   }
 
   const filteredConversations = useMemo(() => {
@@ -353,26 +378,34 @@ export default function AdminMessagesPage() {
             )}
           </div>
 
-          <div className="office-message-compose">
+          <form className="office-message-compose" onSubmit={sendMessage} aria-label={selectedBulkCount > 0 ? `Send a message to ${selectedBulkCount} selected campers` : 'Reply to camper'}>
             <textarea
+              name="message"
               value={draft}
               onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={submitWithKeyboard}
               placeholder={selectedBulkCount > 0 ? 'Type the message for the selected campers…' : selectedCamperId ? 'Type your reply to this camper…' : 'Choose a camper first…'}
+              aria-label={selectedBulkCount > 0 ? 'Message to selected campers' : 'Reply to camper'}
+              aria-describedby="admin-message-help"
               disabled={!selectedCamperId && selectedBulkCount === 0}
               maxLength={1200}
               rows={4}
+              required
             />
-            <button type="button" onClick={sendMessage} disabled={sending || !draft.trim() || (!selectedCamperId && selectedBulkCount === 0)}>
+            <button type="submit" disabled={sending || !draft.trim() || (!selectedCamperId && selectedBulkCount === 0)}>
               <Send size={16} /> {sending ? 'Sending…' : selectedBulkCount > 0 ? `Send to ${selectedBulkCount}` : 'Send reply'}
             </button>
-          </div>
+            <small className="office-message-compose-help" id="admin-message-help">
+              {draft.length.toLocaleString()} / 1,200 characters · Press Ctrl+Enter or Command+Enter to send
+            </small>
+          </form>
 
           <div className="office-inbox-helper">
             <Bell size={16} />
             <span>Camper replies create an admin alert and email. Office replies email the camper.</span>
           </div>
 
-          {notice && <p className="office-inbox-notice">{notice}</p>}
+          {notice && <p className="office-inbox-notice" role="status" aria-live="polite">{notice}</p>}
         </section>
       </section>
     </main>
