@@ -21,6 +21,7 @@ export default function CamperMessagesPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
+  const [loadError, setLoadError] = useState('')
   const sendingRef = useRef(false)
 
   useEffect(() => {
@@ -36,27 +37,32 @@ export default function CamperMessagesPage() {
   }
 
   async function loadMessages() {
-    const camperData = await getCurrentCamper()
+    setLoading(true)
+    setLoadError('')
+    try {
+      const camperData = await getCurrentCamper()
 
-    if (!camperData) {
-      window.location.href = '/login'
-      return
-    }
+      if (!camperData) {
+        window.location.href = '/login'
+        return
+      }
 
-    setCamper(camperData)
+      setCamper(camperData)
 
-    const response = await fetch('/api/messages', {
-      headers: await authHeaders(),
-    })
-    const result = await response.json().catch(() => ({}))
+      const response = await fetch('/api/messages', {
+        headers: await authHeaders(),
+      })
+      const result = await response.json().catch(() => ({}))
 
-    if (!response.ok) {
-      setNotice(result.error || 'Unable to open messages.')
-    } else {
+      if (!response.ok) throw new Error(result.error || 'Unable to open messages.')
       setMessages(result.messages || [])
+      setNotice('')
+    } catch (error) {
+      console.error('Unable to open camper messages:', error)
+      setLoadError('We could not open your conversation. No message was sent or changed.')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   async function sendMessage(event?: FormEvent<HTMLFormElement>) {
@@ -195,6 +201,11 @@ export default function CamperMessagesPage() {
           <div className="office-message-list">
             {loading ? (
               <p className="office-message-empty">Opening messages…</p>
+            ) : loadError ? (
+              <div className="office-message-empty" role="alert">
+                <p>{loadError}</p>
+                <button className="portal-loading-retry" type="button" onClick={loadMessages}>Try again</button>
+              </div>
             ) : messages.length === 0 ? (
               <p className="office-message-empty">No messages yet. Send the first note to the office.</p>
             ) : (
@@ -219,8 +230,9 @@ export default function CamperMessagesPage() {
               maxLength={1200}
               rows={4}
               required
+              disabled={Boolean(loadError)}
             />
-            <button type="submit" disabled={sending || !draft.trim()}>
+            <button type="submit" disabled={sending || !draft.trim() || Boolean(loadError)}>
               <Send size={16} /> {sending ? 'Sending…' : 'Send message'}
             </button>
             <small className="office-message-compose-help" id="camper-message-help">

@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [signingDocument, setSigningDocument] = useState<any | null>(null)
   const [typedName, setTypedName] = useState('')
   const [consentAccepted, setConsentAccepted] = useState(false)
@@ -33,8 +34,10 @@ export default function DocumentsPage() {
     router.push(`/documents/view/${documentId}`)
   }
 
-  useEffect(() => {
-    async function loadDocuments() {
+  async function loadDocuments() {
+    setLoading(true)
+    setLoadError('')
+    try {
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -48,8 +51,7 @@ export default function DocumentsPage() {
       const { data: sessionData } = await supabase.auth.getSession()
       const token = sessionData.session?.access_token
       if (!token) {
-        setLoading(false)
-        return
+        throw new Error('Your session could not be verified.')
       }
 
       const response = await fetch('/api/camper-documents', {
@@ -57,9 +59,8 @@ export default function DocumentsPage() {
       })
       const result = await response.json().catch(() => null)
 
-      if (!response.ok) {
-        setMessage(result?.error || 'Unable to load your documents.')
-      } else {
+      if (!response.ok) throw new Error(result?.error || 'Unable to load your documents.')
+      {
         const loadedDocuments = result?.documents || []
         const signerName = String(result?.suggestedSignerName || '').trim()
         setDocuments(loadedDocuments)
@@ -85,9 +86,15 @@ export default function DocumentsPage() {
         }
       }
 
+    } catch (error) {
+      console.error('Unable to open camper documents:', error)
+      setLoadError('We could not open your documents. Nothing was signed or changed.')
+    } finally {
       setLoading(false)
     }
+  }
 
+  useEffect(() => {
     loadDocuments()
   }, [])
 
@@ -272,6 +279,19 @@ export default function DocumentsPage() {
 
   if (loading) {
     return <p style={{ padding: '40px' }}>Loading documents...</p>
+  }
+
+  if (loadError) {
+    return (
+      <main className="camper-portal-page">
+        <div className="portal-loading" role="alert">
+          <AlertTriangle size={34} />
+          <p>{loadError}</p>
+          <button className="portal-loading-retry" type="button" onClick={loadDocuments}>Try again</button>
+          <a href="/portal">Back to portal</a>
+        </div>
+      </main>
+    )
   }
 
   const documentsNeedingSignature = documents.filter(

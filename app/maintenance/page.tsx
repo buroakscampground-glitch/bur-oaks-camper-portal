@@ -38,6 +38,7 @@ export default function MaintenanceRequestPage() {
   const [treeResponsibilityAcknowledged, setTreeResponsibilityAcknowledged] = useState(false)
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [userId, setUserId] = useState('')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
@@ -72,32 +73,39 @@ export default function MaintenanceRequestPage() {
   }, [photoFiles])
 
   async function loadPage() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    setLoading(true)
+    setLoadError('')
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-    if (!user) {
-      window.location.href = '/login'
-      return
-    }
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
 
-    setUserId(user.id)
+      setUserId(user.id)
 
-    const camperData = await getCurrentCamper()
+      const camperData = await getCurrentCamper()
+      if (!camperData) throw new Error('Your camper account could not be found.')
 
-    setCamper(camperData)
+      setCamper(camperData)
 
-    if (camperData) {
-      const { data: ticketData } = await supabase
+      const { data: ticketData, error: ticketError } = await supabase
         .from('maintenance_tickets')
         .select('*')
         .eq('lot_number', camperData.lot_number)
         .order('created_at', { ascending: false })
 
+      if (ticketError) throw ticketError
       setTickets(ticketData || [])
+    } catch (error) {
+      console.error('Unable to open camper maintenance:', error)
+      setLoadError('We could not open your maintenance requests. Nothing was submitted or changed.')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   async function submitRequest(event?: FormEvent<HTMLFormElement>) {
@@ -248,6 +256,19 @@ export default function MaintenanceRequestPage() {
 
   if (loading) {
     return <div style={{ padding: '40px' }}>Loading...</div>
+  }
+
+  if (loadError) {
+    return (
+      <main className="camper-portal-page">
+        <div className="portal-loading" role="alert">
+          <Wrench size={34} />
+          <p>{loadError}</p>
+          <button className="portal-loading-retry" type="button" onClick={loadPage}>Try again</button>
+          <a href="/portal">Back to portal</a>
+        </div>
+      </main>
+    )
   }
 
   return (

@@ -142,6 +142,7 @@ export default function InvoicesPage() {
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([])
   const [filter, setFilter] = useState<InvoiceFilter>('due-now')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutMessage, setCheckoutMessage] = useState('')
   const [processingInvoiceId, setProcessingInvoiceId] = useState('')
@@ -165,6 +166,9 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     async function loadAccount() {
+      setLoading(true)
+      setLoadError('')
+      try {
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -177,8 +181,7 @@ export default function InvoicesPage() {
       const camperData = await getCurrentCamper()
 
       if (!camperData) {
-        setLoading(false)
-        return
+        throw new Error('Your camper account could not be found.')
       }
 
       setCamper(camperData)
@@ -237,8 +240,12 @@ export default function InvoicesPage() {
         setAutoPayMessage('Your payment method was saved. AutoPay will be active shortly.')
         window.setTimeout(refreshAutoPayStatus, 1500)
       }
-
-      setLoading(false)
+      } catch (error) {
+        console.error('Unable to open camper billing:', error)
+        setLoadError('We could not open your billing account. No payment was started. Check your connection and try again.')
+      } finally {
+        setLoading(false)
+      }
     }
 
     loadAccount()
@@ -461,6 +468,19 @@ export default function InvoicesPage() {
         <div className="portal-loading">
           <ReceiptText size={34} />
           <p>Opening your account…</p>
+        </div>
+      </main>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <main className="camper-portal-page">
+        <div className="portal-loading" role="alert">
+          <AlertTriangle size={34} />
+          <p>{loadError}</p>
+          <button className="portal-loading-retry" type="button" onClick={() => window.location.reload()}>Try again</button>
+          <a href="/portal">Back to portal</a>
         </div>
       </main>
     )

@@ -222,6 +222,7 @@ export default function CamperPortalPage() {
   const [latestElectric, setLatestElectric] = useState<any>(null)
   const [unreadOfficeMessages, setUnreadOfficeMessages] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [pumpMessage, setPumpMessage] = useState('')
   const [requestingPump, setRequestingPump] = useState(false)
   const [showPumpConfirm, setShowPumpConfirm] = useState(false)
@@ -241,6 +242,7 @@ export default function CamperPortalPage() {
 
   useEffect(() => {
     async function loadDashboard() {
+      setLoadError('')
       try {
         const {
           data: { user },
@@ -424,6 +426,7 @@ export default function CamperPortalPage() {
         }
       } catch (error) {
         console.error('Unable to load camper portal:', error)
+        setLoadError('Some portal information could not be loaded. Nothing was changed. Check your connection and try again.')
       } finally {
         setLoading(false)
       }
@@ -1048,6 +1051,12 @@ export default function CamperPortalPage() {
   return (
     <main className="camper-portal-page">
       <div className="portal-shell">
+        {loadError && (
+          <div className="portal-load-warning" role="alert">
+            <span>{loadError}</span>
+            <button type="button" onClick={() => window.location.reload()}>Try again</button>
+          </div>
+        )}
         <header className="portal-premium-header">
           <div className="portal-premium-brandline">
             <a href="/portal"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /><span><strong>Bur Oaks Campground</strong><small>Camper Portal</small></span></a>
