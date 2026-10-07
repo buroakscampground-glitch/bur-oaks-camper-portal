@@ -14,6 +14,8 @@ test('admin camper history returns credits and their exact invoice applications'
   assert.match(route, /invoices\(id,invoice_number,invoice_type,due_date,status,total_due\)/)
   assert.match(route, /activeCreditBalance/)
   assert.match(route, /creditsApplied/)
+  assert.match(route, /openLotRentBalance/)
+  assert.match(route, /openOtherBalance/)
 })
 
 test('camper profile gives the office a dedicated credit ledger', () => {
@@ -24,6 +26,12 @@ test('camper profile gives the office a dedicated credit ledger', () => {
   assert.match(profile, /Applied to/)
   assert.match(profile, /application\.amount_applied/)
   assert.match(profile, /invoice\?\.invoice_number/)
+  assert.match(profile, /Credits applied/)
+  assert.match(profile, /Credit payment is recorded/)
+  assert.match(profile, /already been applied to this camper’s invoices/)
+  assert.match(profile, /See exactly where it went/)
+  assert.match(profile, /lot rent ·/)
+  assert.match(profile, /other charges/)
 })
 
 test('main credits page lists where every credit was applied', () => {

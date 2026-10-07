@@ -71,6 +71,8 @@ export async function GET(request: Request) {
   }))
   const paidInvoices = invoices.filter((invoice) => String(invoice.status || '').toLowerCase() === 'paid')
   const openInvoices = invoices.filter((invoice) => !['paid', 'cancelled', 'canceled', 'void', 'refunded'].includes(String(invoice.status || '').toLowerCase()))
+  const openLotRentInvoices = openInvoices.filter((invoice) => /rent/i.test(String(invoice.invoice_type || '')) && !/association/i.test(String(invoice.invoice_type || '')))
+  const openOtherInvoices = openInvoices.filter((invoice) => !openLotRentInvoices.includes(invoice))
   const notices = noticeResult.data || []
   const documents = documentResult.data || []
   const maintenance = maintenanceResult.data || []
@@ -129,6 +131,8 @@ export async function GET(request: Request) {
       paidInvoices: paidInvoices.length,
       lateInvoices: invoices.filter((invoice) => invoice.is_late).length,
       openBalance: openInvoices.reduce((total, invoice) => total + Number(invoice.total_due || 0), 0),
+      openLotRentBalance: openLotRentInvoices.reduce((total, invoice) => total + Number(invoice.total_due || 0), 0),
+      openOtherBalance: openOtherInvoices.reduce((total, invoice) => total + Number(invoice.total_due || 0), 0),
       totalNotices: notices.length,
       activeNotices: notices.filter((notice) => notice.status !== 'Resolved').length,
       signedDocuments: documents.filter((document) => String(document.signature_status || '').toLowerCase() === 'signed').length,

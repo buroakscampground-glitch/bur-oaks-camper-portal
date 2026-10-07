@@ -38,6 +38,13 @@ function principalAmount(invoice: ContractPaymentInvoice) {
   return Math.max(0, money(invoice.total_due) - money(invoice.late_fee))
 }
 
+function outstandingPrincipal(invoice: ContractPaymentInvoice) {
+  const principal = principalAmount(invoice)
+  if (String(invoice.status || '').trim().toLowerCase() === 'paid') return 0
+  if (invoice.total_due === null || invoice.total_due === undefined || invoice.total_due === '') return principal
+  return Math.min(principal, Math.max(0, money(invoice.total_due) - money(invoice.late_fee)))
+}
+
 function dateDistance(left: string, right: string) {
   return Math.abs(new Date(`${left}T12:00:00Z`).getTime() - new Date(`${right}T12:00:00Z`).getTime())
 }
@@ -145,7 +152,7 @@ export function contractPaymentSnapshot({
       number: index + 1,
       invoiceId: String(invoice?.id || ''),
       dueDate,
-      amount: invoice ? principalAmount(invoice) : money(planEntry?.amount),
+      amount: invoice ? (isPaid ? principalAmount(invoice) : outstandingPrincipal(invoice)) : money(planEntry?.amount),
       status,
       paidAt: String(invoice?.paid_at || ''),
       paymentMethod: String(invoice?.payment_method || ''),
@@ -161,8 +168,11 @@ export function contractPaymentSnapshot({
   const unpaidEntries = entries.filter((entry) => entry.status.toLowerCase() !== 'paid')
   const knownContractAmount = configuredAnnualRent > 0
     ? configuredAnnualRent
-    : money(entries.reduce((sum, entry) => sum + entry.amount, 0))
-  const paidAmount = money(paidEntries.reduce((sum, entry) => sum + entry.amount, 0))
+    : money(entries.reduce((sum, entry, index) => sum + (assignedInvoices[index] ? principalAmount(assignedInvoices[index]!) : entry.amount), 0))
+  const paidAmount = money(assignedInvoices.reduce((sum, invoice) => {
+    if (!invoice) return sum
+    return sum + Math.max(0, principalAmount(invoice) - outstandingPrincipal(invoice))
+  }, 0))
   const remainingBalance = money(Math.max(0, knownContractAmount - paidAmount))
   const nextPayment = [...unpaidEntries].sort((left, right) => {
     if (left.isPastDue !== right.isPastDue) return left.isPastDue ? -1 : 1

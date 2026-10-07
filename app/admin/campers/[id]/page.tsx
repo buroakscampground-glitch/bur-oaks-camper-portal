@@ -657,7 +657,7 @@ export default function CamperDetailPage() {
         </article>
         <article>
           <span className="green"><WalletCards size={20} /></span>
-          <div><small>Available credit</small><strong>${Number(history?.summary?.activeCreditBalance || 0).toFixed(2)}</strong></div>
+          <div className="admin-camper-credit-summary"><small>Credits applied</small><strong>${Number(history?.summary?.creditsApplied || 0).toFixed(2)}</strong><em>${Number(history?.summary?.activeCreditBalance || 0).toFixed(2)} still available</em></div>
         </article>
       </section>
 
@@ -747,10 +747,19 @@ export default function CamperDetailPage() {
             <article><small>Recorded activity</small><strong>{history.summary.activityItems}</strong><span>All saved events</span></article>
             <article><small>Signed documents</small><strong>{history.summary.signedDocuments} of {history.summary.totalDocuments}</strong><span>Signature records kept</span></article>
             <article><small>Paid invoices</small><strong>{history.summary.paidInvoices} of {history.summary.totalInvoices}</strong><span>{history.summary.lateInvoices} paid late / past due</span></article>
-            <article><small>Current balance</small><strong>${Number(history.summary.openBalance || 0).toFixed(2)}</strong><span>All open invoices</span></article>
+            <article><small>Current balance</small><strong>${Number(history.summary.openBalance || 0).toFixed(2)}</strong><span>${Number(history.summary.openLotRentBalance || 0).toFixed(2)} lot rent · ${Number(history.summary.openOtherBalance || 0).toFixed(2)} other charges</span></article>
             <article><small>Account credit</small><strong>${Number(history.summary.activeCreditBalance || 0).toFixed(2)}</strong><span>${Number(history.summary.creditsApplied || 0).toFixed(2)} applied in full history</span></article>
             <article className={history.usage?.signal === 'no_activity' ? 'usage-alert' : history.usage && history.usage.signal !== 'regular' ? 'usage-warning' : ''}><small>Season usage</small><strong>{history.usage ? `${Math.round(history.usage.totalKwh).toLocaleString()} kWh` : 'No data'}</strong><span>{history.usage ? `${history.usage.usageBand} · ${history.usage.readingCount} reading${history.usage.readingCount === 1 ? '' : 's'}` : 'No seasonal baseline'}</span></article>
           </div>
+
+          {Number(history.summary.totalCredits || 0) > 0 && <div className="admin-camper-credit-proof">
+            <CheckCircle2 size={20} />
+            <div>
+              <strong>Credit payment is recorded</strong>
+              <p><b>${Number(history.summary.creditsApplied || 0).toFixed(2)}</b> has already been applied to this camper’s invoices and is already subtracted from the balances shown below. <b>${Number(history.summary.activeCreditBalance || 0).toFixed(2)}</b> remains available for a future eligible bill.</p>
+            </div>
+            <button type="button" onClick={() => setHistoryView('credits')}>See exactly where it went</button>
+          </div>}
 
           <nav className="admin-camper-history-tabs" aria-label="Camper history sections">
             <HistoryTab active={historyView === 'activity'} onClick={() => setHistoryView('activity')} icon={<History />} label="All activity" count={historyCounts.activity} />

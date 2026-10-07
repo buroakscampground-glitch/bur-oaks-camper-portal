@@ -74,6 +74,27 @@ test('real invoices remain authoritative when billing dates differ from annivers
   assert.equal(snapshot.nextPayment?.isPastDue, false)
 })
 
+test('partially credited rent counts as contract payment and shows only the remaining rent', () => {
+  const snapshot = contractPaymentSnapshot({
+    annualRent: 1500,
+    paymentPlan: 'semiannual',
+    contractEndDate: '2026-10-10',
+    renewalStatus: 'Renewing',
+    today: '2026-10-07',
+    invoices: [
+      { id: 'temp-1-first', invoice_type: 'Lot Rent', subtotal: 750, total_due: 0, due_date: '2026-10-01', status: 'Paid', paid_at: '2026-10-01', payment_method: 'Paid by account credit' },
+      { id: 'temp-1-second', invoice_type: 'Lot Rent', subtotal: 750, total_due: 400, due_date: '2027-04-01', status: 'Sent' },
+    ],
+  })
+
+  assert.ok(snapshot)
+  assert.equal(snapshot.paidPayments, 1)
+  assert.equal(snapshot.remainingPayments, 1)
+  assert.equal(snapshot.paidAmount, 1100)
+  assert.equal(snapshot.remainingBalance, 400)
+  assert.equal(snapshot.nextPayment?.amount, 400)
+})
+
 test('quarter-size rent invoices protect a grandfathered camper from an incorrect two-payment profile default', () => {
   const snapshot = contractPaymentSnapshot({
     annualRent: 1500,
