@@ -4,7 +4,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next typegen && tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.mts"
+    "test": "node --experimental-strip-types --test tests/*.test.mts",
+    "migrations:audit": "node scripts/audit-migrations.mjs",
+    "migrations:baseline-check": "node scripts/audit-migrations.mjs --require-clean-baseline"
   },
   "dependencies": {
     "@stripe/stripe-js": "9.7.0",
