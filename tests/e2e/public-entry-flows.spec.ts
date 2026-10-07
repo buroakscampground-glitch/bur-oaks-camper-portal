@@ -70,3 +70,25 @@ test('password recovery stays readable and ready without sending a request', asy
   const submitBox = await submit.boundingBox()
   expect(submitBox?.height ?? 0).toBeGreaterThanOrEqual(44)
 })
+
+test('signed-out visitors are returned to login with their private destination preserved', async ({ page }, testInfo) => {
+  test.skip(!['phone-360', 'desktop'].includes(testInfo.project.name), 'One phone width and desktop cover the auth boundary.')
+
+  const privateDestinations = [
+    { destination: '/portal', login: '/login' },
+    { destination: '/invoices?view=due', login: '/login' },
+    { destination: '/documents', login: '/login' },
+    { destination: '/maintenance/history', login: '/login' },
+    { destination: '/admin', login: '/login' },
+    { destination: '/maintenance/dashboard', login: '/login' },
+    { destination: '/community', login: '/community-login' },
+  ]
+
+  for (const { destination, login } of privateDestinations) {
+    await page.goto(destination)
+    await page.waitForURL((url) =>
+      url.pathname === login && url.searchParams.get('returnTo') === destination,
+    )
+    await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
+  }
+})

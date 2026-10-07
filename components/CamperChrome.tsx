@@ -22,6 +22,7 @@ import {
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import { getSeasonalTheme } from '../lib/seasonal-theme'
+import { isCamperOnlyPath, isSharedDocumentViewerPath } from '../lib/portal-route-scope'
 import CamperAttentionBadge from './CamperAttentionBadge'
 import CommunityUnreadBadge from './CommunityUnreadBadge'
 import OfficeChatLauncher from './OfficeChatLauncher'
@@ -65,28 +66,6 @@ const camperNav = [
 function isActiveLink(pathname: string, href: string) {
   if (href === '/portal') return pathname === '/portal'
   return pathname === href || pathname.startsWith(`${href}/`)
-}
-
-function isCamperOnlyPath(pathname: string) {
-  if (pathname === '/maintenance' || pathname.startsWith('/maintenance/history')) return true
-  return [
-    '/portal',
-    '/invoices',
-    '/profile',
-    '/messages',
-    '/campground-community',
-    '/updates',
-    '/documents',
-    '/electric',
-    '/calendar',
-    '/dinners',
-    '/directory',
-    '/site',
-  ].some((path) => pathname === path || pathname.startsWith(`${path}/`))
-}
-
-function isSharedDocumentViewerPath(pathname: string) {
-  return pathname.startsWith('/documents/view/')
 }
 
 export default function CamperChrome({ children }: { children: React.ReactNode }) {
