@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -143,6 +143,7 @@ export default function InvoicesPage() {
   const [filter, setFilter] = useState<InvoiceFilter>('due-now')
   const [loading, setLoading] = useState(true)
   const [checkoutLoading, setCheckoutLoading] = useState(false)
+  const [checkoutMessage, setCheckoutMessage] = useState('')
   const [processingInvoiceId, setProcessingInvoiceId] = useState('')
   const [creditBalance, setCreditBalance] = useState(0)
   const [creditDetails, setCreditDetails] = useState({ lotRent: 0, general: 0 })
@@ -160,6 +161,7 @@ export default function InvoicesPage() {
   const [invoicePaymentMethod, setInvoicePaymentMethod] = useState<InvoicePaymentMethod>('card')
   const [paymentTotal, setPaymentTotal] = useState('')
   const [extraPaymentDestination, setExtraPaymentDestination] = useState<ExtraPaymentDestination>('lot_rent')
+  const checkoutRef = useRef(false)
 
   useEffect(() => {
     async function loadAccount() {
@@ -405,14 +407,18 @@ export default function InvoicesPage() {
   }
 
   async function handlePayment(invoicesToPay: any[]) {
+    if (checkoutRef.current) return
+
     const invoiceTotal = invoicesToPay.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
     const requestedTotal = enteredPaymentTotal || invoiceTotal
     if (requestedTotal < invoiceTotal) {
-      window.alert(`The selected invoices require ${formatMoney(invoiceTotal)}. Enter at least that amount.`)
+      setCheckoutMessage(`The selected invoices require ${formatMoney(invoiceTotal)}. Enter at least that amount.`)
       return
     }
     const extraAmount = requestedTotal - invoiceTotal
+    checkoutRef.current = true
     setCheckoutLoading(true)
+    setCheckoutMessage('Opening secure Stripe checkout…')
 
     try {
       await checkoutItems(
@@ -426,8 +432,9 @@ export default function InvoicesPage() {
           : undefined,
       )
     } catch (error: any) {
-      window.alert(error.message || 'Unable to start Stripe checkout.')
+      setCheckoutMessage(error.message || 'Secure checkout could not be opened. Check the invoice status before trying again.')
     } finally {
+      checkoutRef.current = false
       setCheckoutLoading(false)
     }
   }
@@ -706,6 +713,8 @@ export default function InvoicesPage() {
                 </div>
               </div>
             )}
+
+            {checkoutMessage && <p className="account-checkout-message" role="status" aria-live="polite">{checkoutMessage}</p>}
 
             {visiblePayableInvoices.length > 0 && (
               <div className="account-processing-fee-disclosure">

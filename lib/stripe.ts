@@ -29,30 +29,36 @@ export async function createCheckoutSession(
     throw new Error('Please sign in again before paying an invoice.')
   }
 
-  const response = await fetch('/api/create-checkout-session', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({
-      invoiceIds,
-      paymentMethod,
-      extraPayment,
-    }),
-  });
+  let response: Response
 
-  const data = await response.json();
+  try {
+    response = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        invoiceIds,
+        paymentMethod,
+        extraPayment,
+      }),
+    })
+  } catch {
+    throw new Error('Secure checkout did not open. No payment details were entered. Wait a moment and try again; repeated attempts reuse the same protected checkout.')
+  }
+
+  const data = await response.json().catch(() => ({}))
 
   if (!response.ok) {
-  throw new Error(JSON.stringify(data, null, 2))
-}
+    throw new Error(typeof data?.error === 'string' ? data.error : 'Secure checkout could not be opened. Check the invoice status before trying again.')
+  }
 
-if (!data.id || !data.url) {
-  throw new Error(JSON.stringify(data, null, 2));
-}
+  if (!data.id || !data.url) {
+    throw new Error('Stripe did not return a secure checkout link. Check the invoice status before trying again.')
+  }
 
-  return data;
+  return data
 }
 
 export async function checkoutItems(

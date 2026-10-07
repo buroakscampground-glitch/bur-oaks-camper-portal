@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { CheckCircle2, CreditCard, Hourglass, LockKeyhole, Printer, ReceiptText, WalletCards } from 'lucide-react'
 import { achProcessingFeeLabel } from '../../../lib/payment-fees'
@@ -24,6 +24,7 @@ export default function FinalInvoicePage() {
   const [message, setMessage] = useState('')
   const [paying, setPaying] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>('card')
+  const payingRef = useRef(false)
 
   async function loadInvoice() {
     const response = await fetch(`/api/final-invoice?token=${encodeURIComponent(token)}`, { cache: 'no-store' })
@@ -45,21 +46,31 @@ export default function FinalInvoicePage() {
   }, [token])
 
   async function pay() {
+    if (payingRef.current) return
+    payingRef.current = true
     setPaying(true)
     setMessage('')
-    const response = await fetch('/api/create-checkout-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ finalInvoiceToken: token, paymentMethod }),
-    })
-    const data = await response.json().catch(() => ({}))
-    if (!response.ok || !data?.url) {
-      setMessage(data?.error || 'Unable to open secure checkout. The invoice may already be paid.')
-      setPaying(false)
+
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ finalInvoiceToken: token, paymentMethod }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok || !data?.url) {
+        setMessage(data?.error || 'Secure checkout could not be opened. Check the invoice status before trying again.')
+        await loadInvoice()
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      setMessage('Secure checkout did not open. No payment details were entered. Wait a moment, check the invoice status, and try again if it is still due.')
       await loadInvoice()
-      return
+    } finally {
+      payingRef.current = false
+      setPaying(false)
     }
-    window.location.href = data.url
   }
 
   if (loading) {
@@ -129,7 +140,7 @@ export default function FinalInvoicePage() {
           ) : (
             <button className="final-invoice-pay" type="button" onClick={pay} disabled={paying}><LockKeyhole size={17} /> {paying ? 'Opening secure checkout…' : `Pay ${money(total)} by ${paymentMethod === 'ach' ? 'ACH' : 'card'}`}</button>
           )}
-          {message && <p className="final-invoice-message">{message}</p>}
+          {message && <p className="final-invoice-message" role="status" aria-live="polite">{message}</p>}
           <p className="final-invoice-security">This private link opens only this invoice. It does not provide camper-portal access and automatically closes when the invoice is paid online or marked paid by the office.</p>
         </section>
       </section>

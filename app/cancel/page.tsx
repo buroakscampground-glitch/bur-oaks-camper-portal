@@ -12,29 +12,29 @@ export default function CancelPage() {
 
         <div className="payment-result-icon"><span><X size={34} /></span></div>
         <div className="payment-result-eyebrow"><CreditCard size={15} /> CHECKOUT CLOSED</div>
-        <h1>No payment was made.</h1>
-        <p>Your checkout was cancelled and no card or bank payment was submitted. Your invoice remains open.</p>
+        <h1>Checkout was closed.</h1>
+        <p>Stripe returned you before showing a completed checkout here. Check Billing &amp; Payments for the invoice's current status before trying again.</p>
 
         <div className="payment-result-note">
           <ShieldCheck size={21} />
-          <div><strong>Nothing changed</strong><span>You can return to billing whenever you are ready and try the payment again.</span></div>
+          <div><strong>Check before retrying</strong><span>If the invoice is Open, you can try again. If it says Processing or Paid, do not submit another payment.</span></div>
         </div>
 
         <div className="payment-result-next">
           <article>
             <ReceiptText size={18} />
-            <strong>Invoice still open</strong>
-            <small>The balance stays on your account until it is paid or marked paid by the office.</small>
+            <strong>Invoice status is authoritative</strong>
+            <small>Return to Billing &amp; Payments to see whether the invoice is Open, Processing, or Paid.</small>
           </article>
           <article>
             <ShieldCheck size={18} />
-            <strong>No payment submitted</strong>
-            <small>Closing checkout does not run a card or ACH payment or change your saved billing information.</small>
+            <strong>Avoid a duplicate</strong>
+            <small>Do not start another checkout when the invoice already says Processing or Paid.</small>
           </article>
           <article>
             <RefreshCcw size={18} />
-            <strong>Try again anytime</strong>
-            <small>You can come back from Billing & Payments when you are ready.</small>
+            <strong>Retry only if Open</strong>
+            <small>If the invoice remains Open, the secure checkout can be opened again.</small>
           </article>
         </div>
 

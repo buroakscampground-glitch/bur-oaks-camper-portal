@@ -12,19 +12,19 @@ export default function SuccessPage() {
 
         <div className="payment-result-icon"><span><Check size={38} /></span></div>
         <div className="payment-result-eyebrow"><CircleDollarSign size={15} /> PAYMENT SUBMITTED</div>
-        <h1>Your payment is on its way.</h1>
-        <p>Stripe received your payment. Card payments usually confirm immediately; ACH bank payments can take several business days.</p>
+        <h1>Your payment was submitted.</h1>
+        <p>Stripe accepted the checkout. Card payments usually confirm quickly; ACH bank payments can remain processing for several business days.</p>
 
         <div className="payment-result-note">
           <ReceiptText size={21} />
-          <div><strong>Payment submitted securely</strong><span>You can review the invoice and its current payment status from Billing & Payments.</span></div>
+          <div><strong>Check the current status</strong><span>Billing &amp; Payments is the source of truth. If an invoice says Processing, please do not pay it again.</span></div>
         </div>
 
         <div className="payment-result-next">
           <article>
             <ReceiptText size={18} />
-            <strong>Receipt updated</strong>
-            <small>Your portal will show the paid status as soon as Stripe confirms it.</small>
+            <strong>Status updates next</strong>
+            <small>Your portal will show Paid or Processing as soon as Stripe reports the payment.</small>
           </article>
           <article>
             <Home size={18} />

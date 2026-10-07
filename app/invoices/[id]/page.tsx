@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   CalendarDays,
@@ -68,6 +68,7 @@ export default function CamperInvoiceDetailPage() {
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [smsSaving, setSmsSaving] = useState(false)
   const [smsMessage, setSmsMessage] = useState('')
+  const payingRef = useRef(false)
 
   function printInvoice() {
     printPageWithFlag('data-print-camper-invoice')
@@ -223,12 +224,14 @@ export default function CamperInvoiceDetailPage() {
   }, [camper?.id, invoiceId, authorizedFamilyBilling])
 
   async function payInvoice() {
+    if (payingRef.current) return
     if (!invoice) return
     if (paymentUnderAmount) {
       setMessage(`This invoice requires ${formatMoney(invoice.total_due)}. Enter at least the amount due.`)
       return
     }
 
+    payingRef.current = true
     setPaying(true)
     setMessage('')
 
@@ -251,7 +254,9 @@ export default function CamperInvoiceDetailPage() {
           : undefined,
       )
     } catch (error: any) {
-      setMessage(error.message || 'Unable to start secure checkout.')
+      setMessage(error.message || 'Secure checkout could not be opened. Check the invoice status before trying again.')
+    } finally {
+      payingRef.current = false
       setPaying(false)
     }
   }
@@ -461,7 +466,7 @@ export default function CamperInvoiceDetailPage() {
                 <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : `${paymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} ${formatMoney(payToday)}`} <ChevronRight size={16} />
               </button>
             )}
-            {message && <p>{message}</p>}
+            {message && <p role="status" aria-live="polite">{message}</p>}
           </div>
         </section>
       </section>
