@@ -73,11 +73,10 @@ export default function AdminDinnersPage() {
       .map((label) => ({ label, custom: true })),
   ]
   const trackedDinnerDates = useMemo(() => {
-    const respondedDates = signups.map((signup) => String(signup.dinner_date || '')).filter(Boolean).sort()
-    const firstTrackedDate = respondedDates[0] || nextDinner?.date || ''
     const throughDate = nextDinner?.date || selectedDinner?.date || ''
+    const datesWithSavedResponses = new Set(signups.map((signup) => String(signup.dinner_date || '')).filter(Boolean))
     return saturdayDinners2026
-      .filter((dinner) => !dinner.closed && dinner.date >= firstTrackedDate && dinner.date <= throughDate)
+      .filter((dinner) => !dinner.closed && dinner.date <= throughDate && (datesWithSavedResponses.has(dinner.date) || dinner.date === throughDate))
       .map((dinner) => dinner.date)
   }, [nextDinner?.date, selectedDinner?.date, signups])
   const participationRows = useMemo(() => campers.map((camper) => {
@@ -226,7 +225,7 @@ export default function AdminDinnersPage() {
             <div>
               <small>RESPONSE HISTORY</small>
               <h2>Who answers—and who stays silent</h2>
-              <p>One dinner response per campsite. “No response” only counts tracked dinners through the next upcoming meal, never later dinners that are still too early to answer.</p>
+              <p>One dinner response per campsite. “No response” only counts meals where portal RSVP tracking was in use through the next upcoming dinner—never old untracked meals or later dates that are too early to answer.</p>
             </div>
             <label><Search size={16} /><input value={participationSearch} onChange={(event) => setParticipationSearch(event.target.value)} placeholder="Search camper or lot" /></label>
           </header>
