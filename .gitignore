@@ -3,6 +3,8 @@ node_modules
 *.tsbuildinfo
 .env.local
 .vercel
+playwright-report/
+test-results/
 eng.traineddata
 .env*
 !.env.example
