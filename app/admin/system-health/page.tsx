@@ -72,7 +72,7 @@ export default function SystemHealthPage() {
     const { data } = await supabase.auth.getSession()
     const token = data.session?.access_token
     if (!token) return
-    setMessage('Preparing the monthly operations backup…')
+    setMessage('Preparing the monthly operations record…')
     const response = await fetch('/api/admin-operations?export=1', { headers: { Authorization: `Bearer ${token}` } })
     if (!response.ok) {
       const result = await response.json().catch(() => ({}))
@@ -81,14 +81,14 @@ export default function SystemHealthPage() {
     }
     const blob = await response.blob()
     const disposition = response.headers.get('content-disposition') || ''
-    const filename = disposition.match(/filename="([^"]+)"/)?.[1] || 'bur-oaks-operations-backup.json'
+    const filename = disposition.match(/filename="([^"]+)"/)?.[1] || 'bur-oaks-operations-record.json'
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = filename
     link.click()
     URL.revokeObjectURL(url)
-    setMessage('Monthly operations backup downloaded.')
+    setMessage('Monthly operations record downloaded. This summary is not a restorable database backup.')
   }
 
   async function verifyElectricTexts() {
@@ -131,7 +131,7 @@ export default function SystemHealthPage() {
         </div>
         <div className="operations-health-actions">
           <button type="button" onClick={load}><RefreshCw size={16} /> Refresh</button>
-          <button type="button" onClick={downloadBackup}><Download size={16} /> Download monthly backup</button>
+          <button type="button" onClick={downloadBackup}><Download size={16} /> Download operations record</button>
         </div>
       </section>
 

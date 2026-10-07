@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   if (url.searchParams.get('export') === '1') {
     const stamp = snapshot.today.slice(0, 7)
     return new NextResponse(JSON.stringify({
-      exportType: 'Bur Oaks monthly operations backup',
+      exportType: 'Bur Oaks monthly operations record',
       period: stamp,
       ...snapshot,
     }, null, 2), {

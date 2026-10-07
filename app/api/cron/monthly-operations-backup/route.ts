@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const result = await sendAdminAlertEmail({
     subject: `Bur Oaks monthly operations record is ready — ${month}`,
     heading: 'Your monthly portal record is ready',
-    message: 'The portal completed its month-start operations check. Open System Health and tap “Download monthly backup” to save a dated copy for your records.',
+    message: 'The portal completed its month-start operations check. Open System Health and tap “Download operations record” to save a dated summary for your records. This summary is not a database backup.',
     details: [
       { label: 'Active camper sites', value: snapshot.totals.activeCampers },
       { label: 'Open balance', value: `$${snapshot.totals.openBalance.toFixed(2)}` },
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
       { label: 'Delivery failures', value: snapshot.totals.failedDeliveries },
     ],
     actionUrl: `${getSiteUrl()}/admin/system-health`,
-    actionLabel: 'Open and download backup',
+    actionLabel: 'Open and download record',
   })
 
   return NextResponse.json({ success: true, month, result })
