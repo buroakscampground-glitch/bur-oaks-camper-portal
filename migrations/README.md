@@ -26,3 +26,8 @@ Before applying any database change:
 
 Never place camper roster exports, billing records, service-role keys, database
 passwords, or production data in this repository.
+
+The replacement clean-room workflow lives in `database/baseline/README.md`.
+Use `npm run baseline:export` with a runtime-only production database password to
+create a schema-only candidate, then run `npm run baseline:audit` and inspect
+the complete SQL before applying it to the empty staging project.

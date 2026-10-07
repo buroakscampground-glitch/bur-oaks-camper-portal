@@ -5,6 +5,8 @@
     "start": "next start",
     "lint": "next typegen && tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.mts",
+    "baseline:export": "node scripts/export-schema-baseline.mjs",
+    "baseline:audit": "node scripts/audit-schema-baseline.mjs",
     "migrations:audit": "node scripts/audit-migrations.mjs",
     "migrations:baseline-check": "node scripts/audit-migrations.mjs --require-clean-baseline"
   },
