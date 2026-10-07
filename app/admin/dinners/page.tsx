@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, CheckCircle2, CircleHelp, Search, Soup, UsersRound, UtensilsCrossed, XCircle } from 'lucide-react'
-import { saturdayDinnerMetrics } from '../../../lib/saturday-dinner-metrics'
+import { saturdayDinnerEngagementStartDate, saturdayDinnerMetrics } from '../../../lib/saturday-dinner-metrics'
 import { dinnerBringSuggestions, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { supabase } from '../../../lib/supabase'
 import { thanksgivingDinnerDate } from '../../../lib/thanksgiving-dinner'
@@ -74,14 +74,13 @@ export default function AdminDinnersPage() {
   ]
   const trackedDinnerDates = useMemo(() => {
     const throughDate = nextDinner?.date || selectedDinner?.date || ''
-    const datesWithSavedResponses = new Set(signups.map((signup) => String(signup.dinner_date || '')).filter(Boolean))
     return saturdayDinners2026
-      .filter((dinner) => !dinner.closed && dinner.date <= throughDate && (datesWithSavedResponses.has(dinner.date) || dinner.date === throughDate))
+      .filter((dinner) => !dinner.closed && dinner.date >= saturdayDinnerEngagementStartDate && dinner.date <= throughDate)
       .map((dinner) => dinner.date)
-  }, [nextDinner?.date, selectedDinner?.date, signups])
-  const participationRows = useMemo(() => campers.map((camper) => {
-    const camperCreatedDate = String(camper.created_at || '').slice(0, 10)
-    const eligibleDates = trackedDinnerDates.filter((date) => !camperCreatedDate || date >= camperCreatedDate)
+  }, [nextDinner?.date, selectedDinner?.date])
+  const allParticipationRows = useMemo(() => campers.map((camper) => {
+    const camperSinceDate = String(camper.camper_since_date || '').slice(0, 10)
+    const eligibleDates = trackedDinnerDates.filter((date) => !camperSinceDate || date >= camperSinceDate)
     const camperSignups = signups.filter((signup) => String(signup.camper_id || '') === String(camper.id || '') && eligibleDates.includes(String(signup.dinner_date || '')))
     const responseByDate = new Map(camperSignups.map((signup) => [String(signup.dinner_date || ''), signup]))
     const goingCount = camperSignups.filter((signup) => signup.attending_status === 'Going').length
@@ -101,8 +100,14 @@ export default function AdminDinnersPage() {
       noResponseCount,
       responseRate: eligibleDates.length ? Math.round((camperSignups.length / eligibleDates.length) * 100) : 0,
     }
-  }).filter((row) => `${row.name} ${row.lotNumber}`.toLowerCase().includes(participationSearch.toLowerCase()))
-    .sort((left, right) => right.noResponseCount - left.noResponseCount || left.responseRate - right.responseRate || left.lotNumber.localeCompare(right.lotNumber, undefined, { numeric: true })), [campers, participationSearch, signups, trackedDinnerDates])
+  }).sort((left, right) => right.noResponseCount - left.noResponseCount || left.responseRate - right.responseRate || left.lotNumber.localeCompare(right.lotNumber, undefined, { numeric: true })), [campers, signups, trackedDinnerDates])
+  const participationRows = allParticipationRows.filter((row) =>
+    `${row.name} ${row.lotNumber}`.toLowerCase().includes(participationSearch.toLowerCase())
+  )
+  const seasonResponseTotal = allParticipationRows.reduce((sum, row) => sum + row.responded, 0)
+  const seasonNoResponseTotal = allParticipationRows.reduce((sum, row) => sum + row.noResponseCount, 0)
+  const seasonOpportunityTotal = seasonResponseTotal + seasonNoResponseTotal
+  const seasonResponseRate = seasonOpportunityTotal ? Math.round((seasonResponseTotal / seasonOpportunityTotal) * 100) : 0
 
   function selectDinner(dinnerDate: string) {
     if (dinnerDate === thanksgivingDinnerDate) {
@@ -223,22 +228,29 @@ export default function AdminDinnersPage() {
         <section className="admin-dinner-participation">
           <header>
             <div>
-              <small>RESPONSE HISTORY</small>
-              <h2>Who answers—and who stays silent</h2>
-              <p>One dinner response per campsite. “No response” only counts meals where portal RSVP tracking was in use through the next upcoming dinner—never old untracked meals or later dates that are too early to answer.</p>
+              <small>2026 ENGAGEMENT TOTAL</small>
+              <h2>Who answers—and who needs encouragement</h2>
+              <p>This running yearly total begins with the October 10 portal signup and adds every dinner from there. Each camper’s start date is honored, so nobody is counted absent before joining Bur Oaks.</p>
             </div>
             <label><Search size={16} /><input value={participationSearch} onChange={(event) => setParticipationSearch(event.target.value)} placeholder="Search camper or lot" /></label>
           </header>
+          <div className="admin-dinner-participation-summary">
+            <article><small>Dinners tracked this year</small><strong>{trackedDinnerDates.length}</strong><span>Oct 10 through {nextDinner?.month} {nextDinner?.day}</span></article>
+            <article><small>Campers tracked</small><strong>{allParticipationRows.length}</strong><span>active campsite accounts</span></article>
+            <article><small>Responses received</small><strong>{seasonResponseTotal}</strong><span>all Going, Maybe, and Not going</span></article>
+            <article><small>No responses</small><strong>{seasonNoResponseTotal}</strong><span>engagement opportunities</span></article>
+            <article><small>Campground response rate</small><strong>{seasonResponseRate}%</strong><span>year to date</span></article>
+          </div>
           <div className="admin-dinner-participation-key">
             <span><CheckCircle2 size={15} /> Going</span>
             <span><CircleHelp size={15} /> Maybe</span>
             <span><XCircle size={15} /> Not going</span>
-            <strong>{trackedDinnerDates.length} tracked dinner{trackedDinnerDates.length === 1 ? '' : 's'}</strong>
+            <strong>Running 2026 total · begins Oct 10</strong>
           </div>
           <div className="admin-dinner-participation-list">
             {participationRows.map((row) => (
               <article key={row.id} className={row.noResponseCount > 0 ? 'needs-response' : 'complete'}>
-                <div><small>LOT {row.lotNumber}</small><strong>{row.name}</strong><span>{row.responseRate}% response rate · {row.responded} of {row.dinnersTracked}</span></div>
+                <div><small>LOT {row.lotNumber}</small><strong>{row.name}</strong><span>2026: {row.responseRate}% · answered {row.responded} of {row.dinnersTracked}</span></div>
                 <dl>
                   <div><dt>Going</dt><dd>{row.goingCount}</dd></div>
                   <div><dt>Maybe</dt><dd>{row.maybeCount}</dd></div>

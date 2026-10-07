@@ -17,7 +17,7 @@ export async function GET(request: Request) {
       .order('updated_at', { ascending: false }),
     context.admin
       .from('campers')
-      .select('id,lot_number,first_name,last_name,active,role,created_at')
+      .select('id,lot_number,first_name,last_name,active,role,camper_since_date')
       .eq('active', true)
       .order('lot_number', { ascending: true }),
   ])

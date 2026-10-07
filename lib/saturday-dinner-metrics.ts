@@ -23,6 +23,11 @@ export type SaturdayDinnerMetrics = {
   goingWithoutDish: number
 }
 
+// Camper response history starts with the first dinner promoted through the
+// portal. Earlier menu dates were not consistently collected and must never be
+// misreported as ignored invitations.
+export const saturdayDinnerEngagementStartDate = '2026-10-10'
+
 function safeCount(value: unknown) {
   const count = Math.round(Number(value || 1))
   return Number.isFinite(count) ? Math.max(1, Math.min(99, count)) : 1
@@ -85,4 +90,3 @@ export function saturdayDinnerMetrics(records: SaturdayDinnerSignupRecord[]): Sa
     goingWithoutDish: going.filter((signup) => !hasDish(signup)).length,
   }
 }
-

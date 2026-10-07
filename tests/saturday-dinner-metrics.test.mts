@@ -2,8 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   canonicalSaturdayDinnerSignups,
+  saturdayDinnerEngagementStartDate,
   saturdayDinnerMetrics,
 } from '../lib/saturday-dinner-metrics.ts'
+
+test('yearly dinner engagement begins when portal tracking became consistent', () => {
+  assert.equal(saturdayDinnerEngagementStartDate, '2026-10-10')
+})
 
 test('Saturday dinner totals keep campsites, people, responses, and dishes separate', () => {
   const signups = [
