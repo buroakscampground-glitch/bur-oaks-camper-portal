@@ -10002,6 +10002,22 @@ tbody tr:hover {
   text-align: center;
 }
 
+.system-state-guidance {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #fbf5e8;
+  color: #66522a;
+}
+
+.system-state-reference {
+  color: #59665d;
+  font-size: 12px;
+}
+
+.system-state-reference code {
+  font-weight: 800;
+}
+
 .system-state-page svg {
   color: var(--oak-700);
 }
