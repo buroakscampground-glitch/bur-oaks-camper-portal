@@ -38,6 +38,7 @@ import {
 } from '../../../lib/invoice-balance'
 import { buildBillingReminderMessage } from '../../../lib/billing-reminder-message'
 import { achExpectedLabel } from '../../../lib/ach-expected-date'
+import { billingCategory } from '../../../lib/monthly-billing-report'
 
 type InvoiceFilter = 'all' | 'open' | 'paid' | 'due-7' | 'due-8-30' | 'future' | 'upcoming-30' | 'closed'
 
@@ -65,6 +66,25 @@ function formatDate(value?: string) {
   const date = new Date(`${value}T12:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function invoiceChargeBreakdown(invoice: any) {
+  const savedItems = Array.isArray(invoice.invoice_items) ? invoice.invoice_items : []
+  const items = savedItems.length ? savedItems : [{
+    description: invoice.invoice_type || 'Campground charge',
+    total: invoiceRecordedTotal(invoice),
+  }]
+  const grouped = new Map<string, number>()
+
+  for (const item of items) {
+    const amount = Number(item.total || 0)
+    if (!Number.isFinite(amount) || Math.abs(amount) < 0.005) continue
+    const description = String(item.description || '')
+    const label = /late fee/i.test(description) ? 'Late Fee' : billingCategory(item, invoice)
+    grouped.set(label, Number(((grouped.get(label) || 0) + amount).toFixed(2)))
+  }
+
+  return Array.from(grouped, ([label, amount]) => ({ label, amount }))
 }
 
 function isOutstandingInvoiceDueInRange(invoice: any, minimumDays: number, maximumDays?: number) {
@@ -111,7 +131,8 @@ export default function AdminInvoicesPage() {
       .from('invoices')
       .select(`
         *,
-        campers (first_name, last_name, lot_number)
+        campers (first_name, last_name, lot_number),
+        invoice_items (description, quantity, unit_price, total)
       `)
       .order('created_at', { ascending: false })
 
@@ -520,6 +541,7 @@ export default function AdminInvoicesPage() {
                 const cardTotal = invoiceAmount + processingFee
                 const achFee = calculateAchProcessingFee(invoiceAmount)
                 const achTotal = invoiceAmount + achFee
+                const chargeBreakdown = invoiceChargeBreakdown(invoice)
                 return (
                   <article className="admin-invoice-record" key={invoice.id}>
                     <span className={`admin-invoice-record-icon ${isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}`}>
@@ -537,6 +559,11 @@ export default function AdminInvoicesPage() {
                       <em className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
                         {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice) || 'Bank payment processing') : isClosed ? 'Canceled — nothing due' : 'Payment due'}
                       </em>
+                      <span className="admin-invoice-charge-breakdown" aria-label="Invoice charge breakdown">
+                        {chargeBreakdown.map((line) => (
+                          <span key={line.label}><em>{line.label}</em><b>{formatMoney(line.amount)}</b></span>
+                        ))}
+                      </span>
                       {!isPaid && !isProcessing && !isClosed && (
                         <small>
                           Card pay total: {formatMoney(cardTotal)}
