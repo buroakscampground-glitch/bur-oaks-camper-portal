@@ -44,6 +44,14 @@ export async function POST(request: Request) {
   if (document.signature_status === 'signed') {
     return NextResponse.json({ error: 'This renewal has already been signed. Please contact the office to change your decision.' }, { status: 409 })
   }
+  if (renewal.status === 'Camper Leaving' && document.signature_status === 'declined') {
+    return NextResponse.json({
+      success: true,
+      status: renewal.status,
+      decisionRecordedAt: renewal.decision_recorded_at,
+      duplicate: true,
+    })
+  }
 
   const today = todayInCentral()
   const now = new Date().toISOString()

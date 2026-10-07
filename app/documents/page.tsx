@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, Check, CheckCircle2, DoorOpen, FileSignature, FileText, LockKeyhole, ShieldCheck, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
@@ -20,6 +20,8 @@ export default function DocumentsPage() {
   const [signingPreviewUrl, setSigningPreviewUrl] = useState('')
   const [signingPreviewLoading, setSigningPreviewLoading] = useState(false)
   const [signingPreviewError, setSigningPreviewError] = useState('')
+  const signingRef = useRef(false)
+  const decliningRef = useRef('')
   const router = useRouter()
 
   function sendToLogin() {
@@ -93,9 +95,27 @@ export default function DocumentsPage() {
     if (signingPreviewUrl.startsWith('blob:')) URL.revokeObjectURL(signingPreviewUrl)
   }, [signingPreviewUrl])
 
+  async function refreshDocumentState(documentId: string, token: string) {
+    try {
+      const response = await fetch('/api/camper-documents', {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok) return null
+      const latestDocuments = result?.documents || []
+      setDocuments(latestDocuments)
+      return latestDocuments.find((document: any) => String(document.id) === String(documentId)) || null
+    } catch {
+      return null
+    }
+  }
+
   async function signDocument() {
+    if (signingRef.current) return
     if (!signingDocument) return
 
+    signingRef.current = true
     setSigning(true)
     setMessage('Recording your electronic signature…')
 
@@ -103,28 +123,52 @@ export default function DocumentsPage() {
     const token = sessionData.session?.access_token
 
     if (!token) {
+      signingRef.current = false
+      setSigning(false)
       sendToLogin()
       return
     }
 
-    const response = await fetch('/api/sign-document', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        documentId: signingDocument.id,
-        typedName,
-        consentAccepted,
-        renewalDecision,
-      }),
-    })
+    const documentId = String(signingDocument.id)
 
-    const result = await response.json()
+    let response: Response
+    let result: any
+    try {
+      response = await fetch('/api/sign-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          documentId,
+          typedName,
+          consentAccepted,
+          renewalDecision,
+        }),
+      })
+      result = await response.json().catch(() => null)
+    } catch {
+      const latestDocument = await refreshDocumentState(documentId, token)
+      const signedEmails = [latestDocument?.signed_email, latestDocument?.second_signed_email]
+        .map((email) => String(email || '').trim().toLowerCase())
+
+      if (signedEmails.includes(currentUserEmail)) {
+        setSigningDocument(null)
+        setSigningPreviewUrl('')
+        setMessage('✅ Your signature was securely recorded. The connection dropped after it was saved, so the document center refreshed its status.')
+      } else {
+        setMessage('We could not confirm whether your signature was recorded. Your entries are still here—check the document status before selecting Sign & Finish again.')
+      }
+      signingRef.current = false
+      setSigning(false)
+      return
+    }
 
     if (!response.ok) {
-      setMessage(result.error || 'Unable to sign this document.')
+      if (response.status === 409) await refreshDocumentState(documentId, token)
+      setMessage(result?.error || 'Unable to sign this document. Check its current status before trying again.')
+      signingRef.current = false
       setSigning(false)
       return
     }
@@ -158,6 +202,7 @@ export default function DocumentsPage() {
     setTypedName('')
     setConsentAccepted(false)
     setRenewalDecision('')
+    signingRef.current = false
     setSigning(false)
     setMessage(result.signatureStatus === 'pending_second_signature'
       ? '✅ Your signature was recorded. This document is waiting for the second signer.'
@@ -165,26 +210,50 @@ export default function DocumentsPage() {
   }
 
   async function declineRenewal(document: any) {
+    const documentId = String(document.id)
+    if (decliningRef.current) return
+
     const confirmed = window.confirm(
       'Are you sure you do not want to renew your seasonal site? This will notify the campground that you plan to leave when your current agreement ends.'
     )
     if (!confirmed) return
 
-    setDecliningId(String(document.id))
+    decliningRef.current = documentId
+    setDecliningId(documentId)
     setMessage('Recording your decision…')
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
     if (!token) {
+      decliningRef.current = ''
+      setDecliningId('')
       sendToLogin()
       return
     }
 
-    const response = await fetch('/api/renewal-decision', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ documentId: document.id, decision: 'not-renew' }),
-    })
-    const result = await response.json().catch(() => null)
+    let response: Response
+    let result: any
+    try {
+      response = await fetch('/api/renewal-decision', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ documentId, decision: 'not-renew' }),
+      })
+      result = await response.json().catch(() => null)
+    } catch {
+      const latestDocument = await refreshDocumentState(documentId, token)
+      decliningRef.current = ''
+      setDecliningId('')
+      if (latestDocument?.signature_status === 'declined') {
+        setSigningDocument(null)
+        setRenewalDecision('')
+        setSigningPreviewUrl('')
+        setMessage('Your decision not to renew was recorded. The connection dropped after it was saved, so the document center refreshed its status.')
+      } else {
+        setMessage('We could not confirm whether your decision was recorded. Check the document status before selecting I Am Not Renewing again.')
+      }
+      return
+    }
+    decliningRef.current = ''
     setDecliningId('')
 
     if (!response.ok) {
@@ -446,7 +515,7 @@ export default function DocumentsPage() {
           </section>
         )}
 
-      {message && <div className="camper-document-message">{message}</div>}
+      {message && <div className="camper-document-message" role="status" aria-live="polite">{message}</div>}
 
       {signingDocument && (
         <div className="signature-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="signature-modal-title">
@@ -458,7 +527,7 @@ export default function DocumentsPage() {
                 <h2 id="signature-modal-title">Review and sign</h2>
                 <p>{signingDocument.document_name} · Review, sign, and you are done.</p>
               </div>
-              <button type="button" className="signature-modal-close" aria-label="Close signing window" onClick={closeSigning}>
+              <button type="button" className="signature-modal-close" aria-label="Close signing window" onClick={closeSigning} disabled={signing || Boolean(decliningId)}>
                 <X size={20} />
               </button>
             </div>
