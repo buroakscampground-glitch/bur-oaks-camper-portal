@@ -51,9 +51,8 @@ export default function LoginPage() {
       const requestedReturnTo = new URLSearchParams(window.location.search).get('returnTo')
       const returnTo = safeLoginReturnPath(requestedReturnTo, destinationResult.role)
       window.location.href = returnTo || destinationResult.destination
-    } catch (err) {
-      console.error(err)
-      setError('Login failed')
+    } catch {
+      setError('The portal could not reach the sign-in service. Check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -97,7 +96,11 @@ export default function LoginPage() {
           <strong>Campfire glow · quiet roads · your site waiting</strong>
         </div>
 
-        <div className="signin-form-card">
+        <form
+          className="signin-form-card"
+          onSubmit={(event) => { event.preventDefault(); if (!loading) handleLogin() }}
+          aria-busy={loading}
+        >
           <div className="signin-card-badge">
             <Sparkles size={17} />
             <span>Camper command center</span>
@@ -120,6 +123,9 @@ export default function LoginPage() {
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               autoComplete="username"
+              required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'signin-error' : undefined}
             />
           </div>
 
@@ -132,16 +138,16 @@ export default function LoginPage() {
               placeholder="Enter your password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !loading) handleLogin()
-              }}
               autoComplete="current-password"
+              required
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? 'signin-error' : undefined}
             />
           </div>
 
-          {error && <div className="signin-error">{error}</div>}
+          {error && <div className="signin-error" id="signin-error" role="alert">{error}</div>}
 
-          <button className="signin-submit" onClick={handleLogin} disabled={loading}>
+          <button className="signin-submit" type="submit" disabled={loading || !email.trim() || !password}>
             {loading ? 'Signing in…' : 'Sign in'}
             {!loading && <ArrowRight size={18} />}
           </button>
@@ -161,7 +167,7 @@ export default function LoginPage() {
             Need account help? Contact the campground office.<br />
             <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
           </small>
-        </div>
+        </form>
       </section>
     </main>
   )
