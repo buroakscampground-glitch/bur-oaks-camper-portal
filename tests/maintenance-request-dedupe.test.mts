@@ -14,6 +14,17 @@ test('every maintenance request entry point blocks rapid duplicate submissions',
   assert.match(adminPage, /if \(creatingRef\.current\) return/)
 })
 
+test('camper maintenance submission recovers safely when delivery cannot be confirmed', () => {
+  const camperPage = read('app/maintenance/page.tsx')
+
+  assert.match(camperPage, /<form className="camper-maintenance-form-card"/)
+  assert.match(camperPage, /type="submit" disabled=\{submitting\}/)
+  assert.match(camperPage, /could not confirm whether your request was submitted/)
+  assert.match(camperPage, /Keep the\n\s*\/\/ uploaded photos/)
+  assert.match(camperPage, /submittingRef\.current = false\n\s*setSubmitting\(false\)\n\s*await loadPage\(\)/)
+  assert.match(camperPage, /role="status" aria-live="polite"/)
+})
+
 test('every maintenance creation API ignores an identical recent request', () => {
   const routes = [
     'app/api/maintenance-request/route.ts',

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Camera, CheckCircle2, ClipboardList, ImagePlus, Wrench, X } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
@@ -100,7 +100,8 @@ export default function MaintenanceRequestPage() {
     setLoading(false)
   }
 
-  async function submitRequest() {
+  async function submitRequest(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault()
     if (submittingRef.current) return
 
     if (!title || !description) {
@@ -163,22 +164,35 @@ export default function MaintenanceRequestPage() {
       return
     }
 
-    const response = await fetch('/api/maintenance-request', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title,
-        description: isTreeGroundsRequest
-          ? `${description}\n\nCamper acknowledgement: Camper selected Tree / Grounds and acknowledged that trees, limbs, branches, natural vegetation, and related debris are natural campground conditions addressed by the seasonal agreement. Camper acknowledged that they assume risk for these natural conditions as stated in the agreement; that Bur Oaks has no duty to inspect, monitor, remove, trim, or prevent trees, limbs, branches, or natural debris except as determined solely by Bur Oaks; and that submitting this request does not transfer responsibility, create a duty, waive any lease term, or guarantee that work will be approved, assigned, or performed.`
-          : description,
-        category,
-        photoUrls: uploadedPaths,
-      }),
-    })
-    const result = await response.json().catch(() => null)
+    let response: Response
+    let result: any
+
+    try {
+      response = await fetch('/api/maintenance-request', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          description: isTreeGroundsRequest
+            ? `${description}\n\nCamper acknowledgement: Camper selected Tree / Grounds and acknowledged that trees, limbs, branches, natural vegetation, and related debris are natural campground conditions addressed by the seasonal agreement. Camper acknowledged that they assume risk for these natural conditions as stated in the agreement; that Bur Oaks has no duty to inspect, monitor, remove, trim, or prevent trees, limbs, branches, or natural debris except as determined solely by Bur Oaks; and that submitting this request does not transfer responsibility, create a duty, waive any lease term, or guarantee that work will be approved, assigned, or performed.`
+            : description,
+          category,
+          photoUrls: uploadedPaths,
+        }),
+      })
+      result = await response.json().catch(() => null)
+    } catch {
+      // The server may have saved the request before the connection dropped. Keep the
+      // uploaded photos so a saved ticket never points to files we deleted too early.
+      setMessage('We could not confirm whether your request was submitted. Your details are still here—check My Maintenance Requests before trying again.')
+      submittingRef.current = false
+      setSubmitting(false)
+      await loadPage()
+      return
+    }
 
     if (!response.ok || !result?.success) {
       if (uploadedPaths.length) {
@@ -251,7 +265,7 @@ export default function MaintenanceRequestPage() {
       </section>
 
       <div className="camper-maintenance-layout">
-        <section className="camper-maintenance-form-card">
+        <form className="camper-maintenance-form-card" onSubmit={submitRequest} aria-label="Submit a maintenance request">
           <div className="camper-maintenance-card-heading">
             <span><ClipboardList size={20} /></span>
             <div>
@@ -263,12 +277,12 @@ export default function MaintenanceRequestPage() {
 
           <label>
             <span>Issue title</span>
-            <input placeholder="Example: Water leak behind camper" value={title} onChange={(event) => setTitle(event.target.value)} />
+            <input name="title" placeholder="Example: Water leak behind camper" value={title} onChange={(event) => setTitle(event.target.value)} maxLength={120} required />
           </label>
 
           <label>
             <span>Category</span>
-            <select value={category} onChange={(event) => {
+            <select name="category" value={category} onChange={(event) => {
               setCategory(event.target.value)
               if (event.target.value !== 'Tree / Grounds') {
                 setTreeResponsibilityAcknowledged(false)
@@ -310,7 +324,7 @@ export default function MaintenanceRequestPage() {
 
           <label>
             <span>Description</span>
-            <textarea placeholder="Describe what is happening and where we should look..." value={description} onChange={(event) => setDescription(event.target.value)} />
+            <textarea name="description" placeholder="Describe what is happening and where we should look..." value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000} required />
           </label>
 
           <div className="maintenance-upload-box">
@@ -342,12 +356,12 @@ export default function MaintenanceRequestPage() {
             )}
           </div>
 
-          <button className="camper-maintenance-submit" onClick={submitRequest} disabled={submitting}>
+          <button className="camper-maintenance-submit" type="submit" disabled={submitting}>
             {submitting ? 'Submitting…' : 'Submit Request'}
           </button>
 
-          {message && <p className="camper-maintenance-message">{message}</p>}
-        </section>
+          {message && <p className="camper-maintenance-message" role="status" aria-live="polite">{message}</p>}
+        </form>
 
         <section className="camper-maintenance-list-card">
           <div className="camper-maintenance-card-heading">
