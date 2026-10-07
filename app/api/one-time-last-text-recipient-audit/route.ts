@@ -9,6 +9,21 @@ export const maxDuration = 60
 
 const auditToken = 'last-text-audit-6d73919e-7d2c-4fe0-92cc-9a313223b889'
 
+async function providerStatus(messageId: string) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID
+  const authToken = process.env.TWILIO_AUTH_TOKEN
+  if (!messageId || !accountSid || !authToken) return { status: '', error: '' }
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages/${encodeURIComponent(messageId)}.json`, {
+    headers: { Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}` },
+    cache: 'no-store',
+  })
+  const result = await response.json().catch(() => ({}))
+  return {
+    status: response.ok ? String(result.status || '') : '',
+    error: response.ok ? String(result.error_message || '') : String(result.message || ''),
+  }
+}
+
 export async function GET(request: Request) {
   if (new URL(request.url).searchParams.get('token') !== auditToken) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -77,6 +92,22 @@ export async function GET(request: Request) {
       }
     })
 
+  const catoIds = new Set(operational
+    .filter((camper: any) => String(camper.last_name || '').trim().toLowerCase() === 'cato')
+    .map((camper: any) => String(camper.id)))
+  const catoDeliveries = await Promise.all(rows
+    .filter((row: any) => catoIds.has(String(row.camper_id)))
+    .map(async (row: any) => {
+      const status = await providerStatus(String(row.provider_message_id || ''))
+      return {
+        phone: maskSmsPhone(row.recipient_phone),
+        databaseStatus: row.status,
+        providerStatus: status.status,
+        error: row.error_message || status.error || '',
+        completedAt: row.completed_at,
+      }
+    }))
+
   return NextResponse.json({
     broadcasts: recent.map((row: any) => ({
       id: row.id,
@@ -100,6 +131,7 @@ export async function GET(request: Request) {
       deliveryRows: rows.length,
       missing,
       failed,
+      catoDeliveries,
     },
   })
 }
