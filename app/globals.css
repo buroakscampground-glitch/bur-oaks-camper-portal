@@ -10036,10 +10036,10 @@ tbody tr:hover {
 
 @media (max-width: 900px) {
   .signin-page { grid-template-columns: 1fr; }
+  .signin-form-side { order: -1; min-height: auto; padding: 32px 24px 44px; }
   .signin-story { min-height: 390px; padding: 24px; }
   .signin-story-copy { margin: 34px 0 18px; padding: 26px; }
   .signin-story-copy h1 { max-width: 650px; font-size: 52px; }
-  .signin-form-side { min-height: 560px; padding: 45px 24px 90px; }
   .signin-feature-strip { grid-template-columns: 1fr; }
   .signin-ambient-card { display: none; }
   .portal-start-here {
@@ -10063,7 +10063,7 @@ tbody tr:hover {
   .signin-story-copy h1 { font-size: 45px; }
   .signin-form-card h2 { font-size: 34px; }
   .signin-feature-strip article { min-height: 64px; }
-  .signin-form-side { padding: 26px 16px 92px; }
+  .signin-form-side { padding: 16px 12px 32px; }
   .signin-form-card { padding: 25px; border-radius: 24px; }
   .signin-mini-grid { grid-template-columns: 1fr; }
   .portal-start-here {

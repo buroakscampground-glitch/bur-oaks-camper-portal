@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
-import { effectivePortalRole } from './staff-roles'
+import { effectivePortalRole } from './staff-roles.ts'
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
