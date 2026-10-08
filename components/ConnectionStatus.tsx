@@ -41,7 +41,9 @@ export default function ConnectionStatus() {
     }
   }, [])
 
-  if (connectionState === 'online') return null
+  if (connectionState === 'online') {
+    return <span className="global-connection-monitor" data-ready="true" hidden aria-hidden="true" />
+  }
 
   const offline = connectionState === 'offline'
   return (

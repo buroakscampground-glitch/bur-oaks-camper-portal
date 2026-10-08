@@ -497,6 +497,7 @@ test('keyboard users can skip repeated navigation at every release width', async
 test('connection loss and recovery give safe global guidance', async ({ page }, testInfo) => {
   test.skip(!['phone-360', 'desktop'].includes(testInfo.project.name), 'Phone and desktop prove both status-banner positions.')
   await page.goto('/login')
+  await expect(page.locator('.global-connection-monitor')).toHaveAttribute('data-ready', 'true')
 
   await page.evaluate(() => window.dispatchEvent(new Event('offline')))
   const lost = page.locator('.global-connection-status')

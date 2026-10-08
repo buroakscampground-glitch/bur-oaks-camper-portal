@@ -54,6 +54,7 @@ test('every workspace warns safely when a connection is lost and restored', () =
   assert.match(layout, /<ConnectionStatus \/>/)
   assert.match(connectionStatus, /window\.addEventListener\('offline'/)
   assert.match(connectionStatus, /window\.addEventListener\('online'/)
+  assert.match(connectionStatus, /data-ready="true" hidden aria-hidden="true"/)
   assert.match(connectionStatus, /Unsaved changes may not have reached Bur Oaks/)
   assert.match(connectionStatus, /before repeating a payment, message, or request/)
   assert.match(connectionStatus, /role="status"/)
