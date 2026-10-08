@@ -1,4 +1,13 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { isLotRentExemptCamper, isNoBillingLot } from './billing-exemptions'
+
+type CreditBalanceRow = { remaining_amount?: number | string | null; status?: string | null }
+type InvoiceDraft = Record<string, unknown> & {
+  camper_id?: unknown
+  invoice_type?: unknown
+  total_due?: unknown
+  due_date?: unknown
+}
 
 export function formatCreditMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -7,7 +16,7 @@ export function formatCreditMoney(value: unknown) {
   })
 }
 
-export async function getCamperCreditBalance(client: any, camperId: string) {
+export async function getCamperCreditBalance(client: SupabaseClient, camperId: string) {
   if (!camperId) return 0
 
   const { data, error } = await client
@@ -20,7 +29,8 @@ export async function getCamperCreditBalance(client: any, camperId: string) {
   if (error?.code === '42P01' || error?.code === 'PGRST205') return 0
   if (error) throw error
 
-  return Number((data || []).reduce((sum: number, credit: any) => sum + Number(credit.remaining_amount || 0), 0).toFixed(2))
+  const credits = (data || []) as CreditBalanceRow[]
+  return Number(credits.reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0).toFixed(2))
 }
 
 export async function applyAvailableCreditsToInvoice({
@@ -30,7 +40,7 @@ export async function applyAvailableCreditsToInvoice({
   invoiceTotal,
   appliedBy,
 }: {
-  client: any
+  client: SupabaseClient
   camperId: string
   invoiceId: string
   invoiceTotal: number
@@ -76,9 +86,9 @@ export async function createInvoiceBundle({
   newCredit = null,
   appliedBy = null,
 }: {
-  client: any
+  client: SupabaseClient
   operationKey: string
-  invoice: Record<string, unknown>
+  invoice: InvoiceDraft
   items: Array<Record<string, unknown>>
   readings?: Array<Record<string, unknown>>
   pumpOutIds?: string[]
@@ -94,8 +104,9 @@ export async function createInvoiceBundle({
       .eq('id', camperId)
       .maybeSingle()
     if (camperError) throw camperError
-    if (isNoBillingLot(camper?.lot_number)) {
-      throw new Error(`Lot ${camper.lot_number} is a no-billing camper site. No invoice was created or sent.`)
+    const lotNumber = camper?.lot_number
+    if (isNoBillingLot(lotNumber)) {
+      throw new Error(`Lot ${lotNumber} is a no-billing camper site. No invoice was created or sent.`)
     }
     const invoiceType = String(invoice.invoice_type || '')
     if (/rent/i.test(invoiceType) && !/association/i.test(invoiceType) && isLotRentExemptCamper(camper || {})) {
@@ -137,7 +148,7 @@ export async function createInvoiceBundle({
   }
 }
 
-export async function deleteInvoiceWithCreditRestore(client: any, invoiceId: string, reason: string) {
+export async function deleteInvoiceWithCreditRestore(client: SupabaseClient, invoiceId: string, reason: string) {
   if (!invoiceId) return { restoredTotal: 0 }
   const { data } = await client.auth.getSession()
   const response = await fetch('/api/admin-invoice-delete', {
@@ -159,7 +170,7 @@ export async function updateInvoiceBundle({
   lateFee,
   items,
 }: {
-  client: any
+  client: SupabaseClient
   invoiceId: string
   invoiceNumber: string
   invoiceType: string

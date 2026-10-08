@@ -1,3 +1,6 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AuthCamperRecord } from './auth-account-match'
+
 export type AuthorizedBillingLink = {
   delegateEmail: string
   ownerLot: string
@@ -42,11 +45,11 @@ function realEmail(value: unknown) {
   return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') && !email.endsWith('@phone-login.buroakscampground.com') ? email : ''
 }
 
-export function authorizedDelegateProfilesForLot(lotNumber: unknown, campers: any[]) {
+export function authorizedDelegateProfilesForLot(lotNumber: unknown, campers: AuthCamperRecord[]) {
   const allowedEmails = new Set(billingDelegateEmailsForLot(lotNumber).map(normalizeBillingEmail))
   if (!allowedEmails.size) return []
 
-  return (campers || []).filter((camper: any) => {
+  return (campers || []).filter((camper) => {
     if (camper?.active === false || ['admin', 'maintenance'].includes(String(camper?.role || '').toLowerCase())) {
       return false
     }
@@ -57,16 +60,16 @@ export function authorizedDelegateProfilesForLot(lotNumber: unknown, campers: an
   })
 }
 
-export function authorizedContactEmails(profiles: any[]) {
+export function authorizedContactEmails(profiles: AuthCamperRecord[]) {
   return Array.from(new Set(
     (profiles || [])
-      .flatMap((profile: any) => [profile?.email, profile?.secondary_email])
+      .flatMap((profile) => [profile?.email, profile?.secondary_email])
       .map(realEmail)
       .filter(Boolean)
   ))
 }
 
-export async function loadAuthorizedContactProfiles(client: any, owner: any) {
+export async function loadAuthorizedContactProfiles(client: SupabaseClient, owner: AuthCamperRecord | null | undefined) {
   const delegateEmails = billingDelegateEmailsForLot(owner?.lot_number)
   if (!delegateEmails.length) return owner ? [owner] : []
 
@@ -77,13 +80,13 @@ export async function loadAuthorizedContactProfiles(client: any, owner: any) {
 
   if (error) throw error
 
-  const delegates = authorizedDelegateProfilesForLot(owner?.lot_number, data || [])
-  return [owner, ...delegates]
-    .filter(Boolean)
+  const delegates = authorizedDelegateProfilesForLot(owner?.lot_number, (data || []) as AuthCamperRecord[])
+  const profiles: AuthCamperRecord[] = owner ? [owner, ...delegates] : delegates
+  return profiles
     .filter((profile, index, all) => all.findIndex((candidate) => String(candidate.id) === String(profile.id)) === index)
 }
 
-export async function loadAuthorizedBillingCampers(client: any, email: unknown) {
+export async function loadAuthorizedBillingCampers(client: SupabaseClient, email: unknown): Promise<AuthCamperRecord[]> {
   const lots = billingOwnerLotsForEmail(email)
   if (!lots.length) return []
 
@@ -96,15 +99,15 @@ export async function loadAuthorizedBillingCampers(client: any, email: unknown) 
   if (error) throw error
 
   const lotOrder = new Map(lots.map((lot, index) => [normalizeBillingLot(lot), index]))
-  return (data || [])
-    .filter((camper: any) => String(camper.role || 'camper').toLowerCase() === 'camper')
-    .sort((left: any, right: any) =>
+  return ((data || []) as AuthCamperRecord[])
+    .filter((camper) => String(camper.role || 'camper').toLowerCase() === 'camper')
+    .sort((left, right) =>
       Number(lotOrder.get(normalizeBillingLot(left.lot_number)) ?? 999) -
       Number(lotOrder.get(normalizeBillingLot(right.lot_number)) ?? 999)
     )
 }
 
-export async function loadAuthorizedDocumentCamper(client: any, email: unknown, camperId: unknown) {
+export async function loadAuthorizedDocumentCamper(client: SupabaseClient, email: unknown, camperId: unknown): Promise<AuthCamperRecord | null> {
   const lots = billingOwnerLotsForEmail(email).map(normalizeBillingLot)
   if (!lots.length || !camperId) return null
 
@@ -117,5 +120,5 @@ export async function loadAuthorizedDocumentCamper(client: any, email: unknown, 
   if (error) throw error
   if (!data || data.active === false || String(data.role || 'camper').toLowerCase() !== 'camper') return null
 
-  return lots.includes(normalizeBillingLot(data.lot_number)) ? data : null
+  return lots.includes(normalizeBillingLot(data.lot_number)) ? data as AuthCamperRecord : null
 }

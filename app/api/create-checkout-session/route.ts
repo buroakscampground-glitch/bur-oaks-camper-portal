@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createHash } from 'crypto'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { verifyFinalInvoiceToken } from '../../../lib/final-invoice-token'
 import { checkRateLimit } from '../../../lib/rate-limit'
@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     let requestedIds = Array.isArray(body.invoiceIds)
       ? Array.from(new Set(body.invoiceIds.filter((id: unknown) => typeof id === 'string')))
       : []
-    let admin: any
+    let admin: SupabaseClient
     let payerId = ''
     let payerEmail = ''
     let billingAccess = 'camper'
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
       const delegatedCampers = await loadAuthorizedBillingCampers(admin, context.user.email)
       allowedCamperIds = new Set([
         String(context.camper.id),
-        ...delegatedCampers.map((camper: any) => String(camper.id)),
+        ...delegatedCampers.map((camper) => String(camper.id)),
       ])
     }
 

@@ -74,7 +74,9 @@ async function planTextRecipients(
 
   const { data: campers, error: camperError } = await camperQuery
   if (camperError) throw camperError
-  let targetCampers = (campers || []).filter(isOperationalCamper)
+  let targetCampers = (campers || []).filter(
+    (camper): camper is NonNullable<typeof camper> => Boolean(camper) && isOperationalCamper(camper)
+  )
 
   if (targetMode === 'open_balance') {
     const { data: invoices, error: invoiceError } = await context.admin
