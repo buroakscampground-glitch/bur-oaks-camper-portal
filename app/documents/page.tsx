@@ -4,6 +4,16 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, Check, CheckCircle2, DoorOpen, FileSignature, FileText, LockKeyhole, ShieldCheck, X } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import {
+  camperCanSignDocument,
+  camperDocumentFilters,
+  camperDocumentWaitsForAnotherSigner,
+  filterCamperDocuments,
+  hasCamperSignedDocument,
+  isRenewalDocument,
+  normalizeCamperDocumentFilter,
+  type CamperDocumentFilter,
+} from '../../lib/camper-document-center'
 
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<any[]>([])
@@ -21,6 +31,7 @@ export default function DocumentsPage() {
   const [signingPreviewUrl, setSigningPreviewUrl] = useState('')
   const [signingPreviewLoading, setSigningPreviewLoading] = useState(false)
   const [signingPreviewError, setSigningPreviewError] = useState('')
+  const [documentFilter, setDocumentFilter] = useState<CamperDocumentFilter>('all')
   const signingRef = useRef(false)
   const decliningRef = useRef('')
   const router = useRouter()
@@ -67,6 +78,7 @@ export default function DocumentsPage() {
         setSuggestedSignerName(signerName)
 
         const requestedDocumentId = new URLSearchParams(window.location.search).get('sign')
+        setDocumentFilter(normalizeCamperDocumentFilter(new URLSearchParams(window.location.search).get('view')))
         const requestedDocument = loadedDocuments.find((document: any) => String(document.id) === requestedDocumentId)
         const signedEmails = [requestedDocument?.signed_email, requestedDocument?.second_signed_email]
           .map((email) => String(email || '').trim().toLowerCase())
@@ -294,23 +306,10 @@ export default function DocumentsPage() {
     )
   }
 
-  const normalizedEmail = currentUserEmail.trim().toLowerCase()
-  const hasCurrentUserSigned = (doc: any) =>
-    [doc.signed_email, doc.second_signed_email]
-      .map((email) => String(email || '').trim().toLowerCase())
-      .includes(normalizedEmail)
-  const canCurrentUserSign = (doc: any) =>
-    doc.signature_status !== 'signed' &&
-    doc.signature_status !== 'not_required' &&
-    doc.signature_status !== 'declined' &&
-    !hasCurrentUserSigned(doc)
+  const hasCurrentUserSigned = (doc: any) => hasCamperSignedDocument(doc, currentUserEmail)
+  const canCurrentUserSign = (doc: any) => camperCanSignDocument(doc, currentUserEmail)
   const documentsNeedingSignature = documents.filter(canCurrentUserSign)
-  const documentsWaitingForOthers = documents.filter((doc) =>
-    doc.signature_status !== 'signed' &&
-    doc.signature_status !== 'not_required' &&
-    doc.signature_status !== 'declined' &&
-    hasCurrentUserSigned(doc)
-  )
+  const documentsWaitingForOthers = documents.filter((doc) => camperDocumentWaitsForAnotherSigner(doc, currentUserEmail))
   const signedDocuments = documents.filter((doc) => doc.signature_status === 'signed')
   const referenceDocuments = documents.filter((doc) => doc.signature_status === 'not_required')
   const declinedDocuments = documents.filter((doc) => doc.signature_status === 'declined')
@@ -326,8 +325,21 @@ export default function DocumentsPage() {
     return 'Your signature is required'
   }
 
-  const isRenewalDocument = (doc: any) => /renewal/i.test(`${doc.document_name || ''} ${doc.document_type || ''}`)
   const pendingRenewalDocuments = documentsNeedingSignature.filter(isRenewalDocument)
+  const visibleDocuments = filterCamperDocuments(documents, documentFilter, currentUserEmail)
+  const visibleNeedingSignature = visibleDocuments.filter(canCurrentUserSign)
+  const visibleWaitingForOthers = visibleDocuments.filter((doc) => camperDocumentWaitsForAnotherSigner(doc, currentUserEmail))
+  const visibleSignedDocuments = visibleDocuments.filter((doc) => doc.signature_status === 'signed')
+  const visibleReferenceDocuments = visibleDocuments.filter((doc) => doc.signature_status === 'not_required')
+  const visibleDeclinedDocuments = visibleDocuments.filter((doc) => doc.signature_status === 'declined')
+
+  function selectDocumentFilter(filter: CamperDocumentFilter) {
+    setDocumentFilter(filter)
+    const url = new URL(window.location.href)
+    if (filter === 'all') url.searchParams.delete('view')
+    else url.searchParams.set('view', filter)
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`)
+  }
 
   async function loadSigningPreview(documentId: string) {
     setSigningPreviewLoading(true)
@@ -502,6 +514,32 @@ export default function DocumentsPage() {
           </section>
         )}
 
+        {documents.length > 0 && (
+          <section className="camper-document-filters" aria-labelledby="document-filter-heading">
+            <div>
+              <small>FIND A DOCUMENT</small>
+              <h2 id="document-filter-heading">Show only what you need</h2>
+              <p>Your files stay unchanged. These buttons only organize what is visible on this screen.</p>
+            </div>
+            <div className="camper-document-filter-buttons" role="group" aria-label="Filter documents">
+              {camperDocumentFilters.map((filter) => {
+                const count = filterCamperDocuments(documents, filter.key, currentUserEmail).length
+                return (
+                  <button
+                    key={filter.key}
+                    type="button"
+                    className={documentFilter === filter.key ? 'active' : ''}
+                    aria-pressed={documentFilter === filter.key}
+                    onClick={() => selectDocumentFilter(filter.key)}
+                  >
+                    <span>{filter.label}</span><strong>{count}</strong>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
+
         {documents.length === 0 && (
           <section className="camper-documents-empty">
             <FileSignature size={34} />
@@ -512,7 +550,7 @@ export default function DocumentsPage() {
           </section>
         )}
 
-        {documentsNeedingSignature.length > 0 && (
+        {visibleNeedingSignature.length > 0 && (
           <section className="camper-document-section" id="documents-to-sign">
             <div className="camper-document-section-heading">
               <span>ACTION NEEDED</span>
@@ -520,12 +558,12 @@ export default function DocumentsPage() {
               <p>Open each file, review it, then sign securely in the portal.</p>
             </div>
             <div className="camper-documents-grid urgent">
-              {documentsNeedingSignature.map(renderDocumentCard)}
+              {visibleNeedingSignature.map(renderDocumentCard)}
             </div>
           </section>
         )}
 
-        {documentsWaitingForOthers.length > 0 && (
+        {visibleWaitingForOthers.length > 0 && (
           <section className="camper-document-section">
             <div className="camper-document-section-heading">
               <span>YOU ARE DONE FOR NOW</span>
@@ -533,12 +571,12 @@ export default function DocumentsPage() {
               <p>Your signature is safely recorded. The other signer must finish these documents; no repeat signature is needed from you.</p>
             </div>
             <div className="camper-documents-grid waiting">
-              {documentsWaitingForOthers.map(renderDocumentCard)}
+              {visibleWaitingForOthers.map(renderDocumentCard)}
             </div>
           </section>
         )}
 
-        {(signedDocuments.length > 0 || referenceDocuments.length > 0 || declinedDocuments.length > 0) && (
+        {(visibleSignedDocuments.length > 0 || visibleReferenceDocuments.length > 0 || visibleDeclinedDocuments.length > 0) && (
           <section className="camper-document-section">
             <div className="camper-document-section-heading">
               <span>YOUR RECORDS</span>
@@ -546,8 +584,17 @@ export default function DocumentsPage() {
               <p>These files are saved with your camper account for easy access.</p>
             </div>
             <div className="camper-documents-grid">
-              {[...signedDocuments, ...declinedDocuments, ...referenceDocuments].map(renderDocumentCard)}
+              {[...visibleSignedDocuments, ...visibleDeclinedDocuments, ...visibleReferenceDocuments].map(renderDocumentCard)}
             </div>
+          </section>
+        )}
+
+        {documents.length > 0 && visibleDocuments.length === 0 && (
+          <section className="camper-documents-empty filtered" role="status">
+            <FileText size={34} />
+            <h2>No documents in this view</h2>
+            <p>Choose another filter to see the rest of your document center.</p>
+            <button type="button" onClick={() => selectDocumentFilter('all')}>Show all documents</button>
           </section>
         )}
 

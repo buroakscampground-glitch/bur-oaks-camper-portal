@@ -375,6 +375,8 @@ async function installSyntheticCamperWriteSession(page: Page) {
         { id: 'doc-action', document_name: 'Rules acknowledgment', document_type: 'Rules', signature_status: 'pending', requires_two_signatures: false, signed_email: null, second_signed_email: null },
         { id: 'doc-waiting', document_name: 'Two-signer agreement', document_type: 'Agreement', signature_status: 'pending_second_signature', requires_two_signatures: true, signed_name: 'Write Check', signed_email: user.email, second_signed_email: null },
         { id: 'doc-complete', document_name: 'Completed lease', document_type: 'Lease', signature_status: 'signed', requires_two_signatures: false, signed_name: 'Write Check', signed_email: user.email, signed_at: '2026-10-07T15:15:00.000Z' },
+        { id: 'doc-renewal', document_name: '2027 Seasonal Renewal', document_type: 'Renewal', signature_status: 'signed', requires_two_signatures: false, signed_name: 'Write Check', signed_email: user.email, signed_at: '2026-10-07T15:15:00.000Z' },
+        { id: 'doc-insurance', document_name: 'Golf cart insurance', document_type: 'Insurance', signature_status: 'not_required', requires_two_signatures: false },
       ], suggestedSignerName: 'Write Check' },
       '/api/camper-invoices': { invoices: [], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
       '/api/authorized-billing': { accounts: [] },
@@ -821,6 +823,15 @@ test('document center separates my action from another signer’s action', async
   await expect(page.getByText('Your signature is saved — waiting for the other signer')).toBeVisible()
   await expect(page.getByText('Two-signer agreement').locator('..').getByRole('button', { name: 'Review & Sign' })).toHaveCount(0)
   await expect(page.getByText('Rules acknowledgment').locator('..').getByRole('button', { name: 'Review & Sign' })).toBeVisible()
+  await page.getByRole('button', { name: 'Signed 2' }).click()
+  await expect(page.getByText('Completed lease')).toBeVisible()
+  await expect(page.getByText('Rules acknowledgment')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Renewals 1' }).click()
+  await expect(page.getByText('2027 Seasonal Renewal')).toBeVisible()
+  await expect(page.getByText('Completed lease')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Insurance 1' }).click()
+  await expect(page.getByText('Golf cart insurance')).toBeVisible()
+  await expect(page).toHaveURL(/view=insurance/)
   await expectNoHorizontalOverflow(page)
 })
 
