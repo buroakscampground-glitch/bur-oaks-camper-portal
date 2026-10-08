@@ -42,3 +42,17 @@ test('credit-paid invoices are not called new cash and unclassified payments blo
   assert.equal(result.counts.unclassifiedInvoices, 1)
   assert.equal(result.balanced, false)
 })
+
+test('Supabase relationship arrays are normalized before money records reach the office view', () => {
+  const result = summarizeDailyCloseout({
+    invoices: [{ id: 'online', total_due: 25, payment_method: 'Online card', campers: [{ first_name: 'Safe', last_name: 'Shape', lot_number: 'T1' }] }],
+    manualPayments: [{ id: 'manual', amount: 10, result: { appliedTotal: 10 }, campers: [{ first_name: 'Office', lot_number: 'T2' }] }],
+    manualAllocations: [{ payment_id: 'manual', invoice_id: 'manual-invoice', amount_applied: 10, invoices: [{ invoice_number: 8, invoice_type: 'Electric' }] }],
+    onlineExtraCredits: [{ id: 'credit', original_amount: 0, campers: [{ lot_number: 'T1' }] }],
+    creditApplications: [{ id: 'application', credit_id: 'old', amount_applied: 5, campers: [{ lot_number: 'T3' }], invoices: [{ invoice_number: 9 }] }],
+  })
+  assert.equal(result.onlineInvoices[0].campers?.lot_number, 'T1')
+  assert.equal(result.manualPayments[0].campers?.first_name, 'Office')
+  assert.equal(result.manualAllocations[0].invoices?.invoice_number, 8)
+  assert.equal(result.creditApplications[0].invoices?.invoice_number, 9)
+})

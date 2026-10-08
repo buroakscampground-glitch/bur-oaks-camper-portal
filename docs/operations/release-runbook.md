@@ -1,5 +1,7 @@
 # Production release runbook
 
+The current systems of record and cross-domain invariants are documented in [`../architecture/domain-model.md`](../architecture/domain-model.md). Review that model before changing authorization, billing, documents, metering, service requests, events, or communications.
+
 ## Before changing code
 
 1. State whether the work reads or writes camper, billing, payment, document, messaging, or storage data.

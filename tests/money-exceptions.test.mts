@@ -28,3 +28,11 @@ test('payment alerts retain their exact local repair link', () => {
   assert.equal(item.href, '/admin/invoices/i1')
   assert.equal(item.severity, 'urgent')
 })
+
+test('money exceptions safely accept Supabase relationship arrays', () => {
+  const [item] = buildMoneyExceptionQueue({
+    lateAchInvoices: [{ id: 'invoice-array', total_due: 12, campers: [{ lot_number: 'A7' }] }],
+  })
+  assert.equal(item.lotNumber, 'A7')
+  assert.match(item.detail, /Lot A7/)
+})

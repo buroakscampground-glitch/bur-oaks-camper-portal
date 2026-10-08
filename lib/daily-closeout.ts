@@ -1,5 +1,79 @@
 import { invoiceRecordedTotal } from './invoice-balance.ts'
 
+export type CloseoutCamper = {
+  first_name?: string | null
+  last_name?: string | null
+  lot_number?: string | null
+}
+
+type SupabaseRelation<T> = T | T[] | null
+
+function oneRelation<T>(value: SupabaseRelation<T> | undefined): T | null {
+  return Array.isArray(value) ? value[0] || null : value || null
+}
+
+export type CloseoutInvoice = {
+  id: string
+  invoice_number?: string | number | null
+  invoice_type?: string | null
+  total_due?: number | string | null
+  subtotal?: number | string | null
+  late_fee?: number | string | null
+  status?: string | null
+  payment_method?: string | null
+  paid_at?: string | null
+  camper_id?: string | null
+  payment_reference?: string | null
+  campers?: SupabaseRelation<CloseoutCamper>
+}
+
+export type ManualPaymentRecord = {
+  id: string
+  camper_id?: string | null
+  amount?: number | string | null
+  payment_method?: string | null
+  received_on?: string | null
+  created_at?: string | null
+  credit_id?: string | null
+  result?: { appliedTotal?: number | string | null; creditAmount?: number | string | null } | null
+  campers?: SupabaseRelation<CloseoutCamper>
+}
+
+export type ManualAllocationRecord = {
+  payment_id?: string | null
+  invoice_id?: string | null
+  amount_applied?: number | string | null
+  invoices?: SupabaseRelation<{ invoice_number?: string | number | null; invoice_type?: string | null }>
+}
+
+export type CloseoutCredit = {
+  id?: string
+  camper_id?: string | null
+  original_amount?: number | string | null
+  remaining_amount?: number | string | null
+  applies_to?: string | null
+  created_at?: string | null
+  campers?: SupabaseRelation<CloseoutCamper>
+}
+
+export type CloseoutCreditApplication = {
+  id?: string
+  credit_id?: string | null
+  amount_applied?: number | string | null
+  applied_at?: string | null
+  invoice_id?: string | null
+  invoices?: SupabaseRelation<{ invoice_number?: string | number | null; invoice_type?: string | null }>
+  campers?: SupabaseRelation<CloseoutCamper>
+}
+
+export type CloseoutPayout = {
+  id?: string
+  amount?: number | string | null
+  status?: string | null
+  arrivalDate?: string | null
+  automatic?: boolean | null
+}
+
 function amount(value: unknown) {
   const number = Number(value || 0)
   return Number.isFinite(number) ? Math.round(number * 100) / 100 : 0
@@ -29,15 +103,25 @@ export function centralDayRange(dateKey: string) {
 }
 
 export function summarizeDailyCloseout({
-  invoices = [], manualPayments = [], manualAllocations = [], onlineExtraCredits = [], creditApplications = [], payouts = [],
+  invoices: invoiceRows = [], manualPayments: manualPaymentRows = [], manualAllocations: manualAllocationRows = [],
+  onlineExtraCredits: onlineExtraCreditRows = [], creditApplications: creditApplicationRows = [], payouts = [],
 }: {
-  invoices?: any[]
-  manualPayments?: any[]
-  manualAllocations?: any[]
-  onlineExtraCredits?: any[]
-  creditApplications?: any[]
-  payouts?: any[]
+  invoices?: CloseoutInvoice[]
+  manualPayments?: ManualPaymentRecord[]
+  manualAllocations?: ManualAllocationRecord[]
+  onlineExtraCredits?: CloseoutCredit[]
+  creditApplications?: CloseoutCreditApplication[]
+  payouts?: CloseoutPayout[]
 }) {
+  const invoices = invoiceRows.map((invoice) => ({ ...invoice, campers: oneRelation(invoice.campers) }))
+  const manualPayments = manualPaymentRows.map((payment) => ({ ...payment, campers: oneRelation(payment.campers) }))
+  const manualAllocations = manualAllocationRows.map((allocation) => ({ ...allocation, invoices: oneRelation(allocation.invoices) }))
+  const onlineExtraCredits = onlineExtraCreditRows.map((credit) => ({ ...credit, campers: oneRelation(credit.campers) }))
+  const creditApplications = creditApplicationRows.map((application) => ({
+    ...application,
+    invoices: oneRelation(application.invoices),
+    campers: oneRelation(application.campers),
+  }))
   const manualInvoiceIds = new Set(manualAllocations.map((row) => String(row.invoice_id || '')).filter(Boolean))
   const creditInvoiceIds = new Set(creditApplications.map((row) => String(row.invoice_id || '')).filter(Boolean))
   const newPaymentCreditIds = new Set(manualPayments.map((row) => String(row.credit_id || '')).filter(Boolean))
@@ -93,3 +177,5 @@ export function summarizeDailyCloseout({
     balanced: Math.abs(difference) < 0.005 && unclassifiedInvoices.length === 0,
   }
 }
+
+export type DailyCloseoutSummary = ReturnType<typeof summarizeDailyCloseout>

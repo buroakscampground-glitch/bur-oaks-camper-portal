@@ -10,15 +10,61 @@ export type MoneyException = {
   lotNumber: string | null
 }
 
-function invoiceHref(invoice: any) {
+type ExceptionCamper = { lot_number?: string | null }
+type ExceptionCamperRelation = ExceptionCamper | ExceptionCamper[] | null
+
+export type ExceptionInvoice = {
+  id?: string | null
+  invoice_number?: string | number | null
+  payment_reference?: string | null
+  total_due?: number | string | null
+  subtotal?: number | string | null
+  paid_at?: string | null
+  ach_expected_date?: string | null
+  campers?: ExceptionCamperRelation
+}
+
+export type PaymentAlertRecord = {
+  id: string
+  title?: string | null
+  message?: string | null
+  created_at?: string | null
+  source_table?: string | null
+  source_id?: string | null
+  lot_number?: string | null
+}
+
+export type ProcessorPayout = {
+  id: string
+  status?: string | null
+  amount?: number | null
+  created?: number | null
+}
+
+export type ProcessorDispute = {
+  id: string
+  amount?: number | null
+  status?: string | null
+  created?: number | null
+  paymentIntent?: string | null
+}
+
+export type ProcessorRefund = ProcessorDispute
+
+function invoiceHref(invoice?: ExceptionInvoice) {
   return invoice?.id ? `/admin/invoices/${encodeURIComponent(String(invoice.id))}` : '/admin/invoices'
 }
 
-function invoiceForReference(invoices: any[], reference: unknown) {
+function invoiceForReference(invoices: ExceptionInvoice[], reference: unknown) {
   return invoices.find((invoice) => String(invoice.payment_reference || '') === String(reference || ''))
 }
 
-function alertHref(alert: any) {
+function invoiceCamper(invoice?: ExceptionInvoice) {
+  const relation = invoice?.campers
+  return Array.isArray(relation) ? relation[0] || null : relation || null
+}
+
+function alertHref(alert: PaymentAlertRecord) {
   if (alert.source_table === 'invoices' && alert.source_id) return `/admin/invoices/${encodeURIComponent(String(alert.source_id))}`
   if (alert.source_table === 'stripe_payouts') return '/admin/stripe-deposits'
   return '/admin/notifications?filter=payment_problem'
@@ -27,13 +73,13 @@ function alertHref(alert: any) {
 export function buildMoneyExceptionQueue({
   alerts = [], lateAchInvoices = [], unmatchedInvoices = [], payouts = [], disputes = [], refunds = [], referencedInvoices = [],
 }: {
-  alerts?: any[]
-  lateAchInvoices?: any[]
-  unmatchedInvoices?: any[]
-  payouts?: any[]
-  disputes?: any[]
-  refunds?: any[]
-  referencedInvoices?: any[]
+  alerts?: PaymentAlertRecord[]
+  lateAchInvoices?: ExceptionInvoice[]
+  unmatchedInvoices?: ExceptionInvoice[]
+  payouts?: ProcessorPayout[]
+  disputes?: ProcessorDispute[]
+  refunds?: ProcessorRefund[]
+  referencedInvoices?: ExceptionInvoice[]
 }) {
   const items: MoneyException[] = []
 
@@ -54,11 +100,11 @@ export function buildMoneyExceptionQueue({
     kind: 'late-ach',
     severity: 'urgent',
     title: `ACH payment is past its expected date${invoice.invoice_number ? ` · Invoice #${invoice.invoice_number}` : ''}`,
-    detail: `Lot ${invoice.campers?.lot_number || '—'} still shows payment processing. Verify the bank result before treating it as paid.`,
+    detail: `Lot ${invoiceCamper(invoice)?.lot_number || '—'} still shows payment processing. Verify the bank result before treating it as paid.`,
     amountCents: Math.round(Number(invoice.total_due || invoice.subtotal || 0) * 100),
     occurredAt: invoice.ach_expected_date || null,
     href: invoiceHref(invoice),
-    lotNumber: invoice.campers?.lot_number || null,
+    lotNumber: invoiceCamper(invoice)?.lot_number || null,
   })
 
   for (const invoice of unmatchedInvoices) items.push({
@@ -66,11 +112,11 @@ export function buildMoneyExceptionQueue({
     kind: 'unmatched',
     severity: 'urgent',
     title: `Paid invoice has no payment ledger${invoice.invoice_number ? ` · Invoice #${invoice.invoice_number}` : ''}`,
-    detail: `Lot ${invoice.campers?.lot_number || '—'} was marked paid without a payment method or matching reference. Verify the original receipt before correcting the record.`,
+    detail: `Lot ${invoiceCamper(invoice)?.lot_number || '—'} was marked paid without a payment method or matching reference. Verify the original receipt before correcting the record.`,
     amountCents: Math.round(Number(invoice.total_due || invoice.subtotal || 0) * 100),
     occurredAt: invoice.paid_at || null,
     href: invoiceHref(invoice),
-    lotNumber: invoice.campers?.lot_number || null,
+    lotNumber: invoiceCamper(invoice)?.lot_number || null,
   })
 
   for (const payout of payouts.filter((row) => ['failed', 'canceled'].includes(String(row.status || '').toLowerCase()))) items.push({
@@ -93,12 +139,12 @@ export function buildMoneyExceptionQueue({
       severity: 'urgent',
       title: `Card payment dispute · ${String(dispute.status || 'review needed').replaceAll('_', ' ')}`,
       detail: invoice
-        ? `Invoice #${invoice.invoice_number || '—'} for Lot ${invoice.campers?.lot_number || '—'} is connected to this dispute.`
+        ? `Invoice #${invoice.invoice_number || '—'} for Lot ${invoiceCamper(invoice)?.lot_number || '—'} is connected to this dispute.`
         : 'A card payment has an open dispute. Match it to the camper record and respond in Stripe.',
       amountCents: Number(dispute.amount || 0),
       occurredAt: dispute.created ? new Date(Number(dispute.created) * 1000).toISOString() : null,
       href: invoiceHref(invoice),
-      lotNumber: invoice?.campers?.lot_number || null,
+      lotNumber: invoiceCamper(invoice)?.lot_number || null,
     })
   }
 
@@ -114,12 +160,12 @@ export function buildMoneyExceptionQueue({
       severity: refund.status === 'failed' ? 'urgent' : 'watch',
       title: `Refund ${String(refund.status || 'needs review').toLowerCase()}`,
       detail: invoice
-        ? `Invoice #${invoice.invoice_number || '—'} for Lot ${invoice.campers?.lot_number || '—'} is connected to this refund.`
+        ? `Invoice #${invoice.invoice_number || '—'} for Lot ${invoiceCamper(invoice)?.lot_number || '—'} is connected to this refund.`
         : 'This refund has not completed. Verify its destination and current status in Stripe.',
       amountCents: Number(refund.amount || 0),
       occurredAt: refund.created ? new Date(Number(refund.created) * 1000).toISOString() : null,
       href: invoiceHref(invoice),
-      lotNumber: invoice?.campers?.lot_number || null,
+      lotNumber: invoiceCamper(invoice)?.lot_number || null,
     })
   }
 

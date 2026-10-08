@@ -3,23 +3,29 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, CheckCircle2, CircleDollarSign, RefreshCw, TriangleAlert } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import type { MoneyException } from '../../../lib/money-exceptions'
+
+type MoneyExceptionResponse = {
+  exceptions: MoneyException[]
+  counts: { total: number; urgent: number; watch: number }
+}
 
 function money(cents: unknown) {
   return Number(cents || 0) / 100
 }
 
-async function loadExceptions() {
+async function loadExceptions(): Promise<MoneyExceptionResponse> {
   const { data } = await supabase.auth.getSession()
   const response = await fetch('/api/admin-money-exceptions', {
     headers: { Authorization: `Bearer ${data.session?.access_token || ''}` }, cache: 'no-store',
   })
   const result = await response.json().catch(() => null)
   if (!response.ok) throw new Error(result?.error || 'The money exception check could not be loaded.')
-  return result
+  return result as MoneyExceptionResponse
 }
 
 export default function MoneyExceptionsPage() {
-  const [result, setResult] = useState<any>(null)
+  const [result, setResult] = useState<MoneyExceptionResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -27,7 +33,7 @@ export default function MoneyExceptionsPage() {
     setLoading(true)
     setError('')
     try { setResult(await loadExceptions()) }
-    catch (loadError: any) { setResult(null); setError(loadError?.message || 'The money exception check could not be loaded.') }
+    catch (loadError: unknown) { setResult(null); setError(loadError instanceof Error ? loadError.message : 'The money exception check could not be loaded.') }
     finally { setLoading(false) }
   }
 
@@ -49,7 +55,7 @@ export default function MoneyExceptionsPage() {
           <div><small>CURRENT RESULT</small><h2>{result.counts.total ? `${result.counts.total} item${result.counts.total === 1 ? '' : 's'} to review` : 'No money exceptions found'}</h2><p>{result.counts.total ? `${result.counts.urgent} urgent · ${result.counts.watch} still processing` : 'Deposits, disputes, refunds, ACH processing, and payment alerts are clear.'}</p></div>
         </section>
         <section className="money-exception-list">
-          {result.exceptions.map((item: any) => <a href={item.href} className={item.severity} key={item.id}>
+          {result.exceptions.map((item) => <a href={item.href} className={item.severity} key={item.id}>
             <span className="money-exception-icon"><CircleDollarSign size={22} /></span>
             <span><small>{item.kind.replaceAll('-', ' ')}{item.lotNumber ? ` · LOT ${item.lotNumber}` : ''}</small><strong>{item.title}</strong><p>{item.detail}</p>{item.occurredAt && <em>{new Date(item.occurredAt).toLocaleString()}</em>}</span>
             <b>{item.amountCents == null ? 'Open record →' : `${money(item.amountCents).toLocaleString('en-US', { style: 'currency', currency: 'USD' })} →`}</b>

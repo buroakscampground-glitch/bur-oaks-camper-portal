@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
-import { centralDayRange, summarizeDailyCloseout } from '../../../lib/daily-closeout'
+import { centralDayRange, summarizeDailyCloseout, type ManualPaymentRecord } from '../../../lib/daily-closeout'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       if (result.error) throw result.error
     }
 
-    const paymentIds = (manualResult.data || []).map((payment: any) => payment.id)
+    const paymentIds = ((manualResult.data || []) as ManualPaymentRecord[]).map((payment) => payment.id)
     const allocationResult = paymentIds.length
       ? await context.admin.from('manual_payment_allocations')
           .select('payment_id,invoice_id,amount_applied,invoices(invoice_number,invoice_type)')
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
       payouts,
     })
     return NextResponse.json({ date, ...closeout }, { headers: { 'Cache-Control': 'no-store' } })
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Unable to build the daily money closeout.' }, { status: 500 })
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to build the daily money closeout.' }, { status: 500 })
   }
 }
