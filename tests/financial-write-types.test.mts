@@ -22,3 +22,14 @@ test('authorized billing records stay typed through delegate selection', () => {
   assert.doesNotMatch(source, /campers:\s*any\[\]/)
   assert.doesNotMatch(source, /\(camper:\s*any\)/)
 })
+
+test('camper receipts use typed ledger records and database access', () => {
+  const source = read('lib/camper-payment-receipt.ts')
+
+  assert.match(source, /admin: SupabaseClient/)
+  assert.match(source, /ReceiptInvoiceRow/)
+  assert.match(source, /ManualAllocationRow/)
+  assert.doesNotMatch(source, /invoice:\s*any/)
+  assert.doesNotMatch(source, /PromiseLike<any>/)
+  assert.doesNotMatch(source, /\(row:\s*any\)/)
+})

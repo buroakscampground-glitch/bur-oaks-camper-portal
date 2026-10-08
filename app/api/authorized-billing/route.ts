@@ -8,6 +8,7 @@ import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/
 export const runtime = 'nodejs'
 
 type AuthorizedInvoiceRow = Record<string, unknown> & {
+  id: unknown
   camper_id?: unknown
   status?: string | null
   due_date?: string | null
