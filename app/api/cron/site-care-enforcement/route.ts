@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { loadCampgroundBillingSettings } from '../../../../lib/campground-settings'
 import { sendTwilioSms } from '../../../../lib/twilio-sms'
 import { siteCareEnforcementFor, siteCareSourceMarker } from '../../../../lib/site-care-enforcement'
@@ -36,7 +37,7 @@ function cleanLotNumber(value: unknown) {
   return String(value || '').trim().replace(/^lot\s+/i, '')
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
 
   const current = centralNow()
@@ -171,3 +172,5 @@ export async function GET(request: Request) {
     results,
   }, { status: failed.length ? 500 : 200 })
 }
+
+export const GET = withCronFailureAlert('site-care-enforcement', runCron)

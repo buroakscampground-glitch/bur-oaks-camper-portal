@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { getSiteUrl } from '../../../../lib/site-url'
 import {
   createWaitlistManageToken,
@@ -65,7 +66,7 @@ async function runWaitlistCheckIns() {
   return { success: summary.failed === 0, ...summary }
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   try {
     return NextResponse.json(await runWaitlistCheckIns())
@@ -73,3 +74,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error?.message || 'Waitlist check-ins failed.' }, { status: 500 })
   }
 }
+
+export const GET = withCronFailureAlert('waitlist-check-ins', runCron)

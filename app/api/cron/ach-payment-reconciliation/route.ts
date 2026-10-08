@@ -1,13 +1,14 @@
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { getSiteUrl } from '../../../../lib/site-url'
 import { ensureStripePaymentWebhook, reconcileProcessingAchPayments } from '../../../../lib/stripe-ach-reconciliation'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
@@ -38,3 +39,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to reconcile bank payments.' }, { status: 500 })
   }
 }
+
+export const GET = withCronFailureAlert('ach-payment-reconciliation', runCron)

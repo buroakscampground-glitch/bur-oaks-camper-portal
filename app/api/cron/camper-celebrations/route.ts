@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import {
   anniversaryYears,
   birthdayIsToday,
@@ -30,7 +31,7 @@ function profileName(camper: any, profile: CelebrationProfile) {
   return `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   const admin = adminClient()
   if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
@@ -106,3 +107,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ success: true, ...summary })
 }
+
+export const GET = withCronFailureAlert('camper-celebrations', runCron)

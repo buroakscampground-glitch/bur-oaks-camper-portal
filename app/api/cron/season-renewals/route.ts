@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { todayInCentral } from '../../../../lib/invoice-texting'
 import { formatSmsPhone, sendTwilioSms } from '../../../../lib/twilio-sms'
 import { consentedCamperSmsPhones } from '../../../../lib/camper-sms'
@@ -31,7 +32,7 @@ function addYear(value: string) {
   return `${year + 1}-${String(month).padStart(2, '0')}-${String(Math.min(day, last)).padStart(2, '0')}`
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   const admin = adminClient()
   if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
@@ -302,3 +303,5 @@ export async function GET(request: Request) {
     results,
   })
 }
+
+export const GET = withCronFailureAlert('season-renewals', runCron)

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { adminAlertRecipients, sendAdminAlertEmail } from '../../../../lib/admin-alert-email'
 import { sendDailyPaymentReport } from '../../../../lib/daily-payment-report'
 import { sendPumpOutReport } from '../../../../lib/pump-out-report'
@@ -28,7 +29,7 @@ function recipients() {
   return Array.from(new Map([...adminAlertRecipients(), ...configured].map((email) => [email.toLowerCase(), email])).values())
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
   const current = centralNow()
@@ -98,3 +99,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to send the morning office report.' }, { status: 500 })
   }
 }
+
+export const GET = withCronFailureAlert('daily-morning-operations', runCron)

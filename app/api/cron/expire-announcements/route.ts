@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { announcementRemoveOnDate, isAnnouncementExpired } from '../../../../lib/announcement-expiration'
 
 export const dynamic = 'force-dynamic'
@@ -11,7 +12,7 @@ function isAuthorized(request: Request) {
   return Boolean(secret && request.headers.get('authorization') === `Bearer ${secret}`)
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!key) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
@@ -43,3 +44,5 @@ export async function GET(request: Request) {
     })),
   })
 }
+
+export const GET = withCronFailureAlert('expire-announcements', runCron)

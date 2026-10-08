@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { adminAlertRecipients, sendAdminAlertEmail } from '../../../../lib/admin-alert-email'
 import { camperCommunityEmails } from '../../../../lib/community-notifications'
 import { communityStaffRecipients } from '../../../../lib/community-staff-alerts'
@@ -22,7 +23,7 @@ function compact(value: unknown, max = 90) {
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
   const current = centralNow()
@@ -89,3 +90,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to send the office summary.' }, { status: 500 })
   }
 }
+
+export const GET = withCronFailureAlert('daily-office-summary', runCron)

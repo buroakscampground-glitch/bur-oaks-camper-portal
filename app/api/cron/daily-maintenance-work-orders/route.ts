@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { sendMaintenanceWorkOrderReport } from '../../../../lib/maintenance-work-order-report'
 
 export const dynamic = 'force-dynamic'
@@ -26,7 +27,7 @@ function isAuthorized(request: Request) {
   return Boolean(secret) && request.headers.get('authorization') === `Bearer ${secret}`
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
 
   const current = centralNow()
@@ -112,3 +113,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to send the daily work-order packet.' }, { status: 500 })
   }
 }
+
+export const GET = withCronFailureAlert('daily-maintenance-work-orders', runCron)

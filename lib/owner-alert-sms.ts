@@ -27,6 +27,7 @@ function ownerTextTypes() {
   // older environment list predates this alert type.
   types.add('site_care')
   types.add('waitlist_removal')
+  types.add('system_failure')
   return types
 }
 
@@ -68,6 +69,7 @@ function adminPathForAlertType(type: string, camperId?: string | null) {
   if (type === 'site_care') return '/admin/site-care'
   if (type === 'website_waitlist') return '/admin/waitlist'
   if (type === 'waitlist_removal') return '/admin/waitlist-removals'
+  if (type === 'system_failure') return '/admin/system-health#delivery'
   return '/admin/notifications'
 }
 

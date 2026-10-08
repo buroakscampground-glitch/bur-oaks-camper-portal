@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { runPendingDocumentSignatureReminders } from '../../../../lib/document-reminders'
 
 export const dynamic = 'force-dynamic'
@@ -9,7 +10,7 @@ function authorized(request: Request) {
   return Boolean(secret && request.headers.get('authorization') === `Bearer ${secret}`)
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: 'Not authorized.' }, { status: 401 })
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -22,3 +23,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to run document reminders.' }, { status: 500 })
   }
 }
+
+export const GET = withCronFailureAlert('document-signature-reminders', runCron)

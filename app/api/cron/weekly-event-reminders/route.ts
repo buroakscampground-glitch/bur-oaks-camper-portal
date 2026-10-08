@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { centralDate } from '../../../../lib/camper-celebrations'
 import { eventFlyers2026 } from '../../../../lib/event-flyers'
 import { addCentralDays, daysUntilEvent, sendEventReminder } from '../../../../lib/event-reminders'
@@ -23,7 +24,7 @@ function eventKey(title: unknown, date: unknown) {
   return `${String(date || '').trim()}::${String(title || '').trim().toLowerCase()}`
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   const admin = adminClient()
   if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
@@ -137,3 +138,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json(summary)
 }
+
+export const GET = withCronFailureAlert('weekly-event-reminders', runCron)

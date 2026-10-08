@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { sendInvoiceEmail } from '../../../../lib/invoice-emailing'
 import { daysUntilDate, sendInvoiceText, todayInCentral } from '../../../../lib/invoice-texting'
 import {
@@ -36,7 +37,7 @@ function warningWasAlreadyDeliveredOrHasNoRecipient(result: any) {
   return reason.startsWith('Every eligible phone already received') || reason.startsWith('No opted-in phone numbers')
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json(
       { error: 'Cron is not authorized. Add CRON_SECRET in Vercel before enabling automatic reminders.' },
@@ -353,3 +354,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ success: true, today, creditSummary, ...summary })
 }
+
+export const GET = withCronFailureAlert('invoice-text-reminders', runCron)

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { centralDate } from '../../../../lib/camper-celebrations'
 import { isOperationalCamper } from '../../../../lib/camper-records'
 import { camperCommunityEmails, normalizeCommunityMode, sendCommunityEmail } from '../../../../lib/community-notifications'
@@ -14,7 +15,7 @@ function centralHour(date = new Date()) {
   return Number(part?.value ?? -1)
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   if (centralHour() !== 18) return NextResponse.json({ success: true, skipped: true, reason: 'The daily summary runs at 6 PM Central.' })
@@ -73,3 +74,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json(summary)
 }
+
+export const GET = withCronFailureAlert('community-digest', runCron)

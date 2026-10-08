@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { sendAdminAlertEmail } from '../../../../lib/admin-alert-email'
 import { loadOperationsSnapshot } from '../../../../lib/operations-health'
 import { getSiteUrl } from '../../../../lib/site-url'
@@ -15,7 +16,7 @@ function authorized(request: Request) {
   return Boolean(secret && request.headers.get('authorization') === `Bearer ${secret}`)
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!key) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
@@ -47,3 +48,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ success: true, date: snapshot.today, attention: attention.length, result })
 }
+
+export const GET = withCronFailureAlert('weekly-owner-summary', runCron)

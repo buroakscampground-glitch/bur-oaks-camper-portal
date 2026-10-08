@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { sendAdminAlertEmail } from '../../../../lib/admin-alert-email'
 import { loadOperationsSnapshot } from '../../../../lib/operations-health'
 import { getSiteUrl } from '../../../../lib/site-url'
@@ -10,7 +11,7 @@ export const maxDuration = 60
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://mzywctpxnpejglnspyqi.supabase.co'
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
@@ -38,3 +39,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ success: true, month, result })
 }
+
+export const GET = withCronFailureAlert('monthly-operations-backup', runCron)

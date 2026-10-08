@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import Stripe from 'stripe'
 import { loadStripePayoutDetail } from '../../../../lib/stripe-payout-reconciliation'
 import { reconcileAndPrintStripePayout } from '../../../../lib/stripe-payout-printing'
@@ -13,7 +14,7 @@ export const maxDuration = 60
 // Prevent the first release from unexpectedly printing years of old deposits.
 const AUTOMATIC_PRINT_START = Math.floor(Date.parse('2026-09-01T00:00:00-05:00') / 1000)
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
   const key = process.env.STRIPE_SECRET_KEY
@@ -53,3 +54,5 @@ export async function GET(request: Request) {
   const failed = results.filter((result) => result.status === 'failed')
   return NextResponse.json({ success: failed.length === 0, checked: candidates.length, results }, { status: failed.length ? 502 : 200 })
 }
+
+export const GET = withCronFailureAlert('stripe-payout-reconciliation', runCron)

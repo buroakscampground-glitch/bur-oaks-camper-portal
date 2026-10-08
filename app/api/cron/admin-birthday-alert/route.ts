@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
+import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { birthdayIsToday, centralDate } from '../../../../lib/camper-celebrations'
 import { isOperationalCamper } from '../../../../lib/camper-records'
 import { sendStaffWebPush } from '../../../../lib/staff-web-push'
@@ -24,7 +25,7 @@ function profileName(camper: any, secondary = false) {
     : `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
 }
 
-export async function GET(request: Request) {
+async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
@@ -139,3 +140,5 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error?.message || 'Unable to send the birthday alert.' }, { status: 500 })
   }
 }
+
+export const GET = withCronFailureAlert('admin-birthday-alert', runCron)
