@@ -950,6 +950,38 @@ test('office money and operations screens fail closed on a synthetic outage', as
   await expect(page.getByRole('heading', { name: 'Open balances are temporarily unavailable' })).toHaveCount(0)
 })
 
+test('office waitlist turns a synthetic website inquiry into a clear follow-up task', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated follow-up queue without reading production.')
+  const synthetic = await installSyntheticAdminSession(page)
+  synthetic.recoverReads()
+
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/rest\/v1\/waitlist.*/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'content-range': '0-0/1' },
+      body: JSON.stringify([{
+        id: 'synthetic-waitlist-person', first_name: 'Future', last_name: 'Camper',
+        phone: '618-555-0101', email: 'future@example.invalid', desired_site: 'Quiet area',
+        status: 'Waiting', created_at: '2026-10-06T18:00:00Z', last_check_in_at: '2026-10-06T18:01:00Z',
+        notes: 'Camper type: Fifth wheel\n\nCamper length: 35 ft\n\nCampground tour requested. Preferred date: 2026-10-12. Preferred time: Morning.\n\nSubmitted from public website availability form.',
+      }]),
+    })
+  })
+
+  await page.goto('/admin/waitlist')
+  await expect(page.getByRole('heading', { name: 'Follow-up queue' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Future Camper' })).toBeVisible()
+  await expect(page.getByText('Contact applicant')).toBeVisible()
+  await expect(page.getByText(/Website inquiry.*Tour requested/)).toBeVisible()
+  await expect(page.getByText('Fifth wheel · 35 ft')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Call' })).toHaveAttribute('href', 'tel:6185550101')
+  await expect(page.getByRole('link', { name: 'Email' })).toHaveAttribute('href', 'mailto:future%40example.invalid')
+  await page.getByLabel('Filter waitlist').selectOption('Needs follow-up')
+  await expect(page.getByRole('heading', { name: 'Future Camper' })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+})
+
 test('daily money closeout proves payment allocation without changing a ledger', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated closeout view.')
   const synthetic = await installSyntheticAdminSession(page)

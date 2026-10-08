@@ -2,10 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, ArrowRight, CheckCircle2, LoaderCircle, Mail, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, LoaderCircle, Mail, Phone, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { canConvertWaitlistStatus, NEW_CAMPER_ANNUAL_RENT, NEW_CAMPER_ASSOCIATION_FEE, NEW_CAMPER_INSTALLMENT, TEMPORARY_SITE_OPTION, waitlistWelcomeCopy } from '../../../lib/waitlist-conversion'
+import { summarizeWaitlistFollowUp } from '../../../lib/waitlist-follow-up'
 
 const siteKey = (value: unknown) => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
@@ -185,11 +186,15 @@ export default function WaitlistPage() {
     Removed: people.filter((person) => person.status === 'Removed').length,
   }), [people])
 
-  const visiblePeople = people.filter((person) => {
-    const term = search.trim().toLowerCase()
-    const matchesSearch = !term || [person.first_name, person.last_name, person.phone, person.email].join(' ').toLowerCase().includes(term)
-    return matchesSearch && (statusFilter === 'All' || person.status === statusFilter)
-  })
+  const visiblePeople = people
+    .map((person) => ({ person, followUp: summarizeWaitlistFollowUp(person) }))
+    .filter(({ person, followUp }) => {
+      const term = search.trim().toLowerCase()
+      const matchesSearch = !term || [person.first_name, person.last_name, person.phone, person.email, followUp.camperSummary].join(' ').toLowerCase().includes(term)
+      const matchesStatus = statusFilter === 'All' || (statusFilter === 'Needs follow-up' ? followUp.needsFollowUp : person.status === statusFilter)
+      return matchesSearch && matchesStatus
+    })
+    .sort((left, right) => left.followUp.priority - right.followUp.priority || String(right.person.created_at || '').localeCompare(String(left.person.created_at || '')))
   const temporaryConversion = conversionForm.lotNumber === TEMPORARY_SITE_OPTION
   const welcomePreview = waitlistWelcomeCopy(conversionForm.firstName, conversionForm.lotNumber, temporaryConversion)
 
@@ -222,16 +227,19 @@ export default function WaitlistPage() {
         </aside>
 
         <section className="admin-waitlist-directory">
-          <header><div><small>APPLICANTS</small><h2>Current waitlist</h2></div><div><input placeholder="Search name, phone, email…" value={search} onChange={(event) => setSearch(event.target.value)} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Converted</option><option>Declined</option><option>Removed</option></select></div></header>
+          <header><div><small>APPLICANTS</small><h2>Follow-up queue</h2></div><div><input aria-label="Search waitlist" placeholder="Search name, phone, email, camper…" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Filter waitlist" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option><option>Needs follow-up</option><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Converted</option><option>Declined</option><option>Removed</option></select></div></header>
 
           {visiblePeople.length === 0 ? <p className="admin-waitlist-empty">No matching waitlist entries.</p> : (
             <div className="admin-waitlist-list">
-              {visiblePeople.map((person) => (
+              {visiblePeople.map(({ person, followUp }) => (
                 <article key={person.id}>
                   <header><div><span>{person.first_name?.[0] || '?'}{person.last_name?.[0] || ''}</span><div><h3>{person.first_name} {person.last_name}</h3><small>{person.phone || 'No phone'} · {person.email || 'No email'}</small></div></div><em>{person.status}</em></header>
-                  <dl><div><dt>Site preference</dt><dd>{person.desired_site || 'Not provided'}</dd></div><div><dt>Last waitlist email</dt><dd>{person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent'}</dd></div>{person.notes && <div className="wide"><dt>Notes</dt><dd>{person.notes}</dd></div>}</dl>
+                  <div className={`admin-waitlist-next-action${followUp.needsFollowUp ? ' needs-follow-up' : ''}`}><Clock3 size={15} /><span><small>{followUp.ageLabel} · {followUp.source}{followUp.tourRequested ? ' · Tour requested' : ''}</small><strong>{followUp.nextAction}</strong></span></div>
+                  <dl><div><dt>Camper setup</dt><dd>{followUp.camperSummary}</dd></div><div><dt>Site preference</dt><dd>{person.desired_site || 'Not provided'}</dd></div><div><dt>Last automatic check-in</dt><dd>{person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent'}</dd></div>{person.notes && <div className="wide"><dt>Notes</dt><dd>{person.notes}</dd></div>}</dl>
                   <footer>
                     {canConvertWaitlistStatus(person.status) && <button className="convert" type="button" onClick={() => openConversion(person)}><UserPlus size={16} /> Convert to Camper</button>}
+                    {person.phone && <a className="contact" href={`tel:${String(person.phone).replace(/[^+\d]/g, '')}`}><Phone size={14} /> Call</a>}
+                    {person.email && <a className="contact" href={`mailto:${encodeURIComponent(String(person.email))}`}><Mail size={14} /> Email</a>}
                     <select aria-label={`Change status for ${person.first_name} ${person.last_name}`} value={person.status} onChange={(event) => updateStatus(person.id, event.target.value)}><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Declined</option><option>Removed</option>{person.status === 'Converted' && <option>Converted</option>}</select>
                     <button className="delete" type="button" onClick={() => deletePerson(person.id)}>Delete</button>
                   </footer>
