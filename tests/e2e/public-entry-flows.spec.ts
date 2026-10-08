@@ -389,7 +389,9 @@ async function installSyntheticCamperWriteSession(page: Page) {
 }
 
 async function installSyntheticPaymentReceiptSession(page: Page) {
-  let paymentState: 'paid' | 'credited' | 'processing' = 'paid'
+  let paymentState: 'paid' | 'credited' | 'processing' | 'open' = 'paid'
+  let checkoutPosts = 0
+  let checkoutBody: Record<string, unknown> | null = null
   const now = Math.floor(Date.now() / 1000)
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'receipt-check-user', email: 'receipt-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.receipt-check`
@@ -406,16 +408,16 @@ async function installSyntheticPaymentReceiptSession(page: Page) {
       late_fee: 0,
       total_due: paymentState === 'credited' ? 0 : 500,
       due_date: '2026-10-01',
-      status: paymentState === 'processing' ? 'processing' : 'paid',
-      paid_at: paymentState === 'processing' ? null : '2026-10-07T15:15:00.000Z',
-      payment_method: paymentState === 'paid' ? 'Online card' : paymentState === 'credited' ? 'Paid by account credit' : 'Online ACH processing',
+      status: paymentState === 'processing' ? 'processing' : paymentState === 'open' ? 'open' : 'paid',
+      paid_at: paymentState === 'processing' || paymentState === 'open' ? null : '2026-10-07T15:15:00.000Z',
+      payment_method: paymentState === 'paid' ? 'Online card' : paymentState === 'credited' ? 'Paid by account credit' : paymentState === 'processing' ? 'Online ACH processing' : null,
       ach_expected_date: paymentState === 'processing' ? '2026-10-12' : null,
       invoice_items: [{ id: 'receipt-check-item', description: 'Quarterly Lot Rent', quantity: 1, unit_price: 500, total: 500 }],
     }
   }
 
   function receipt() {
-    if (paymentState === 'processing') return null
+    if (paymentState === 'processing' || paymentState === 'open') return null
     if (paymentState === 'credited') return {
       kind: 'account_credit', totalReceived: 500, receivedOn: '2026-10-07T15:15:00.000Z', method: 'Paid by account credit',
       allocations: [{ invoiceId: 'receipt-check-invoice', invoiceNumber: 'TEST-100', invoiceType: 'Quarterly Lot Rent', amount: 500 }], savedCredit: null,
@@ -453,6 +455,12 @@ async function installSyntheticPaymentReceiptSession(page: Page) {
 
   await page.route('**/api/**', async (route) => {
     const pathname = new URL(route.request().url()).pathname
+    if (pathname === '/api/create-checkout-session') {
+      checkoutPosts += 1
+      checkoutBody = route.request().postDataJSON()
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ id: 'cs_test_payment_review', url: '/cancel' }) })
+      return
+    }
     const payloads: Record<string, object> = {
       '/api/camper-invoices': { camper, invoice: invoice(), receipt: receipt(), invoices: [invoice()], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
       '/api/authorized-billing': { accounts: [] },
@@ -468,6 +476,11 @@ async function installSyntheticPaymentReceiptSession(page: Page) {
     showProcessing() {
       paymentState = 'processing'
     },
+    showOpen() {
+      paymentState = 'open'
+    },
+    checkoutPosts: () => checkoutPosts,
+    checkoutBody: () => checkoutBody,
   }
 }
 
@@ -833,6 +846,30 @@ test('camper payment detail separates a confirmed receipt from a payment still p
   await expect(page.getByRole('heading', { name: 'Payment recorded' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Pay by/ })).toHaveCount(0)
   await expectNoHorizontalOverflow(page)
+
+  synthetic.showOpen()
+  await page.reload()
+  await page.getByLabel('Total payment amount').fill('550')
+  await page.getByRole('button', { name: /Review and Pay by card/ }).click()
+  const cardReview = page.getByRole('dialog', { name: 'Review your payment' })
+  await expect(cardReview.getByText('Extra saved for future lot rent').locator('..')).toContainText('$50.00')
+  await expect(cardReview.getByText('Total Stripe will charge today').locator('..')).toContainText('$567.32')
+  expect(synthetic.checkoutPosts()).toBe(0)
+  await cardReview.getByRole('button', { name: 'Go back' }).click()
+  await page.getByLabel('Total payment amount').fill('500')
+  await page.getByRole('button', { name: /Checking account \/ ACH/ }).click()
+  await page.getByRole('button', { name: /Review and Pay by ACH/ }).click()
+  const review = page.getByRole('dialog', { name: 'Review your payment' })
+  await expect(review).toBeVisible()
+  await expect(review.getByText('1 invoice').locator('..')).toContainText('$500.00')
+  await expect(review.getByText('ACH processing fee').locator('..')).toContainText('$4.00')
+  await expect(review.getByText('Total bank debit').locator('..')).toContainText('$504.00')
+  await expect(review).toContainText('do not pay again')
+  expect(synthetic.checkoutPosts()).toBe(0)
+  await review.getByRole('button', { name: /Continue to Stripe/ }).click()
+  await expect(page.getByRole('heading', { name: 'Checkout was closed.' })).toBeVisible()
+  expect(synthetic.checkoutPosts()).toBe(1)
+  expect(synthetic.checkoutBody()).toMatchObject({ invoiceIds: ['receipt-check-invoice'], paymentMethod: 'ach' })
 })
 
 test('document center separates my action from another signer’s action', async ({ page }, testInfo) => {

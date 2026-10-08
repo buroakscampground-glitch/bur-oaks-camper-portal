@@ -44,6 +44,7 @@ import InvoiceSmsOptInAlert from '../components/invoice-sms-opt-in-alert'
 import { invoiceTimingBucket, isInvoiceClosed, isInvoiceDueNow, isInvoiceOutstanding, isInvoicePaid, isInvoiceUpcoming, totalInvoiceBalance, type InvoiceTimingBucket } from '../../lib/invoice-balance'
 import { achExpectedLabel } from '../../lib/ach-expected-date'
 import { camperInvoiceStatus } from '../../lib/camper-invoice-status'
+import PaymentReviewDialog from '../components/payment-review-dialog'
 
 type InvoiceFilter = InvoiceTimingBucket
 
@@ -118,6 +119,7 @@ export default function InvoicesPage() {
   const [invoicePaymentMethod, setInvoicePaymentMethod] = useState<InvoicePaymentMethod>('card')
   const [paymentTotal, setPaymentTotal] = useState('')
   const [extraPaymentDestination, setExtraPaymentDestination] = useState<ExtraPaymentDestination>('lot_rent')
+  const [pendingPayment, setPendingPayment] = useState<{ invoices: any[]; requestedTotal: number } | null>(null)
   const checkoutRef = useRef(false)
 
   useEffect(() => {
@@ -372,16 +374,24 @@ export default function InvoicesPage() {
     }))
   }
 
-  async function handlePayment(invoicesToPay: any[]) {
+  function reviewPayment(invoicesToPay: any[], requestedTotal?: number) {
     if (checkoutRef.current) return
 
     const invoiceTotal = invoicesToPay.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-    const requestedTotal = enteredPaymentTotal || invoiceTotal
-    if (requestedTotal < invoiceTotal) {
+    const amountToReview = requestedTotal ?? (enteredPaymentTotal || invoiceTotal)
+    if (amountToReview < invoiceTotal) {
       setCheckoutMessage(`The selected invoices require ${formatMoney(invoiceTotal)}. Enter at least that amount.`)
       return
     }
-    const extraAmount = requestedTotal - invoiceTotal
+    setCheckoutMessage('')
+    setPendingPayment({ invoices: invoicesToPay, requestedTotal: amountToReview })
+  }
+
+  async function startReviewedPayment() {
+    if (checkoutRef.current || !pendingPayment) return
+    const invoicesToPay = pendingPayment.invoices
+    const invoiceTotal = invoicesToPay.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
+    const extraAmount = pendingPayment.requestedTotal - invoiceTotal
     checkoutRef.current = true
     setCheckoutLoading(true)
     setCheckoutMessage('Opening secure Stripe checkout…')
@@ -398,6 +408,7 @@ export default function InvoicesPage() {
           : undefined,
       )
     } catch (error: any) {
+      setPendingPayment(null)
       setCheckoutMessage(error.message || 'Secure checkout could not be opened. Check the invoice status before trying again.')
     } finally {
       checkoutRef.current = false
@@ -409,13 +420,13 @@ export default function InvoicesPage() {
     const invoicesToPay = payableInvoices.filter((invoice) =>
       selectedInvoices.includes(invoice.id)
     )
-    if (invoicesToPay.length > 0) await handlePayment(invoicesToPay)
+    if (invoicesToPay.length > 0) reviewPayment(invoicesToPay)
   }
 
   async function handlePayInvoice(invoice: any) {
     setProcessingInvoiceId(invoice.id)
     try {
-      await handlePayment([invoice])
+      reviewPayment([invoice], Number(invoice.total_due || 0))
     } finally {
       setProcessingInvoiceId('')
     }
@@ -687,7 +698,7 @@ export default function InvoicesPage() {
                   <button type="button" className="account-text-button" onClick={() => setSelectedInvoices(visiblePayableInvoices.map((invoice) => invoice.id))}>Select all shown</button>
                   {selectedInvoices.length > 0 && <button type="button" className="account-text-button" onClick={() => setSelectedInvoices([])}>Clear</button>}
                   <button type="button" className="account-pay-button" onClick={handlePaySelected} disabled={selectedInvoices.length === 0 || selectedUnderpayment || checkoutLoading}>
-                    <LockKeyhole size={15} /> {checkoutLoading ? 'Opening checkout…' : `${invoicePaymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} ${formatMoney(selectedChargeTotal)}`}
+                    <LockKeyhole size={15} /> {checkoutLoading ? 'Opening checkout…' : invoicePaymentMethod === 'ach' ? `Review and Pay by ACH ${formatMoney(selectedChargeTotal)}` : `Review and Pay by card ${formatMoney(selectedChargeTotal)}`}
                   </button>
                 </div>
               </div>
@@ -718,12 +729,10 @@ export default function InvoicesPage() {
                   const isProcessing = invoice.status === 'processing'
                   const isSelected = selectedInvoices.includes(invoice.id)
                   const statusBadge = camperInvoiceStatus(invoice)
-                  const rowRequestedTotal = enteredPaymentTotal || Number(invoice.total_due || 0)
-                  const rowExtraAmount = Math.max(0, rowRequestedTotal - Number(invoice.total_due || 0))
                   const processingFee = invoicePaymentMethod === 'card'
-                    ? calculateCardProcessingFee(Number(invoice.total_due || 0) + rowExtraAmount, feeSettings)
-                    : calculateAchProcessingFee(Number(invoice.total_due || 0) + rowExtraAmount)
-                  const payToday = Number(invoice.total_due || 0) + rowExtraAmount + processingFee
+                    ? calculateCardProcessingFee(Number(invoice.total_due || 0), feeSettings)
+                    : calculateAchProcessingFee(Number(invoice.total_due || 0))
+                  const payToday = Number(invoice.total_due || 0) + processingFee
                   const invoiceItems = Array.isArray(invoice.invoice_items)
                     ? invoice.invoice_items
                     : []
@@ -778,8 +787,8 @@ export default function InvoicesPage() {
                         {!isPaid && !isProcessing && (
                           <small>
                             {invoicePaymentMethod === 'ach'
-                              ? `ACH: ${formatMoney(invoice.total_due)} invoice${rowExtraAmount > 0 ? ` + ${formatMoney(rowExtraAmount)} remainder` : ''} + ${formatMoney(processingFee)} fee = ${formatMoney(payToday)}`
-                              : `Card: ${formatMoney(invoice.total_due)} invoice${rowExtraAmount > 0 ? ` + ${formatMoney(rowExtraAmount)} remainder` : ''} + ${formatMoney(processingFee)} fee = ${formatMoney(payToday)}`}
+                              ? `ACH: ${formatMoney(invoice.total_due)} invoice + ${formatMoney(processingFee)} fee = ${formatMoney(payToday)}`
+                              : `Card: ${formatMoney(invoice.total_due)} invoice + ${formatMoney(processingFee)} fee = ${formatMoney(payToday)}`}
                           </small>
                         )}
                       </div>
@@ -791,7 +800,7 @@ export default function InvoicesPage() {
                           <span className="account-processing-mark"><Hourglass size={17} /> {achExpectedLabel(invoice) || 'Processing'} · Do not pay again</span>
                         ) : !isPaid ? (
                           <button type="button" onClick={() => handlePayInvoice(invoice)} disabled={processingInvoiceId === invoice.id || checkoutLoading}>
-                            {processingInvoiceId === invoice.id ? 'Opening…' : 'Pay now'} <ChevronRight size={16} />
+                            {processingInvoiceId === invoice.id ? 'Opening…' : 'Review payment'} <ChevronRight size={16} />
                           </button>
                         ) : <span className="account-paid-mark"><CheckCircle2 size={21} /></span>}
                       </div>
@@ -911,6 +920,26 @@ export default function InvoicesPage() {
           <span>Bur Oaks Campground · Lot {camper?.lot_number || '—'}</span>
           <span><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></span>
         </footer>
+        {pendingPayment && (() => {
+          const invoiceTotal = pendingPayment.invoices.reduce((sum, item) => sum + Number(item.total_due || 0), 0)
+          const extraAmount = Math.max(0, pendingPayment.requestedTotal - invoiceTotal)
+          const fee = invoicePaymentMethod === 'card'
+            ? calculateCardProcessingFee(pendingPayment.requestedTotal, feeSettings)
+            : calculateAchProcessingFee(pendingPayment.requestedTotal)
+          return <PaymentReviewDialog
+            open
+            paymentMethod={invoicePaymentMethod}
+            invoiceCount={pendingPayment.invoices.length}
+            invoiceTotal={invoiceTotal}
+            extraAmount={extraAmount}
+            extraDestination={extraPaymentDestination}
+            processingFee={fee}
+            chargeTotal={pendingPayment.requestedTotal + fee}
+            loading={checkoutLoading}
+            onCancel={() => setPendingPayment(null)}
+            onConfirm={startReviewedPayment}
+          />
+        })()}
       </div>
     </main>
   )

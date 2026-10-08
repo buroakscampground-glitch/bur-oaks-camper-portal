@@ -31,6 +31,7 @@ import { invoiceRecordedTotal, isInvoiceClosed, isInvoicePaid, normalizedInvoice
 import { achExpectedLabel } from '../../../lib/ach-expected-date'
 import type { CamperPaymentReceipt } from '../../../lib/camper-payment-receipt'
 import { camperInvoiceStatus } from '../../../lib/camper-invoice-status'
+import PaymentReviewDialog from '../../components/payment-review-dialog'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -85,6 +86,7 @@ export default function CamperInvoiceDetailPage() {
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>('card')
   const [paymentTotal, setPaymentTotal] = useState('')
   const [extraPaymentDestination, setExtraPaymentDestination] = useState<ExtraPaymentDestination>('lot_rent')
+  const [reviewingPayment, setReviewingPayment] = useState(false)
   const [smsOptIn, setSmsOptIn] = useState(false)
   const [smsSaving, setSmsSaving] = useState(false)
   const [smsMessage, setSmsMessage] = useState('')
@@ -278,11 +280,21 @@ export default function CamperInvoiceDetailPage() {
           : undefined,
       )
     } catch (error: any) {
+      setReviewingPayment(false)
       setMessage(error.message || 'Secure checkout could not be opened. Check the invoice status before trying again.')
     } finally {
       payingRef.current = false
       setPaying(false)
     }
+  }
+
+  function reviewInvoicePayment() {
+    if (paymentUnderAmount) {
+      setMessage(`This invoice requires ${formatMoney(invoice.total_due)}. Enter at least the amount due.`)
+      return
+    }
+    setMessage('')
+    setReviewingPayment(true)
   }
 
   async function optInToTexts() {
@@ -548,12 +560,25 @@ export default function CamperInvoiceDetailPage() {
             ) : isClosed ? (
               <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice was canceled. Nothing is owed.</span>
             ) : (
-              <button type="button" onClick={payInvoice} disabled={paying || paymentUnderAmount}>
-                <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : `${paymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} ${formatMoney(payToday)}`} <ChevronRight size={16} />
+              <button type="button" onClick={reviewInvoicePayment} disabled={paying || paymentUnderAmount}>
+                <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : paymentMethod === 'ach' ? `Review and Pay by ACH ${formatMoney(payToday)}` : `Review and Pay by card ${formatMoney(payToday)}`} <ChevronRight size={16} />
               </button>
             )}
             {message && <p role="status" aria-live="polite">{message}</p>}
           </div>
+          <PaymentReviewDialog
+            open={reviewingPayment}
+            paymentMethod={paymentMethod}
+            invoiceCount={1}
+            invoiceTotal={invoiceBalance}
+            extraAmount={extraPaymentAmount}
+            extraDestination={extraPaymentDestination}
+            processingFee={processingFee}
+            chargeTotal={payToday}
+            loading={paying}
+            onCancel={() => setReviewingPayment(false)}
+            onConfirm={payInvoice}
+          />
         </section>
       </section>
     </main>
