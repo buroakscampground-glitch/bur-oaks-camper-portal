@@ -522,7 +522,7 @@ export default function AdminInvoicesPage() {
             <CheckCircle2 size={22} />
             <div>
               <strong>Received a check, cash, or money order?</strong>
-              <span>Find the open invoice below and tap <b>Record payment</b>.</span>
+              <span>Find the camper’s open invoice below and tap <b>Record check</b>. The check form will open automatically.</span>
             </div>
             <button type="button" onClick={() => setFilter('open')}>Show open invoices</button>
           </div>
@@ -602,8 +602,8 @@ export default function AdminInvoicesPage() {
                       )}
                     </span>
                     <span className="admin-invoice-record-actions">
-                      <a href={`/admin/invoices/${invoice.id}${isPaid || isProcessing || isClosed ? '' : '#record-office-payment'}`}>
-                        {isPaid || isProcessing || isClosed ? 'View' : 'Record payment'} <ArrowRight size={14} />
+                      <a href={`/admin/invoices/${invoice.id}${isPaid || isProcessing || isClosed ? '' : '?payment=check#record-office-payment'}`}>
+                        {isPaid || isProcessing || isClosed ? 'View' : 'Record check'} <ArrowRight size={14} />
                       </a>
                       <button type="button" onClick={() => deleteInvoice(invoice)} disabled={isProcessing || deletingInvoiceId === invoice.id}>
                         <Trash2 size={14} /> {isProcessing ? 'Payment locked' : deletingInvoiceId === invoice.id ? 'Deleting…' : 'Delete'}

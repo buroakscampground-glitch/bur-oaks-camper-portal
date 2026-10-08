@@ -113,6 +113,22 @@ export default function InvoiceDetailPage() {
     }
   }, [editing, invoice?.status])
 
+  useEffect(() => {
+    if (!invoice?.id || typeof window === 'undefined') return
+    const requestedCheckEntry = new URLSearchParams(window.location.search).get('payment') === 'check'
+      || window.location.hash === '#record-office-payment'
+    if (!requestedCheckEntry || isInvoicePaid(invoice) || isInvoiceClosed(invoice) || normalizedInvoiceStatus(invoice) === 'processing') return
+
+    setManualPaymentMethod('Check')
+    window.requestAnimationFrame(() => {
+      const paymentCard = document.getElementById('record-office-payment')
+      paymentCard?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const amountInput = document.getElementById('office-payment-amount') as HTMLInputElement | null
+      amountInput?.focus({ preventScroll: true })
+      amountInput?.select()
+    })
+  }, [invoice?.id, invoice?.status])
+
   async function loadInvoice(showLoading = true) {
     if (showLoading) setLoading(true)
     setLoadError('')
@@ -502,7 +518,7 @@ export default function InvoiceDetailPage() {
             )}
             {!isPaid && !isProcessing && !isClosed && !editing && (
               <button type="button" onClick={() => document.getElementById('record-office-payment')?.scrollIntoView({ behavior: 'smooth' })} disabled={busy}>
-                <CheckCircle2 size={16} /> Record office payment
+                <CheckCircle2 size={16} /> Record check
               </button>
             )}
             <button type="button" onClick={() => printPageWithFlag('data-print-camper-invoice')} aria-label="Print this invoice">
@@ -537,14 +553,14 @@ export default function InvoiceDetailPage() {
               <span><CheckCircle2 size={21} /></span>
               <div>
                 <small>CHECK · CASH · MONEY ORDER</small>
-                <h2>Record an office payment</h2>
-                <p>Enter the amount received. It applies here first, then to the camper’s other bills by due date.</p>
+                <h2>Record a check or office payment</h2>
+                <p>Check is selected for you. Enter what the office received; it applies here first, then to the camper’s other bills by due date.</p>
               </div>
             </div>
             <div className="admin-manual-payment-fields">
               <label>
                 <span>Amount received</span>
-                <input type="number" min="0.01" step="0.01" inputMode="decimal" value={manualPaymentAmount} onChange={(event) => setManualPaymentAmount(event.target.value)} />
+                <input id="office-payment-amount" type="number" min="0.01" step="0.01" inputMode="decimal" value={manualPaymentAmount} onChange={(event) => setManualPaymentAmount(event.target.value)} />
               </label>
               <label>
                 <span>Payment method</span>
@@ -583,7 +599,7 @@ export default function InvoiceDetailPage() {
             <div className="admin-manual-payment-submit">
               <span><small>Total received</small><strong>{formatMoney(manualPaymentAmount)}</strong></span>
               <button type="button" onClick={recordManualPayment} disabled={busy}>
-                <CheckCircle2 size={17} /> {busy ? 'Recording…' : 'Record and apply payment'}
+                <CheckCircle2 size={17} /> {busy ? 'Recording…' : manualPaymentMethod === 'Check' ? 'Record and apply check' : 'Record and apply payment'}
               </button>
             </div>
           </section>

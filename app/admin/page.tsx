@@ -848,7 +848,7 @@ export default function AdminPage() {
             </a>
           </div>
           <div className="admin-home-quick-actions" aria-label="Common admin actions">
-            <a href="/admin/invoices"><CircleDollarSign size={17} /> Record payment</a>
+            <a href="/admin/invoices?filter=open&payment=check"><CircleDollarSign size={17} /> Record check</a>
             <a href="/admin/campers"><Users size={17} /> Open camper</a>
             <a href="/admin/announcements"><Megaphone size={17} /> Send update</a>
             <a href="/admin/individual-invoices"><ReceiptText size={17} /> Create invoice</a>
