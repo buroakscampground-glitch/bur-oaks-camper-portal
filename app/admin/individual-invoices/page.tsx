@@ -14,22 +14,29 @@ export default function BulkInvoicesPage() {
   const [amount, setAmount] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadCampers()
   }, [])
 
   async function loadCampers() {
+    setLoading(true)
+    setLoadError('')
     const { data, error } = await supabase.from('campers').select('*').eq('active', true)
 
     if (error) {
-      setMessage(error.message)
+      setCampers([])
+      setLoadError('The active camper list could not be loaded. Bulk invoice creation is blocked so nobody is accidentally skipped.')
     } else {
       setCampers((data || []).filter(isOperationalCamper))
     }
+    setLoading(false)
   }
 
   async function generateInvoices() {
+    if (loading || loadError) return
     if (!amount || !dueDate || !invoiceType) {
       setMessage('Please fill out invoice type, amount, and due date.')
       return
@@ -109,6 +116,14 @@ export default function BulkInvoicesPage() {
     setMessage(
       `Created ${created} invoices successfully. ${creditHeld} account credit${creditHeld === 1 ? '' : 's'} held until the due date, ${creditApplied} used account credits, ${creditPaid} fully covered by credit, ${autoPaid} paid automatically. Text alerts: ${textSent} sent, ${textSkipped} skipped, ${textFailed} failed.`
     )
+  }
+
+  if (loading) {
+    return <main className="portal-loading"><h1>Loading campers…</h1><p>Checking the complete billing roster.</p></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><h1>Bulk invoicing is temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadCampers}>Try again</button></main>
   }
 
   return (

@@ -51,6 +51,10 @@ export default function SiteAvailabilityPage() {
     return <main className="site-availability-page"><div className="site-availability-loading"><LoaderCircle className="admin-spin" /><strong>Checking every campsite…</strong></div></main>
   }
 
+  if (error) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Site availability is temporarily unavailable</h1><p>{error} Opening counts are hidden until lots, campers, and renewals all load.</p><button type="button" className="portal-loading-retry" onClick={loadAvailability}>Try again</button></main>
+  }
+
   return (
     <main className="site-availability-page">
       <style>{`

@@ -31,6 +31,7 @@ export default function AdminMeterReadingReviewPage() {
   const [reviewed, setReviewed] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [emailing, setEmailing] = useState(false)
   const [deletingId, setDeletingId] = useState('')
   const [completingId, setCompletingId] = useState('')
@@ -45,12 +46,24 @@ export default function AdminMeterReadingReviewPage() {
 
   async function load(silent = false) {
     if (!silent) setLoading(true)
+    if (!silent) setLoadError('')
     const auth = await token()
     const [response, readingResult] = await Promise.all([
       fetch('/api/meter-readings', { headers: { Authorization: `Bearer ${auth}` } }),
       supabase.from('electric_readings').select('*').order('reading_date', { ascending: false }),
     ])
     const result = await response.json().catch(() => ({}))
+    if (!response.ok || readingResult.error) {
+      const reason = result.error || readingResult.error?.message || 'Unable to load meter readings.'
+      if (silent) setMessage('Meter review could not refresh. The last healthy queue is still shown.')
+      else {
+        setSubmissions([])
+        setReadings([])
+        setLoadError(reason)
+      }
+      setLoading(false)
+      return
+    }
     setSubmissions(result.submissions || [])
     setReadings(readingResult.data || [])
     const initial: Record<string, string> = {}
@@ -61,7 +74,6 @@ export default function AdminMeterReadingReviewPage() {
       initial[item.id] = value === undefined ? '' : String(value)
     }
     setReviewed(initial)
-    if (!response.ok) setMessage(result.error || 'Unable to load meter readings.')
     setLoading(false)
 
     const unread = (result.submissions || []).find((item: any) =>
@@ -128,6 +140,10 @@ export default function AdminMeterReadingReviewPage() {
       const saved = await updateSubmission(submission.id, { reviewedReading: detected, status: 'ready' })
       if (saved) window.location.href = `/admin/electric?meterDraft=${encodeURIComponent(submission.id)}`
     }
+  }
+
+  if (!loading && loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Meter review is temporarily unavailable</h1><p>{loadError} Review and billing actions are hidden until both the photo queue and recorded readings load.</p><button type="button" className="portal-loading-retry" onClick={() => load()}>Try again</button></main>
   }
 
   async function updateSubmission(id: string, updates: any) {

@@ -40,8 +40,14 @@ export default function AdminSiteServicesPage() {
   async function loadPage() {
     setLoading(true)
     setLoadError('')
-    await Promise.all([loadCampers(), loadCharges(), loadSettings()])
-    setLoading(false)
+    try {
+      await Promise.all([loadCampers(), loadCharges(), loadSettings()])
+    } catch (error) {
+      console.error(error)
+      setLoadError('Site service charges could not be loaded. Totals and charge actions are hidden until the office can reconnect.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function loadSettings() {

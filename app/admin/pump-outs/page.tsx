@@ -43,9 +43,15 @@ export default function AdminPumpOutsPage() {
   async function loadPage() {
     setLoading(true)
     setLoadError('')
-    const [requestsLoaded, optionsLoaded] = await Promise.all([loadRequests(), loadManualEntryOptions()])
-    if (requestsLoaded && optionsLoaded) await markPumpOutAlertsViewed()
-    setLoading(false)
+    try {
+      const [requestsLoaded, optionsLoaded] = await Promise.all([loadRequests(), loadManualEntryOptions()])
+      if (requestsLoaded && optionsLoaded) await markPumpOutAlertsViewed()
+    } catch (error) {
+      console.error(error)
+      setLoadError('The pump-out queue could not be loaded. Counts and actions are hidden until the office can reconnect.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function markPumpOutAlertsViewed() {

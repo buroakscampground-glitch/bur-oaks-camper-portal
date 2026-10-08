@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, CheckCircle2, ClipboardCheck, Gauge } from 'lucide-react'
+import { AlertTriangle, Camera, CheckCircle2, ClipboardCheck, Gauge, Loader2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { attemptAutoPay } from '../../../lib/autopay'
 import { createInvoiceBundle, formatCreditMoney } from '../../../lib/account-credits'
@@ -54,6 +54,8 @@ export default function AdminElectricPage() {
   const [approvedWaterTrashKey, setApprovedWaterTrashKey] = useState('')
   const [approvedAdditionalChargesKey, setApprovedAdditionalChargesKey] = useState('')
   const [meterDraft, setMeterDraft] = useState<any>(null)
+  const [initialLoading, setInitialLoading] = useState(true)
+  const [initialLoadError, setInitialLoadError] = useState('')
   const currentReadingRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -65,15 +67,33 @@ export default function AdminElectricPage() {
   }
 
   useEffect(() => {
-    loadCampers()
-    loadReadings()
-    loadPumpOuts()
-    loadSiteServiceCharges()
-    loadAccountCredits()
-    loadMeterSubmissions()
-    loadBillingChecklist()
-    loadSettings()
+    loadElectricWorkspace()
   }, [])
+
+  async function loadElectricWorkspace() {
+    setInitialLoading(true)
+    setInitialLoadError('')
+    try {
+      const results = await Promise.all([
+        loadCampers(),
+        loadReadings(),
+        loadPumpOuts(),
+        loadSiteServiceCharges(),
+        loadAccountCredits(),
+        loadMeterSubmissions(),
+        loadBillingChecklist(),
+        loadSettings(),
+      ])
+      if (results.some((loaded) => loaded === false)) {
+        setInitialLoadError('Electric billing could not load every required camper, meter, charge, credit, and checklist record. Billing actions are blocked so no charge is omitted.')
+      }
+    } catch (error) {
+      console.error(error)
+      setInitialLoadError('Electric billing could not load every required camper, meter, charge, credit, and checklist record. Billing actions are blocked so no charge is omitted.')
+    } finally {
+      setInitialLoading(false)
+    }
+  }
 
   useEffect(() => {
     const refresh = () => {
@@ -147,77 +167,90 @@ export default function AdminElectricPage() {
     setWaterTrashFee(String(settings.waterTrashFees[0] || 0))
     setCustomWaterCharge(false)
     setCustomWaterAmount('')
+    return true
   }
 
   async function loadCampers() {
-    const { data } = await supabase.from('campers').select('*').order('lot_number')
+    const { data, error } = await supabase.from('campers').select('*').order('lot_number')
+    if (error) return false
     setCampers(data || [])
+    return true
   }
 
   async function loadReadings() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('electric_readings')
       .select('*')
       .order('reading_date', { ascending: false })
 
+    if (error) return false
     setReadings(data || [])
+    return true
   }
 
   async function loadPumpOuts() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('sewer_pump_out_requests')
       .select('*')
       .is('billed_at', null)
       .eq('status', 'completed')
       .order('requested_at', { ascending: true })
 
+    if (error) return false
     setPumpOuts(data || [])
+    return true
   }
 
   async function loadSiteServiceCharges() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('site_service_charges')
       .select('*')
       .is('billed_at', null)
       .is('cancelled_at', null)
       .order('performed_at', { ascending: true })
 
+    if (error) return false
     setSiteServiceCharges(data || [])
+    return true
   }
 
   async function loadAccountCredits() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('account_credits')
       .select('*')
       .eq('status', 'active')
       .gt('remaining_amount', 0)
       .order('created_at', { ascending: true })
 
+    if (error) return false
     setAccountCredits(data || [])
+    return true
   }
 
   async function loadMeterSubmissions() {
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
-    if (!token) return
+    if (!token) return false
     const response = await fetch('/api/meter-readings', { headers: { Authorization: `Bearer ${token}` } })
     const result = await response.json().catch(() => ({}))
     if (response.ok) {
       setMeterSubmissions((result.submissions || []).filter((item: any) => item.status !== 'retake' && !item.invoice_id))
+      return true
     }
+    return false
   }
 
   async function loadBillingChecklist() {
     const { data: sessionData } = await supabase.auth.getSession()
     const token = sessionData.session?.access_token
-    if (!token) return
+    if (!token) return false
     const response = await fetch('/api/meter-readings?checklist=1', { headers: { Authorization: `Bearer ${token}` } })
     const result = await response.json().catch(() => ({}))
     if (response.ok) {
       setBillingChecklist(result.entries || [])
       setChecklistCounts(result.counts || {})
       setChecklistMonth(result.monthStart || '')
-      return
+      return true
     }
 
     // Admin accounts can have more than one campground profile. In that case,
@@ -239,7 +272,7 @@ export default function AdminElectricPage() {
         .ilike('invoice_type', '%Electric%')
         .order('created_at', { ascending: false }),
     ])
-    if (lotsResult.error || campersResult.error || submissionsResult.error || invoicesResult.error) return
+    if (lotsResult.error || campersResult.error || submissionsResult.error || invoicesResult.error) return false
     const fallback = buildMonthlyBillingChecklist({
       lots: lotsResult.data || [],
       campers: campersResult.data || [],
@@ -249,6 +282,7 @@ export default function AdminElectricPage() {
     setBillingChecklist(fallback.entries)
     setChecklistCounts(fallback.counts)
     setChecklistMonth(monthStart)
+    return true
   }
 
   function draftReading(draft: any) {
@@ -833,6 +867,14 @@ const billingReviewComplete = waterTrashReviewed && additionalChargesReviewed
     loadAccountCredits()
     loadBillingChecklist()
     setSaving(false)
+  }
+
+  if (initialLoading) {
+    return <main className="portal-loading"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading electric billing…</h1><p>Checking every meter, charge, credit, and camper record.</p></main>
+  }
+
+  if (initialLoadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Electric billing is temporarily unavailable</h1><p>{initialLoadError}</p><button type="button" className="portal-loading-retry" onClick={loadElectricWorkspace}>Try again</button></main>
   }
 
   return (

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   Activity,
+  AlertTriangle,
   BarChart3,
   BrainCircuit,
   CalendarRange,
@@ -55,10 +56,12 @@ export default function AdminIncomeProjectionPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   const loadProjectionData = useCallback(async (initialLoad = false) => {
     if (initialLoad) setLoading(true)
     else setRefreshing(true)
+    if (initialLoad) setLoadError('')
     try {
       const [camperResult, lotResult, readingResult, invoiceResult, renewalResult] = await Promise.all([
         supabase.from('campers').select('id,lot_number,first_name,last_name,role,active').eq('active', true),
@@ -69,8 +72,12 @@ export default function AdminIncomeProjectionPage() {
       ])
 
       const errors = [camperResult.error, lotResult.error, readingResult.error, invoiceResult.error, renewalResult.error].filter(Boolean)
-      setMessage(errors.map((error) => error?.message).join(' '))
-      if (errors.length) return
+      if (errors.length) {
+        const reason = errors.map((error) => error?.message).join(' ')
+        if (initialLoad) setLoadError(reason || 'The income projection could not be loaded completely.')
+        else setMessage('The forecast could not refresh. The last healthy projection is still shown.')
+        return
+      }
 
       const activeCampers = (camperResult.data || []).filter(isOperationalCamper)
       const rentByLot = new Map(
@@ -97,7 +104,8 @@ export default function AdminIncomeProjectionPage() {
       setRenewals(renewalResult.data || [])
       setLastUpdated(new Date())
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : 'The forecast could not refresh. The last healthy projection is still shown.')
+      if (initialLoad) setLoadError(error instanceof Error ? error.message : 'The income projection could not be loaded completely.')
+      else setMessage('The forecast could not refresh. The last healthy projection is still shown.')
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -189,6 +197,10 @@ export default function AdminIncomeProjectionPage() {
 
   if (loading) {
     return <main className="income-projection-page"><div className="income-projection-loading"><BarChart3 size={34} /><p>Building the campground forecast…</p></div></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Income projection is temporarily unavailable</h1><p>{loadError} Forecast totals, printing, and downloads are hidden until every required source is available.</p><button type="button" className="portal-loading-retry" onClick={() => loadProjectionData(true)}>Try again</button></main>
   }
 
   return (

@@ -88,3 +88,49 @@ test('site service totals and charge actions require both core reads', () => {
   assert.match(page, /Site service charges are temporarily unavailable/)
   assert.match(page, /Totals and charge actions are hidden/)
 })
+
+test('Stripe deposits block empty deposit and health views after a failed load', () => {
+  const page = read('app/admin/stripe-deposits/page.tsx')
+  assert.match(page, /setHealth\(null\)/)
+  assert.match(page, /Deposit totals and printing are hidden/)
+  assert.match(page, /Stripe deposits are temporarily unavailable/)
+})
+
+test('income projection blocks initial failures but preserves the last healthy refresh', () => {
+  const page = read('app/admin/income-projection/page.tsx')
+  assert.match(page, /if \(initialLoad\) setLoadError/)
+  assert.match(page, /The last healthy projection is still shown/)
+  assert.match(page, /Forecast totals, printing, and downloads are hidden/)
+})
+
+test('bulk invoice creation requires a successfully loaded complete camper roster', () => {
+  const page = read('app/admin/individual-invoices/page.tsx')
+  assert.match(page, /Bulk invoice creation is blocked so nobody is accidentally skipped/)
+  assert.match(page, /if \(loading \|\| loadError\) return/)
+})
+
+test('monthly electric reports cannot print or export a failed partial read', () => {
+  const page = read('app/admin/electric/monthly-report/page.tsx')
+  assert.match(page, /Printing and CSV download are blocked/)
+  assert.match(page, /Monthly electric report is temporarily unavailable/)
+})
+
+test('meter review requires both its API queue and recorded readings', () => {
+  const page = read('app/admin/electric/meter-readings/page.tsx')
+  assert.match(page, /if \(!response\.ok \|\| readingResult\.error\)/)
+  assert.match(page, /The last healthy queue is still shown/)
+  assert.match(page, /Meter review is temporarily unavailable/)
+})
+
+test('site availability blocks false opening counts after any source fails', () => {
+  const page = read('app/admin/site-availability/page.tsx')
+  assert.match(page, /Opening counts are hidden until lots, campers, and renewals all load/)
+})
+
+test('electric billing requires all money and operational sources before enabling writes', () => {
+  const page = read('app/admin/electric/page.tsx')
+  assert.match(page, /results\.some\(\(loaded\) => loaded === false\)/)
+  assert.match(page, /Billing actions are blocked so no charge is omitted/)
+  assert.match(page, /Electric billing is temporarily unavailable/)
+  assert.match(page, /finally \{\s*setInitialLoading\(false\)/)
+})

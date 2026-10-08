@@ -27,17 +27,22 @@ export default function StripeDepositsPage() {
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState('')
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   async function loadPayouts() {
     setLoading(true)
     setMessage('')
+    setLoadError('')
     try {
       const result = await api('/api/admin-stripe-payouts')
       setPayouts(result.payouts || [])
       setHealth(result.health || null)
       if (!selected && result.payouts?.[0]) await openPayout(result.payouts[0].id)
     } catch (error: any) {
-      setMessage(error.message)
+      setPayouts([])
+      setHealth(null)
+      setSelected(null)
+      setLoadError(error.message || 'Stripe deposits could not be loaded.')
     } finally {
       setLoading(false)
     }
@@ -74,6 +79,10 @@ export default function StripeDepositsPage() {
   }
 
   useEffect(() => { loadPayouts() }, [])
+
+  if (!loading && loadError) {
+    return <main className="portal-loading" role="alert"><TriangleAlert aria-hidden="true" /><h1>Stripe deposits are temporarily unavailable</h1><p>{loadError} Deposit totals and printing are hidden until the office can reconnect.</p><button type="button" className="portal-loading-retry" onClick={loadPayouts}>Try again</button></main>
+  }
 
   return (
     <main className="stripe-deposit-page">

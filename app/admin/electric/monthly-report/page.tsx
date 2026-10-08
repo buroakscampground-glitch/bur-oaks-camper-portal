@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, CalendarDays, FileText, Printer } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarDays, FileText, Printer } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { displayLotNumber } from '../../../../lib/meter-reading'
 
@@ -45,6 +45,7 @@ export default function MonthlyMeterReportPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
   const autoPrinted = useRef(false)
 
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function MonthlyMeterReportPage() {
     async function loadReport() {
       setLoading(true)
       setMessage('')
+      setLoadError('')
       const bounds = monthBounds(month)
       const [readingResult, camperResult] = await Promise.all([
         supabase
@@ -67,7 +69,11 @@ export default function MonthlyMeterReportPage() {
         supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number'),
       ])
       if (readingResult.error || camperResult.error) {
-        setMessage(readingResult.error?.message || camperResult.error?.message || 'The monthly report could not be loaded.')
+        setReadings([])
+        setCampers([])
+        setLoadError(readingResult.error?.message || camperResult.error?.message || 'The monthly report could not be loaded.')
+        setLoading(false)
+        return
       }
       setReadings(readingResult.data || [])
       setCampers(camperResult.data || [])
@@ -122,6 +128,10 @@ export default function MonthlyMeterReportPage() {
     link.download = `bur-oaks-electric-${month}.csv`
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  if (!loading && loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Monthly electric report is temporarily unavailable</h1><p>{loadError} Printing and CSV download are blocked until readings and camper records both load.</p><button type="button" className="portal-loading-retry" onClick={() => window.location.reload()}>Try again</button></main>
   }
 
   return (
