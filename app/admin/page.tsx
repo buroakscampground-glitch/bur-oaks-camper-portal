@@ -611,6 +611,7 @@ export default function AdminPage() {
         { href: '/admin/directory', title: 'Directory', detail: 'Quick camper lookup', icon: UserRoundSearch },
         { href: '/admin/documents', title: 'Documents', detail: `${stats.documentActions} need action`, icon: FileText },
         { href: '/admin/onboarding', title: 'New camper onboarding', detail: 'Arrival readiness', icon: ClipboardCheck },
+        { href: '/admin/season-operations', title: 'Season opening & closing', detail: 'Site-by-site readiness', icon: CalendarClock },
         { href: '/admin/gatecards', title: 'Gate cards', detail: 'Access control', icon: KeyRound },
         { href: '/admin/waitlist', title: 'Waitlist', detail: `${stats.waitlist} waiting`, icon: ClipboardList },
         { href: '/admin/archived-campers', title: 'Camper archive', detail: `${stats.archivedCampers} records`, icon: Archive },

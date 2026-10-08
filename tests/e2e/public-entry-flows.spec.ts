@@ -1138,6 +1138,47 @@ test('office onboarding turns verified source records into one mobile arrival ch
   await expectNoHorizontalOverflow(page)
 })
 
+test('office season center turns live records and staff proof into one closing checklist', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated season workflow without reading production.')
+  await installSyntheticAdminSession(page)
+  let secured = false
+  let writes = 0
+  await page.route('**/api/admin-season-operations**', async (route) => {
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      expect(body).toMatchObject({ camperId: 'synthetic-season-camper', seasonYear: 2026, phase: 'closing', taskKey: 'closing_site_secured', completed: true })
+      expect(body.note).toContain('walkthrough')
+      secured = true; writes += 1
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) })
+      return
+    }
+    const tasks = [
+      { key: 'meter', label: 'Closing meter reading recorded', detail: 'September–December closing reading is on file', complete: true, automatic: true, href: '/admin/electric/meter-readings' },
+      { key: 'balance', label: 'Season charges settled', detail: '1 season invoice still open', complete: false, automatic: true, href: '/admin/campers/synthetic-season-camper' },
+      { key: 'maintenance', label: 'Maintenance work cleared', detail: 'No open maintenance ticket', complete: true, automatic: true, href: '/admin/maintenance' },
+      { key: 'renewal', label: 'Renewal decision recorded', detail: 'Status: Accepted', complete: true, automatic: true, href: '/admin/renewals' },
+      { key: 'gate', label: 'Gate access resolved', detail: 'Return, deactivation, or approved retention is recorded', complete: true, automatic: false, manualKey: 'closing_gate_resolved' },
+      { key: 'secure', label: 'Campsite secured', detail: secured ? 'Staff confirmation saved' : 'Site security check remains open', complete: secured, automatic: false, manualKey: 'closing_site_secured' },
+      { key: 'water', label: 'Water system winterized', detail: 'Staff confirmation saved', complete: true, automatic: false, manualKey: 'closing_water_winterized' },
+      { key: 'property', label: 'Personal property plan confirmed', detail: 'Staff confirmation saved', complete: true, automatic: false, manualKey: 'closing_property_confirmed' },
+      { key: 'walkthrough', label: 'Final walkthrough complete', detail: 'Final walkthrough remains open', complete: false, automatic: false, manualKey: 'closing_final_walkthrough' },
+    ]
+    const completed = tasks.filter((task) => task.complete).length
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ generatedAt: '2026-10-08T18:00:00Z', year: 2026, phase: 'closing', counts: { total: 1, needingAction: 1, ready: 0, checksRemaining: tasks.length - completed }, campers: [{ camperId: 'synthetic-season-camper', name: 'Season Camper', lotNumber: '42', seasonYear: 2026, phase: 'closing', completed, total: tasks.length, percent: Math.round(completed / tasks.length * 100), ready: false, tasks }] }) })
+  })
+  await page.goto('/admin/season-operations')
+  await expect(page.getByRole('heading', { name: 'Ready for winter' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Season Camper' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open checklist' }).click()
+  await expect(page.getByText('1 season invoice still open')).toBeVisible()
+  await page.getByText('Campsite secured').locator('..').locator('..').getByRole('button', { name: 'Confirm complete' }).click()
+  await page.getByPlaceholder(/What was checked/).fill('Final walkthrough secured this fictional campsite.')
+  await page.getByRole('button', { name: 'Confirm and record' }).click()
+  await expect(page.getByText(/Campsite secured confirmed for Season Camper/)).toBeVisible()
+  expect(writes).toBe(1)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('office quick text verifies exact recipients and links before send', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the read-only campaign preview without sending a text.')
   const synthetic = await installSyntheticAdminSession(page)

@@ -117,6 +117,13 @@ async function cleanupOnboarding(admin: SupabaseClient) {
   if (tasks.error) throw tasks.error
 }
 
+async function cleanupSeasonOperations(admin: SupabaseClient) {
+  const events = await admin.from('season_operation_events').delete().eq('camper_id', camperId).eq('season_year', 2026)
+  if (events.error) throw events.error
+  const tasks = await admin.from('season_operation_tasks').delete().eq('camper_id', camperId).eq('season_year', 2026)
+  if (tasks.error) throw tasks.error
+}
+
 async function cleanupMeterBilling(admin: SupabaseClient) {
   const submissions = await admin.from('meter_reading_submissions').select('id,photo_path').eq('lot_number', 'TEST-01').eq('submitted_reading', meterReading)
   if (submissions.error) throw submissions.error
@@ -183,6 +190,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupCredits(admin)
     await cleanupProspect(admin)
     await cleanupOnboarding(admin)
+    await cleanupSeasonOperations(admin)
     await cleanupMeterBilling(admin)
     await cleanupStripeBilling(admin)
   })
@@ -195,6 +203,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupCredits(admin)
     await cleanupProspect(admin)
     await cleanupOnboarding(admin)
+    await cleanupSeasonOperations(admin)
     await cleanupMeterBilling(admin)
     await cleanupStripeBilling(admin)
   })
@@ -362,6 +371,23 @@ test.describe.serial('reversible staging write journeys', () => {
     expect(reopenedTask.data?.completed_at).toBeNull()
     const history = await admin.from('camper_onboarding_events').select('action').eq('camper_id', camperId).eq('task_key', 'orientation_completed').order('created_at')
     expect(history.error).toBeNull()
+    expect(history.data).toEqual([{ action: 'completed' }, { action: 'reopened' }])
+  })
+
+  test('administrator completes and reopens a season task with immutable history', async ({ request }) => {
+    const { anon, admin } = clients()
+    const token = await tokenFor(anon, 'office.admin@staging.buroaks.invalid', 'BUR_OAKS_STAGING_ADMIN_PASSWORD')
+    const complete = await request.post('/api/admin-season-operations', { headers: { Authorization: `Bearer ${token}` }, data: { camperId, seasonYear: 2026, phase: 'closing', taskKey: 'closing_site_secured', completed: true, note: 'STAGING WRITE fictional site security check.' } })
+    expect(complete.status()).toBe(200)
+    const task = await admin.from('season_operation_tasks').select('completed_at,completed_by,note').eq('camper_id', camperId).eq('season_year', 2026).eq('task_key', 'closing_site_secured').single()
+    expect(task.error).toBeNull()
+    expect(task.data?.completed_at).toBeTruthy()
+    expect(task.data?.completed_by).toBe('office.admin@staging.buroaks.invalid')
+    const blocked = await anon.from('season_operation_events').insert({ camper_id: camperId, season_year: 2026, phase: 'closing', task_key: 'closing_site_secured', action: 'completed' })
+    expect(blocked.error?.code).toBe('42501')
+    const reopen = await request.post('/api/admin-season-operations', { headers: { Authorization: `Bearer ${token}` }, data: { camperId, seasonYear: 2026, phase: 'closing', taskKey: 'closing_site_secured', completed: false, note: 'STAGING WRITE reopened for verification.' } })
+    expect(reopen.status()).toBe(200)
+    const history = await admin.from('season_operation_events').select('action').eq('camper_id', camperId).eq('season_year', 2026).eq('task_key', 'closing_site_secured').order('created_at')
     expect(history.data).toEqual([{ action: 'completed' }, { action: 'reopened' }])
   })
 
