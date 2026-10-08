@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { sendDailyPaymentReport } from '../../../../lib/daily-payment-report'
+import { scheduledReportRetryDecision } from '../../../../lib/scheduled-report-retry'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -30,11 +31,14 @@ export async function GET(request: Request) {
   let { data: reservation, error: reserveError } = await admin.from('scheduled_reports').insert({ report_key: reportKey, report_date: current.date, status: 'running' }).select('id').single()
 
   if (reserveError?.code === '23505') {
-    const { data: existing } = await admin.from('scheduled_reports').select('id,status,office_email_status,printer_email_status').eq('report_key', reportKey).eq('report_date', current.date).maybeSingle()
-    if (existing?.status === 'sent') return NextResponse.json({ success: true, skipped: true, reason: 'The daily payment register already printed.' })
+    const { data: existing, error: existingError } = await admin.from('scheduled_reports').select('id,status,office_email_status,printer_email_status').eq('report_key', reportKey).eq('report_date', current.date).maybeSingle()
+    if (existingError || !existing) return NextResponse.json({ error: 'The earlier payment-report delivery could not be verified.' }, { status: 500 })
+    const decision = scheduledReportRetryDecision(existing, 'The daily payment register already printed.')
+    if (decision.action === 'skip') return NextResponse.json({ success: true, skipped: true, reason: decision.reason })
     if (existing?.id) {
-      retryDelivery = existing
-      await admin.from('scheduled_reports').update({ status: 'running', error_message: null, started_at: new Date().toISOString(), completed_at: null, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      retryDelivery = { office_email_status: decision.sendOffice ? 'failed' : 'sent', printer_email_status: decision.sendPrinter ? 'failed' : 'sent' }
+      const reset = await admin.from('scheduled_reports').update({ status: 'running', error_message: null, started_at: new Date().toISOString(), completed_at: null, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      if (reset.error) return NextResponse.json({ error: 'The payment-report retry could not be reserved.' }, { status: 500 })
       reservation = existing
       reserveError = null
     }
@@ -48,10 +52,11 @@ export async function GET(request: Request) {
     })
     const status = result.office.sent && result.printer.sent ? 'sent' : result.office.sent || result.printer.sent ? 'partial' : 'failed'
     const errors = [result.office.error, result.printer.error].filter(Boolean).join(' | ')
-    await admin.from('scheduled_reports').update({ status, item_count: result.rows.length, office_email_status: result.office.sent ? 'sent' : 'failed', printer_email_status: result.printer.sent ? 'sent' : 'failed', error_message: errors || null, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', reservation.id)
+    const recorded = await admin.from('scheduled_reports').update({ status, item_count: result.rows.length, office_email_status: result.office.sent ? 'sent' : 'failed', printer_email_status: result.printer.sent ? 'sent' : 'failed', error_message: errors || null, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', reservation.id)
+    if (recorded.error) throw recorded.error
     return NextResponse.json({ success: status === 'sent', status, reportDate: current.reportDate, itemCount: result.rows.length, total: result.total, office: result.office, printer: result.printer, printers: result.printers }, { status: status === 'failed' ? 502 : 200 })
   } catch (error: any) {
     await admin.from('scheduled_reports').update({ status: 'failed', error_message: String(error?.message || error).slice(0, 2000), completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', reservation.id)
-    return NextResponse.json({ error: error?.message || 'Unable to send the daily payment register.' }, { status: 500 })
+    return NextResponse.json({ error: 'The payment-report result could not be confirmed. Check the office inbox and Epson printer before retrying.' }, { status: 500 })
   }
 }

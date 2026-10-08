@@ -5,6 +5,7 @@ import { adminAlertRecipients, sendAdminAlertEmail } from '../../../../lib/admin
 import { sendDailyPaymentReport } from '../../../../lib/daily-payment-report'
 import { sendPumpOutReport } from '../../../../lib/pump-out-report'
 import { getSiteUrl } from '../../../../lib/site-url'
+import { scheduledReportRetryDecision } from '../../../../lib/scheduled-report-retry'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -38,13 +39,18 @@ async function runCron(request: Request) {
   if (!key) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
   const admin = createClient(supabaseUrl, key)
   const reportKey = 'daily-morning-operations'
+  let retryDelivery: { office_email_status?: string | null; printer_email_status?: string | null } | null = null
   let { data: reservation, error: reserveError } = await admin.from('scheduled_reports').insert({ report_key: reportKey, report_date: current.date, status: 'running' }).select('id').single()
 
   if (reserveError?.code === '23505') {
-    const { data: existing } = await admin.from('scheduled_reports').select('id,status').eq('report_key', reportKey).eq('report_date', current.date).maybeSingle()
-    if (existing?.status === 'sent') return NextResponse.json({ success: true, skipped: true, reason: 'Today\'s morning office report was already handled.' })
+    const { data: existing, error: existingError } = await admin.from('scheduled_reports').select('id,status,office_email_status,printer_email_status').eq('report_key', reportKey).eq('report_date', current.date).maybeSingle()
+    if (existingError || !existing) return NextResponse.json({ error: 'The earlier morning-report delivery could not be verified.' }, { status: 500 })
+    const decision = scheduledReportRetryDecision(existing, 'Today\'s morning office report was already handled.')
+    if (decision.action === 'skip') return NextResponse.json({ success: true, skipped: true, reason: decision.reason })
     if (existing?.id) {
-      await admin.from('scheduled_reports').update({ status: 'running', error_message: null, started_at: new Date().toISOString(), completed_at: null, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      retryDelivery = { office_email_status: decision.sendOffice ? 'failed' : 'sent', printer_email_status: decision.sendPrinter ? 'failed' : 'sent' }
+      const reset = await admin.from('scheduled_reports').update({ status: 'running', error_message: null, started_at: new Date().toISOString(), completed_at: null, updated_at: new Date().toISOString() }).eq('id', existing.id)
+      if (reset.error) return NextResponse.json({ error: 'The morning-report retry could not be reserved.' }, { status: 500 })
       reservation = existing
       reserveError = null
     }
@@ -58,12 +64,13 @@ async function runCron(request: Request) {
     ])
     const itemCount = payments.rows.length + pumpOuts.requests.length
     if (!itemCount) {
-      await admin.from('scheduled_reports').update({ status: 'sent', item_count: 0, office_email_status: 'skipped', printer_email_status: 'skipped', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', reservation.id)
+      const recorded = await admin.from('scheduled_reports').update({ status: 'sent', item_count: 0, office_email_status: 'skipped', printer_email_status: 'skipped', completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', reservation.id)
+      if (recorded.error) throw recorded.error
       return NextResponse.json({ success: true, skipped: true, reason: 'No payments or pump-out requests to report.' })
     }
 
     let office: any = { skipped: true }
-    if (itemCount) {
+    if (itemCount && retryDelivery?.office_email_status !== 'sent') {
       office = await sendAdminAlertEmail({
         subject: `Bur Oaks morning office report - ${current.date}`,
         heading: 'Morning office report',
@@ -81,22 +88,23 @@ async function runCron(request: Request) {
         ],
       })
     }
-    const printerRun = pumpOuts.requests.length
+    const printerRun = pumpOuts.requests.length && retryDelivery?.printer_email_status !== 'sent'
       ? await sendPumpOutReport(admin, current.date, { sendOffice: false, sendPrinter: true })
       : null
-    const officeSent = !office?.skipped
-    const printerSent = !printerRun || printerRun.printer.sent
+    const officeSent = retryDelivery?.office_email_status === 'sent' || !office?.skipped
+    const printerSent = retryDelivery?.printer_email_status === 'sent' || !printerRun || printerRun.printer.sent
     const status = officeSent && printerSent
       ? 'sent'
       : officeSent || (pumpOuts.requests.length > 0 && printerSent)
         ? 'partial'
         : 'failed'
     const errors = [office?.reason, printerRun?.printer?.error].filter(Boolean).join(' | ')
-    await admin.from('scheduled_reports').update({ status, item_count: itemCount, office_email_status: officeSent ? 'sent' : 'failed', printer_email_status: printerSent ? 'sent' : 'failed', error_message: errors || null, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', reservation.id)
+    const recorded = await admin.from('scheduled_reports').update({ status, item_count: itemCount, office_email_status: officeSent ? 'sent' : 'failed', printer_email_status: printerSent ? 'sent' : 'failed', error_message: errors || null, completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', reservation.id)
+    if (recorded.error) throw recorded.error
     return NextResponse.json({ success: status === 'sent', status, paymentCount: payments.rows.length, paymentTotal: payments.total, pumpOutCount: pumpOuts.requests.length }, { status: status === 'failed' ? 502 : 200 })
   } catch (error: any) {
     await admin.from('scheduled_reports').update({ status: 'failed', error_message: String(error?.message || error).slice(0, 2000), completed_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq('id', reservation.id)
-    return NextResponse.json({ error: error?.message || 'Unable to send the morning office report.' }, { status: 500 })
+    return NextResponse.json({ error: 'The morning-report delivery result could not be confirmed. Check the office inbox and Epson printer before retrying.' }, { status: 500 })
   }
 }
 

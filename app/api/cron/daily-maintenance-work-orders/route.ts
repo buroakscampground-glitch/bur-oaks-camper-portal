@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { withCronFailureAlert } from '../../../../lib/cron-failure-alert'
 import { sendMaintenanceWorkOrderReport } from '../../../../lib/maintenance-work-order-report'
+import { scheduledReportRetryDecision } from '../../../../lib/scheduled-report-retry'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -49,26 +50,27 @@ async function runCron(request: Request) {
     .single()
 
   if (reserveError?.code === '23505') {
-    const { data: existing } = await admin
+    const { data: existing, error: existingError } = await admin
       .from('scheduled_reports')
       .select('id,status,office_email_status,printer_email_status')
       .eq('report_key', reportKey)
       .eq('report_date', current.date)
       .maybeSingle()
 
-    if (existing?.status === 'sent') {
-      return NextResponse.json({ success: true, skipped: true, reason: 'Today\'s work-order packet was already handled.' })
-    }
+    if (existingError || !existing) return NextResponse.json({ error: 'The earlier work-order delivery could not be verified.' }, { status: 500 })
+    const decision = scheduledReportRetryDecision(existing, 'Today\'s work-order packet was already handled.')
+    if (decision.action === 'skip') return NextResponse.json({ success: true, skipped: true, reason: decision.reason })
 
     if (existing?.id) {
-      retryDelivery = existing
-      await admin.from('scheduled_reports').update({
+      retryDelivery = { office_email_status: decision.sendOffice ? 'failed' : 'sent', printer_email_status: decision.sendPrinter ? 'failed' : 'sent' }
+      const reset = await admin.from('scheduled_reports').update({
         status: 'running',
         error_message: null,
         started_at: new Date().toISOString(),
         completed_at: null,
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id)
+      if (reset.error) return NextResponse.json({ error: 'The work-order retry could not be reserved.' }, { status: 500 })
       reservation = existing
       reserveError = null
     }
@@ -83,10 +85,11 @@ async function runCron(request: Request) {
       sendPrinter: retryDelivery?.printer_email_status !== 'sent',
     })
     if (result.skipped) {
-      await admin.from('scheduled_reports').update({
+      const recorded = await admin.from('scheduled_reports').update({
         status: 'sent', item_count: 0, office_email_status: 'skipped', printer_email_status: 'skipped',
         completed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
       }).eq('id', reservation.id)
+      if (recorded.error) throw recorded.error
       return NextResponse.json({ success: true, skipped: true, reason: 'No new approved work orders are waiting to print.', itemCount: 0 })
     }
 
@@ -94,7 +97,7 @@ async function runCron(request: Request) {
     const printer = result.printer!
     const status = office.sent && printer.sent ? 'sent' : office.sent || printer.sent ? 'partial' : 'failed'
     const errors = [office.error, printer.error].filter(Boolean).join(' | ')
-    await admin.from('scheduled_reports').update({
+    const recorded = await admin.from('scheduled_reports').update({
       status,
       item_count: result.orders.length,
       office_email_status: office.sent ? 'sent' : 'failed',
@@ -103,6 +106,7 @@ async function runCron(request: Request) {
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq('id', reservation.id)
+    if (recorded.error) throw recorded.error
 
     return NextResponse.json({ success: status === 'sent', status, itemCount: result.orders.length, office, printer }, { status: status === 'failed' ? 502 : 200 })
   } catch (error: any) {
@@ -110,7 +114,7 @@ async function runCron(request: Request) {
       status: 'failed', error_message: String(error?.message || error).slice(0, 2000),
       completed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     }).eq('id', reservation.id)
-    return NextResponse.json({ error: error?.message || 'Unable to send the daily work-order packet.' }, { status: 500 })
+    return NextResponse.json({ error: 'The work-order delivery result could not be confirmed. Check the office inbox and Epson printer before retrying.' }, { status: 500 })
   }
 }
 

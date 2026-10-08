@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { sendPumpOutReport } from '../../../../lib/pump-out-report'
+import { scheduledReportRetryDecision } from '../../../../lib/scheduled-report-retry'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -59,26 +60,27 @@ export async function GET(request: Request) {
     .single()
 
   if (reserveError?.code === '23505') {
-    const { data: existing } = await admin
+    const { data: existing, error: existingError } = await admin
       .from('scheduled_reports')
       .select('id,status,office_email_status,printer_email_status')
       .eq('report_key', reportKey)
       .eq('report_date', current.date)
       .maybeSingle()
 
-    if (existing?.status === 'sent') {
-      return NextResponse.json({ success: true, skipped: true, reason: 'Today\'s pump-out report was already handled.', status: existing.status })
-    }
+    if (existingError || !existing) return NextResponse.json({ error: 'The earlier pump-out delivery could not be verified.' }, { status: 500 })
+    const decision = scheduledReportRetryDecision(existing, 'Today\'s pump-out report was already handled.')
+    if (decision.action === 'skip') return NextResponse.json({ success: true, skipped: true, reason: decision.reason, status: existing.status })
 
     if (existing?.id) {
-      retryDelivery = existing
-      await admin.from('scheduled_reports').update({
+      retryDelivery = { office_email_status: decision.sendOffice ? 'failed' : 'sent', printer_email_status: decision.sendPrinter ? 'failed' : 'sent' }
+      const reset = await admin.from('scheduled_reports').update({
         status: 'running',
         error_message: null,
         started_at: new Date().toISOString(),
         completed_at: null,
         updated_at: new Date().toISOString(),
       }).eq('id', existing.id)
+      if (reset.error) return NextResponse.json({ error: 'The pump-out retry could not be reserved.' }, { status: 500 })
       reservation = existing
       reserveError = null
     }
@@ -96,7 +98,7 @@ export async function GET(request: Request) {
     const status = result.office.sent && result.printer.sent ? 'sent' : result.office.sent || result.printer.sent ? 'partial' : 'failed'
     const errors = [result.office.error, result.printer.error].filter(Boolean).join(' | ')
 
-    await admin.from('scheduled_reports').update({
+    const recorded = await admin.from('scheduled_reports').update({
       status,
       item_count: result.requests.length,
       office_email_status: result.office.sent ? 'sent' : 'failed',
@@ -105,6 +107,7 @@ export async function GET(request: Request) {
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq('id', reservation.id)
+    if (recorded.error) throw recorded.error
 
     return NextResponse.json({
       success: status === 'sent',
@@ -121,6 +124,6 @@ export async function GET(request: Request) {
       completed_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     }).eq('id', reservation.id)
-    return NextResponse.json({ error: error?.message || 'Unable to send the daily pump-out report.' }, { status: 500 })
+    return NextResponse.json({ error: 'The pump-out delivery result could not be confirmed. Check the office inbox and Epson printer before retrying.' }, { status: 500 })
   }
 }
