@@ -1,6 +1,6 @@
 import { supabase } from './supabase'
 
-export async function removeAdminInvoiceLateFee(invoiceId: string) {
+export async function removeAdminInvoiceLateFee(invoiceId: string, reason: string) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) {
     window.location.href = '/login'
@@ -13,7 +13,7 @@ export async function removeAdminInvoiceLateFee(invoiceId: string) {
       Authorization: `Bearer ${session.access_token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ invoiceId }),
+    body: JSON.stringify({ invoiceId, reason }),
   })
   const result = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(result.error || 'The late fee could not be removed.')

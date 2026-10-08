@@ -14,11 +14,16 @@ test('admins can remove a late fee from invoice detail and open balances', async
 })
 
 test('late fee removal lowers the balance and records an enduring waiver', async () => {
-  const route = await readFile(new URL('../app/api/admin-invoice-late-fee/route.ts', import.meta.url), 'utf8')
+  const [route, migration] = await Promise.all([
+    readFile(new URL('../app/api/admin-invoice-late-fee/route.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../migrations/087_admin_audit_events.sql', import.meta.url), 'utf8'),
+  ])
   assert.match(route, /Admin access is required/)
-  assert.match(route, /late_fee: 0, total_due: newTotal/)
-  assert.match(route, /invoice-late-fee-waived/)
-  assert.match(route, /Late Fee Waived/)
+  assert.match(route, /remove_invoice_late_fee_audited/)
+  assert.match(migration, /SET late_fee=0,total_due=new_total/)
+  assert.match(migration, /invoice-late-fee-waived/)
+  assert.match(migration, /'Late Fee Waived'/)
+  assert.match(migration, /'late_fee_waived'/)
 })
 
 test('invoice automation honors a manual late fee waiver', async () => {

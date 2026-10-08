@@ -37,6 +37,7 @@ import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/sta
 import { rentPaymentBreakdown } from '../../../../lib/rent-payment-summary'
 import { contractPaymentSnapshot } from '../../../../lib/contract-payment-snapshot'
 import { camperHouseholdName, primaryCamperName, secondaryCamperName } from '../../../../lib/camper-household'
+import { setCamperActiveAudited } from '../../../../lib/admin-audited-actions'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 type HistoryView = 'activity' | 'documents' | 'billing' | 'credits' | 'site' | 'messages' | 'electric'
@@ -245,6 +246,22 @@ export default function CamperDetailPage() {
     setCamper((current) => ({ ...current, [field]: value }))
   }
 
+  async function changeRecordStatus(active: boolean) {
+    if (!camper || (camper.active !== false) === active) return
+    const verb = active ? 'restored' : 'archived'
+    const reason = window.prompt(`Why is this camper being ${verb}? This reason becomes part of the permanent campsite history.`, '')?.trim() || ''
+    if (reason.length < 5) { setMessage(`Enter a clear reason before this camper is ${verb}.`); return }
+    setSaving(true)
+    try {
+      await setCamperActiveAudited(camperId, active, reason)
+      setCamper({ ...camper, active })
+      setMessage(`Camper ${verb}. The reason and before/after status were saved.`)
+      await loadInternalHistory()
+    } catch (error: any) {
+      setMessage(error.message || `The camper could not be ${verb}.`)
+    } finally { setSaving(false) }
+  }
+
   async function saveCamper() {
     if (!camper.first_name?.trim() || !camper.last_name?.trim()) {
       setMessage('First and last name are required.')
@@ -286,7 +303,6 @@ export default function CamperDetailPage() {
         mailing_state: camper.mailing_state?.trim() || null,
         mailing_zip: camper.mailing_zip?.trim() || null,
         role: camper.role === EVENT_COORDINATOR_ROLE ? 'camper' : (camper.role || 'camper'),
-        active: camper.active !== false,
         emergency_contact_name: camper.emergency_contact_name?.trim() || null,
         emergency_contact_phone: camper.emergency_contact_phone?.trim() || null,
         vehicle_make: camper.vehicle_make?.trim() || null,
@@ -763,6 +779,7 @@ export default function CamperDetailPage() {
         {history && <>
           <div className="admin-camper-heart-summary">
             <article><small>Recorded activity</small><strong>{history.summary.activityItems}</strong><span>All saved events</span></article>
+            <article><small>Audited office changes</small><strong>{history.summary.auditedChanges || 0}</strong><span>Reason, actor, and before / after saved</span></article>
             <article><small>Signed documents</small><strong>{history.summary.signedDocuments} of {history.summary.totalDocuments}</strong><span>Signature records kept</span></article>
             <article><small>Paid invoices</small><strong>{history.summary.paidInvoices} of {history.summary.totalInvoices}</strong><span>{history.summary.lateInvoices} paid late / past due</span></article>
             <article><small>Current balance</small><strong>${Number(history.summary.openBalance || 0).toFixed(2)}</strong><span>${Number(history.summary.openLotRentBalance || 0).toFixed(2)} lot rent · ${Number(history.summary.openOtherBalance || 0).toFixed(2)} other charges</span></article>
@@ -883,7 +900,7 @@ export default function CamperDetailPage() {
             </label>
             <label className="admin-camper-field">
               <span>Record status</span>
-              <select value={camper.active === false ? 'archived' : 'active'} onChange={(event) => updateField('active', event.target.value === 'active')}>
+              <select value={camper.active === false ? 'archived' : 'active'} onChange={(event) => void changeRecordStatus(event.target.value === 'active')} disabled={saving}>
                 <option value="active">Active</option>
                 <option value="archived">Archived</option>
               </select>

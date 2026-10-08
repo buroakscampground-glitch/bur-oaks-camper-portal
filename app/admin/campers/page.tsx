@@ -9,6 +9,7 @@ import { isPhonePortalLoginEmail } from '../../../lib/phone-portal-login'
 import { isPumpOutWaitingForService } from '../../../lib/pump-out-status'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
 import { camperHouseholdName, labeledCamperPhones } from '../../../lib/camper-household'
+import { setCamperActiveAudited } from '../../../lib/admin-audited-actions'
 
 export default function AdminCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -207,19 +208,18 @@ export default function AdminCampersPage() {
   }
 
   async function archiveCamper(id: string) {
+    const reason = window.prompt('Why is this camper being archived? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear archive reason before changing this camper.'); return }
     const confirmArchive = confirm(
       'Are you sure you want to archive this camper?'
     )
 
     if (!confirmArchive) return
 
-    const { error } = await supabase
-      .from('campers')
-      .update({ active: false })
-      .eq('id', id)
-
-    if (error) {
-      alert(error.message)
+    try {
+      await setCamperActiveAudited(id, false, reason)
+    } catch (error: any) {
+      alert(error.message || 'The camper could not be archived.')
       return
     }
 

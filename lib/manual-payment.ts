@@ -71,6 +71,7 @@ export async function submitManualPayment({
   method,
   receivedOn,
   reference,
+  reason,
 }: {
   client: any
   invoiceId: string
@@ -78,6 +79,7 @@ export async function submitManualPayment({
   method: string
   receivedOn: string
   reference?: string
+  reason: string
 }) {
   const { data } = await client.auth.getSession()
   const token = data.session?.access_token || ''
@@ -92,6 +94,7 @@ export async function submitManualPayment({
       method,
       receivedOn,
       reference: reference?.trim() || null,
+      reason: reason.trim(),
       operationKey: crypto.randomUUID(),
     }),
   })

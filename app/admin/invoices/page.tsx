@@ -312,6 +312,8 @@ export default function AdminInvoicesPage() {
       return
     }
 
+    const reason = window.prompt('Why is this invoice being deleted? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear cancellation reason before deleting the invoice.'); return }
     const camperName = `${invoice.campers?.first_name || ''} ${invoice.campers?.last_name || ''}`.trim()
     const confirmed = confirm(
       `Delete invoice #${invoice.invoice_number} for ${camperName || `Lot ${invoice.campers?.lot_number || '—'}`}?\n\nThis permanently removes the invoice and its itemized charges.`
@@ -323,7 +325,7 @@ export default function AdminInvoicesPage() {
     setMessage('')
 
     try {
-      const restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id)
+      const restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id, reason)
 
       setMessage(
         restoreResult.restoredTotal > 0

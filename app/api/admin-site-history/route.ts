@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const camperId = new URL(request.url).searchParams.get('camperId')?.trim() || ''
   if (!camperId) return NextResponse.json({ error: 'A camper is required.' }, { status: 400 })
 
-  const [camperResult, invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, creditResult, creditApplicationResult, usageCamperResult, usageReadingResult] = await Promise.all([
+  const [camperResult, invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, creditResult, creditApplicationResult, auditResult, usageCamperResult, usageReadingResult] = await Promise.all([
     context.admin
       .from('campers')
       .select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,phone,alternate_phone,second_profile_phone,active,camper_since_date')
@@ -52,6 +52,9 @@ export async function GET(request: Request) {
       .eq('camper_id', camperId)
       .order('applied_at', { ascending: false })
       .limit(1000),
+    context.admin.from('admin_audit_events')
+      .select('id,action,entity_type,entity_id,reason,actor_email,before_state,after_state,created_at')
+      .eq('camper_id', camperId).order('created_at', { ascending: false }).limit(1000),
     context.admin.from('campers').select('id,first_name,last_name,lot_number,role,active').eq('active', true),
     context.admin.from('electric_readings').select('camper_id,reading_date,kwh_used').order('reading_date', { ascending: true }),
   ])
@@ -59,7 +62,7 @@ export async function GET(request: Request) {
   if (camperResult.error || !camperResult.data) {
     return NextResponse.json({ error: camperResult.error?.message || 'The camper record could not be found.' }, { status: 404 })
   }
-  const relatedError = [invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, creditResult, creditApplicationResult, usageCamperResult, usageReadingResult].find((result) => result.error)?.error
+  const relatedError = [invoiceResult, noticeResult, maintenanceResult, pumpResult, documentResult, messageResult, readingResult, renewalResult, creditResult, creditApplicationResult, auditResult, usageCamperResult, usageReadingResult].find((result) => result.error)?.error
   if (relatedError) {
     return NextResponse.json({ error: relatedError.message || 'Site history could not be loaded.' }, { status: 500 })
   }
@@ -82,6 +85,7 @@ export async function GET(request: Request) {
   const renewal = renewalResult.data || null
   const credits = creditResult.data || []
   const creditApplications = creditApplicationResult.data || []
+  const auditEvents = auditResult.data || []
   const currentYear = Number(today.slice(0, 4))
   const usageRows = buildCamperSeasonUsage(
     usageCampersBySite(usageCamperResult.data || []),
@@ -109,6 +113,15 @@ export async function GET(request: Request) {
         date: item.applied_at,
       }
     }),
+    ...auditEvents.map((item) => ({
+      id: `audit-${item.id}`,
+      source_id: item.entity_id,
+      type: 'Office change',
+      title: String(item.action || 'office_change').replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()),
+      detail: `${item.reason} · by ${item.actor_email}`,
+      date: item.created_at,
+      audit: true,
+    })),
     ...(renewal ? [{ id: `renewal-${renewal.id}`, source_id: renewal.renewal_document_id, type: 'Renewal', title: `Renewal decision: ${renewal.status}`, detail: renewal.contract_end_date ? `Contract through ${renewal.contract_end_date}` : 'Contract date not entered', date: renewal.decision_recorded_at || renewal.renewal_sent_at || renewal.updated_at || renewal.created_at }] : []),
   ].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')))
 
@@ -124,6 +137,7 @@ export async function GET(request: Request) {
     renewal,
     credits,
     creditApplications,
+    auditEvents,
     usage,
     activity,
     summary: {
@@ -144,6 +158,7 @@ export async function GET(request: Request) {
       totalCredits: credits.length,
       activeCreditBalance: credits.reduce((total, credit) => total + (credit.status === 'active' ? Number(credit.remaining_amount || 0) : 0), 0),
       creditsApplied: creditApplications.reduce((total, application) => total + Number(application.amount_applied || 0), 0),
+      auditedChanges: auditEvents.length,
       usageSignal: usage?.signal || 'no_data',
       activityItems: activity.length,
     },

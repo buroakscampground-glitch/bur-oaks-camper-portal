@@ -78,6 +78,7 @@ export default function InvoiceDetailPage() {
   const [manualPaymentMethod, setManualPaymentMethod] = useState('Check')
   const [manualPaymentDate, setManualPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [manualPaymentReference, setManualPaymentReference] = useState('')
+  const [manualPaymentReason, setManualPaymentReason] = useState('')
   const [manualPaymentAmount, setManualPaymentAmount] = useState('')
   const [paymentInvoices, setPaymentInvoices] = useState<any[]>([])
 
@@ -192,14 +193,17 @@ export default function InvoiceDetailPage() {
       return
     }
 
-    if (!invoice || !confirm('Delete this invoice permanently? This also removes its itemized charge lines.')) return
+    if (!invoice) return
+    const reason = window.prompt('Why is this invoice being deleted? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear cancellation reason before deleting the invoice.'); return }
+    if (!confirm('Delete this invoice permanently? This also removes its itemized charge lines.')) return
 
     setBusy(true)
     setMessage('')
 
     let restoreResult = { restoredTotal: 0 }
     try {
-      restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id)
+      restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id, reason)
     } catch (error: any) {
       setMessage(error.message || 'Unable to restore account credit before deleting this invoice.')
       setBusy(false)
@@ -221,12 +225,14 @@ export default function InvoiceDetailPage() {
     const fee = Number(invoice?.late_fee || 0)
     if (!invoice || fee <= 0) return
     const newBalance = Math.max(0, Number(invoice.total_due || 0) - fee)
+    const reason = window.prompt('Why is this late fee being waived? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear waiver reason before removing the late fee.'); return }
     if (!window.confirm(`Remove the ${formatMoney(fee)} late fee from invoice #${invoice.invoice_number}?\n\nThe new balance will be ${formatMoney(newBalance)}, and the automatic billing system will not add this fee back.`)) return
 
     setBusy(true)
     setMessage('Removing late fee…')
     try {
-      const result = await removeAdminInvoiceLateFee(invoice.id)
+      const result = await removeAdminInvoiceLateFee(invoice.id, reason)
       setManualPaymentAmount(String(Number(result.totalDue || 0).toFixed(2)))
       setMessage(result.message)
       await loadInvoice(false)
@@ -253,6 +259,10 @@ export default function InvoiceDetailPage() {
       setMessage('Choose the date the office received this payment.')
       return
     }
+    if (manualPaymentReason.trim().length < 5) {
+      setMessage('Enter a clear reason for recording this office payment.')
+      return
+    }
 
     const confirmed = confirm(
       `Record ${formatMoney(paymentAmount)} by ${manualPaymentMethod.toLowerCase()} and apply it to the listed bills?`
@@ -270,12 +280,14 @@ export default function InvoiceDetailPage() {
         method: manualPaymentMethod,
         receivedOn: manualPaymentDate,
         reference: manualPaymentReference,
+        reason: manualPaymentReason,
       })
       const creditNote = Number(result.creditAmount || 0) > 0
         ? ` ${formatMoney(result.creditAmount)} remains as account credit.`
         : ''
       setMessage(`Payment recorded. ${formatMoney(result.appliedTotal)} applied to ${result.allocations?.length || 0} bill(s).${creditNote}`)
       setManualPaymentAmount('')
+      setManualPaymentReason('')
       await loadInvoice(false)
     } catch (error: any) {
       setMessage(error.message || 'The payment could not be recorded.')
@@ -550,6 +562,10 @@ export default function InvoiceDetailPage() {
               <label>
                 <span>Check or reference number <em>optional</em></span>
                 <input value={manualPaymentReference} onChange={(event) => setManualPaymentReference(event.target.value)} placeholder="Example: Check 1942" />
+              </label>
+              <label>
+                <span>Reason / office note</span>
+                <input value={manualPaymentReason} onChange={(event) => setManualPaymentReason(event.target.value)} maxLength={1000} placeholder="Example: Check received at office" required />
               </label>
             </div>
             <div className="admin-payment-allocation-preview">

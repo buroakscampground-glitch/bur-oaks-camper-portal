@@ -44,6 +44,7 @@ export default function CamperBalancePage() {
   const [paymentMethod, setPaymentMethod] = useState("Check")
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [paymentReference, setPaymentReference] = useState("")
+  const [paymentReason, setPaymentReason] = useState("")
   const [paymentAmount, setPaymentAmount] = useState("")
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState("")
@@ -108,6 +109,7 @@ export default function CamperBalancePage() {
     setPaymentMethod("Check")
     setPaymentDate(new Date().toISOString().slice(0, 10))
     setPaymentReference("")
+    setPaymentReason("")
     const invoice = allOpenInvoices.find((item) => item.id === invoiceId) || invoices.find((item) => item.id === invoiceId)
     setPaymentAmount(String(Number(invoice?.total_due || 0).toFixed(2)))
     setMessage("")
@@ -122,6 +124,10 @@ export default function CamperBalancePage() {
 
     if (!paymentDate) {
       setMessage("Choose the date this payment was received.")
+      return
+    }
+    if (paymentReason.trim().length < 5) {
+      setMessage("Enter a clear reason for recording this office payment.")
       return
     }
 
@@ -145,6 +151,7 @@ export default function CamperBalancePage() {
         method: paymentMethod,
         receivedOn: paymentDate,
         reference: paymentReference,
+        reason: paymentReason,
       })
       const creditNote = Number(result.creditAmount || 0) > 0
         ? ` ${formatMoney(result.creditAmount)} remains as account credit.`
@@ -165,6 +172,8 @@ export default function CamperBalancePage() {
       return
     }
 
+    const reason = window.prompt('Why is this invoice being deleted? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear cancellation reason before deleting the invoice.'); return }
     const confirmed = window.confirm(
       `Delete invoice #${invoice.invoice_number} permanently?\n\nThis removes the invoice and its itemized charge lines.`
     )
@@ -175,7 +184,7 @@ export default function CamperBalancePage() {
 
     let restoredTotal = 0
     try {
-      const restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id)
+      const restoreResult = await deleteInvoiceWithCreditRestore(supabase, invoice.id, reason)
       restoredTotal = restoreResult.restoredTotal
     } catch (error: any) {
       setBusyInvoiceId("")
@@ -197,12 +206,14 @@ export default function CamperBalancePage() {
     const fee = Number(invoice?.late_fee || 0)
     if (!invoice || fee <= 0) return
     const newBalance = Math.max(0, Number(invoice.total_due || 0) - fee)
+    const reason = window.prompt('Why is this late fee being waived? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear waiver reason before removing the late fee.'); return }
     if (!window.confirm(`Remove the ${formatMoney(fee)} late fee from invoice #${invoice.invoice_number}?\n\nThe new balance will be ${formatMoney(newBalance)}, and the automatic billing system will not add this fee back.`)) return
 
     setBusyInvoiceId(invoice.id)
     setMessage('Removing late fee…')
     try {
-      const result = await removeAdminInvoiceLateFee(invoice.id)
+      const result = await removeAdminInvoiceLateFee(invoice.id, reason)
       setMessage(result.message)
       await loadData()
     } catch (error: any) {
@@ -362,6 +373,10 @@ Bur Oaks Campground
                     <label>
                       <span>Check/reference number <em>optional</em></span>
                       <input value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} placeholder="Example: Check 1942" />
+                    </label>
+                    <label>
+                      <span>Reason / office note</span>
+                      <input value={paymentReason} onChange={(event) => setPaymentReason(event.target.value)} maxLength={1000} placeholder="Example: Check received at office" required />
                     </label>
                     <div className="admin-payment-allocation-preview">
                       <strong>Automatic allocation</strong>

@@ -6,6 +6,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isUnbilledPumpOutWork } from '../../../lib/pump-out-status'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
+import { setCamperActiveAudited } from '../../../lib/admin-audited-actions'
 
 export default function ArchivedCampersPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -91,13 +92,12 @@ export default function ArchivedCampersPage() {
   }
 
   async function restoreCamper(id: string) {
-    const { error } = await supabase
-      .from('campers')
-      .update({ active: true })
-      .eq('id', id)
-
-    if (error) {
-      setMessage(error.message)
+    const reason = window.prompt('Why is this camper being restored? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear restore reason before changing this camper.'); return }
+    try {
+      await setCamperActiveAudited(id, true, reason)
+    } catch (error: any) {
+      setMessage(error.message || 'The camper could not be restored.')
       return
     }
 

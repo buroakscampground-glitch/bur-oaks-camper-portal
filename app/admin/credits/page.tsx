@@ -5,7 +5,7 @@ import { AlertTriangle, CheckCircle2, CircleDollarSign, Loader2, Search, Undo2, 
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { formatCreditMoney } from '../../../lib/account-credits'
-import { todayInCentral } from '../../../lib/invoice-balance'
+import { createAccountCreditAudited, voidAccountCreditAudited } from '../../../lib/admin-audited-actions'
 
 function camperName(camper: any) {
   return `${camper?.first_name || ''} ${camper?.last_name || ''}`.trim() || 'Camper'
@@ -88,56 +88,16 @@ export default function AdminCreditsPage() {
 
     setSaving(true)
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-
-    const { error } = await supabase.from('account_credits').insert({
-      camper_id: selectedCamper.id,
-      lot_number: selectedCamper.lot_number || null,
-      camper_name: camperName(selectedCamper),
-      original_amount: creditAmount,
-      remaining_amount: creditAmount,
-      reason: reason.trim(),
-      notes: notes.trim() || null,
-      created_by: user?.email || null,
-    })
-
-    if (error) {
+    let result: any
+    try {
+      result = await createAccountCreditAudited({ camperId: selectedCamper.id, amount: creditAmount, reason: reason.trim(), notes: notes.trim() })
+    } catch (error: any) {
       setSaving(false)
-      setMessage(error.message)
+      setMessage(error.message || 'The credit could not be saved.')
       return
     }
-
-    const today = todayInCentral()
-    const { data: dueInvoices, error: dueInvoiceError } = await supabase
-      .from('invoices')
-      .select('id,camper_id,total_due,due_date,status')
-      .eq('camper_id', selectedCamper.id)
-      .in('status', ['open', 'sent', 'overdue'])
-      .lte('due_date', today)
-      .gt('total_due', 0)
-      .order('due_date', { ascending: true })
-
-    let appliedNow = 0
-    let dueRemainder = 0
-    let applicationError = dueInvoiceError?.message || ''
-    if (!dueInvoiceError) {
-      for (const invoice of dueInvoices || []) {
-        const { data: result, error: applyError } = await supabase.rpc('apply_account_credits_to_invoice_atomic', {
-          p_camper_id: selectedCamper.id,
-          p_invoice_id: invoice.id,
-          p_invoice_total: invoice.total_due,
-          p_applied_by: user?.email || 'office-credit-entry',
-        })
-        if (applyError) {
-          applicationError = applyError.message
-          break
-        }
-        appliedNow += Number(result?.appliedTotal || 0)
-        dueRemainder += Number(result?.remainingDue || 0)
-      }
-    }
+    const appliedNow = Number(result.appliedNow || 0)
+    const applicationError = String(result.applicationError || '')
 
     const { data: remainingCredits } = await supabase
       .from('account_credits')
@@ -151,7 +111,6 @@ export default function AdminCreditsPage() {
     let resultMessage = `${formatCreditMoney(creditAmount)} credit added for Lot ${selectedCamper.lot_number || '—'}.`
     if (appliedNow > 0) {
       resultMessage += ` ${formatCreditMoney(appliedNow)} applied to bills already due.`
-      if (dueRemainder > 0) resultMessage += ` ${formatCreditMoney(dueRemainder)} remains due for payment.`
     }
     resultMessage += ` ${formatCreditMoney(remainingCredit)} remains available for later bills.`
     if (applicationError) resultMessage += ` The credit was saved, but due bills need another review: ${applicationError}`
@@ -162,22 +121,19 @@ export default function AdminCreditsPage() {
   }
 
   async function voidCredit(credit: any) {
+    const reason = window.prompt('Why is this remaining credit being voided? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear void reason before changing the credit.'); return }
     const confirmed = window.confirm(`Void the remaining ${formatCreditMoney(credit.remaining_amount)} credit for ${credit.camper_name}?`)
     if (!confirmed) return
 
     setSavingId(credit.id)
-    const { error } = await supabase
-      .from('account_credits')
-      .update({
-        status: 'voided',
-        remaining_amount: 0,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', credit.id)
-
-    setSavingId('')
-    setMessage(error ? error.message : 'Credit voided.')
-    if (!error) loadData()
+    try {
+      await voidAccountCreditAudited(credit.id, reason)
+      setMessage('Credit voided. The reason and before/after values were saved.')
+      await loadData()
+    } catch (error: any) {
+      setMessage(error.message || 'The credit could not be voided.')
+    } finally { setSavingId('') }
   }
 
   const activeCredits = credits.filter((credit) => credit.status === 'active' && Number(credit.remaining_amount || 0) > 0)

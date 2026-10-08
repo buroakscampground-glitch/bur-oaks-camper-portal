@@ -137,21 +137,17 @@ export async function createInvoiceBundle({
   }
 }
 
-export async function deleteInvoiceWithCreditRestore(client: any, invoiceId: string) {
+export async function deleteInvoiceWithCreditRestore(client: any, invoiceId: string, reason: string) {
   if (!invoiceId) return { restoredTotal: 0 }
-
-  const { data, error } = await client.rpc('delete_invoice_with_credit_restore_atomic', {
-    p_invoice_id: invoiceId,
+  const { data } = await client.auth.getSession()
+  const response = await fetch('/api/admin-invoice-delete', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${data.session?.access_token || ''}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ invoiceId, reason }),
   })
-
-  if (error) {
-    if (['42883', 'PGRST202'].includes(error.code || '')) {
-      throw new Error('The billing security migration has not been installed yet.')
-    }
-    throw error
-  }
-
-  return { restoredTotal: Number(data || 0) }
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(result.error || 'The invoice could not be deleted.')
+  return { restoredTotal: Number(result.restoredTotal || 0) }
 }
 
 export async function updateInvoiceBundle({
