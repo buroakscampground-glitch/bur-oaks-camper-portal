@@ -781,6 +781,7 @@ test('camper payment detail separates a confirmed receipt from a payment still p
   const synthetic = await installSyntheticPaymentReceiptSession(page)
 
   await page.goto('/invoices/receipt-check-invoice')
+  await expect(page.locator('.camper-invoice-detail-summary').getByText('Paid', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Payment recorded' })).toBeVisible()
   await expect(page.getByText('Account payment').locator('..')).toContainText('$650.00')
   await expect(page.getByText('Paid on').locator('..')).toContainText('October 7, 2026')
@@ -798,6 +799,7 @@ test('camper payment detail separates a confirmed receipt from a payment still p
   synthetic.showCredited()
   await page.reload()
   const creditReceipt = page.locator('.camper-payment-receipt')
+  await expect(page.locator('.camper-invoice-detail-summary').getByText('Credited', { exact: true })).toBeVisible()
   await expect(creditReceipt.getByRole('heading', { name: 'Account credit applied' })).toBeVisible()
   await expect(creditReceipt.getByText('Amount credited').locator('..')).toContainText('$500.00')
   await expect(creditReceipt.getByText('Method').locator('..')).toContainText('Paid by account credit')
@@ -805,6 +807,8 @@ test('camper payment detail separates a confirmed receipt from a payment still p
 
   synthetic.showProcessing()
   await page.reload()
+  await expect(page.locator('.camper-invoice-detail-summary').getByText('Processing', { exact: true })).toBeVisible()
+  await expect(page.locator('.camper-invoice-detail-summary')).toContainText('do not pay again')
   await expect(page.getByRole('heading', { name: 'This is not a receipt yet.' })).toBeVisible()
   await expect(page.getByText(/please do not pay this invoice again/i)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Payment recorded' })).toHaveCount(0)

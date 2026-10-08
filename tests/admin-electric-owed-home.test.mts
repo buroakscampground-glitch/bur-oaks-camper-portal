@@ -27,6 +27,7 @@ test('account credits wait for due dates before the billing reminder sends any r
   const reminderCron = source('../app/api/cron/invoice-text-reminders/route.ts')
   const migration = source('../migrations/076_apply_account_credits_when_due.sql')
   const camperInvoices = source('../app/invoices/page.tsx')
+  const camperStatus = source('../lib/camper-invoice-status.ts')
 
   assert.match(credits, /waits for each bill’s due date/)
   assert.match(reminderCron, /isInvoiceReadyForAccountCredit/)
@@ -37,5 +38,7 @@ test('account credits wait for due dates before the billing reminder sends any r
   assert.match(migration, /invoice_row\.due_date > campground_today/)
   assert.match(migration, /Paid by account credit/)
   assert.match(migration, /remaining_due/)
-  assert.match(camperInvoices, /label: 'Paid by account credit'/)
+  assert.match(camperInvoices, /camperInvoiceStatus/)
+  assert.match(camperStatus, /account credit/i)
+  assert.match(camperStatus, /label: 'Credited'/)
 })

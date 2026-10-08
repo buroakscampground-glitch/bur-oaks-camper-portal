@@ -30,6 +30,7 @@ import { printPageWithFlag } from '../../../lib/print-page'
 import { invoiceRecordedTotal, isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
 import { achExpectedLabel } from '../../../lib/ach-expected-date'
 import type { CamperPaymentReceipt } from '../../../lib/camper-payment-receipt'
+import { camperInvoiceStatus } from '../../../lib/camper-invoice-status'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -326,6 +327,7 @@ export default function CamperInvoiceDetailPage() {
   const isPaid = isInvoicePaid(invoice)
   const isProcessing = normalizedInvoiceStatus(invoice) === 'processing'
   const isClosed = isInvoiceClosed(invoice)
+  const statusBadge = camperInvoiceStatus(invoice)
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
   const invoiceBalance = Number(invoice.total_due || 0)
   const recordedTotal = invoiceRecordedTotal(invoice)
@@ -372,9 +374,10 @@ export default function CamperInvoiceDetailPage() {
         <section className="camper-invoice-detail-summary">
           <article>
             <small>Status</small>
-            <strong className={isPaid ? 'paid' : isProcessing ? 'processing' : isClosed ? 'closed' : 'open'}>
-              {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice, 'long') || 'Bank payment processing') : isClosed ? 'Canceled — nothing due' : 'Payment due'}
+            <strong className={statusBadge.className}>
+              {statusBadge.label}
             </strong>
+            <span>{statusBadge.detail}</span>
           </article>
           <article>
             <small>Due date</small>

@@ -43,6 +43,7 @@ import {
 import InvoiceSmsOptInAlert from '../components/invoice-sms-opt-in-alert'
 import { invoiceTimingBucket, isInvoiceClosed, isInvoiceDueNow, isInvoiceOutstanding, isInvoicePaid, isInvoiceUpcoming, totalInvoiceBalance, type InvoiceTimingBucket } from '../../lib/invoice-balance'
 import { achExpectedLabel } from '../../lib/ach-expected-date'
+import { camperInvoiceStatus } from '../../lib/camper-invoice-status'
 
 type InvoiceFilter = InvoiceTimingBucket
 
@@ -83,51 +84,6 @@ function formatDate(value?: string) {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-function invoiceStatusBadge(invoice: any) {
-  if (invoice.status === 'paid') {
-    const paidByAccountCredit = /account credit/i.test(String(invoice.payment_method || ''))
-    if (paidByAccountCredit) {
-      return {
-        label: 'Paid by account credit',
-        className: 'paid',
-        detail: 'Your Bur Oaks account credit paid this invoice in full.',
-      }
-    }
-    return { label: 'Paid', className: 'paid', detail: 'Thank you — this invoice is complete.' }
-  }
-
-  if (invoice.status === 'processing') {
-    const expected = achExpectedLabel(invoice)
-    return {
-      label: expected || 'Payment processing',
-      className: 'processing',
-      detail: expected
-        ? 'Stripe is waiting for the bank to finish. Please do not pay again.'
-        : 'Your bank payment is underway. Please do not pay again.',
-    }
-  }
-
-  if (!invoice.due_date) {
-    return { label: 'Open', className: 'open', detail: 'Open invoice with no due date listed.' }
-  }
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const dueDate = new Date(`${invoice.due_date}T12:00:00`)
-  const daysUntilDue = Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (daysUntilDue < 0) {
-    const daysLate = Math.abs(daysUntilDue)
-    return { label: `${daysLate} day${daysLate === 1 ? '' : 's'} late`, className: 'past-due', detail: 'Past due — please review when you can.' }
-  }
-
-  if (daysUntilDue <= 3) {
-    return { label: daysUntilDue === 0 ? 'Due today' : `Due in ${daysUntilDue} day${daysUntilDue === 1 ? '' : 's'}`, className: 'due-soon', detail: 'Coming up soon.' }
-  }
-
-  return { label: `Due in ${daysUntilDue} days`, className: 'open', detail: 'Scheduled and ready to review.' }
 }
 
 function planLabel(preference?: AutoPayPreference | null) {
@@ -761,8 +717,7 @@ export default function InvoicesPage() {
                   const isPaid = invoice.status === 'paid'
                   const isProcessing = invoice.status === 'processing'
                   const isSelected = selectedInvoices.includes(invoice.id)
-                  const statusBadge = invoiceStatusBadge(invoice)
-                  const timingBucket = invoiceTimingBucket(invoice)
+                  const statusBadge = camperInvoiceStatus(invoice)
                   const rowRequestedTotal = enteredPaymentTotal || Number(invoice.total_due || 0)
                   const rowExtraAmount = Math.max(0, rowRequestedTotal - Number(invoice.total_due || 0))
                   const processingFee = invoicePaymentMethod === 'card'
@@ -817,8 +772,8 @@ export default function InvoicesPage() {
                       </div>
                       <div className="account-invoice-total">
                         <strong>{formatMoney(invoice.total_due)}</strong>
-                        <span className={isPaid ? 'paid' : isProcessing ? 'processing' : 'open'}>
-                          {isPaid ? 'Paid' : isProcessing ? (achExpectedLabel(invoice) || 'Bank payment processing') : timingBucket === 'future' ? 'Scheduled' : 'Payment due'}
+                        <span className={statusBadge.className}>
+                          {statusBadge.label}
                         </span>
                         {!isPaid && !isProcessing && (
                           <small>
