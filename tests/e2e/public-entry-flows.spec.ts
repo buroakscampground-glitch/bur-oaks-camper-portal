@@ -745,6 +745,31 @@ test('weak-connection recovery is actionable and contained on priority camper sc
   await expect(page.getByRole('alert').filter({ hasText: 'We could not open your conversation' })).toHaveCount(0)
 })
 
+test('camper data saver keeps verified account tasks usable on a narrow connection', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One required phone width proves the persistent low-data portal mode.')
+  const synthetic = await installSyntheticCamperSession(page)
+  synthetic.recoverReads()
+  await page.addInitScript(() => {
+    if (!window.localStorage.getItem('bur-oaks-low-data-mode')) {
+      window.localStorage.setItem('bur-oaks-low-data-mode', 'on')
+    }
+  })
+
+  await page.goto('/portal')
+  await expect(page.getByText('Data saver is on')).toBeVisible()
+  await expect(page.getByText('Account tasks and campground notices stay available')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Needs your attention' })).toBeVisible()
+  const fullPortal = page.getByRole('button', { name: 'Show full portal' })
+  expect((await fullPortal.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await expect(page.locator('.portal-birthday-club')).toHaveCount(0)
+  await expect(page.locator('.portal-weather')).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+
+  await fullPortal.click()
+  await expect(page.getByRole('button', { name: 'Use less data' })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+})
+
 test('office money and operations screens fail closed on a synthetic outage', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One required phone width covers the isolated office outage without contacting production.')
   test.setTimeout(90_000)

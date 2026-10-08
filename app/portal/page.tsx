@@ -218,6 +218,9 @@ export default function CamperPortalPage() {
   const [unreadOfficeMessages, setUnreadOfficeMessages] = useState(0)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [extrasError, setExtrasError] = useState('')
+  const [lowDataMode, setLowDataMode] = useState(false)
+  const lowDataModeRef = useRef(false)
   const [pumpMessage, setPumpMessage] = useState('')
   const [requestingPump, setRequestingPump] = useState(false)
   const requestingPumpRef = useRef(false)
@@ -237,8 +240,17 @@ export default function CamperPortalPage() {
   const [smsPromptMessage, setSmsPromptMessage] = useState('')
 
   useEffect(() => {
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+    const savedLowDataMode = window.localStorage.getItem('bur-oaks-low-data-mode')
+    const preferLowData = savedLowDataMode === 'on' || (
+      savedLowDataMode !== 'off' && Boolean(connection?.saveData || ['slow-2g', '2g'].includes(String(connection?.effectiveType || '')))
+    )
+    lowDataModeRef.current = preferLowData
+    setLowDataMode(preferLowData)
+
     async function loadDashboard() {
       setLoadError('')
+      setExtrasError('')
       try {
         const {
           data: { user },
@@ -290,7 +302,7 @@ export default function CamperPortalPage() {
         const {
           data: { session },
         } = await supabase.auth.getSession()
-        const [invoiceResult, electricResult, documentResult, eventResult, announcementResult, alertResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult, birthdayResult, siteCareResult, authorizedBillingResult] =
+        const [invoiceResult, documentResult, maintenanceResult, messageResult, pumpOutResult, pendingOfficeResult, siteCareResult, authorizedBillingResult] =
           await Promise.all([
             session?.access_token
               ? fetch('/api/camper-invoices', {
@@ -309,13 +321,6 @@ export default function CamperPortalPage() {
                     return { invoices: data || [], error }
                   })
               : Promise.resolve({ invoices: [] }),
-            supabase
-              .from('electric_readings')
-              .select('*')
-              .eq('camper_id', camperData.id)
-              .order('reading_date', { ascending: false })
-              .limit(1)
-              .maybeSingle(),
             session?.access_token
               ? fetch('/api/camper-documents', {
                   headers: { Authorization: `Bearer ${session.access_token}` },
@@ -323,23 +328,6 @@ export default function CamperPortalPage() {
                   .then((response) => response.ok ? response.json() : null)
                   .catch(() => null)
               : Promise.resolve(null),
-            supabase
-              .from('events')
-              .select('*')
-              .gte('event_date', today)
-              .order('event_date', { ascending: true })
-              .limit(4),
-            supabase
-              .from('announcements')
-              .select('*')
-              .eq('is_active', true)
-              .order('created_at', { ascending: false })
-              .limit(3),
-            supabase
-              .from('text_reminders')
-              .select('*')
-              .order('sent_at', { ascending: false })
-              .limit(4),
             supabase
               .from('maintenance_tickets')
               .select('*')
@@ -369,13 +357,6 @@ export default function CamperPortalPage() {
               .is('read_by_admin_at', null)
               .order('created_at', { ascending: false })
               .limit(3),
-            session?.access_token
-              ? fetch('/api/birthdays', {
-                  headers: { Authorization: `Bearer ${session.access_token}` },
-                })
-                  .then((response) => response.json())
-                  .catch(() => null)
-              : Promise.resolve(null),
             supabase
               .from('site_care_notices')
               .select('*')
@@ -392,10 +373,6 @@ export default function CamperPortalPage() {
           ])
 
         const dashboardReadFailed = [
-          electricResult,
-          eventResult,
-          announcementResult,
-          alertResult,
           maintenanceResult,
           messageResult,
           pendingOfficeResult,
@@ -409,22 +386,12 @@ export default function CamperPortalPage() {
 
         if (dashboardReadFailed) {
           setLoadError('Some portal information could not be loaded. Nothing was changed. Check your connection and try again.')
+          return
         }
 
         setInvoices(invoiceResult?.invoices || [])
         setAuthorizedBillingAccounts(authorizedBillingResult?.accounts || [])
-        setLatestElectric(electricResult.data || null)
         setDocuments(documentResult?.documents || [])
-        setEvents(eventResult.data || [])
-        setAnnouncements((announcementResult.data || []).filter((item) => !isAnnouncementExpired(item)))
-        let dismissedAlertIds = new Set<string>()
-        try {
-          const saved = window.localStorage.getItem(`bur-oaks-dismissed-alerts-${camperData.id}`)
-          dismissedAlertIds = new Set((JSON.parse(saved || '[]') || []).map((id: unknown) => String(id)))
-        } catch {
-          dismissedAlertIds = new Set()
-        }
-        setAlerts((alertResult.data || []).filter((alert: any) => !dismissedAlertIds.has(String(alert.id))))
         setMaintenanceTickets(maintenanceResult.data || [])
         setUnreadOfficeMessages(messageResult.count || 0)
         setPumpOutRequests(pumpOutResult?.requests || [])
@@ -432,13 +399,73 @@ export default function CamperPortalPage() {
         setPumpOutServiceAccounts(pumpOutResult?.serviceAccounts || [])
         setOfficePendingMessages(pendingOfficeResult.data || [])
         setSiteCareNotices(siteCareResult.data || [])
-        if (birthdayResult?.success) {
-          setBirthdayBoard({
-            monthName: birthdayResult.monthName || emptyBirthdayBoard.monthName,
-            birthdays: birthdayResult.birthdays || [],
-            setupRequired: Boolean(birthdayResult.setupRequired),
-          })
-          setOfficeBirthdayGreetings(birthdayResult.officeGreetings || [])
+        setLoading(false)
+
+        try {
+          const [electricResult, eventResult, announcementResult, alertResult, birthdayResult] = await Promise.all([
+            lowDataModeRef.current
+              ? Promise.resolve({ data: null, error: null })
+              : supabase
+                  .from('electric_readings')
+                  .select('*')
+                  .eq('camper_id', camperData.id)
+                  .order('reading_date', { ascending: false })
+                  .limit(1)
+                  .maybeSingle(),
+            supabase
+              .from('events')
+              .select('*')
+              .gte('event_date', today)
+              .order('event_date', { ascending: true })
+              .limit(4),
+            supabase
+              .from('announcements')
+              .select('*')
+              .eq('is_active', true)
+              .order('created_at', { ascending: false })
+              .limit(3),
+            supabase
+              .from('text_reminders')
+              .select('*')
+              .order('sent_at', { ascending: false })
+              .limit(4),
+            session?.access_token && !lowDataModeRef.current
+              ? fetch('/api/birthdays', {
+                  headers: { Authorization: `Bearer ${session.access_token}` },
+                })
+                  .then((response) => response.ok ? response.json() : null)
+                  .catch(() => null)
+              : Promise.resolve({ success: false, skippedForLowData: lowDataModeRef.current }),
+          ])
+
+          const extrasReadFailed = [electricResult, eventResult, announcementResult, alertResult]
+            .some((result) => Boolean(result?.error)) || !birthdayResult
+          if (extrasReadFailed) {
+            setExtrasError('Account tasks are current, but some campground extras could not be refreshed. You can keep using billing, documents, messages, and services safely.')
+          }
+
+          setLatestElectric(electricResult.data || null)
+          setEvents(eventResult.data || [])
+          setAnnouncements((announcementResult.data || []).filter((item) => !isAnnouncementExpired(item)))
+          let dismissedAlertIds = new Set<string>()
+          try {
+            const saved = window.localStorage.getItem(`bur-oaks-dismissed-alerts-${camperData.id}`)
+            dismissedAlertIds = new Set((JSON.parse(saved || '[]') || []).map((id: unknown) => String(id)))
+          } catch {
+            dismissedAlertIds = new Set()
+          }
+          setAlerts((alertResult.data || []).filter((alert: any) => !dismissedAlertIds.has(String(alert.id))))
+          if (birthdayResult?.success) {
+            setBirthdayBoard({
+              monthName: birthdayResult.monthName || emptyBirthdayBoard.monthName,
+              birthdays: birthdayResult.birthdays || [],
+              setupRequired: Boolean(birthdayResult.setupRequired),
+            })
+            setOfficeBirthdayGreetings(birthdayResult.officeGreetings || [])
+          }
+        } catch (error) {
+          console.warn('Unable to refresh optional portal extras:', error)
+          setExtrasError('Account tasks are current, but some campground extras could not be refreshed. You can keep using billing, documents, messages, and services safely.')
         }
       } catch (error) {
         console.error('Unable to load camper portal:', error)
@@ -467,6 +494,15 @@ export default function CamperPortalPage() {
   async function handleLogout() {
     await supabase.auth.signOut()
     window.location.href = '/login'
+  }
+
+  function toggleLowDataMode() {
+    const next = !lowDataMode
+    lowDataModeRef.current = next
+    setLowDataMode(next)
+    setShowWeatherSheet(false)
+    window.localStorage.setItem('bur-oaks-low-data-mode', next ? 'on' : 'off')
+    if (!next) window.location.reload()
   }
 
   async function updateSiteCareNotice(noticeId: string, action: 'acknowledge' | 'ready_for_review') {
@@ -1106,6 +1142,11 @@ export default function CamperPortalPage() {
             <button type="button" onClick={() => window.location.reload()}>Try again</button>
           </div>
         )}
+        {extrasError && (
+          <div className="portal-load-warning" role="status">
+            <span>{extrasError}</span>
+          </div>
+        )}
         <header className="portal-premium-header">
           <div className="portal-premium-brandline">
             <a href="/portal"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /><span><strong>Bur Oaks Campground</strong><small>Camper Portal</small></span></a>
@@ -1117,6 +1158,14 @@ export default function CamperPortalPage() {
           </div>
           <div className="portal-premium-season"><span aria-hidden="true">{seasonalTheme.symbol}</span><strong>{seasonalTheme.label}</strong><small>{seasonalTheme.detail}</small></div>
         </header>
+
+        <section className={`portal-data-saver ${lowDataMode ? 'active' : ''}`} aria-label="Portal data use">
+          <div>
+            <strong>{lowDataMode ? 'Data saver is on' : 'Full portal is on'}</strong>
+            <span>{lowDataMode ? 'Account tasks and campground notices stay available; weather, flyers, birthdays, and extra imagery are paused.' : 'Turn on data saver when the campground connection is slow.'}</span>
+          </div>
+          <button type="button" aria-pressed={lowDataMode} onClick={toggleLowDataMode}>{lowDataMode ? 'Show full portal' : 'Use less data'}</button>
+        </section>
 
         {showThanksgivingFeature && (
           <a className="portal-thanksgiving-feature" href="/thanksgiving">
@@ -1231,7 +1280,7 @@ export default function CamperPortalPage() {
           </section>
         )}
 
-        {officeBirthdayGreetings.map((greeting) => (
+        {!lowDataMode && officeBirthdayGreetings.map((greeting) => (
           <section className="portal-office-birthday" aria-labelledby={`portal-office-birthday-${greeting.id}`} key={greeting.id}>
             <div className="portal-office-birthday-confetti" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
             <span className="portal-office-birthday-icon" aria-hidden="true"><CakeSlice size={30} /></span>
@@ -1483,7 +1532,7 @@ export default function CamperPortalPage() {
           </a>
         </section>
 
-        <section className="portal-birthday-club" aria-label={`${birthdayBoard.monthName} camper birthdays`}>
+        {!lowDataMode && <section className="portal-birthday-club" aria-label={`${birthdayBoard.monthName} camper birthdays`}>
           <div className="portal-birthday-confetti" aria-hidden="true">
             <i /><i /><i /><i /><i /><i />
           </div>
@@ -1552,7 +1601,7 @@ export default function CamperPortalPage() {
               <ShieldCheck size={14} /> Birth years stay private. Only month, day, first name, last initial, and lot are shared.
             </div>
           )}
-        </section>
+        </section>}
 
         {!onboardingComplete && (
           <section className="portal-start-here" aria-label="Start here checklist">
@@ -1729,7 +1778,7 @@ export default function CamperPortalPage() {
         </section>
 
         <div id="weather">
-          <PortalWeather />
+          {!lowDataMode && <PortalWeather />}
         </div>
 
         <section className="portal-weekend-planner">
@@ -1782,7 +1831,7 @@ export default function CamperPortalPage() {
           </aside>
         </section>
 
-        <EventFlyerShowcase context="portal" limit={4} />
+        {!lowDataMode && <EventFlyerShowcase context="portal" limit={4} />}
 
         <details className="portal-dashboard-drawer portal-account-drawer">
           <summary>
@@ -2107,7 +2156,7 @@ export default function CamperPortalPage() {
             <MessageCircle size={18} />
             <span>Chat</span>
           </a>
-          <PortalWeatherDockButton onClick={() => setShowWeatherSheet(true)} />
+          {!lowDataMode && <PortalWeatherDockButton onClick={() => setShowWeatherSheet(true)} />}
         </nav>
 
         {showPumpConfirm && (
@@ -2205,7 +2254,7 @@ export default function CamperPortalPage() {
           </div>
         )}
 
-        {showWeatherSheet && (
+      {showWeatherSheet && !lowDataMode && (
           <div className="portal-mobile-sheet-backdrop portal-weather-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Detailed Bur Oaks weather forecast">
             <section className="portal-weather-sheet">
               <header>

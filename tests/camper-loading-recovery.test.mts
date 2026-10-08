@@ -51,3 +51,35 @@ test('billing and home never mistake a failed read for an empty account', () => 
   assert.match(portal, /Balances, documents, messages, and service statuses are hidden/)
   assert.match(portal, /We could not verify the complete account/)
 })
+
+test('camper home renders verified account tasks before optional campground extras', () => {
+  const portal = read('app/portal/page.tsx')
+  const criticalBatch = portal.indexOf('const [invoiceResult, documentResult, maintenanceResult')
+  const ready = portal.indexOf('setLoading(false)', criticalBatch)
+  const optionalBatch = portal.indexOf('const [electricResult, eventResult, announcementResult', criticalBatch)
+
+  assert.ok(criticalBatch >= 0)
+  assert.ok(ready > criticalBatch)
+  assert.ok(optionalBatch > ready)
+  assert.match(portal, /Account tasks are current, but some campground extras could not be refreshed/)
+  assert.match(portal, /billing, documents, messages, and services safely/)
+  assert.match(portal, /return\s*\n\s*}/)
+})
+
+test('camper home offers a persistent low-data mode without hiding critical account work', () => {
+  const portal = read('app/portal/page.tsx')
+  const styles = read('app/globals.css')
+
+  assert.match(portal, /bur-oaks-low-data-mode/)
+  assert.match(portal, /connection\?\.saveData/)
+  assert.match(portal, /slow-2g/)
+  assert.match(portal, /Use less data/)
+  assert.match(portal, /Account tasks and campground notices stay available/)
+  assert.match(portal, /!lowDataMode && <PortalWeather/)
+  assert.match(portal, /!lowDataMode && <EventFlyerShowcase/)
+  assert.match(portal, /!lowDataMode && <section className="portal-birthday-club"/)
+  assert.match(portal, /if \(!next\) window\.location\.reload\(\)/)
+  assert.match(portal, /aria-pressed=\{lowDataMode\}/)
+  assert.match(styles, /\.portal-data-saver/)
+  assert.match(styles, /min-height:44px/)
+})
