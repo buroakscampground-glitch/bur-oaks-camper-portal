@@ -479,6 +479,21 @@ test('health endpoint identifies the release without caching or customer data', 
   expect(JSON.stringify(payload)).not.toMatch(/camper|invoice|payment|email|phone/i)
 })
 
+test('keyboard users can skip repeated navigation at every release width', async ({ page }) => {
+  const response = await page.goto('/login')
+  expect(response?.ok()).toBeTruthy()
+
+  await page.keyboard.press('Tab')
+  const skipLink = page.getByRole('link', { name: 'Skip to main content' })
+  await expect(skipLink).toBeFocused()
+  await expect(skipLink).toBeVisible()
+
+  await page.keyboard.press('Enter')
+  await expect(page.locator('#main-content')).toBeFocused()
+  await expect(page).toHaveURL(/#main-content$/)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('sign-in stays visible, keyboard-ready, and contained at every release width', async ({ page, isMobile }) => {
   const response = await page.goto('/login')
   expect(response?.ok()).toBeTruthy()

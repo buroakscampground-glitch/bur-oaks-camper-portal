@@ -6,6 +6,8 @@ const proxy = await readFile(new URL('../proxy.ts', import.meta.url), 'utf8')
 const health = await readFile(new URL('../app/api/health/route.ts', import.meta.url), 'utf8')
 const login = await readFile(new URL('../app/login/page.tsx', import.meta.url), 'utf8')
 const passwordReset = await readFile(new URL('../app/forgot-password/page.tsx', import.meta.url), 'utf8')
+const layout = await readFile(new URL('../app/layout.tsx', import.meta.url), 'utf8')
+const styles = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8')
 
 test('real page and API requests receive an opaque trace reference', () => {
   assert.match(proxy, /crypto\.randomUUID\(\)/)
@@ -36,4 +38,12 @@ test('password recovery always leaves the sending state after network errors', (
   assert.match(passwordReset, /finally \{\s*setSending\(false\)/)
   assert.match(passwordReset, /<form[\s\S]*?onSubmit=/)
   assert.match(passwordReset, /role="status"/)
+})
+
+test('every workspace has a keyboard skip path and visible focus fallback', () => {
+  assert.match(layout, /className="global-skip-link" href="#main-content"/)
+  assert.match(layout, /id="main-content" className="global-main-content" tabIndex=\{-1\}/)
+  assert.match(styles, /\.global-skip-link:focus\{transform:translateY\(0\)/)
+  assert.match(styles, /:where\(a,button,input,select,textarea,summary,\[tabindex\]\):focus-visible/)
+  assert.match(styles, /@media\(forced-colors:active\)/)
 })
