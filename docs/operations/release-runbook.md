@@ -49,3 +49,9 @@ After the incident, correct and verify the underlying problem before setting the
 When Google Analytics is configured, the browser reports the standard CLS, FCP, INP, LCP, and TTFB metrics as a `web_vital` event. Reports contain only the metric, rating, broad workspace group, navigation type, and whether the target budget was met. They never include the URL, record ID, account identity, email, phone, invoice, or form contents.
 
 The initial good-experience budgets are CLS ≤ 0.1, FCP ≤ 1.8 seconds, INP ≤ 200 milliseconds, LCP ≤ 2.5 seconds, and TTFB ≤ 800 milliseconds. Review trends by `route_group` (`public`, `camper`, `admin`, `maintenance_staff`, or `community`) rather than attempting to identify a camper. A release that materially worsens a core workspace should be corrected or rolled back even when the functional gate passes.
+
+## Database-independent emergency banner
+
+Set the server-only `BUR_OAKS_EMERGENCY_BANNER` variable to a short, complete instruction and redeploy the current production commit. The banner renders before normal page content on public, camper, and staff pages without querying Supabase, so it remains available during a database or community-content incident. Use `BUR_OAKS_EMERGENCY_BANNER_LEVEL=urgent` for an emergency or `notice` for a service notice. The message is whitespace-normalized and limited to 500 characters; it always includes the office phone action.
+
+Verify the exact wording on a phone and desktop, then remove the message and redeploy when the incident is over. Do not put names, lot numbers, balances, access codes, or other private details in this public banner. The ordinary announcement system remains the right place for routine campground updates.
