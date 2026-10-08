@@ -105,7 +105,7 @@ async function installSyntheticCamperSession(page: Page) {
   }
 }
 
-async function installSyntheticAdminSession(page: Page) {
+async function installSyntheticAdminSession(page: Page, closeoutOverride?: object) {
   let simulateReadFailure = true
   const now = Math.floor(Date.now() / 1000)
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -163,17 +163,26 @@ async function installSyntheticAdminSession(page: Page) {
     const payloads: Record<string, object> = {
       '/api/admin-documents': { documents: [] },
       '/api/admin-stripe-payouts': { payouts: [], health: null },
-      '/api/admin-daily-closeout': {
+      '/api/admin-daily-closeout': closeoutOverride || {
         date: '2026-10-08', generatedAt: '2026-10-08T18:45:30Z', balanced: true, readyToClose: true,
-        checks: { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: true },
+        checks: { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: true, moneyExceptionsClear: true },
         totals: { received: 675, onlineReceived: 525, manualReceived: 150, invoiceAllocations: 600, savedCredit: 75, creditsApplied: 40, bankDeposits: 575, difference: 0 },
-        counts: { onlineInvoices: 1, manualPayments: 1, creditsCreated: 2, creditsApplied: 1, bankDeposits: 1, payoutProblems: 0, unclassifiedInvoices: 0 },
+        counts: { onlineInvoices: 1, manualPayments: 1, creditsCreated: 2, creditsApplied: 1, bankDeposits: 1, payoutProblems: 0, unclassifiedInvoices: 0, moneyExceptions: 0 },
         onlineInvoices: [{ id: 'online', invoice_number: 'TEST-300', total_due: 500, payment_method: 'Online card', paid_at: '2026-10-08T15:00:00Z', campers: { first_name: 'Online', last_name: 'Camper', lot_number: 'T1' } }],
         manualPayments: [{ id: 'manual', amount: 150, payment_method: 'Check', created_at: '2026-10-08T16:00:00Z', result: { appliedTotal: 100, creditAmount: 50 }, campers: { first_name: 'Office', last_name: 'Camper', lot_number: 'T2' } }],
         manualAllocations: [{ payment_id: 'manual', invoice_id: 'manual-invoice', amount_applied: 100, invoices: { invoice_number: 'TEST-302', invoice_type: 'Lot rent' } }],
         onlineExtraCredits: [{ id: 'extra', original_amount: 25, remaining_amount: 25, applies_to: 'lot_rent', campers: { lot_number: 'T1' } }],
         creditApplications: [{ id: 'application', amount_applied: 40, applied_at: '2026-10-08T17:00:00Z', invoices: { invoice_number: 'TEST-301', invoice_type: 'Electric' }, campers: { first_name: 'Credit', last_name: 'Camper', lot_number: 'T3' } }],
-        payouts: [{ id: 'payout', amount: 57500, status: 'paid', automatic: true }], unclassifiedInvoices: [],
+        payouts: [{ id: 'payout', amount: 57500, status: 'paid', automatic: true }], unclassifiedInvoices: [], moneyExceptions: [],
+        history: [
+          { date: '2026-10-02', readyToClose: true, received: 0, bankDeposits: 0, reviewCount: 0 },
+          { date: '2026-10-03', readyToClose: true, received: 0, bankDeposits: 0, reviewCount: 0 },
+          { date: '2026-10-04', readyToClose: true, received: 0, bankDeposits: 0, reviewCount: 0 },
+          { date: '2026-10-05', readyToClose: true, received: 0, bankDeposits: 0, reviewCount: 0 },
+          { date: '2026-10-06', readyToClose: true, received: 0, bankDeposits: 0, reviewCount: 0 },
+          { date: '2026-10-07', readyToClose: true, received: 0, bankDeposits: 0, reviewCount: 0 },
+          { date: '2026-10-08', readyToClose: true, received: 675, bankDeposits: 575, reviewCount: 0 },
+        ],
       },
       '/api/meter-readings': { submissions: [], entries: [], counts: {}, monthStart: '2026-10-01' },
       '/api/admin-sidebar-attention': { counts: {}, appBadgeCount: 0 },
@@ -1103,6 +1112,9 @@ test('daily money closeout proves payment allocation without changing a ledger',
   await page.goto('/admin/daily-closeout')
   await expect(page.getByRole('heading', { name: 'Every payment dollar is explained' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Ready to close' })).toBeVisible()
+  await expect(page.getByText('Last seven campground days')).toBeVisible()
+  await expect(page.getByText('Live exception queue clear')).toBeVisible()
+  await expect(page.getByRole('button', { name: /Thu, Oct 8/ })).toContainText('$675.00')
   await expect(page.getByText('Verified Oct 8, 1:45:30 PM CT')).toBeVisible()
   const totals = page.locator('.daily-closeout-kpis')
   await expect(totals.getByText('Total received').locator('..')).toContainText('$675.00')
@@ -1111,5 +1123,26 @@ test('daily money closeout proves payment allocation without changing a ledger',
   await expect(totals.getByText('Arrived at bank').locator('..')).toContainText('$575.00')
   await expect(page.getByText('Receipts and bank deposits are intentionally separate.')).toBeVisible()
   await expect(page.getByRole('link', { name: /Applied to Invoice #TEST-302/ })).toContainText('$100.00')
+  await expectNoHorizontalOverflow(page)
+})
+
+test('daily money closeout blocks closing and opens the exact money exception', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves unresolved financial exceptions fail closed.')
+  const synthetic = await installSyntheticAdminSession(page, {
+    date: '2026-10-08', generatedAt: '2026-10-08T18:45:30Z', balanced: true, readyToClose: false,
+    checks: { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: true, moneyExceptionsClear: false },
+    totals: { received: 500, onlineReceived: 500, manualReceived: 0, invoiceAllocations: 500, savedCredit: 0, creditsApplied: 0, bankDeposits: 500, difference: 0 },
+    counts: { onlineInvoices: 1, manualPayments: 0, creditsCreated: 0, creditsApplied: 0, bankDeposits: 1, payoutProblems: 0, unclassifiedInvoices: 0, moneyExceptions: 1 },
+    onlineInvoices: [], manualPayments: [], manualAllocations: [], onlineExtraCredits: [], creditApplications: [], payouts: [], unclassifiedInvoices: [],
+    moneyExceptions: [{ id: 'dispute-dp_test', kind: 'dispute', severity: 'urgent', title: 'Card payment dispute · needs response', detail: 'Invoice #TEST-300 for Lot T1 is connected to this dispute.', amountCents: 50000, occurredAt: '2026-10-08T17:00:00Z', href: '/admin/invoices/test-invoice', lotNumber: 'T1' }],
+    history: [{ date: '2026-10-08', readyToClose: true, received: 500, bankDeposits: 500, reviewCount: 0 }],
+  })
+  synthetic.recoverReads()
+  await page.goto('/admin/daily-closeout')
+  await expect(page.getByRole('heading', { name: 'Keep the day open for review' })).toBeVisible()
+  await expect(page.getByText('1 unresolved money exception must be reviewed.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Resolve these before closing' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Card payment dispute/ })).toHaveAttribute('href', '/admin/invoices/test-invoice')
+  await expect(page.getByRole('link', { name: 'Open full queue →' })).toHaveAttribute('href', '/admin/money-exceptions')
   await expectNoHorizontalOverflow(page)
 })

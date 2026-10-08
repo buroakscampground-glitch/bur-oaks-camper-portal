@@ -3,9 +3,15 @@
 import { useEffect, useState } from 'react'
 import { ArrowLeft, CheckCircle2, ClipboardCheck, Printer, RefreshCw, TriangleAlert } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
-import type { CloseoutCamper, DailyCloseoutSummary } from '../../../lib/daily-closeout'
+import type { CloseoutCamper, CloseoutHistoryDay, DailyCloseoutSummary } from '../../../lib/daily-closeout'
+import type { MoneyException } from '../../../lib/money-exceptions'
 
-type DailyCloseoutResponse = DailyCloseoutSummary & { date: string; generatedAt: string }
+type DailyCloseoutResponse = DailyCloseoutSummary & {
+  date: string
+  generatedAt: string
+  history: CloseoutHistoryDay[]
+  moneyExceptions: MoneyException[]
+}
 
 function campgroundToday() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date())
@@ -101,8 +107,22 @@ export default function DailyCloseoutPage() {
               <article className={closeout.checks.paymentAllocation ? 'passed' : 'failed'}>{closeout.checks.paymentAllocation ? <CheckCircle2 /> : <TriangleAlert />}<span><strong>Payment dollars explained</strong><small>Received money equals invoice allocations plus saved credit.</small></span></article>
               <article className={closeout.checks.paidInvoicesClassified ? 'passed' : 'failed'}>{closeout.checks.paidInvoicesClassified ? <CheckCircle2 /> : <TriangleAlert />}<span><strong>Paid invoices classified</strong><small>{closeout.checks.paidInvoicesClassified ? 'Every paid invoice has a known payment source.' : `${counts.unclassifiedInvoices} paid invoice${counts.unclassifiedInvoices === 1 ? '' : 's'} needs review.`}</small></span></article>
               <article className={closeout.checks.depositsClear ? 'passed' : 'failed'}>{closeout.checks.depositsClear ? <CheckCircle2 /> : <TriangleAlert />}<span><strong>Stripe deposits clear</strong><small>{closeout.checks.depositsClear ? 'No failed or canceled deposits found for this date.' : `${counts.payoutProblems} deposit${counts.payoutProblems === 1 ? '' : 's'} needs review.`}</small></span></article>
+              <article className={closeout.checks.moneyExceptionsClear ? 'passed' : 'failed'}>{closeout.checks.moneyExceptionsClear ? <CheckCircle2 /> : <TriangleAlert />}<span><strong>Live exception queue clear</strong><small>{closeout.checks.moneyExceptionsClear ? 'No unresolved deposit, dispute, refund, ACH, or ledger exception is visible now.' : `${counts.moneyExceptions} unresolved money exception${counts.moneyExceptions === 1 ? '' : 's'} must be reviewed.`}</small></span></article>
             </div>
           </section>
+
+          <section className="daily-closeout-history" aria-label="Seven-day closeout history">
+            <header><div><small>RECONSTRUCTED HISTORY</small><h2>Last seven campground days</h2></div><p>Live read-only reconstruction · not a signed accounting lock.</p></header>
+            <div>{closeout.history.map((day) => <button type="button" className={day.date === date ? 'selected' : ''} onClick={() => setDate(day.date)} key={day.date}>
+              <span><strong>{new Date(`${day.date}T12:00:00Z`).toLocaleDateString('en-US', { timeZone: 'America/Chicago', weekday: 'short', month: 'short', day: 'numeric' })}</strong><small>{day.readyToClose ? 'Checks clear' : `${day.reviewCount} review item${day.reviewCount === 1 ? '' : 's'}`}</small></span>
+              <span><b>{money(day.received)}</b><em>{day.readyToClose ? <CheckCircle2 /> : <TriangleAlert />}</em></span>
+            </button>)}</div>
+          </section>
+
+          {!closeout.checks.moneyExceptionsClear && <section className="daily-closeout-exceptions" role="alert">
+            <header><div><small>LIVE MONEY EXCEPTIONS</small><h2>Resolve these before closing</h2></div><a href="/admin/money-exceptions">Open full queue →</a></header>
+            <div>{closeout.moneyExceptions.map((item) => <a href={item.href} key={item.id}><span><strong>{item.title}</strong><small>{item.detail}</small></span><b>{item.amountCents == null ? 'Review →' : `${money(item.amountCents / 100)} →`}</b></a>)}</div>
+          </section>}
 
           <section className="daily-closeout-kpis" aria-label="Daily closeout totals">
             <article><small>Total received</small><strong>{money(totals.received)}</strong><span>{counts.onlineInvoices} online invoice{counts.onlineInvoices === 1 ? '' : 's'} · {counts.manualPayments} office payment{counts.manualPayments === 1 ? '' : 's'}</span></article>
@@ -113,7 +133,7 @@ export default function DailyCloseoutPage() {
           </section>
 
           <section className="daily-closeout-explainer">
-            <ClipboardCheck size={21} /><p><strong>Receipts and bank deposits are intentionally separate.</strong> Card and ACH payments can take days to reach the bank. This page proves today’s payments were allocated correctly and separately reports deposits scheduled to arrive today.</p>
+            <ClipboardCheck size={21} /><p><strong>Receipts and bank deposits are intentionally separate.</strong> Card and ACH payments can take days to reach the bank. This page proves the selected day’s payments were allocated correctly and separately reports deposits scheduled to arrive that day. History is reconstructed from the live ledger; an immutable signed close remains a separate future control.</p>
           </section>
 
           {closeout.unclassifiedInvoices.length > 0 && <section className="daily-closeout-unclassified" role="alert"><TriangleAlert size={20} /><div><strong>Paid invoices need ledger review</strong><p>These invoices were marked paid today but are not tied to an online payment, account-credit application, or current office-payment allocation.</p>{closeout.unclassifiedInvoices.map((invoice) => <a key={invoice.id} href={`/admin/invoices/${invoice.id}`}>Invoice #{invoice.invoice_number} · Lot {invoice.campers?.lot_number || '—'} · {money(invoice.total_due || invoice.subtotal)}</a>)}</div></section>}

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { centralDayRange, summarizeDailyCloseout } from '../lib/daily-closeout.ts'
+import { centralDayRange, closeoutDateKeys, summarizeCloseoutHistory, summarizeDailyCloseout } from '../lib/daily-closeout.ts'
 
 test('daily closeout explains online, office, allocation, and saved-credit dollars', () => {
   const result = summarizeDailyCloseout({
@@ -20,7 +20,7 @@ test('daily closeout explains online, office, allocation, and saved-credit dolla
   })
   assert.equal(result.balanced, true)
   assert.equal(result.counts.payoutProblems, 1)
-  assert.deepEqual(result.checks, { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: false })
+  assert.deepEqual(result.checks, { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: false, moneyExceptionsClear: true })
   assert.equal(result.readyToClose, false)
 })
 
@@ -51,8 +51,35 @@ test('a fully explained day with clear deposits is ready to close', () => {
     invoices: [{ id: 'online', total_due: 50, payment_method: 'Online card' }],
     payouts: [{ amount: 5000, status: 'paid' }],
   })
-  assert.deepEqual(result.checks, { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: true })
+  assert.deepEqual(result.checks, { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: true, moneyExceptionsClear: true })
   assert.equal(result.readyToClose, true)
+})
+
+test('an unresolved money exception blocks closeout without changing ledger totals', () => {
+  const result = summarizeDailyCloseout({
+    invoices: [{ id: 'online', total_due: 50, payment_method: 'Online card' }],
+    payouts: [{ amount: 5000, status: 'paid' }],
+    exceptionCount: 2,
+  })
+  assert.equal(result.totals.received, 50)
+  assert.equal(result.counts.moneyExceptions, 2)
+  assert.equal(result.checks.moneyExceptionsClear, false)
+  assert.equal(result.readyToClose, false)
+})
+
+test('seven-day history reconstructs each day from Central-time money records', () => {
+  const dates = closeoutDateKeys('2026-10-08', 7)
+  const history = summarizeCloseoutHistory({
+    dates,
+    invoices: [
+      { id: 'online-7', total_due: 50, payment_method: 'Online card', paid_at: '2026-10-08T02:00:00Z' },
+      { id: 'unknown-8', total_due: 25, payment_method: 'Other', paid_at: '2026-10-08T18:00:00Z' },
+    ],
+    payouts: [{ amount: 5000, status: 'paid', arrivalDate: '2026-10-07T17:00:00Z' }],
+  })
+  assert.equal(history.length, 7)
+  assert.deepEqual(history.at(-2), { date: '2026-10-07', readyToClose: true, received: 50, bankDeposits: 50, reviewCount: 0 })
+  assert.deepEqual(history.at(-1), { date: '2026-10-08', readyToClose: false, received: 0, bankDeposits: 0, reviewCount: 1 })
 })
 
 test('Supabase relationship arrays are normalized before money records reach the office view', () => {

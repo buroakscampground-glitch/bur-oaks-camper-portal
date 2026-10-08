@@ -74,6 +74,14 @@ export type CloseoutPayout = {
   automatic?: boolean | null
 }
 
+export type CloseoutHistoryDay = {
+  date: string
+  readyToClose: boolean
+  received: number
+  bankDeposits: number
+  reviewCount: number
+}
+
 function amount(value: unknown) {
   const number = Number(value || 0)
   return Number.isFinite(number) ? Math.round(number * 100) / 100 : 0
@@ -102,9 +110,23 @@ export function centralDayRange(dateKey: string) {
   return { start: start.toISOString(), end: end.toISOString() }
 }
 
+export function closeoutDateKeys(endingDate: string, days = 7) {
+  const [year, month, day] = endingDate.split('-').map(Number)
+  return Array.from({ length: Math.max(1, Math.min(14, Math.trunc(days))) }, (_, index) =>
+    new Date(Date.UTC(year, month - 1, day - (Math.max(1, Math.min(14, Math.trunc(days))) - index - 1))).toISOString().slice(0, 10)
+  )
+}
+
+export function centralDateKey(value: string | null | undefined) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(date)
+}
+
 export function summarizeDailyCloseout({
   invoices: invoiceRows = [], manualPayments: manualPaymentRows = [], manualAllocations: manualAllocationRows = [],
-  onlineExtraCredits: onlineExtraCreditRows = [], creditApplications: creditApplicationRows = [], payouts = [],
+  onlineExtraCredits: onlineExtraCreditRows = [], creditApplications: creditApplicationRows = [], payouts = [], exceptionCount = 0,
 }: {
   invoices?: CloseoutInvoice[]
   manualPayments?: ManualPaymentRecord[]
@@ -112,6 +134,7 @@ export function summarizeDailyCloseout({
   onlineExtraCredits?: CloseoutCredit[]
   creditApplications?: CloseoutCreditApplication[]
   payouts?: CloseoutPayout[]
+  exceptionCount?: number
 }) {
   const invoices = invoiceRows.map((invoice) => ({ ...invoice, campers: oneRelation(invoice.campers) }))
   const manualPayments = manualPaymentRows.map((payment) => ({ ...payment, campers: oneRelation(payment.campers) }))
@@ -150,6 +173,7 @@ export function summarizeDailyCloseout({
     paymentAllocation: Math.abs(difference) < 0.005,
     paidInvoicesClassified: unclassifiedInvoices.length === 0,
     depositsClear: payouts.every((payout) => !['failed', 'canceled'].includes(String(payout.status))),
+    moneyExceptionsClear: exceptionCount === 0,
   }
 
   return {
@@ -171,6 +195,7 @@ export function summarizeDailyCloseout({
       bankDeposits: payouts.filter((payout) => payout.status === 'paid').length,
       payoutProblems: payouts.filter((payout) => ['failed', 'canceled'].includes(String(payout.status))).length,
       unclassifiedInvoices: unclassifiedInvoices.length,
+      moneyExceptions: exceptionCount,
     },
     onlineInvoices,
     manualPayments,
@@ -181,8 +206,45 @@ export function summarizeDailyCloseout({
     unclassifiedInvoices,
     checks,
     balanced: checks.paymentAllocation && checks.paidInvoicesClassified,
-    readyToClose: checks.paymentAllocation && checks.paidInvoicesClassified && checks.depositsClear,
+    readyToClose: checks.paymentAllocation && checks.paidInvoicesClassified && checks.depositsClear && checks.moneyExceptionsClear,
   }
+}
+
+export function summarizeCloseoutHistory({
+  dates,
+  invoices = [],
+  manualPayments = [],
+  manualAllocations = [],
+  onlineExtraCredits = [],
+  creditApplications = [],
+  payouts = [],
+}: {
+  dates: string[]
+  invoices?: CloseoutInvoice[]
+  manualPayments?: ManualPaymentRecord[]
+  manualAllocations?: ManualAllocationRecord[]
+  onlineExtraCredits?: CloseoutCredit[]
+  creditApplications?: CloseoutCreditApplication[]
+  payouts?: CloseoutPayout[]
+}) {
+  const paymentDate = new Map(manualPayments.map((payment) => [payment.id, payment.received_on || centralDateKey(payment.created_at)]))
+  return dates.map((date): CloseoutHistoryDay => {
+    const summary = summarizeDailyCloseout({
+      invoices: invoices.filter((row) => centralDateKey(row.paid_at) === date),
+      manualPayments: manualPayments.filter((row) => (row.received_on || centralDateKey(row.created_at)) === date),
+      manualAllocations: manualAllocations.filter((row) => paymentDate.get(String(row.payment_id || '')) === date),
+      onlineExtraCredits: onlineExtraCredits.filter((row) => centralDateKey(row.created_at) === date),
+      creditApplications: creditApplications.filter((row) => centralDateKey(row.applied_at) === date),
+      payouts: payouts.filter((row) => centralDateKey(row.arrivalDate) === date),
+    })
+    return {
+      date,
+      readyToClose: summary.readyToClose,
+      received: summary.totals.received,
+      bankDeposits: summary.totals.bankDeposits,
+      reviewCount: summary.counts.unclassifiedInvoices + summary.counts.payoutProblems + Number(!summary.checks.paymentAllocation),
+    }
+  })
 }
 
 export type DailyCloseoutSummary = ReturnType<typeof summarizeDailyCloseout>
