@@ -155,9 +155,8 @@ export default function InvoiceDetailPage() {
           .single(),
         supabase
           .from('invoice_items')
-          .select('*')
-          .eq('invoice_id', invoiceId)
-          .order('created_at', { ascending: true }),
+          .select('id, invoice_id, description, quantity, unit_price, total')
+          .eq('invoice_id', invoiceId),
         supabase
           .from('account_credit_applications')
           .select('amount_applied')
@@ -197,7 +196,7 @@ export default function InvoiceDetailPage() {
     } catch (error: any) {
       console.error('Unable to load admin invoice detail:', error)
       if (showLoading) setInvoice(null)
-      setLoadError(error?.message || 'The invoice could not be loaded. Please try again.')
+      setLoadError('Invoice records could not be verified. Please try again.')
     } finally {
       if (showLoading) setLoading(false)
     }
