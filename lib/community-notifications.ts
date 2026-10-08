@@ -24,7 +24,10 @@ export function normalizeCommunityMode(value: unknown): CommunityNotificationMod
   return value === 'right_away' || value === 'portal_only' ? value : 'daily_summary'
 }
 
-export function camperCommunityEmails(camper: any) {
+type CommunityCamper = { email?: unknown; secondary_email?: unknown }
+type CommunityEmailResult = { id?: string; skipped?: boolean; reason?: string }
+
+export function camperCommunityEmails(camper: CommunityCamper | null | undefined) {
   return Array.from(new Set([camper?.email, camper?.secondary_email]
     .map((value) => String(value || '').trim().toLowerCase())
     .filter((value) => value.includes('@'))))
@@ -37,7 +40,7 @@ export async function sendCommunityEmail({
   heading,
   message,
   actionUrl,
-}: CommunityEmailInput) {
+}: CommunityEmailInput): Promise<CommunityEmailResult> {
   const apiKey = process.env.RESEND_API_KEY
   const recipients = Array.from(new Set(to.map((email) => email.trim().toLowerCase()).filter(Boolean)))
   if (!apiKey) return { skipped: true, reason: 'RESEND_API_KEY is not configured.' }
@@ -71,7 +74,7 @@ export async function sendCommunityEmail({
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from, to: recipients, reply_to: replyTo, subject, text, html }),
   })
-  const result = await response.json().catch(() => ({}))
+  const result = await response.json().catch(() => ({})) as { id?: string; message?: string }
   if (!response.ok) throw new Error(result?.message || 'The community email could not be sent.')
-  return result
+  return { id: result.id }
 }

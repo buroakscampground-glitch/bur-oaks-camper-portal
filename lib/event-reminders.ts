@@ -1,20 +1,33 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { escapeHtml } from './portal-invite-email'
 import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { singleSegmentSms } from './sms-segments'
 import { portalSmsUrl } from './portal-sms-links'
 import { consentedCamperSmsPhones } from './camper-sms'
+import type { AuthCamperRecord } from './auth-account-match'
+import { addCentralDays, daysUntilEvent, type CentralDate } from './event-reminder-dates'
 
-type CentralDate = {
-  year: number
-  month: number
-  day: number
-  iso: string
-}
+export { addCentralDays, daysUntilEvent } from './event-reminder-dates'
 
 type DeliveryResult = {
   email: 'sent' | 'skipped' | 'failed'
   sms: 'sent' | 'skipped' | 'failed'
   errors: string[]
+}
+
+type ReminderEvent = {
+  id: string
+  title?: string | null
+  event_date: string
+  location?: string | null
+  description?: string | null
+}
+
+type ProviderDeliveryResult = {
+  sent: boolean
+  provider?: 'sendgrid' | 'resend' | 'twilio' | null
+  providerMessageId?: string | null
+  error?: string
 }
 
 function cleanEmail(value: unknown) {
@@ -73,22 +86,6 @@ function emailStatus() {
   return { provider: null, configured: false, from, replyTo }
 }
 
-function dateAtUtc(date: CentralDate) {
-  return Date.UTC(date.year, date.month - 1, date.day)
-}
-
-export function addCentralDays(date: CentralDate, days: number) {
-  const shifted = new Date(dateAtUtc(date) + days * 86_400_000)
-  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}-${String(shifted.getUTCDate()).padStart(2, '0')}`
-}
-
-export function daysUntilEvent(eventDate: string, today: CentralDate) {
-  const match = String(eventDate || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return null
-  const eventUtc = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))
-  return Math.round((eventUtc - dateAtUtc(today)) / 86_400_000)
-}
-
 function eventDateLabel(eventDate: string) {
   return new Intl.DateTimeFormat('en-US', {
     timeZone: 'America/Chicago',
@@ -107,7 +104,7 @@ function timingLabel(days: number) {
   return `coming up in ${days} days`
 }
 
-function reminderCopy(event: any, days: number) {
+function reminderCopy(event: ReminderEvent, days: number) {
   const title = String(event.title || 'Bur Oaks event').trim()
   const date = eventDateLabel(event.event_date)
   const timing = timingLabel(days)
@@ -179,12 +176,12 @@ async function sendEmail({ to, subject, text, html }: { to: string[]; subject: s
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from: status.from, to, reply_to: status.replyTo, subject, html, text }),
   })
-  const result = await response.json().catch(() => ({}))
+  const result = await response.json().catch(() => ({})) as { id?: string; message?: string }
   if (!response.ok) return { sent: false, provider: status.provider, error: result?.message || 'Resend rejected the email.' }
   return { sent: true, provider: status.provider, providerMessageId: result?.id || null }
 }
 
-async function reserveDelivery(client: any, eventId: string, camperId: string, reminderDate: string, channel: 'email' | 'sms', recipient: string, subject: string | null, message: string) {
+async function reserveDelivery(client: SupabaseClient, eventId: string, camperId: string, reminderDate: string, channel: 'email' | 'sms', recipient: string, subject: string | null, message: string) {
   const key = { event_id: eventId, camper_id: camperId, reminder_date: reminderDate, channel, recipient_key: recipient }
   const { data: existing, error: lookupError } = await client
     .from('event_reminder_deliveries')
@@ -221,7 +218,7 @@ async function reserveDelivery(client: any, eventId: string, camperId: string, r
   return error ? { reserved: false, error: error.message } : { reserved: true, id: data.id }
 }
 
-async function finalizeDelivery(client: any, id: string, result: { sent: boolean; provider?: string | null; providerMessageId?: string | null; error?: string }) {
+async function finalizeDelivery(client: SupabaseClient, id: string, result: ProviderDeliveryResult) {
   await client.from('event_reminder_deliveries').update({
     status: result.sent ? 'sent' : 'failed',
     provider: result.provider || null,
@@ -232,7 +229,19 @@ async function finalizeDelivery(client: any, id: string, result: { sent: boolean
   }).eq('id', id)
 }
 
-export async function sendEventReminder({ client, camper, event, today, days }: { client: any; camper: any; event: any; today: CentralDate; days: number }): Promise<DeliveryResult> {
+export async function sendEventReminder({
+  client,
+  camper,
+  event,
+  today,
+  days,
+}: {
+  client: SupabaseClient
+  camper: AuthCamperRecord
+  event: ReminderEvent
+  today: CentralDate
+  days: number
+}): Promise<DeliveryResult> {
   const copy = reminderCopy(event, days)
   const summary: DeliveryResult = { email: 'skipped', sms: 'skipped', errors: [] }
   const recipients = uniqueEmails([camper.email, camper.secondary_email])

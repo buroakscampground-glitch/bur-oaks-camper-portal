@@ -100,3 +100,18 @@ test('maintenance intake and Epson report paths use typed provider, request, and
   assert.match(files[2], /SupabaseClient/)
   for (const source of files) assert.doesNotMatch(source, /\bany\b/)
 })
+
+test('event email, SMS, community email, and staff push deliveries use typed boundaries', async () => {
+  const files = await Promise.all([
+    read('lib/event-reminders.ts'),
+    read('lib/community-notifications.ts'),
+    read('lib/staff-web-push.ts'),
+  ])
+
+  assert.match(files[0], /client: SupabaseClient/)
+  assert.match(files[0], /camper: AuthCamperRecord/)
+  assert.match(files[1], /Promise<CommunityEmailResult>/)
+  assert.match(files[2], /admin: SupabaseClient/)
+  assert.match(files[2], /const users: User\[\]/)
+  for (const source of files) assert.doesNotMatch(source, /\bany\b/)
+})

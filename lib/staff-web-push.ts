@@ -1,6 +1,8 @@
 import webpush, { type PushSubscription } from 'web-push'
+import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { requiresAdminAttention } from './admin-notification-types'
 import { effectivePortalRole } from './staff-roles'
+import type { AuthCamperRecord } from './auth-account-match'
 
 type StaffPushSubscription = PushSubscription & {
   app?: 'admin' | 'community'
@@ -18,6 +20,11 @@ type StaffPushOptions = {
   badgeCount?: number
 }
 
+type StaffCamper = AuthCamperRecord & { secondary_email?: string | null }
+type AdminNotificationRow = { type?: string | null }
+type CommunityNotificationRow = { id: string; post_id?: string | null }
+type WebPushFailure = { statusCode?: number; message?: string }
+
 function configured() {
   return Boolean(process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY)
 }
@@ -32,8 +39,8 @@ function savedSubscriptions(value: unknown): StaffPushSubscription[] {
   )).slice(-5)
 }
 
-async function authUsers(admin: any) {
-  const users: any[] = []
+async function authUsers(admin: SupabaseClient) {
+  const users: User[] = []
   for (let page = 1; page <= 10; page += 1) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 })
     if (error) throw error
@@ -48,7 +55,7 @@ export function staffPushPublicKey() {
   return process.env.VAPID_PUBLIC_KEY || ''
 }
 
-export async function sendStaffWebPush(admin: any, options: StaffPushOptions) {
+export async function sendStaffWebPush(admin: SupabaseClient, options: StaffPushOptions) {
   if (!configured()) return { sent: 0, skipped: true, reason: 'Staff Web Push is not configured.' }
 
   webpush.setVapidDetails(
@@ -65,7 +72,8 @@ export async function sendStaffWebPush(admin: any, options: StaffPushOptions) {
 
   const roles = new Set(options.roles || ['admin', 'event_coordinator'])
   const camperIds = options.camperIds?.length ? new Set(options.camperIds.map(String)) : null
-  const recipients = (campers || []).filter((camper: any) => {
+  const camperRows = (campers || []) as StaffCamper[]
+  const recipients = camperRows.filter((camper) => {
     const role = effectivePortalRole(camper)
     return roles.has(role as 'admin' | 'event_coordinator') &&
       (!camperIds || camperIds.has(String(camper.id))) &&
@@ -73,7 +81,7 @@ export async function sendStaffWebPush(admin: any, options: StaffPushOptions) {
   })
   if (!recipients.length) return { sent: 0, skipped: true, reason: 'No staff recipient matched.' }
 
-  const recipientByEmail = new Map<string, { camper: any; role: 'admin' | 'event_coordinator' }>()
+  const recipientByEmail = new Map<string, { camper: StaffCamper; role: 'admin' | 'event_coordinator' }>()
   for (const camper of recipients) {
     const role = effectivePortalRole(camper) as 'admin' | 'event_coordinator'
     for (const email of [camper.email, camper.secondary_email]) {
@@ -98,8 +106,10 @@ export async function sendStaffWebPush(admin: any, options: StaffPushOptions) {
       admin.from('community_notifications').select('id,post_id').eq('camper_id', recipient.camper.id).is('read_at', null),
     ])
     if (adminResult.error || communityResult.error) throw adminResult.error || communityResult.error
-    const actionableAdminCount = (adminResult.data || []).filter((item: any) => requiresAdminAttention(item.type)).length
-    const communityConversationCount = new Set((communityResult.data || []).map((item: any) => String(item.post_id || item.id))).size
+    const adminRows = (adminResult.data || []) as AdminNotificationRow[]
+    const communityRows = (communityResult.data || []) as CommunityNotificationRow[]
+    const actionableAdminCount = adminRows.filter((item) => requiresAdminAttention(item.type)).length
+    const communityConversationCount = new Set(communityRows.map((item) => String(item.post_id || item.id))).size
     const storedBadgeCount = actionableAdminCount + communityConversationCount
     const badgeCount = Math.max(0, Math.round(Number(options.badgeCount ?? storedBadgeCount)))
     const payload = JSON.stringify({
@@ -114,9 +124,10 @@ export async function sendStaffWebPush(admin: any, options: StaffPushOptions) {
       try {
         await webpush.sendNotification(subscription, payload, { TTL: 60 * 60, urgency: 'normal' })
         sent += 1
-      } catch (error: any) {
-        if (error?.statusCode === 404 || error?.statusCode === 410) expired.add(subscription.endpoint)
-        else console.error('Staff Web Push delivery failed:', error?.message || error)
+      } catch (error: unknown) {
+        const failure = error && typeof error === 'object' ? error as WebPushFailure : {}
+        if (failure.statusCode === 404 || failure.statusCode === 410) expired.add(subscription.endpoint)
+        else console.error('Staff Web Push delivery failed:', failure.message || error)
       }
     }
 
