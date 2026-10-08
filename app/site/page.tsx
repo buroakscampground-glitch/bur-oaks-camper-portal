@@ -6,18 +6,13 @@ import { AlertTriangle, ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollar
 import CampgroundMap from '../../components/CampgroundMap'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { isInvoiceDueNow, totalInvoiceBalance } from '../../lib/invoice-balance'
+import { camperMaintenanceStatus } from '../../lib/camper-service-status'
 
 function formatDate(value?: string) {
   if (!value) return 'Not recorded'
   const date = new Date(`${value}T12:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function getMaintenanceDisplayStatus(ticket?: any) {
-  if (!ticket) return 'No requests'
-  if (!ticket.admin_approved) return 'Awaiting Approval'
-  return ticket.status || 'Open'
 }
 
 export default function MySitePage() {
@@ -108,13 +103,13 @@ export default function MySitePage() {
   const openBalance = totalInvoiceBalance(dueNowInvoices)
   const documentsNeedingSignature = documents.filter((document) => document.signature_status !== 'signed' && document.signature_status !== 'not_required' && document.signature_status !== 'declined')
   const insuranceDocs = documents.filter((document) => document.document_type === 'Golf Cart Insurance')
-  const activeMaintenance = maintenance.filter((ticket) => ticket.status !== 'Completed')
+  const activeMaintenance = maintenance.filter((ticket) => !camperMaintenanceStatus(ticket).complete)
   const latestElectric = electric[0]
   const latestMaintenance = maintenance[0]
-  const latestMaintenanceStatus = getMaintenanceDisplayStatus(latestMaintenance)
+  const latestMaintenanceStatus = latestMaintenance ? camperMaintenanceStatus(latestMaintenance).label : 'No requests'
   const maintenanceCardTitle = activeMaintenance.length
     ? latestMaintenanceStatus
-    : latestMaintenance?.status === 'Completed'
+    : latestMaintenance && camperMaintenanceStatus(latestMaintenance).complete
       ? 'Completed'
       : 'Clear'
   const maintenanceCardDetail = latestMaintenance
@@ -135,7 +130,7 @@ export default function MySitePage() {
         <a href="/invoices" className={dueNowInvoices.length ? 'attention' : 'complete'}><CircleDollarSign /><small>Amount due</small><strong>${openBalance.toFixed(2)}</strong><span>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? '' : 's'} due now</span><em>{dueNowInvoices.length ? 'Payment ready' : 'Ready'}</em></a>
         <a href="/documents" className={documentsNeedingSignature.length ? 'attention' : 'complete'}><FileText /><small>Documents</small><strong>{documentsNeedingSignature.length ? `${documentsNeedingSignature.length} pending` : 'Complete'}</strong><span>{documents.length} total files</span><em>{documentsNeedingSignature.length ? 'Signature needed' : 'Ready'}</em></a>
         <a href="/profile" className="complete"><ShieldCheck /><small>Insurance</small><strong>{insuranceDocs.length ? 'Uploaded' : 'Optional'}</strong><span>Golf cart insurance</span><em>{insuranceDocs.length ? 'On file' : 'Upload if you have it'}</em></a>
-        <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'complete'}><Wrench /><small>Maintenance</small><strong>{maintenanceCardTitle}</strong><span>{maintenanceCardDetail}</span><em>{activeMaintenance.length ? 'Active request' : latestMaintenance?.status === 'Completed' ? 'Closed' : 'Ready'}</em></a>
+        <a href="/maintenance" className={activeMaintenance.length ? 'attention' : 'complete'}><Wrench /><small>Maintenance</small><strong>{maintenanceCardTitle}</strong><span>{maintenanceCardDetail}</span><em>{activeMaintenance.length ? 'Active request' : latestMaintenance && camperMaintenanceStatus(latestMaintenance).complete ? 'Closed' : 'Ready'}</em></a>
       </section>
 
       <div className="my-site-layout">

@@ -7,27 +7,7 @@ import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { MaintenanceBadge } from '../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../components/MaintenancePhotos'
 import MaintenanceConversation from '../../components/MaintenanceConversation'
-
-function getMaintenanceDisplayStatus(ticket?: any) {
-  if (!ticket) return 'Open'
-  if (!ticket.admin_approved) return 'Awaiting Office Approval'
-  return ticket.status || 'Open'
-}
-
-function getMaintenanceSteps(ticket: any) {
-  const status = String(ticket?.status || 'Open').toLowerCase()
-  const approved = ticket?.admin_approved === true
-  const inProgress = approved && ['in progress', 'waiting parts', 'completed'].includes(status)
-  const completed = status === 'completed'
-
-  return [
-    { label: 'Submitted', complete: true },
-    { label: 'Office review', complete: approved },
-    { label: 'Approved', complete: approved },
-    { label: status === 'waiting parts' ? 'Waiting parts' : 'In progress', complete: inProgress },
-    { label: 'Completed', complete: completed },
-  ]
-}
+import { camperMaintenanceStatus, maintenanceProgress } from '../../lib/camper-service-status'
 
 export default function MaintenanceRequestPage() {
   const [camper, setCamper] = useState<any>(null)
@@ -412,15 +392,16 @@ export default function MaintenanceRequestPage() {
                 {ticket.admin_approved ? (
                   <MaintenanceBadge kind="status" value={ticket.status} />
                 ) : (
-                  <span className="camper-maintenance-approval-badge">Awaiting Office Approval</span>
+                  <span className="camper-maintenance-approval-badge">Submitted — office review</span>
                 )}
                 <p>{ticket.description}</p>
                 <p className="camper-maintenance-status-note">
-                  Current status: <strong>{getMaintenanceDisplayStatus(ticket)}</strong>
+                  Current status: <strong>{camperMaintenanceStatus(ticket).label}</strong>
                   {ticket.completed_at ? ` · Completed ${new Date(ticket.completed_at).toLocaleDateString()}` : ''}
                 </p>
+                <p className="camper-maintenance-status-explanation">{camperMaintenanceStatus(ticket).detail}</p>
                 <div className="camper-maintenance-progress" aria-label={`Progress for ${ticket.title}`}>
-                  {getMaintenanceSteps(ticket).map((step) => (
+                  {maintenanceProgress(ticket).map((step) => (
                     <span className={step.complete ? 'complete' : ''} key={step.label}>
                       <i>{step.complete ? '✓' : ''}</i>
                       {step.label}

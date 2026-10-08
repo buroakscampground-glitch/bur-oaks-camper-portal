@@ -47,6 +47,7 @@ import { saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
+import { camperMaintenanceStatus, camperPumpOutStatus } from '../../lib/camper-service-status'
 import { getSeasonalTheme } from '../../lib/seasonal-theme'
 import { isInvoiceDueNow, isInvoiceDueNowOrWithinDays, isInvoiceDueWithinDays, isInvoiceOutstanding, totalInvoiceBalance } from '../../lib/invoice-balance'
 import { camperHouseholdName } from '../../lib/camper-household'
@@ -148,12 +149,6 @@ function formatDate(value?: string) {
 function dinnerSignupHref(date?: string) {
   if (!date) return '/dinners'
   return date === thanksgivingDinnerDate ? '/thanksgiving' : `/dinners?date=${date}`
-}
-
-function getMaintenanceDisplayStatus(ticket?: any) {
-  if (!ticket) return 'No active requests'
-  if (!ticket.admin_approved) return 'Awaiting Approval'
-  return ticket.status || 'Open'
 }
 
 function formatFriendlyToday() {
@@ -713,17 +708,17 @@ export default function CamperPortalPage() {
     (document) => document.document_type === 'Golf Cart Insurance'
   )
   const activeMaintenance = maintenanceTickets.filter(
-    (ticket) => ticket.status !== 'Completed'
+    (ticket) => !camperMaintenanceStatus(ticket).complete
   )
   const activePumpOutRequests = pumpOutRequests.filter(
     isPumpOutWaitingForService
   )
   const activeSiteCare = siteCareNotices.filter((notice) => notice.status !== 'Resolved')
   const latestMaintenance = maintenanceTickets[0]
-  const latestMaintenanceStatus = getMaintenanceDisplayStatus(latestMaintenance)
+  const latestMaintenanceStatus = latestMaintenance ? camperMaintenanceStatus(latestMaintenance).label : 'No active requests'
   const maintenanceHeadline = activeMaintenance.length
     ? `${latestMaintenanceStatus} · ${activeMaintenance.length} active`
-    : latestMaintenance?.status === 'Completed'
+    : latestMaintenance && camperMaintenanceStatus(latestMaintenance).complete
       ? 'Completed'
       : 'No active requests'
   const maintenanceDetail = latestMaintenance
@@ -988,8 +983,8 @@ export default function CamperPortalPage() {
       href: '/portal#pump-out',
       label: 'Pump-out',
       title: 'Pump-out request received',
-      detail: 'Your site is on the office pump-out list. No duplicate request is needed.',
-      status: 'In office queue',
+      detail: camperPumpOutStatus(activePumpOutRequests[0]).detail,
+      status: camperPumpOutStatus(activePumpOutRequests[0]).label,
       tone: 'red',
       icon: Droplets,
     })),
@@ -997,8 +992,8 @@ export default function CamperPortalPage() {
       href: '/maintenance',
       label: 'Maintenance',
       title: ticket.title || 'Maintenance request',
-      detail: ticket.admin_approved ? `Current status: ${ticket.status || 'Open'}` : 'Waiting for office approval before work begins.',
-      status: getMaintenanceDisplayStatus(ticket),
+      detail: camperMaintenanceStatus(ticket).detail,
+      status: camperMaintenanceStatus(ticket).label,
       tone: ticket.admin_approved ? 'blue' : 'orange',
       icon: Wrench,
     })),

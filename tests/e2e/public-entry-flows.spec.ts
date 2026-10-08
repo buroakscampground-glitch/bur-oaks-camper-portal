@@ -159,6 +159,16 @@ async function installSyntheticAdminSession(page: Page) {
     const payloads: Record<string, object> = {
       '/api/admin-documents': { documents: [] },
       '/api/admin-stripe-payouts': { payouts: [], health: null },
+      '/api/admin-daily-closeout': {
+        date: '2026-10-08', balanced: true,
+        totals: { received: 675, onlineReceived: 525, manualReceived: 150, invoiceAllocations: 600, savedCredit: 75, creditsApplied: 40, bankDeposits: 575, difference: 0 },
+        counts: { onlineInvoices: 1, manualPayments: 1, creditsCreated: 2, creditsApplied: 1, bankDeposits: 1, payoutProblems: 0, unclassifiedInvoices: 0 },
+        onlineInvoices: [{ id: 'online', invoice_number: 'TEST-300', total_due: 500, payment_method: 'Online card', paid_at: '2026-10-08T15:00:00Z', campers: { first_name: 'Online', last_name: 'Camper', lot_number: 'T1' } }],
+        manualPayments: [{ id: 'manual', amount: 150, payment_method: 'Check', created_at: '2026-10-08T16:00:00Z', result: { appliedTotal: 100, creditAmount: 50 }, campers: { first_name: 'Office', last_name: 'Camper', lot_number: 'T2' } }],
+        onlineExtraCredits: [{ id: 'extra', original_amount: 25, remaining_amount: 25, applies_to: 'lot_rent', campers: { lot_number: 'T1' } }],
+        creditApplications: [{ id: 'application', amount_applied: 40, applied_at: '2026-10-08T17:00:00Z', invoices: { invoice_number: 'TEST-301', invoice_type: 'Electric' }, campers: { first_name: 'Credit', last_name: 'Camper', lot_number: 'T3' } }],
+        payouts: [{ id: 'payout', amount: 57500, status: 'paid', automatic: true }], unclassifiedInvoices: [],
+      },
       '/api/meter-readings': { submissions: [], entries: [], counts: {}, monthStart: '2026-10-01' },
       '/api/admin-sidebar-attention': { counts: {}, appBadgeCount: 0 },
       '/api/admin-birthdays': { counts: {}, birthdays: [] },
@@ -740,6 +750,7 @@ test('office money and operations screens fail closed on a synthetic outage', as
     { path: '/admin/invoices', heading: 'Billing is temporarily unavailable' },
     { path: '/admin/system-health', heading: 'System Health is temporarily unavailable' },
     { path: '/admin/open-balance', heading: 'Open balances are temporarily unavailable' },
+    { path: '/admin/daily-closeout', heading: 'Daily money closeout is temporarily unavailable' },
     { path: '/admin/maintenance', heading: 'Maintenance is temporarily unavailable' },
     { path: '/admin/campers', heading: 'Camper management is temporarily unavailable' },
     { path: '/admin/documents', heading: 'Documents are temporarily unavailable' },
@@ -807,4 +818,19 @@ test('office money and operations screens fail closed on a synthetic outage', as
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByRole('heading', { name: 'Amount Due This Month' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Open balances are temporarily unavailable' })).toHaveCount(0)
+})
+
+test('daily money closeout proves payment allocation without changing a ledger', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated closeout view.')
+  const synthetic = await installSyntheticAdminSession(page)
+  synthetic.recoverReads()
+  await page.goto('/admin/daily-closeout')
+  await expect(page.getByRole('heading', { name: 'Every payment dollar is explained' })).toBeVisible()
+  const totals = page.locator('.daily-closeout-kpis')
+  await expect(totals.getByText('Total received').locator('..')).toContainText('$675.00')
+  await expect(totals.getByText('Applied to invoices').locator('..')).toContainText('$600.00')
+  await expect(totals.getByText('Saved as credit').locator('..')).toContainText('$75.00')
+  await expect(totals.getByText('Arrived at bank').locator('..')).toContainText('$575.00')
+  await expect(page.getByText('Receipts and bank deposits are intentionally separate.')).toBeVisible()
+  await expectNoHorizontalOverflow(page)
 })

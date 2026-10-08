@@ -583,6 +583,7 @@ export default function AdminPage() {
         { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} open`, icon: ReceiptText },
         { href: '/admin/open-balance', title: 'Amounts due', detail: `$${stats.balance.toFixed(2)} this month + carryover`, icon: CircleDollarSign },
         { href: '/admin/electric', title: 'Electric billing', detail: `${stats.electric} readings`, icon: Zap },
+        { href: '/admin/daily-closeout', title: 'Daily money closeout', detail: 'Payments, allocations, credits & bank', icon: ClipboardCheck },
         { href: '/admin/reports', title: 'Reports', detail: 'Monthly & annual', icon: FileSpreadsheet },
         { href: '/admin/stripe-deposits', title: 'Stripe deposits', detail: 'Exact bank deposit breakdowns', icon: Landmark },
         { href: '/admin/income-projection', title: 'Income projection', detail: 'Strong & slim months', icon: BarChart3 },
