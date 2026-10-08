@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     .from('sewer_pump_out_requests')
     .select('*')
     .order('requested_at', { ascending: false })
-    .limit(10)
+    .limit(100)
   requestQuery = serviceLots.length > 1
     ? requestQuery.in('lot_number', serviceLots)
     : requestQuery.eq('camper_id', context.camper.id)

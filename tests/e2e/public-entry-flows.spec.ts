@@ -627,6 +627,10 @@ test('camper pump-out success blocks duplicate taps and announces the saved char
   await expect(page.getByRole('status')).toContainText('Sewer pump-out requested for Lot TEST')
   await expect(page.getByRole('status')).toContainText('$10.00')
   expect(synthetic.pumpPosts()).toBe(1)
+  await page.goto('/maintenance')
+  await expect(page.getByRole('heading', { name: 'My Service Timeline' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Service for Site TEST' })).toBeVisible()
+  await expect(page.getByText('In office queue')).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
 

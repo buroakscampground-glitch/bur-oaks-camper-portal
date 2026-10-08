@@ -2,16 +2,18 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, CheckCircle2, ClipboardList, ImagePlus, Wrench, X } from 'lucide-react'
+import { Camera, CheckCircle2, ClipboardList, Droplets, ImagePlus, Wrench, X } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { MaintenanceBadge } from '../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../components/MaintenancePhotos'
 import MaintenanceConversation from '../../components/MaintenanceConversation'
-import { camperMaintenanceStatus, maintenanceProgress } from '../../lib/camper-service-status'
+import { camperMaintenanceStatus, camperPumpOutStatus, maintenanceProgress } from '../../lib/camper-service-status'
 
 export default function MaintenanceRequestPage() {
   const [camper, setCamper] = useState<any>(null)
   const [tickets, setTickets] = useState<any[]>([])
+  const [pumpOutRequests, setPumpOutRequests] = useState<any[]>([])
+  const [serviceFilter, setServiceFilter] = useState<'all' | 'active' | 'complete'>('all')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('General')
@@ -72,14 +74,19 @@ export default function MaintenanceRequestPage() {
 
       setCamper(camperData)
 
-      const { data: ticketData, error: ticketError } = await supabase
-        .from('maintenance_tickets')
-        .select('*')
-        .eq('lot_number', camperData.lot_number)
-        .order('created_at', { ascending: false })
+      const { data: sessionData } = await supabase.auth.getSession()
+      if (!sessionData.session?.access_token) throw new Error('Your camper session expired.')
 
-      if (ticketError) throw ticketError
-      setTickets(ticketData || [])
+      const [ticketResult, pumpResponse] = await Promise.all([
+        supabase.from('maintenance_tickets').select('*').eq('lot_number', camperData.lot_number).order('created_at', { ascending: false }),
+        fetch('/api/sewer-pump-out', { headers: { Authorization: `Bearer ${sessionData.session.access_token}` }, cache: 'no-store' }),
+      ])
+      const pumpResult = await pumpResponse.json().catch(() => null)
+
+      if (ticketResult.error) throw ticketResult.error
+      if (!pumpResponse.ok) throw new Error(pumpResult?.error || 'Your pump-out history could not be verified.')
+      setTickets(ticketResult.data || [])
+      setPumpOutRequests(pumpResult?.requests || [])
     } catch (error) {
       console.error('Unable to open camper maintenance:', error)
       setLoadError('We could not open your maintenance requests. Nothing was submitted or changed.')
@@ -234,6 +241,21 @@ export default function MaintenanceRequestPage() {
     setPhotoFiles(selected)
   }
 
+  const serviceItems = [
+    ...tickets.map((ticket) => ({
+      id: `maintenance-${ticket.id}`, kind: 'maintenance' as const, at: ticket.created_at, complete: camperMaintenanceStatus(ticket).complete, record: ticket,
+    })),
+    ...pumpOutRequests.map((request) => ({
+      id: `pump-${request.id}`, kind: 'pump-out' as const, at: request.requested_at, complete: camperPumpOutStatus(request).complete, record: request,
+    })),
+  ]
+    .filter((item) => serviceFilter === 'all' || (serviceFilter === 'complete' ? item.complete : !item.complete))
+    .sort((a, b) => new Date(b.at || 0).getTime() - new Date(a.at || 0).getTime())
+  const activeServiceCount = tickets.filter((ticket) => !camperMaintenanceStatus(ticket).complete).length
+    + pumpOutRequests.filter((request) => !camperPumpOutStatus(request).complete).length
+  const completedServiceCount = tickets.filter((ticket) => camperMaintenanceStatus(ticket).complete).length
+    + pumpOutRequests.filter((request) => camperPumpOutStatus(request).complete).length
+
   if (loading) {
     return <div style={{ padding: '40px' }}>Loading...</div>
   }
@@ -255,13 +277,13 @@ export default function MaintenanceRequestPage() {
     <main className="camper-maintenance-page">
       <section className="camper-maintenance-hero">
         <button type="button" onClick={() => router.push('/portal')}>← Back to Portal</button>
-        <span><Wrench size={17} /> Maintenance requests</span>
-        <h1>Tell us what needs attention at your site.</h1>
-        <p>Submit the issue, attach photos if helpful, and track the status once the office reviews and approves the work.</p>
+        <span><Wrench size={17} /> Maintenance & site service</span>
+        <h1>Request help and see the whole story.</h1>
+        <p>Submit a maintenance issue, then follow maintenance and sewer pump-out service together in one clear timeline.</p>
         <div className="camper-maintenance-stats">
           <article><small>Your lot</small><strong>{camper?.lot_number || 'N/A'}</strong></article>
-          <article><small>Active requests</small><strong>{tickets.filter((ticket) => ticket.status !== 'Completed').length}</strong></article>
-          <article><small>Completed</small><strong>{tickets.filter((ticket) => ticket.status === 'Completed').length}</strong></article>
+          <article><small>Active services</small><strong>{activeServiceCount}</strong></article>
+          <article><small>Completed</small><strong>{completedServiceCount}</strong></article>
         </div>
       </section>
 
@@ -368,25 +390,30 @@ export default function MaintenanceRequestPage() {
           <div className="camper-maintenance-card-heading">
             <span><CheckCircle2 size={20} /></span>
             <div>
-              <small>REQUEST HISTORY</small>
-              <h2>My Maintenance Requests</h2>
-              <p>Approved work will be updated by the maintenance team.</p>
+              <small>SERVICE HISTORY</small>
+              <h2>My Service Timeline</h2>
+              <p>Maintenance and sewer pump-outs, newest first.</p>
             </div>
           </div>
 
-          {tickets.length === 0 && (
+          <div className="camper-service-filters" aria-label="Filter service history">
+            {(['all', 'active', 'complete'] as const).map((filter) => <button className={serviceFilter === filter ? 'active' : ''} type="button" key={filter} onClick={() => setServiceFilter(filter)}>{filter === 'all' ? 'All services' : filter === 'active' ? 'Active' : 'Completed'}</button>)}
+          </div>
+
+          {serviceItems.length === 0 && (
             <div className="camper-maintenance-empty">
               <Wrench size={30} />
-              <h3>No requests yet</h3>
-              <p>When you submit a request, it will show up here.</p>
+              <h3>{serviceFilter === 'all' ? 'No service history yet' : `No ${serviceFilter} service items`}</h3>
+              <p>Maintenance requests and pump-outs will appear here automatically.</p>
             </div>
           )}
 
           <div className="camper-maintenance-ticket-list">
-            {tickets.map((ticket) => (
-              <article key={ticket.id} className={`camper-maintenance-ticket ${String(ticket.status || 'open').toLowerCase().replace(/\s+/g, '-')}`}>
+            {serviceItems.map((item) => item.kind === 'maintenance' ? (() => {
+              const ticket = item.record
+              return <article key={item.id} className={`camper-maintenance-ticket ${String(ticket.status || 'open').toLowerCase().replace(/\s+/g, '-')}`}>
                 <div>
-                  <small>{new Date(ticket.created_at).toLocaleDateString()} · {ticket.category}</small>
+                  <small><Wrench size={12} /> Maintenance · {new Date(ticket.created_at).toLocaleDateString()} · {ticket.category}</small>
                   <h3>{ticket.title}</h3>
                 </div>
                 {ticket.admin_approved ? (
@@ -425,7 +452,22 @@ export default function MaintenanceRequestPage() {
                   />
                 )}
               </article>
-            ))}
+            })() : (() => {
+              const request = item.record
+              const status = camperPumpOutStatus(request)
+              return <article key={item.id} className={`camper-maintenance-ticket pump-out ${status.complete ? 'completed' : ''}`}>
+                <div><small><Droplets size={12} /> Sewer pump-out · {new Date(request.requested_at).toLocaleDateString()}</small><h3>Service for Site {request.lot_number || camper?.lot_number || '—'}</h3></div>
+                <span className={`camper-service-status ${status.complete ? 'complete' : ''}`}>{status.label}</span>
+                <p className="camper-maintenance-status-explanation">{status.detail}</p>
+                <div className="camper-pump-timeline" aria-label={`Pump-out progress for Site ${request.lot_number || ''}`}>
+                  <span className="complete"><i>✓</i>Requested</span>
+                  <span className={['working', 'billing', 'complete'].includes(status.stage) ? 'complete' : ''}><i>{['working', 'billing', 'complete'].includes(status.stage) ? '✓' : ''}</i>Service</span>
+                  <span className={status.stage === 'billing' || status.complete ? 'complete' : ''}><i>{status.stage === 'billing' || status.complete ? '✓' : ''}</i>Finished</span>
+                  <span className={status.complete ? 'complete' : ''}><i>{status.complete ? '✓' : ''}</i>Billing</span>
+                </div>
+                {request.completed_at && <p className="camper-service-date">Service completed {new Date(request.completed_at).toLocaleDateString()}.</p>}
+              </article>
+            })())}
           </div>
         </section>
       </div>
