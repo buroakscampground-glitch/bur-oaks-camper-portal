@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   ArrowRight,
   AlertTriangle,
@@ -225,6 +225,7 @@ export default function CamperPortalPage() {
   const [loadError, setLoadError] = useState('')
   const [pumpMessage, setPumpMessage] = useState('')
   const [requestingPump, setRequestingPump] = useState(false)
+  const requestingPumpRef = useRef(false)
   const [showPumpConfirm, setShowPumpConfirm] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showWeatherSheet, setShowWeatherSheet] = useState(false)
@@ -525,54 +526,59 @@ export default function CamperPortalPage() {
   }
 
   async function requestSewerPumpOut() {
-    if (requestingPump) return
+    if (requestingPumpRef.current) return
 
+    requestingPumpRef.current = true
     setRequestingPump(true)
     setShowPumpConfirm(false)
     setPumpMessage('Sending your sewer pump-out request…')
 
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
+    try {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
 
-    if (!token) {
-      window.location.href = '/login'
-      return
-    }
+      if (!token) {
+        window.location.href = '/login'
+        return
+      }
 
-    const response = await fetch('/api/sewer-pump-out', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ serviceLot: selectedPumpLot || camper?.lot_number }),
-    })
-    const result = await response.json().catch(() => null)
+      const response = await fetch('/api/sewer-pump-out', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ serviceLot: selectedPumpLot || camper?.lot_number }),
+      })
+      const result = await response.json().catch(() => null)
 
-    if (!response.ok) {
-      setPumpMessage(result?.error || 'Unable to send pump-out request.')
+      if (!response.ok) {
+        setPumpMessage(result?.error || 'Unable to send pump-out request. Nothing new was added by this confirmed response.')
+        return
+      }
+
+      let emailNote = ''
+      if (result?.duplicate) {
+        setPumpMessage(`Lot ${result?.serviceLot || selectedPumpLot || camper?.lot_number || 'your site'} is already on the sewer pump-out list. No duplicate charge was added.`)
+        return
+      }
+
+      if (result?.emailStatus === 'failed') emailNote = ' Office email alert failed, but the request was saved.'
+      if (result?.emailStatus === 'skipped') emailNote = ' Office email alert skipped, but the request was saved.'
+
+      const serviceLot = result?.serviceLot || selectedPumpLot || camper?.lot_number || 'your site'
+      const billingLot = result?.billingLot || camper?.lot_number || 'your account'
+      const chargeAmount = Number(result?.chargeAmount || getSewerPumpOutFeeForLot(serviceLot, 10))
+      setPumpOutRequests((current) => result?.request
+        ? [result.request, ...current.filter((request) => String(request.id) !== String(result.request.id))]
+        : current)
+      setPumpMessage(`Sewer pump-out requested for Lot ${serviceLot}. $${chargeAmount.toFixed(2)} will be added to the next electric bill for Lot ${billingLot}.${emailNote}`)
+    } catch {
+      setPumpMessage('We could not confirm whether your pump-out request was saved. Check the pump-out status here before trying again so you do not request it twice.')
+    } finally {
+      requestingPumpRef.current = false
       setRequestingPump(false)
-      return
     }
-
-    let emailNote = ''
-    if (result?.duplicate) {
-      setPumpMessage(`Lot ${result?.serviceLot || selectedPumpLot || camper?.lot_number || 'your site'} is already on the sewer pump-out list. No duplicate charge was added.`)
-      setRequestingPump(false)
-      return
-    }
-
-    if (result?.emailStatus === 'failed') emailNote = ' Office email alert failed, but the request was saved.'
-    if (result?.emailStatus === 'skipped') emailNote = ' Office email alert skipped, but the request was saved.'
-
-    const serviceLot = result?.serviceLot || selectedPumpLot || camper?.lot_number || 'your site'
-    const billingLot = result?.billingLot || camper?.lot_number || 'your account'
-    const chargeAmount = Number(result?.chargeAmount || getSewerPumpOutFeeForLot(serviceLot, 10))
-    setPumpOutRequests((current) => result?.request
-      ? [result.request, ...current.filter((request) => String(request.id) !== String(result.request.id))]
-      : current)
-    setPumpMessage(`Sewer pump-out requested for Lot ${serviceLot}. $${chargeAmount.toFixed(2)} will be added to the next electric bill for Lot ${billingLot}.${emailNote}`)
-    setRequestingPump(false)
   }
 
   async function sendBirthdayWish(birthday: BirthdayEntry) {
