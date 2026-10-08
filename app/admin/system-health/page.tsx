@@ -18,8 +18,37 @@ import {
   Zap,
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
+import type { OperationsSnapshot } from '../../../lib/operations-health'
 
 type View = 'health' | 'search' | 'delivery' | 'access' | 'activity'
+type OperationalControl = { key: string; label: string; enabled: boolean }
+type SystemHealthSnapshot = OperationsSnapshot & { operationalControls: OperationalControl[] }
+type ElectricAuditRecord = {
+  invoiceId: string
+  phone: string
+  lot: string
+  camper: string
+  invoiceNumber: string
+  amount: number
+  dueDate?: string | null
+  reminderType: string
+  status: string
+  error?: string | null
+}
+type ElectricAudit = {
+  invoices: number
+  amountDue: number
+  generatedAt: string
+  delivered: number
+  carrierSent: number
+  pending: number
+  failed: number
+  missing: number
+  noRecipient: number
+  records: ElectricAuditRecord[]
+}
+type SnapshotResponse = { snapshot?: SystemHealthSnapshot; error?: string }
+type ElectricAuditResponse = Partial<ElectricAudit> & { error?: string }
 
 function money(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })
@@ -35,13 +64,13 @@ function textMatch(query: string, ...values: unknown[]) {
 }
 
 export default function SystemHealthPage() {
-  const [snapshot, setSnapshot] = useState<any>(null)
+  const [snapshot, setSnapshot] = useState<SystemHealthSnapshot | null>(null)
   const [view, setView] = useState<View>('health')
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const [auditingElectric, setAuditingElectric] = useState(false)
-  const [electricAudit, setElectricAudit] = useState<any>(null)
+  const [electricAudit, setElectricAudit] = useState<ElectricAudit | null>(null)
   const [message, setMessage] = useState('')
 
   async function load() {
@@ -56,7 +85,7 @@ export default function SystemHealthPage() {
         return
       }
       const response = await fetch('/api/admin-operations', { headers: { Authorization: `Bearer ${token}` } })
-      const result = await response.json().catch(() => ({}))
+      const result = await response.json().catch(() => ({})) as SnapshotResponse
       if (!response.ok || !result.snapshot) throw new Error(result.error || 'The operations snapshot could not be loaded.')
       setSnapshot(result.snapshot)
     } catch (error) {
@@ -84,7 +113,7 @@ export default function SystemHealthPage() {
     setMessage('Preparing the monthly operations record…')
     const response = await fetch('/api/admin-operations?export=1', { headers: { Authorization: `Bearer ${token}` } })
     if (!response.ok) {
-      const result = await response.json().catch(() => ({}))
+      const result = await response.json().catch(() => ({})) as { error?: string }
       setMessage(result.error || 'The backup could not be prepared.')
       return
     }
@@ -110,9 +139,9 @@ export default function SystemHealthPage() {
       return
     }
     const response = await fetch('/api/admin-electric-text-audit', { headers: { Authorization: `Bearer ${token}` } })
-    const result = await response.json().catch(() => ({}))
+    const result = await response.json().catch(() => ({})) as ElectricAuditResponse
     if (!response.ok) setMessage(result.error || 'Electric text delivery could not be verified.')
-    else setElectricAudit(result)
+    else setElectricAudit(result as ElectricAudit)
     setAuditingElectric(false)
   }
 
@@ -120,10 +149,10 @@ export default function SystemHealthPage() {
   const results = useMemo(() => {
     if (!snapshot || !normalizedQuery) return { campers: [], invoices: [], maintenance: [], documents: [] }
     return {
-      campers: snapshot.campers.filter((item: any) => textMatch(normalizedQuery, item.first_name, item.last_name, item.second_profile_first_name, item.second_profile_last_name, item.lot_number, item.email, item.secondary_email, item.phone, item.alternate_phone, item.second_profile_phone)).slice(0, 30),
-      invoices: snapshot.invoices.filter((item: any) => textMatch(normalizedQuery, item.invoice_number, item.invoice_type, item.campers?.first_name, item.campers?.last_name, item.campers?.lot_number)).slice(0, 30),
-      maintenance: snapshot.maintenance.filter((item: any) => textMatch(normalizedQuery, item.title, item.status, item.priority, item.lot_number)).slice(0, 30),
-      documents: snapshot.documents.filter((item: any) => textMatch(normalizedQuery, item.document_name, item.document_type, item.signature_status, item.campers?.first_name, item.campers?.last_name, item.campers?.lot_number)).slice(0, 30),
+      campers: snapshot.campers.filter((item) => textMatch(normalizedQuery, item.first_name, item.last_name, item.second_profile_first_name, item.second_profile_last_name, item.lot_number, item.email, item.secondary_email, item.phone, item.alternate_phone, item.second_profile_phone)).slice(0, 30),
+      invoices: snapshot.invoices.filter((item) => textMatch(normalizedQuery, item.invoice_number, item.invoice_type, item.campers?.first_name, item.campers?.last_name, item.campers?.lot_number)).slice(0, 30),
+      maintenance: snapshot.maintenance.filter((item) => textMatch(normalizedQuery, item.title, item.status, item.priority, item.lot_number)).slice(0, 30),
+      documents: snapshot.documents.filter((item) => textMatch(normalizedQuery, item.document_name, item.document_type, item.signature_status, item.campers?.first_name, item.campers?.last_name, item.campers?.lot_number)).slice(0, 30),
     }
   }, [snapshot, normalizedQuery])
   const resultCount = Object.values(results).reduce((sum, rows) => sum + rows.length, 0)
@@ -180,7 +209,7 @@ export default function SystemHealthPage() {
         <section className="operations-health-panel">
           <header><div><span>LIVE CHECKS</span><h2>What needs attention</h2></div><small>Updated {shortDate(snapshot?.generatedAt)}</small></header>
           <div className="operations-health-checks">
-            {snapshot?.health.map((item: any) => (
+            {snapshot?.health.map((item) => (
               <a className={item.tone} href={item.href} key={item.key}>
                 <span>{item.count ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}</span>
                 <div>
@@ -199,7 +228,7 @@ export default function SystemHealthPage() {
               <p>These server-side controls can pause a risky action without changing saved camper or billing records.</p>
             </div>
             <div>
-              {snapshot?.operationalControls?.map((control: any) => (
+              {snapshot?.operationalControls?.map((control) => (
                 <article className={control.enabled ? 'enabled' : 'paused'} key={control.key}>
                   <strong>{control.label}</strong>
                   <span>{control.enabled ? 'Available' : 'PAUSED'}</span>
@@ -207,7 +236,7 @@ export default function SystemHealthPage() {
               ))}
             </div>
           </section>
-          {snapshot?.errors.length > 0 && <div className="operations-health-errors"><strong>Data checks needing technical review</strong>{snapshot.errors.map((error: string) => <p key={error}>{error}</p>)}</div>}
+          {snapshot && snapshot.errors.length > 0 && <div className="operations-health-errors"><strong>Data checks needing technical review</strong>{snapshot.errors.map((error) => <p key={error}>{error}</p>)}</div>}
         </section>
       )}
 
@@ -218,10 +247,10 @@ export default function SystemHealthPage() {
           {!normalizedQuery ? <div className="operations-health-empty"><FileSearch size={30} /><strong>Type anything you know.</strong><p>The search checks campers, invoices, documents, and maintenance together.</p></div> : (
             <div className="operations-search-results">
               <p>{resultCount} result{resultCount === 1 ? '' : 's'} for “{query}”</p>
-              {results.campers.map((item: any) => <a href={`/admin/campers/${item.id}`} key={`c-${item.id}`}><span>Camper · Lot {item.lot_number || '—'}</span><strong>{item.first_name} {item.last_name}</strong><small>{item.email || item.phone || 'Open camper record'}</small><ArrowRight size={16} /></a>)}
-              {results.invoices.map((item: any) => <a href={`/admin/invoices/${item.id}`} key={`i-${item.id}`}><span>Invoice · Lot {item.campers?.lot_number || '—'}</span><strong>{item.invoice_number} · {money(item.total_due)}</strong><small>{item.invoice_type} · {item.status}</small><ArrowRight size={16} /></a>)}
-              {results.maintenance.map((item: any) => <a href={`/admin/maintenance/${item.id}`} key={`m-${item.id}`}><span>Maintenance · Lot {item.lot_number || '—'}</span><strong>{item.title || 'Work order'}</strong><small>{item.status} · {item.priority || 'Normal'}</small><ArrowRight size={16} /></a>)}
-              {results.documents.map((item: any) => <a href="/admin/documents" key={`d-${item.id}`}><span>Document · Lot {item.campers?.lot_number || '—'}</span><strong>{item.document_name}</strong><small>{item.signature_status || 'Pending'}</small><ArrowRight size={16} /></a>)}
+              {results.campers.map((item) => <a href={`/admin/campers/${item.id}`} key={`c-${item.id}`}><span>Camper · Lot {item.lot_number || '—'}</span><strong>{item.first_name} {item.last_name}</strong><small>{item.email || item.phone || 'Open camper record'}</small><ArrowRight size={16} /></a>)}
+              {results.invoices.map((item) => <a href={`/admin/invoices/${item.id}`} key={`i-${item.id}`}><span>Invoice · Lot {item.campers?.lot_number || '—'}</span><strong>{item.invoice_number} · {money(item.total_due)}</strong><small>{item.invoice_type} · {item.status}</small><ArrowRight size={16} /></a>)}
+              {results.maintenance.map((item) => <a href={`/admin/maintenance/${item.id}`} key={`m-${item.id}`}><span>Maintenance · Lot {item.lot_number || '—'}</span><strong>{item.title || 'Work order'}</strong><small>{item.status} · {item.priority || 'Normal'}</small><ArrowRight size={16} /></a>)}
+              {results.documents.map((item) => <a href="/admin/documents" key={`d-${item.id}`}><span>Document · Lot {item.campers?.lot_number || '—'}</span><strong>{item.document_name}</strong><small>{item.signature_status || 'Pending'}</small><ArrowRight size={16} /></a>)}
               {!resultCount && <div className="operations-health-empty"><FileSearch size={30} /><strong>No records matched.</strong><p>Try a shorter name, lot number, or part of the email.</p></div>}
             </div>
           )}
@@ -231,22 +260,22 @@ export default function SystemHealthPage() {
       {view === 'delivery' && (
         <section className="operations-health-panel" id="delivery">
           <header><div><span>COMMUNICATION & PRINTING</span><h2>Delivery history</h2></div><div className="operations-delivery-header-actions"><button type="button" onClick={verifyElectricTexts} disabled={auditingElectric}>{auditingElectric ? 'Checking carriers…' : 'Verify electric texts'}</button><a href="/admin/texts">Open full text history <ArrowRight size={15} /></a></div></header>
-          {snapshot?.failures.length > 0 && <div className="operations-delivery-warning"><AlertTriangle size={18} /><strong>{snapshot.failures.length} recent delivery failure{snapshot.failures.length === 1 ? '' : 's'} need review.</strong></div>}
+          {snapshot && snapshot.failures.length > 0 && <div className="operations-delivery-warning"><AlertTriangle size={18} /><strong>{snapshot.failures.length} recent delivery failure{snapshot.failures.length === 1 ? '' : 's'} need review.</strong></div>}
           {electricAudit && (
             <section className="operations-electric-audit">
               <header><div><span>LIVE ELECTRIC CHECK</span><h3>{electricAudit.invoices} unpaid electric invoice{electricAudit.invoices === 1 ? '' : 's'} · {money(electricAudit.amountDue)}</h3><p>Checked against Twilio at {shortDate(electricAudit.generatedAt)}. “Delivered” is carrier-confirmed; “Carrier sent” reached the phone carrier but has no final receipt.</p></div></header>
               <div className="operations-electric-audit-counts"><span className="delivered"><b>{electricAudit.delivered}</b> Delivered</span><span><b>{electricAudit.carrierSent}</b> Carrier sent</span><span className={electricAudit.pending ? 'attention' : ''}><b>{electricAudit.pending}</b> Pending</span><span className={electricAudit.failed ? 'failed' : ''}><b>{electricAudit.failed}</b> Failed</span><span className={electricAudit.missing ? 'failed' : ''}><b>{electricAudit.missing}</b> Missing</span><span className={electricAudit.noRecipient ? 'failed' : ''}><b>{electricAudit.noRecipient}</b> No phone</span></div>
-              <div className="operations-electric-audit-list">{electricAudit.records.map((item: any, index: number) => <article className={item.status} key={`${item.invoiceId}-${item.phone}-${index}`}><div><strong>Lot {item.lot} · {item.camper}</strong><small>{item.invoiceNumber} · {money(item.amount)} due {item.dueDate} · {item.reminderType}</small></div><span>{item.phone}</span><em>{String(item.status).replace('_', ' ')}</em>{item.error && <small>{item.error}</small>}</article>)}</div>
+              <div className="operations-electric-audit-list">{electricAudit.records.map((item, index) => <article className={item.status} key={`${item.invoiceId}-${item.phone}-${index}`}><div><strong>Lot {item.lot} · {item.camper}</strong><small>{item.invoiceNumber} · {money(item.amount)} due {item.dueDate} · {item.reminderType}</small></div><span>{item.phone}</span><em>{String(item.status).replace('_', ' ')}</em>{item.error && <small>{item.error}</small>}</article>)}</div>
             </section>
           )}
-          {snapshot?.deliveryHistory.length ? <div className="operations-delivery-list">{snapshot.deliveryHistory.map((item: any) => <article className={['failed', 'partial'].includes(String(item.status).toLowerCase()) ? 'failed' : 'success'} key={item.id}><span>{item.channel}</span><div><strong>{item.recipient || 'Scheduled system job'}{item.lot ? ` · Lot ${item.lot}` : ''}</strong><small>{item.detail}</small></div><em>{item.status}</em><time>{shortDate(item.date)}</time></article>)}</div> : <div className="operations-health-empty success"><CheckCircle2 size={30} /><strong>No recent delivery activity.</strong></div>}
+          {snapshot?.deliveryHistory.length ? <div className="operations-delivery-list">{snapshot.deliveryHistory.map((item) => <article className={['failed', 'partial'].includes(String(item.status).toLowerCase()) ? 'failed' : 'success'} key={item.id}><span>{item.channel}</span><div><strong>{item.recipient || 'Scheduled system job'}{item.lot ? ` · Lot ${item.lot}` : ''}</strong><small>{item.detail}</small></div><em>{item.status}</em><time>{shortDate(item.date)}</time></article>)}</div> : <div className="operations-health-empty success"><CheckCircle2 size={30} /><strong>No recent delivery activity.</strong></div>}
         </section>
       )}
 
       {view === 'access' && (
         <section className="operations-health-panel">
           <header><div><span>ACCESS & PRIVACY</span><h2>Who can reach each account</h2></div><small>Household profiles and authorized bill payers</small></header>
-          <div className="operations-access-list">{snapshot?.access.map((item: any, index: number) => <article key={`${item.kind}-${item.camperId}-${index}`}><span>{item.kind === 'billing-delegate' ? 'BILLING ONLY' : 'HOUSEHOLD'}</span><div><strong>Lot {item.lotNumber || '—'} · {item.camperName}</strong><small>{item.secondaryName || item.secondaryEmail || 'Additional household contact'}</small></div><div><small>{item.secondaryEmail}</small><em>{item.phones.length ? `${item.phones.length} saved phone${item.phones.length === 1 ? '' : 's'}` : 'No extra phones'}</em></div><a href={item.camperId ? `/admin/campers/${item.camperId}` : '/admin/campers'}>Review <ArrowRight size={14} /></a></article>)}</div>
+          <div className="operations-access-list">{snapshot?.access.map((item, index) => <article key={`${item.kind}-${item.camperId}-${index}`}><span>{item.kind === 'billing-delegate' ? 'BILLING ONLY' : 'HOUSEHOLD'}</span><div><strong>Lot {item.lotNumber || '—'} · {item.camperName}</strong><small>{item.secondaryName || item.secondaryEmail || 'Additional household contact'}</small></div><div><small>{item.secondaryEmail}</small><em>{item.phones.length ? `${item.phones.length} saved phone${item.phones.length === 1 ? '' : 's'}` : 'No extra phones'}</em></div><a href={item.camperId ? `/admin/campers/${item.camperId}` : '/admin/campers'}>Review <ArrowRight size={14} /></a></article>)}</div>
           {!snapshot?.access.length && <div className="operations-health-empty success"><CheckCircle2 size={30} /><strong>No shared access relationships.</strong></div>}
         </section>
       )}
@@ -254,7 +283,7 @@ export default function SystemHealthPage() {
       {view === 'activity' && (
         <section className="operations-health-panel">
           <header><div><span>CAMPGROUND AUDIT TRAIL</span><h2>Recent activity</h2></div><small>Newest first</small></header>
-          <div className="operations-activity-list">{snapshot?.recentActivity.map((item: any) => <a href={item.href} key={item.id}><span><Activity size={17} /></span><div><strong>{item.title}</strong><small>{item.lot ? `Lot ${item.lot} · ` : ''}{item.detail}</small></div><time>{shortDate(item.date)}</time><ArrowRight size={15} /></a>)}</div>
+          <div className="operations-activity-list">{snapshot?.recentActivity.map((item) => <a href={item.href} key={item.id}><span><Activity size={17} /></span><div><strong>{item.title}</strong><small>{item.lot ? `Lot ${item.lot} · ` : ''}{item.detail}</small></div><time>{shortDate(item.date)}</time><ArrowRight size={15} /></a>)}</div>
         </section>
       )}
     </main>

@@ -129,3 +129,17 @@ test('Twilio consent propagation and camper celebrations use typed database boun
   assert.match(files[0], /type TwilioResponse =/)
   assert.match(files[1], /camper: AuthCamperRecord/)
 })
+
+test('System Health uses typed rows and normalizes joined camper relationships', async () => {
+  const [source, page, electricAudit] = await Promise.all([
+    read('lib/operations-health.ts'),
+    read('app/admin/system-health/page.tsx'),
+    read('app/api/admin-electric-text-audit/route.ts'),
+  ])
+  assert.match(source, /client: SupabaseClient/)
+  assert.match(source, /oneRelationship\(invoice\.campers\)/)
+  assert.match(source, /oneRelationship\(document\.campers\)/)
+  assert.match(page, /useState<SystemHealthSnapshot \| null>/)
+  assert.match(electricAudit, /type ElectricAuditDraft =/)
+  for (const file of [source, page, electricAudit]) assert.doesNotMatch(file, /\bany\b/)
+})

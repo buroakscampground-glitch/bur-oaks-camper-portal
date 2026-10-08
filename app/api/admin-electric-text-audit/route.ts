@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { authorizedDelegateProfilesForLot } from '../../../lib/authorized-billing'
+import type { AuthCamperRecord } from '../../../lib/auth-account-match'
 import { camperSmsPhones } from '../../../lib/camper-sms'
-import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
+import { isInvoiceOutstanding, type BalanceInvoice } from '../../../lib/invoice-balance'
 import { daysUntilDate, todayInCentral } from '../../../lib/invoice-reminder-schedule'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { filterOptedInPhones } from '../../../lib/sms-recipient-filter'
@@ -9,17 +10,50 @@ import { filterOptedInPhones } from '../../../lib/sms-recipient-filter'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
+type ElectricInvoice = BalanceInvoice & {
+  id: string
+  invoice_number?: string | null
+  invoice_type?: string | null
+  campers?: AuthCamperRecord | AuthCamperRecord[] | null
+}
+type SmsConsent = { camper_id?: string | null; phone_number?: string | null; opted_in?: boolean | null }
+type ReminderLog = {
+  invoice_id?: string | null
+  reminder_type?: string | null
+  status?: string | null
+  recipient_phone?: string | null
+  provider_message_id?: string | null
+  error_message?: string | null
+  sent_at?: string | null
+}
+type ElectricAuditDraft = {
+  invoiceId: string
+  lot: string
+  camper: string
+  invoiceNumber: string
+  amount: number
+  dueDate: string | null
+  reminderType: string
+  phone: string
+  status?: string
+  databaseStatus: string
+  providerMessageId: string
+  providerStatus?: string
+  sentAt: string | null
+  error?: string
+}
+
 function shiftDate(value: string, days: number) {
   const date = new Date(`${value}T12:00:00Z`)
   date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)
 }
 
-function camperForInvoice(invoice: any) {
-  return Array.isArray(invoice?.campers) ? invoice.campers[0] : invoice?.campers
+function camperForInvoice(invoice: ElectricInvoice): AuthCamperRecord | null {
+  return (Array.isArray(invoice.campers) ? invoice.campers[0] : invoice.campers) || null
 }
 
-function expectedReminder(invoice: any, today: string) {
+function expectedReminder(invoice: ElectricInvoice, today: string) {
   const daysUntil = daysUntilDate(String(invoice.due_date), today)
   if (daysUntil > 30) return null
   if (daysUntil > 3) return 'Invoice Coming Due'
@@ -69,8 +103,8 @@ async function loadTwilioStatuses(messageIds: string[]) {
           status: response.ok ? String(result.status || '') : '',
           error: response.ok ? String(result.error_message || '') : String(result.message || `Twilio status check failed (${response.status}).`),
         }] as const
-      } catch (error: any) {
-        return [messageId, { status: '', error: error?.message || 'Twilio status check failed.' }] as const
+      } catch (error: unknown) {
+        return [messageId, { status: '', error: error instanceof Error ? error.message : 'Twilio status check failed.' }] as const
       }
     }))
     results.forEach(([messageId, result]) => statuses.set(messageId, result))
@@ -107,13 +141,14 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: consentResult.error.message }, { status: 500 })
   }
 
-  const invoices = (invoiceResult.data || []).filter((invoice: any) =>
+  const invoiceRows = (invoiceResult.data || []) as ElectricInvoice[]
+  const invoices = invoiceRows.filter((invoice) =>
     String(invoice.invoice_type || '').toLowerCase().includes('electric')
     && String(invoice.status || '').toLowerCase() !== 'processing'
     && isInvoiceOutstanding(invoice)
     && camperForInvoice(invoice)?.active !== false
   )
-  const invoiceIds = invoices.map((invoice: any) => invoice.id)
+  const invoiceIds = invoices.map((invoice) => invoice.id)
   const reminderResult = invoiceIds.length
     ? await context.admin
       .from('text_reminders')
@@ -125,14 +160,15 @@ export async function GET(request: Request) {
 
   if (reminderResult.error) return NextResponse.json({ error: reminderResult.error.message }, { status: 500 })
 
-  const campers = camperResult.data || []
-  const consentsByCamper = new Map<string, any[]>()
-  for (const consent of consentResult.data || []) {
+  const campers = (camperResult.data || []) as AuthCamperRecord[]
+  const consentsByCamper = new Map<string, SmsConsent[]>()
+  for (const consent of (consentResult.data || []) as SmsConsent[]) {
     const key = String(consent.camper_id)
     consentsByCamper.set(key, [...(consentsByCamper.get(key) || []), consent])
   }
 
-  const draftRecords: any[] = []
+  const reminderLogs = (reminderResult.data || []) as ReminderLog[]
+  const draftRecords: ElectricAuditDraft[] = []
   for (const invoice of invoices) {
     const owner = camperForInvoice(invoice)
     if (!owner?.active) continue
@@ -140,7 +176,7 @@ export async function GET(request: Request) {
     if (!reminderType) continue
     const profiles = [owner, ...authorizedDelegateProfilesForLot(owner.lot_number, campers)]
       .filter((profile, index, all) => profile && all.findIndex((candidate) => String(candidate.id) === String(profile.id)) === index)
-    const recipients = Array.from(new Set(profiles.flatMap((profile: any) => {
+    const recipients = Array.from(new Set(profiles.flatMap((profile) => {
       if (!profile.sms_opt_in) return []
       const phones = camperSmsPhones(profile)
       return consentTableUnavailable ? phones : filterOptedInPhones(phones, consentsByCamper.get(String(profile.id)) || [])
@@ -153,10 +189,12 @@ export async function GET(request: Request) {
         camper: `${owner.first_name || ''} ${owner.last_name || ''}`.trim(),
         invoiceNumber: invoice.invoice_number || '',
         amount: Number(invoice.total_due || 0),
-        dueDate: invoice.due_date,
+        dueDate: invoice.due_date || null,
         reminderType,
         phone: 'No opted-in phone',
         status: 'no_recipient',
+        databaseStatus: '',
+        providerMessageId: '',
         providerStatus: '',
         sentAt: null,
         error: 'No opted-in phone is available for this invoice.',
@@ -165,7 +203,7 @@ export async function GET(request: Request) {
     }
 
     for (const phone of recipients) {
-      const log = (reminderResult.data || []).find((item: any) =>
+      const log = reminderLogs.find((item) =>
         String(item.invoice_id) === String(invoice.id)
         && String(item.reminder_type) === reminderType
         && String(item.recipient_phone) === String(phone)
@@ -176,7 +214,7 @@ export async function GET(request: Request) {
         camper: `${owner.first_name || ''} ${owner.last_name || ''}`.trim(),
         invoiceNumber: invoice.invoice_number || '',
         amount: Number(invoice.total_due || 0),
-        dueDate: invoice.due_date,
+        dueDate: invoice.due_date || null,
         reminderType,
         phone: maskPhone(phone),
         databaseStatus: log?.status || '',
@@ -213,7 +251,7 @@ export async function GET(request: Request) {
     generatedAt: new Date().toISOString(),
     today,
     invoices: invoices.length,
-    amountDue: Number(invoices.reduce((sum: number, invoice: any) => sum + Number(invoice.total_due || 0), 0).toFixed(2)),
+    amountDue: Number(invoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0).toFixed(2)),
     recipients: records.length,
     delivered: count('delivered'),
     carrierSent: count('carrier_sent'),
