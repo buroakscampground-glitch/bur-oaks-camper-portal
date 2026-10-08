@@ -328,6 +328,17 @@ test('office money and operations screens fail closed on a synthetic outage', as
     { path: '/admin/maintenance/archive', heading: 'Maintenance archive is temporarily unavailable' },
     { path: '/admin/maintenance/inventory', heading: 'Maintenance inventory is temporarily unavailable' },
     { path: '/admin/maintenance/supplies', heading: 'Supply requests are temporarily unavailable' },
+    { path: '/admin/announcements', heading: 'Announcements are temporarily unavailable' },
+    { path: '/admin/events', heading: 'Events are temporarily unavailable' },
+    { path: '/admin/dinners', heading: 'Dinner planner is temporarily unavailable' },
+    { path: '/admin/rsvps', heading: 'Event responses are temporarily unavailable' },
+    { path: '/admin/thanksgiving', heading: 'Thanksgiving planner is temporarily unavailable' },
+    { path: '/admin/birthdays', heading: 'Birthdays are temporarily unavailable' },
+    { path: '/admin/gatecards', heading: 'Gate cards are temporarily unavailable' },
+    { path: '/admin/texts', heading: 'Text alerts are temporarily unavailable' },
+    { path: '/maintenance/dashboard', heading: 'Maintenance work orders are temporarily unavailable' },
+    { path: '/maintenance/dashboard/inventory', heading: 'Field inventory is temporarily unavailable' },
+    { path: '/maintenance/dashboard/meter-readings', heading: 'Meter route is temporarily unavailable' },
   ]
 
   for (const recovery of recoveryChecks) {

@@ -21,6 +21,7 @@ export default function MaintenanceInventoryPage() {
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadInventory()
@@ -39,6 +40,7 @@ export default function MaintenanceInventoryPage() {
 
   async function loadInventory(showLoading = true) {
     if (showLoading) setLoading(true)
+    setLoadError('')
 
     const { data, error } = await supabase
       .from('maintenance_inventory_items')
@@ -47,7 +49,7 @@ export default function MaintenanceInventoryPage() {
       .order('item_name', { ascending: true })
 
     if (error) {
-      setMessage(error.message)
+      setLoadError('Supply inventory could not be loaded. Stock totals are hidden until the live inventory is available.')
     } else {
       setItems(data || [])
       setMessage('')
@@ -71,6 +73,8 @@ export default function MaintenanceInventoryPage() {
   if (loading) {
     return <main className="maintenance-staff-page"><div className="maintenance-stock-loading">Loading supply inventory…</div></main>
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Field inventory is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={() => loadInventory(true)}>Try again</button></main>
 
   return (
     <main className="maintenance-staff-page maintenance-stock-page">

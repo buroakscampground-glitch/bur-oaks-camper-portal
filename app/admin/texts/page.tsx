@@ -34,6 +34,8 @@ export default function AdminTextsPage() {
   const [sendResults, setSendResults] = useState<any[]>([])
   const [recentBroadcasts, setRecentBroadcasts] = useState<any[]>([])
   const [optedOuts, setOptedOuts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const sendingRef = useRef(false)
   const requestIdRef = useRef('')
 
@@ -47,7 +49,10 @@ export default function AdminTextsPage() {
   }
 
   async function loadData() {
-    const token = await authToken()
+    setLoading(true)
+    setLoadError('')
+    try {
+      const token = await authToken()
 
     const [camperResult, alertResult, configResponse] = await Promise.all([
       supabase.from('campers').select('*').eq('active', true).order('lot_number', { ascending: true }),
@@ -61,14 +66,20 @@ export default function AdminTextsPage() {
         : Promise.resolve(null),
     ])
 
-    setCampers((camperResult.data || []).filter(isOperationalCamper))
-    setAlerts(alertResult.data || [])
+      if (camperResult.error || alertResult.error || !configResponse?.ok) {
+        throw camperResult.error || alertResult.error || new Error('Text service status is unavailable.')
+      }
+      setCampers((camperResult.data || []).filter(isOperationalCamper))
+      setAlerts(alertResult.data || [])
 
-    if (configResponse?.ok) {
       const config = await configResponse.json()
       setTwilioConfigured(Boolean(config.twilioConfigured))
       setRecentBroadcasts(config.recentBroadcasts || [])
       setOptedOuts(config.optedOuts || [])
+    } catch {
+      setLoadError('The camper roster, text history, or delivery service status could not be loaded. Sending is blocked.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -189,6 +200,9 @@ export default function AdminTextsPage() {
     if (source === 'portal') return 'Turned off in portal'
     return 'Opted out'
   }
+
+  if (loading) return <main className="portal-loading"><LoaderCircle className="spin" /><h1>Loading text alert center…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Text alerts are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadData}>Try again</button></main>
 
   return (
     <main className="admin-texts-page">

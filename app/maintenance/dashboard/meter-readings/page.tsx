@@ -78,6 +78,7 @@ function MeterReadingCapture() {
   const [analyzing, setAnalyzing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [message, setMessage] = useState('')
   const [complete, setComplete] = useState(false)
   const [summaryOpen, setSummaryOpen] = useState(false)
@@ -93,20 +94,28 @@ function MeterReadingCapture() {
     }
 
     async function loadSites() {
-      const token = await authToken()
-      const response = await fetch('/api/meter-readings?sites=1', { headers: { Authorization: `Bearer ${token}` } })
-      const result = await response.json().catch(() => ({}))
-      const loadedSites: Site[] = result.sites || []
-      setSites(loadedSites)
-      const scannedLot = new URLSearchParams(window.location.search).get('lot') || ''
-      const storedSkipped: string[] = (() => {
-        try { return JSON.parse(window.localStorage.getItem(skippedKey) || '[]') } catch { return [] }
-      })()
-      const firstOpen = loadedSites.find((site) => !completedSite(site) && !storedSkipped.includes(normalizeLotKey(site.lot_number)))
-        || loadedSites.find((site) => !completedSite(site))
-      setLotNumber(scannedLot || firstOpen?.lot_number || '')
-      if (routeMode && loadedSites.length && !firstOpen && !scannedLot) setSummaryOpen(true)
-      setLoading(false)
+      setLoading(true)
+      setLoadError('')
+      try {
+        const token = await authToken()
+        const response = await fetch('/api/meter-readings?sites=1', { headers: { Authorization: `Bearer ${token}` } })
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok || !Array.isArray(result.sites)) throw new Error(result.error || 'Meter route unavailable.')
+        const loadedSites: Site[] = result.sites
+        setSites(loadedSites)
+        const scannedLot = new URLSearchParams(window.location.search).get('lot') || ''
+        const storedSkipped: string[] = (() => {
+          try { return JSON.parse(window.localStorage.getItem(skippedKey) || '[]') } catch { return [] }
+        })()
+        const firstOpen = loadedSites.find((site) => !completedSite(site) && !storedSkipped.includes(normalizeLotKey(site.lot_number)))
+          || loadedSites.find((site) => !completedSite(site))
+        setLotNumber(scannedLot || firstOpen?.lot_number || '')
+        if (routeMode && loadedSites.length && !firstOpen && !scannedLot) setSummaryOpen(true)
+      } catch {
+        setLoadError('The meter route could not be loaded. Progress totals and photo submission are blocked.')
+      } finally {
+        setLoading(false)
+      }
     }
     loadSites()
   }, [])
@@ -173,8 +182,8 @@ function MeterReadingCapture() {
     } catch (error) {
       setSaving(false)
       setMessage(error instanceof DOMException && error.name === 'AbortError'
-        ? 'The photo took too long. Nothing was saved—tap Retake and try once more.'
-        : 'The photo could not connect to the office. Nothing was saved—tap Retake and try again.')
+        ? 'The result could not be confirmed. Ask the office to check the meter review queue before submitting this lot again.'
+        : 'The result could not be confirmed. Check the office meter review queue before submitting this lot again.')
       return
     } finally {
       window.clearTimeout(timeout)
@@ -263,6 +272,8 @@ function MeterReadingCapture() {
   if (loading) {
     return <main className="meter-field-page"><div className="meter-route-loading"><LoaderCircle className="meter-spin" /><strong>Loading this month’s meter route…</strong></div></main>
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Meter route is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={() => window.location.reload()}>Try again</button></main>
 
   if (routeMode && summaryOpen) {
     return (

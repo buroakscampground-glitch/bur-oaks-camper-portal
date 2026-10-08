@@ -42,6 +42,7 @@ function getMaintenanceWeekKey() {
 
 export default function MaintenanceDashboard() {
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [tickets, setTickets] = useState<any[]>([])
   const [weeklyDone, setWeeklyDone] = useState<Record<string, boolean>>({})
 
@@ -85,14 +86,16 @@ export default function MaintenanceDashboard() {
   }
 
   async function loadTickets() {
-    const { data } = await supabase
+    setLoadError('')
+    const { data, error } = await supabase
       .from('maintenance_tickets')
       .select('*')
       .eq('admin_approved', true)
       .neq('status', 'Completed')
       .order('created_at', { ascending: false })
 
-    setTickets(data || [])
+    if (error) setLoadError('Approved work orders could not be loaded. Queue totals and field actions are hidden.')
+    else setTickets(data || [])
     setLoading(false)
   }
 
@@ -204,6 +207,8 @@ export default function MaintenanceDashboard() {
   if (loading) {
     return <div style={{ padding: '40px' }}>Loading...</div>
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Maintenance work orders are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadTickets}>Try again</button></main>
 
   return (
     <main className="maintenance-staff-page">

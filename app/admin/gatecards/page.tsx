@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 
 export default function GateCardsPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -11,24 +12,33 @@ export default function GateCardsPage() {
   const [status, setStatus] = useState('active')
   const [notes, setNotes] = useState('')
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadData()
   }, [])
 
   async function loadData() {
-    const { data: camperData } = await supabase
+    setLoading(true)
+    setLoadError('')
+    const { data: camperData, error: camperError } = await supabase
       .from('campers')
       .select('*')
       .order('lot_number', { ascending: true })
 
-    const { data: cardData } = await supabase
+    const { data: cardData, error: cardError } = await supabase
       .from('gate_cards')
       .select('*, campers(*)')
       .order('created_at', { ascending: false })
 
-    setCampers(camperData || [])
-    setCards(cardData || [])
+    if (camperError || cardError) {
+      setLoadError('The camper roster or gate-card ledger could not be loaded. Card changes are blocked until both are available.')
+    } else {
+      setCampers(camperData || [])
+      setCards(cardData || [])
+    }
+    setLoading(false)
   }
 
   async function addCard() {
@@ -88,6 +98,9 @@ export default function GateCardsPage() {
     setMessage('Gate card deleted.')
     loadData()
   }
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading gate cards…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Gate cards are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadData}>Try again</button></main>
 
   return (
     <main className="page">

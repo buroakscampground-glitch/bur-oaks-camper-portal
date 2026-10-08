@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarDays, CheckCircle2, HelpCircle, UsersRound, XCircle } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, HelpCircle, Loader2, UsersRound, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 type EventRecord = {
@@ -61,20 +61,27 @@ export default function AdminRsvpsPage() {
   const [view, setView] = useState<'upcoming' | 'all'>('upcoming')
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    const response = await fetch('/api/community-rsvps', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok) setMessage(result.error || 'Unable to load event responses.')
-    setEvents((result.events || []) as EventRecord[])
-    setRsvps((result.rsvps || []) as RsvpRecord[])
-    setIncompleteThanksgivingRsvps((result.incompleteThanksgivingRsvps || []) as IncompleteThanksgivingRsvp[])
-    setCampers((result.campers || []) as CamperRecord[])
-    setLoading(false)
+    setLoadError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/community-rsvps', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Unable to load event responses.')
+      setEvents((result.events || []) as EventRecord[])
+      setRsvps((result.rsvps || []) as RsvpRecord[])
+      setIncompleteThanksgivingRsvps((result.incompleteThanksgivingRsvps || []) as IncompleteThanksgivingRsvp[])
+      setCampers((result.campers || []) as CamperRecord[])
+    } catch {
+      setLoadError('Event responses and camper records could not be loaded completely. RSVP totals are hidden.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   function camperLabel(rsvp: Pick<RsvpRecord, 'camper_id' | 'lot_number' | 'camper_name'>) {
@@ -101,6 +108,9 @@ export default function AdminRsvpsPage() {
   const thanksgivingPeople = visibleRsvps
     .filter((rsvp) => rsvp.source === 'thanksgiving' && rsvp.response === 'Going')
     .reduce((sum, rsvp) => sum + Math.max(1, Number(rsvp.guest_count || 1)), 0)
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading event responses…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Event responses are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadData}>Try again</button></main>
 
   return (
     <main className="admin-rsvp-page">

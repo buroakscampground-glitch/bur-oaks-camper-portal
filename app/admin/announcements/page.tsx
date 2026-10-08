@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Archive, BellRing, Clock3, Megaphone, RotateCcw, Send, WandSparkles } from 'lucide-react'
+import { AlertTriangle, Archive, BellRing, Clock3, Loader2, Megaphone, RotateCcw, Send, WandSparkles } from 'lucide-react'
 import { announcementRemoveOnDate, formatAnnouncementRemoveDate, isAnnouncementExpired } from '../../../lib/announcement-expiration'
 import { supabase } from '../../../lib/supabase'
 
@@ -40,6 +40,8 @@ export default function AdminAnnouncementsPage() {
   const [sendText, setSendText] = useState(false)
   const [posting, setPosting] = useState(false)
   const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const postingRef = useRef(false)
   const requestIdRef = useRef('')
   const messageRef = useRef<HTMLTextAreaElement>(null)
@@ -63,10 +65,18 @@ export default function AdminAnnouncementsPage() {
   }
 
   async function loadAnnouncements() {
-    const response = await fetch('/api/announcements', { headers: await authHeaders() })
-    const result = await response.json().catch(() => ({}))
-    if (response.ok) setAnnouncements(result.announcements || [])
-    else setStatus(result.error || 'Unable to load announcements.')
+    setLoading(true)
+    setLoadError('')
+    try {
+      const response = await fetch('/api/announcements', { headers: await authHeaders() })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Unable to load announcements.')
+      setAnnouncements(result.announcements || [])
+    } catch {
+      setLoadError('Announcements could not be loaded. Posting and archive controls are blocked until the live board is available.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function addAnnouncement() {
@@ -156,6 +166,9 @@ export default function AdminAnnouncementsPage() {
     setIsUrgent(template.urgent)
     setStatus('')
   }
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading announcements…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Announcements are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadAnnouncements}>Try again</button></main>
 
   return (
     <main className="admin-announcements-page">

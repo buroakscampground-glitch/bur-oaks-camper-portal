@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, CheckCircle2, CircleHelp, Search, Soup, UsersRound, UtensilsCrossed, XCircle } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, CircleHelp, Loader2, Search, Soup, UsersRound, UtensilsCrossed, XCircle } from 'lucide-react'
 import { saturdayDinnerEngagementStartDate, saturdayDinnerMetrics } from '../../../lib/saturday-dinner-metrics'
 import { dinnerBringSuggestions, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { supabase } from '../../../lib/supabase'
@@ -16,6 +16,8 @@ export default function AdminDinnersPage() {
   const [search, setSearch] = useState('')
   const [participationSearch, setParticipationSearch] = useState('')
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadSignups()
@@ -37,12 +39,19 @@ export default function AdminDinnersPage() {
   }, [])
 
   async function loadSignups() {
-    const { data: { session } } = await supabase.auth.getSession()
-    const response = await fetch('/api/community-dinners', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok) setMessage(result.error || 'Unable to load dinner responses.')
-    setSignups(result.signups || [])
-    setCampers(result.campers || [])
+    setLoadError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/community-dinners', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Unable to load dinner responses.')
+      setSignups(result.signups || [])
+      setCampers(result.campers || [])
+    } catch {
+      setLoadError('Dinner responses and the camper roster could not be loaded. Headcounts are hidden until both are available.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const nextDinner = useMemo(() => {
@@ -116,6 +125,9 @@ export default function AdminDinnersPage() {
     }
     setSelectedDate(dinnerDate)
   }
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading dinner planner…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Dinner planner is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadSignups}>Try again</button></main>
 
   return (
     <main className="admin-dinners-page">

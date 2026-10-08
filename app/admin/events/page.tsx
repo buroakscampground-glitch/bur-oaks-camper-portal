@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 export default function AdminEventsPage() {
@@ -17,6 +18,8 @@ export default function AdminEventsPage() {
   const [goingCounts, setGoingCounts] = useState<any>({})
   const [goingUnits, setGoingUnits] = useState<Record<string, string>>({})
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const router = useRouter()
   const pathname = usePathname()
   const homePath = pathname.startsWith('/community') ? '/community' : '/admin'
@@ -26,13 +29,13 @@ export default function AdminEventsPage() {
   }, [])
 
   async function loadEvents() {
+    setLoading(true)
+    setLoadError('')
+    try {
     const { data: { session } } = await supabase.auth.getSession()
     const response = await fetch('/api/community-events', { headers: { Authorization: `Bearer ${session?.access_token || ''}` } })
     const result = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setMessage(result.error || 'Unable to load events.')
-      return
-    }
+    if (!response.ok) throw new Error(result.error || 'Unable to load events.')
     const eventList = result.events || []
 
     setEvents(eventList)
@@ -68,6 +71,11 @@ export default function AdminEventsPage() {
     setRsvpCounts(counts)
     setGoingCounts(going)
     setGoingUnits(units)
+    } catch {
+      setLoadError('Events and RSVP totals could not be loaded. Event changes are blocked until the complete calendar is available.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function createEvent() {
@@ -114,6 +122,9 @@ export default function AdminEventsPage() {
 
     loadEvents()
   }
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading events…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Events are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadEvents}>Try again</button></main>
 
   return (
     <main className="page">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowRight, CakeSlice, CalendarDays, CheckCircle2, Clock3, Gift, Heart, PartyPopper, Send, Sparkles, Users } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CakeSlice, CalendarDays, CheckCircle2, Clock3, Gift, Heart, Loader2, PartyPopper, Send, Sparkles, Users } from 'lucide-react'
 import { usePathname } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
 
@@ -97,6 +97,7 @@ export default function AdminBirthdaysPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState('')
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => { loadBirthdays() }, [])
 
@@ -107,11 +108,17 @@ export default function AdminBirthdaysPage() {
 
   async function loadBirthdays() {
     setLoading(true)
-    const response = await fetch('/api/admin-birthdays', { headers: await authHeaders() })
-    const result = await response.json().catch(() => ({}))
-    if (response.ok) setOffice(result)
-    else setMessage(result.error || 'Unable to load birthdays.')
-    setLoading(false)
+    setLoadError('')
+    try {
+      const response = await fetch('/api/admin-birthdays', { headers: await authHeaders() })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Unable to load birthdays.')
+      setOffice(result)
+    } catch {
+      setLoadError('Birthday records could not be loaded. Greeting controls and counts are hidden to prevent duplicate or missed actions.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function sendGreeting(birthday: Birthday) {
@@ -145,6 +152,9 @@ export default function AdminBirthdaysPage() {
     { key: 'missed', eyebrow: 'CATCH UP', title: 'Recently missed', note: 'Birthdays stay here for three days, then return next year.', icon: Clock3 },
     { key: 'upcoming', eyebrow: 'PLAN AHEAD', title: 'Coming up', note: 'The next 45 days—plenty of time for a card, post, or campground surprise.', icon: CalendarDays },
   ] as const
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading birthdays…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Birthdays are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadBirthdays}>Try again</button></main>
 
   return (
     <main className="admin-birthdays-page">

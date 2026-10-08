@@ -164,3 +164,34 @@ test('waitlist conversion does not invite a duplicate retry after an unknown net
   assert.match(page, /The result could not be confirmed\. Check the camper list and waitlist before trying again\./)
   assert.doesNotMatch(page, /Nothing was sent—please try again/)
 })
+
+test('communications, events, access, and field operations hide false empty states', () => {
+  const checks = [
+    ['app/admin/announcements/page.tsx', /Posting and archive controls are blocked/, /Announcements are temporarily unavailable/],
+    ['app/admin/events/page.tsx', /Event changes are blocked/, /Events are temporarily unavailable/],
+    ['app/admin/dinners/page.tsx', /Headcounts are hidden/, /Dinner planner is temporarily unavailable/],
+    ['app/admin/rsvps/page.tsx', /RSVP totals are hidden/, /Event responses are temporarily unavailable/],
+    ['app/admin/thanksgiving/page.tsx', /Attendance and food totals are hidden/, /Thanksgiving planner is temporarily unavailable/],
+    ['app/admin/birthdays/page.tsx', /prevent duplicate or missed actions/, /Birthdays are temporarily unavailable/],
+    ['app/admin/gatecards/page.tsx', /Card changes are blocked/, /Gate cards are temporarily unavailable/],
+    ['app/admin/texts/page.tsx', /delivery service status could not be loaded/, /Text alerts are temporarily unavailable/],
+    ['app/maintenance/dashboard/page.tsx', /Queue totals and field actions are hidden/, /Maintenance work orders are temporarily unavailable/],
+    ['app/maintenance/dashboard/inventory/page.tsx', /Stock totals are hidden/, /Field inventory is temporarily unavailable/],
+    ['app/maintenance/dashboard/meter-readings/page.tsx', /Progress totals and photo submission are blocked/, /Meter route is temporarily unavailable/],
+  ] as const
+
+  for (const [path, safetyCopy, recoveryHeading] of checks) {
+    const page = read(path)
+    assert.match(page, safetyCopy, path)
+    assert.match(page, recoveryHeading, path)
+    assert.match(page, /role="alert"/, path)
+    assert.match(page, /portal-loading-retry/, path)
+  }
+})
+
+test('an interrupted meter-photo write is treated as unknown instead of definitely unsaved', () => {
+  const page = read('app/maintenance/dashboard/meter-readings/page.tsx')
+  assert.match(page, /The result could not be confirmed/)
+  assert.match(page, /check the meter review queue before submitting this lot again/i)
+  assert.doesNotMatch(page, /Nothing was saved—tap Retake/)
+})

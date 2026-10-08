@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { ArrowLeft, ChefHat, RefreshCw, Search, UsersRound, UtensilsCrossed } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ChefHat, Loader2, RefreshCw, Search, UsersRound, UtensilsCrossed } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { thanksgivingDinnerDate, thanksgivingFoodOption, thanksgivingFoodOptions } from '../../../lib/thanksgiving-dinner'
 
@@ -20,21 +20,25 @@ export default function ThanksgivingAdminPage() {
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('Loading the Thanksgiving planner…')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   async function loadSignups() {
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    const response = await fetch('/api/community-dinners', {
-      headers: { Authorization: `Bearer ${session?.access_token || ''}` },
-    })
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setMessage(result.error || 'Unable to load Thanksgiving responses.')
-    } else {
+    setLoadError('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const response = await fetch('/api/community-dinners', {
+        headers: { Authorization: `Bearer ${session?.access_token || ''}` },
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Unable to load Thanksgiving responses.')
       setSignups((result.signups || []).filter((signup: Signup) => signup.dinner_date === thanksgivingDinnerDate))
       setMessage('Live planner refreshed.')
+    } catch {
+      setLoadError('Thanksgiving responses could not be loaded. Attendance and food totals are hidden until the live planner is available.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -60,6 +64,9 @@ export default function ThanksgivingAdminPage() {
     const optionId = thanksgivingFoodOption(label)?.id
     return active.filter((signup) => thanksgivingFoodOption(signup.bringing)?.id === optionId)
   }
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading Thanksgiving planner…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Thanksgiving planner is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadSignups}>Try again</button></main>
 
   return (
     <main className="admin-thanksgiving-page">
