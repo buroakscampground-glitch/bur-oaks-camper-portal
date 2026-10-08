@@ -19,6 +19,25 @@ const validStatuses = new Set([
   'Campground Not Renewing',
 ])
 
+type RentDueDateInvoice = {
+  id: string
+  camper_id?: unknown
+  invoice_number?: unknown
+  invoice_type?: unknown
+  due_date?: unknown
+  status?: unknown
+  total_due?: unknown
+}
+
+type RentDueDateChange = RentDueDateInvoice & {
+  currentDueDate: string
+  normalizedDueDate: string
+}
+
+function requestObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {}
+}
+
 function cleanText(value: unknown, maxLength: number) {
   return String(value || '').trim().slice(0, maxLength)
 }
@@ -47,7 +66,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Only an administrator can update renewal decisions.' }, { status: 403 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = requestObject(await request.json().catch(() => ({})))
   const action = cleanText(body.action, 40) || 'save'
   const auditReason = cleanText(body.reason, 1000)
   const auditedActions = new Set(['save','approve','decline','clear','mark-sent','send-nonrenewal','signed-previous-system','confirm-signature-exempt'])
@@ -59,8 +78,8 @@ export async function POST(request: Request) {
     try {
       const reconciliation = await reconcileRenewalsWithDocuments(context.admin)
       return NextResponse.json({ success: true, reconciliation })
-    } catch (error: any) {
-      return NextResponse.json({ error: error?.message || 'Renewal signatures could not be reconciled.' }, { status: 500 })
+    } catch (error: unknown) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Renewal signatures could not be reconciled.' }, { status: 500 })
     }
   }
 
@@ -76,7 +95,8 @@ export async function POST(request: Request) {
     }
 
     const terminalStatuses = new Set(['paid', 'void', 'cancelled', 'canceled', 'refunded'])
-    const changes = (invoices || []).flatMap((invoice: any) => {
+    const invoiceRows = (invoices || []) as RentDueDateInvoice[]
+    const changes: RentDueDateChange[] = invoiceRows.flatMap((invoice) => {
       const currentDueDate = String(invoice.due_date || '')
       const normalizedDueDate = normalizeLotRentDueDate(currentDueDate)
       const status = String(invoice.status || '').trim().toLowerCase()
@@ -89,7 +109,7 @@ export async function POST(request: Request) {
         success: true,
         changed: 0,
         candidates: changes.length,
-        preview: changes.slice(0, 25).map((invoice: any) => ({
+        preview: changes.slice(0, 25).map((invoice) => ({
           invoiceNumber: invoice.invoice_number,
           currentDueDate: invoice.currentDueDate,
           normalizedDueDate: invoice.normalizedDueDate,
@@ -101,7 +121,7 @@ export async function POST(request: Request) {
     let changed = 0
     const failures: Array<{ invoiceNumber: string; error: string }> = []
     for (let index = 0; index < changes.length; index += 20) {
-      await Promise.all(changes.slice(index, index + 20).map(async (invoice: any) => {
+      await Promise.all(changes.slice(index, index + 20).map(async (invoice) => {
         const { error } = await context.admin
           .from('invoices')
           .update({ due_date: invoice.normalizedDueDate })
@@ -275,8 +295,8 @@ export async function POST(request: Request) {
         .single()
 
       return NextResponse.json({ success: true, renewal: refreshedRenewal || existing, renewalRentSchedule, annualRent })
-    } catch (error: any) {
-      return NextResponse.json({ error: error?.message || 'The rent schedule could not be repaired.' }, { status: 500 })
+    } catch (error: unknown) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'The rent schedule could not be repaired.' }, { status: 500 })
     }
   }
 
@@ -403,8 +423,8 @@ export async function POST(request: Request) {
         documentId: String(linkedDocument.id),
         signedAt: now,
       })
-    } catch (scheduleError: any) {
-      const scheduleMessage = `Previous-system renewal recorded, but the lot-rent schedule could not be continued automatically: ${String(scheduleError?.message || scheduleError).slice(0, 1600)}`
+    } catch (scheduleError: unknown) {
+      const scheduleMessage = `Previous-system renewal recorded, but the lot-rent schedule could not be continued automatically: ${String(scheduleError instanceof Error ? scheduleError.message : scheduleError).slice(0, 1600)}`
       await context.admin.from('season_renewals').update({
         automation_error: scheduleMessage,
         last_automation_at: new Date().toISOString(),
@@ -435,7 +455,7 @@ export async function POST(request: Request) {
     })
   }
 
-  const status = validStatuses.has(body.status) ? body.status : existing?.status || 'Not Started'
+  const status = typeof body.status === 'string' && validStatuses.has(body.status) ? body.status : existing?.status || 'Not Started'
   const annualDate = body.annualMonth && body.annualDay
     ? nextAnnualDate(body.annualMonth, body.annualDay)
     : existing?.contract_end_date || null
@@ -484,14 +504,15 @@ export async function POST(request: Request) {
     let delivery
     try {
       delivery = await sendNonRenewalLetter(camper, existing.contract_end_date)
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'The non-renewal letter could not be sent.'
       await context.admin.from('season_renewals').update({
         auto_send_approved: false,
         auto_send_approved_at: null,
-        automation_error: String(error?.message || error).slice(0, 2000),
+        automation_error: message.slice(0, 2000),
         last_automation_at: new Date().toISOString(),
       }).eq('id', existing.id)
-      return NextResponse.json({ error: error?.message || 'The non-renewal letter could not be sent.' }, { status: 502 })
+      return NextResponse.json({ error: message }, { status: 502 })
     }
 
     const { data: renewal, error: updateError } = await context.admin

@@ -31,7 +31,14 @@ function isAuthorized(request: Request) {
   return request.headers.get('authorization') === `Bearer ${secret}`
 }
 
-function warningWasAlreadyDeliveredOrHasNoRecipient(result: any) {
+type ReminderDeliveryResult = {
+  status?: unknown
+  reason?: unknown
+}
+
+type WaiverRow = { invoice_id?: unknown }
+
+function warningWasAlreadyDeliveredOrHasNoRecipient(result: ReminderDeliveryResult) {
   if (result?.status !== 'skipped') return false
   const reason = String(result?.reason || '')
   return reason.startsWith('Every eligible phone already received') || reason.startsWith('No opted-in phone numbers')
@@ -87,7 +94,7 @@ async function runCron(request: Request) {
     partiallyPaid: 0,
     amountApplied: 0,
     failed: 0,
-    results: [] as any[],
+    results: [] as Array<Record<string, unknown>>,
   }
 
   for (const invoice of invoices || []) {
@@ -137,7 +144,7 @@ async function runCron(request: Request) {
     : { data: [], error: null }
 
   if (waiverError) return NextResponse.json({ error: waiverError.message }, { status: 500 })
-  const waivedInvoiceIds = new Set((waiverRows || []).map((row: any) => String(row.invoice_id)))
+  const waivedInvoiceIds = new Set(((waiverRows || []) as WaiverRow[]).map((row) => String(row.invoice_id)))
   const summary = {
     checked: openInvoices.length,
     textSent: 0,
@@ -145,7 +152,7 @@ async function runCron(request: Request) {
     lateFeesApplied: 0,
     skipped: 0,
     failed: 0,
-    results: [] as any[],
+    results: [] as Array<Record<string, unknown>>,
   }
 
   for (const invoice of openInvoices) {

@@ -1,9 +1,24 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { isOperationalCamper } from './camper-records'
 import { consentedCamperSmsPhones } from './camper-sms'
 import { portalSmsUrl } from './portal-sms-links'
 import { uniqueSmsBroadcastRecipients } from './sms-broadcast'
 import { communityPostSms } from './sms-segments'
 import { isTwilioConfigured, sendTwilioSms } from './twilio-sms'
+
+type CommunityPostCamper = {
+  id: string
+  lot_number?: string | null
+  phone?: string | null
+  alternate_phone?: string | null
+  second_profile_phone?: string | null
+  sms_opt_in?: boolean | null
+  active?: boolean | null
+  role?: string | null
+}
+
+type CommunityTextUser = { id?: string | null; email?: string | null }
+type CommunityTextPost = { id: string }
 
 async function inBatches<T>(items: T[], batchSize: number, work: (item: T) => Promise<void>) {
   for (let index = 0; index < items.length; index += batchSize) {
@@ -17,9 +32,9 @@ export async function textCampersAboutStaffPost({
   post,
   author,
 }: {
-  admin: any
-  user: any
-  post: any
+  admin: SupabaseClient
+  user: CommunityTextUser
+  post: CommunityTextPost
   author: string
 }) {
   if (!isTwilioConfigured()) return { status: 'skipped', sentCount: 0, failedCount: 0, reason: 'Twilio is not configured.' }
@@ -31,12 +46,13 @@ export async function textCampersAboutStaffPost({
     .eq('sms_opt_in', true)
   if (camperError) throw camperError
 
-  const candidates: Array<{ camper: any; phones: string[] }> = []
-  await inBatches((camperRows || []).filter(isOperationalCamper), 20, async (camper: any) => {
+  const operationalCampers = ((camperRows || []) as CommunityPostCamper[]).filter(isOperationalCamper)
+  const candidates: Array<{ camper: CommunityPostCamper; phones: string[] }> = []
+  await inBatches(operationalCampers, 20, async (camper) => {
     try {
       candidates.push({ camper, phones: await consentedCamperSmsPhones(admin, camper) })
-    } catch (error: any) {
-      console.error(`Community post text consent could not be checked for camper ${camper.id}:`, error?.message || error)
+    } catch (error: unknown) {
+      console.error(`Community post text consent could not be checked for camper ${camper.id}:`, error instanceof Error ? error.message : error)
     }
   })
 

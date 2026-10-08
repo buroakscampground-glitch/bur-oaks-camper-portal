@@ -14,6 +14,9 @@ test('shared camper, document, communication, printer, and meter helpers narrow 
     read('lib/meter-vision.ts'),
     read('app/api/bulk-portal-invites/route.ts'),
     read('app/api/admin-waitlist-convert/route.ts'),
+    read('app/api/cron/invoice-text-reminders/route.ts'),
+    read('app/api/admin-renewals/route.ts'),
+    read('lib/community-post-text-server.ts'),
   ])
 
   assert.match(files[0], /type CamperHouseholdProfile =/)
@@ -26,5 +29,8 @@ test('shared camper, document, communication, printer, and meter helpers narrow 
   assert.match(files[6], /const inviteLogs = \(logs \|\| \[\]\) as InviteLog\[\]/)
   assert.match(files[7], /type RentInvoiceRow =/)
   assert.match(files[7], /const activeCamperRows = \(activeCampers \|\| \[\]\) as ActiveCamperSite\[\]/)
+  assert.match(files[8], /type ReminderDeliveryResult =/)
+  assert.match(files[9], /type RentDueDateChange =/)
+  assert.match(files[10], /admin: SupabaseClient/)
   for (const source of files) assert.doesNotMatch(source, /:\s*any\b|as\s+any\b|any\[\]/)
 })
