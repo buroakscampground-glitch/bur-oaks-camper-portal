@@ -52,3 +52,19 @@ test('automated invoice delivery and the payment register use typed database bou
   assert.doesNotMatch(files[3], /payment:\s*any|allocation:\s*any/)
   assert.match(files[3], /oneRelationship/)
 })
+
+test('renewal signatures, rent continuation, reconciliation, and reminders use typed boundaries', async () => {
+  const files = await Promise.all([
+    read('lib/renewal-rent-schedule-service.ts'),
+    read('lib/renewal-document-reconciliation.ts'),
+    read('lib/signed-renewal-document.ts'),
+    read('lib/document-reminders.ts'),
+  ])
+
+  for (const source of files) {
+    assert.match(source, /SupabaseClient/)
+    assert.doesNotMatch(source, /client:\s*any/)
+  }
+  assert.doesNotMatch(files[1], /renewal:\s*any|document:\s*any/)
+  assert.doesNotMatch(files[3], /profiles:\s*any|document:\s*any|camper:\s*any|row:\s*any/)
+})

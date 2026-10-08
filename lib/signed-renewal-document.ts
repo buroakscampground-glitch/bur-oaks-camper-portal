@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { stampPersonalizedRenewalPdf } from './personalized-renewal-pdf'
 
 function storedDocumentLocation(fileUrl: unknown) {
@@ -22,7 +23,7 @@ function storedDocumentLocation(fileUrl: unknown) {
 }
 
 export async function finalizeStoredPersonalizedRenewal(args: {
-  client: any
+  client: SupabaseClient
   fileUrl: unknown
   signerName: string
   signedAt: string

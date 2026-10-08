@@ -13,7 +13,19 @@ function centralDate(value: string) {
   return `${part('year')}-${part('month')}-${part('day')}`
 }
 
-export async function reconcileRenewalsWithDocuments(client: any) {
+type ReconciliationRenewalRow = {
+  id: string
+  camper_id: string
+  status: string | null
+  renewal_document_id: string
+}
+
+type ReconciliationDocumentRow = RenewalSignatureRecord & {
+  id: string
+  uploaded_at: string | null
+}
+
+export async function reconcileRenewalsWithDocuments(client: SupabaseClient) {
   const { data: renewals, error: renewalError } = await client
     .from('season_renewals')
     .select('id,camper_id,status,renewal_document_id')
@@ -21,7 +33,8 @@ export async function reconcileRenewalsWithDocuments(client: any) {
     .not('renewal_document_id', 'is', null)
   if (renewalError) throw renewalError
 
-  const documentIds = Array.from(new Set((renewals || []).map((renewal: any) => renewal.renewal_document_id).filter(Boolean)))
+  const renewalRows = (renewals || []) as ReconciliationRenewalRow[]
+  const documentIds = Array.from(new Set(renewalRows.map((renewal) => renewal.renewal_document_id).filter(Boolean)))
   if (!documentIds.length) return { checked: 0, repaired: 0, errors: [] as string[] }
 
   const { data: documents, error: documentError } = await client
@@ -30,20 +43,21 @@ export async function reconcileRenewalsWithDocuments(client: any) {
     .in('id', documentIds)
   if (documentError) throw documentError
 
-  const documentsById = new Map((documents || []).map((document: any) => [document.id, document]))
+  const documentRows = (documents || []) as ReconciliationDocumentRow[]
+  const documentsById = new Map(documentRows.map((document) => [document.id, document]))
   let repaired = 0
   const errors: string[] = []
 
-  for (const renewal of renewals || []) {
-    const document: any = documentsById.get(renewal.renewal_document_id)
+  for (const renewal of renewalRows) {
+    const document = documentsById.get(renewal.renewal_document_id)
     const signatureStatus = document?.signature_status === 'signed' && !hasSecureRenewalSignature(document)
       ? 'pending'
       : document?.signature_status
-    const nextStatus = effectiveRenewalStatus(renewal.status, signatureStatus)
+    const nextStatus = effectiveRenewalStatus(String(renewal.status || 'Not Started'), signatureStatus)
     if (nextStatus === renewal.status) continue
 
     try {
-      const recordedAt = document?.signed_at || document?.uploaded_at || new Date().toISOString()
+      const recordedAt = String(document?.signed_at || document?.uploaded_at || new Date().toISOString())
       if (nextStatus === 'Renewing') {
         await continueSignedRenewalRentSchedule({
           client,
@@ -63,10 +77,12 @@ export async function reconcileRenewalsWithDocuments(client: any) {
         if (error) throw error
       }
       repaired += 1
-    } catch (error: any) {
-      errors.push(`${renewal.id}: ${String(error?.message || error)}`)
+    } catch (error: unknown) {
+      errors.push(`${renewal.id}: ${error instanceof Error ? error.message : 'Unknown reconciliation failure'}`)
     }
   }
 
-  return { checked: (renewals || []).length, repaired, errors }
+  return { checked: renewalRows.length, repaired, errors }
 }
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { RenewalSignatureRecord } from './renewal-signature'

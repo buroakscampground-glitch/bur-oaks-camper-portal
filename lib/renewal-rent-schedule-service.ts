@@ -1,9 +1,23 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AuthCamperRecord } from './auth-account-match'
 import { isLotRentExemptCamper, isNoBillingLot } from './billing-exemptions'
 import {
   buildRenewalRentSchedule,
   hasExistingLotRentForTargetMonth,
   normalizeRentPaymentPlan,
+  type PriorLotRentInvoice,
 } from './renewal-rent-schedule'
+
+type SeasonRenewalRow = {
+  id: string
+  status: string | null
+  lot_number: string | null
+  contract_end_date: string | null
+  rent_payment_plan: string | null
+  annual_rent: number | string | null
+}
+
+type CreatedInvoiceRow = { id: string }
 
 function invoiceNumber(lotNumber: unknown, dueDate: string) {
   const lot = String(lotNumber || 'SITE').toUpperCase().replace(/[^A-Z0-9]/g, '') || 'SITE'
@@ -27,7 +41,7 @@ export async function continueSignedRenewalRentSchedule({
   documentId,
   signedAt,
 }: {
-  client: any
+  client: SupabaseClient
   camperId: string
   documentId: string
   signedAt: string
@@ -41,7 +55,8 @@ export async function continueSignedRenewalRentSchedule({
 
   if (renewalError) throw renewalError
   if (!renewal) return { status: 'not-renewal', created: 0, skipped: 0 }
-  if (renewal.status === 'Campground Not Renewing') {
+  const renewalRow = renewal as SeasonRenewalRow
+  if (renewalRow.status === 'Campground Not Renewing') {
     return { status: 'campground-not-renewing', created: 0, skipped: 0 }
   }
 
@@ -50,12 +65,12 @@ export async function continueSignedRenewalRentSchedule({
     decision_recorded_at: centralDate(signedAt),
     last_automation_at: signedAt,
     automation_error: null,
-  }).eq('id', renewal.id)
+  }).eq('id', renewalRow.id)
   if (renewalUpdateError) throw renewalUpdateError
 
-  if (!renewal.contract_end_date || isNoBillingLot(renewal.lot_number)) {
+  if (!renewalRow.contract_end_date || isNoBillingLot(renewalRow.lot_number)) {
     return {
-      status: isNoBillingLot(renewal.lot_number) ? 'no-billing-site' : 'missing-contract-date',
+      status: isNoBillingLot(renewalRow.lot_number) ? 'no-billing-site' : 'missing-contract-date',
       created: 0,
       skipped: 0,
     }
@@ -67,15 +82,16 @@ export async function continueSignedRenewalRentSchedule({
     .eq('id', camperId)
     .maybeSingle()
   if (camperError) throw camperError
+  const camperRow = camper as AuthCamperRecord | null
 
-  if (isLotRentExemptCamper(camper || {})) {
+  if (isLotRentExemptCamper(camperRow || {})) {
     return { status: 'lot-rent-exempt', created: 0, skipped: 0 }
   }
 
   // Use the immutable values printed on the signed renewal. A later lot-rate
   // edit must never change the payment schedule created from this signature.
-  const paymentPlan = normalizeRentPaymentPlan(renewal.rent_payment_plan || camper?.rent_payment_plan)
-  const annualRent = Number(renewal.annual_rent || 0)
+  const paymentPlan = normalizeRentPaymentPlan(renewalRow.rent_payment_plan || camperRow?.rent_payment_plan)
+  const annualRent = Number(renewalRow.annual_rent || 0)
 
   const { data: invoices, error: invoiceError } = await client
     .from('invoices')
@@ -84,9 +100,10 @@ export async function continueSignedRenewalRentSchedule({
     .order('due_date', { ascending: true })
   if (invoiceError) throw invoiceError
 
+  const invoiceRows = (invoices || []) as PriorLotRentInvoice[]
   const schedule = buildRenewalRentSchedule(
-    invoices || [],
-    renewal.contract_end_date,
+    invoiceRows,
+    renewalRow.contract_end_date,
     paymentPlan,
     annualRent,
   )
@@ -98,12 +115,12 @@ export async function continueSignedRenewalRentSchedule({
     // anniversary used a later day. Treat an existing rent installment in the
     // same month as the scheduled installment so reconciliation cannot create
     // a second charge merely because those day numbers differ.
-    if (hasExistingLotRentForTargetMonth(invoices || [], installment.dueDate)) {
+    if (hasExistingLotRentForTargetMonth(invoiceRows, installment.dueDate)) {
       skipped += 1
       continue
     }
 
-    const number = invoiceNumber(renewal.lot_number, installment.dueDate)
+    const number = invoiceNumber(renewalRow.lot_number, installment.dueDate)
     const { data: newInvoice, error: createError } = await client.from('invoices').insert({
       camper_id: camperId,
       invoice_number: number,
@@ -122,18 +139,19 @@ export async function continueSignedRenewalRentSchedule({
       }
       throw createError
     }
+    const createdInvoice = newInvoice as CreatedInvoiceRow | null
+    if (!createdInvoice?.id) throw new Error('The renewal invoice was not returned after creation.')
 
     const { error: itemError } = await client.from('invoice_items').insert(
-      installment.items.map((item) => ({ ...item, invoice_id: newInvoice.id })),
+      installment.items.map((item) => ({ ...item, invoice_id: createdInvoice.id })),
     )
     if (itemError) {
-      await client.from('invoices').delete().eq('id', newInvoice.id)
+      await client.from('invoices').delete().eq('id', createdInvoice.id)
       throw itemError
     }
 
-    ;(invoices || []).push({
-      id: newInvoice.id,
-      invoice_number: number,
+    invoiceRows.push({
+      id: createdInvoice.id,
       invoice_type: installment.invoiceType,
       due_date: installment.dueDate,
       status: 'sent',
@@ -146,15 +164,15 @@ export async function continueSignedRenewalRentSchedule({
   await client.from('admin_notifications').insert({
     type: 'renewal_rent_schedule',
     title: schedule.length
-      ? `Lot ${renewal.lot_number || '—'} rent schedule continued`
-      : `Lot ${renewal.lot_number || '—'} needs a rent schedule`,
+      ? `Lot ${renewalRow.lot_number || '—'} rent schedule continued`
+      : `Lot ${renewalRow.lot_number || '—'} needs a rent schedule`,
     message: schedule.length
       ? `${created} future ${paymentPlan === 'quarterly' ? 'quarterly' : 'half-and-half'} lot-rent invoice${created === 1 ? '' : 's'} created; ${skipped} already existed. Notices remain held until 30 days before each due date.`
       : `The renewal was signed, but the annual lot rent is not saved and a complete prior ${paymentPlan === 'quarterly' ? 'four-payment' : 'two-payment'} schedule was not found. Please review this camper’s rent schedule.`,
-    lot_number: renewal.lot_number || null,
+    lot_number: renewalRow.lot_number || null,
     camper_id: camperId,
     source_table: 'season_renewals',
-    source_id: renewal.id,
+    source_id: renewalRow.id,
     read_at: schedule.length ? new Date().toISOString() : null,
   })
 

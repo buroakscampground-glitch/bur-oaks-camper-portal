@@ -12,6 +12,34 @@ import { isRenewalDocument, renewalDocumentHasRequiredDetails } from './renewal-
 
 const REMINDER_TYPE = 'Document Signature Reminder'
 
+type ReminderDocumentRow = {
+  id: string
+  camper_id: string
+  document_name: string | null
+  document_type: string | null
+  signature_status: string | null
+}
+
+type ReminderHistoryRow = {
+  reminder_type: string | null
+  status: string | null
+  sent_at: string | null
+  recipient_phone: string | null
+  recipient_email: string | null
+  provider: string | null
+  automation_key: string | null
+}
+
+type ReminderRenewalRow = {
+  id: string
+  camper_id: string
+  lot_number: string | null
+  contract_end_date: string | null
+  renewal_document_id: string
+  annual_rent: number | string | null
+  rent_payment_plan: string | null
+}
+
 function cleanEmail(value: unknown) {
   return String(value || '').trim().toLowerCase()
 }
@@ -53,7 +81,7 @@ function emailProvider() {
   return { provider: null, configured: false, from, replyTo }
 }
 
-function documentCopy(document: any, camper: any, isFollowUp: boolean) {
+function documentCopy(document: ReminderDocumentRow, camper: AuthCamperRecord, isFollowUp: boolean) {
   const name = String(document.document_name || 'campground document').trim()
   const firstName = String(camper.first_name || '').trim() || 'there'
   const site = camper.lot_number ? ` for Lot ${camper.lot_number}` : ''
@@ -98,7 +126,7 @@ function documentCopy(document: any, camper: any, isFollowUp: boolean) {
   return { subject, text, sms, html }
 }
 
-async function documentSmsPhones(client: any, profiles: any[]) {
+async function documentSmsPhones(client: SupabaseClient, profiles: AuthCamperRecord[]) {
   const recipients: string[] = []
   for (const profile of profiles) {
     recipients.push(...await consentedCamperSmsPhones(client, profile))
@@ -136,7 +164,7 @@ async function sendEmail(to: string[], copy: ReturnType<typeof documentCopy>) {
   return { sent: true, provider: status.provider, providerMessageId: result?.id || null }
 }
 
-async function logDelivery(client: any, values: Record<string, unknown>) {
+async function logDelivery(client: SupabaseClient, values: Record<string, unknown>) {
   const { error } = await client.from('text_reminders').insert({
     invoice_id: null,
     reminder_type: REMINDER_TYPE,
@@ -148,9 +176,9 @@ async function logDelivery(client: any, values: Record<string, unknown>) {
 }
 
 export async function sendDocumentSignatureReminder({ client, document, camper, today = todayInCentral() }: {
-  client: any
-  document: any
-  camper: any
+  client: SupabaseClient
+  document: ReminderDocumentRow
+  camper: AuthCamperRecord
   today?: string
 }) {
   if (isDocumentDeliveryExcluded(camper)) {
@@ -166,21 +194,22 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
     .limit(300)
   if (priorError) return { email: 'failed', sms: 'failed', emailSent: 0, smsSent: 0, errors: [priorError.message] }
 
-  let contactProfiles: any[]
+  let contactProfiles: AuthCamperRecord[]
   try {
     contactProfiles = await loadAuthorizedContactProfiles(client, camper)
-  } catch (error: any) {
-    return { email: 'failed', sms: 'failed', emailSent: 0, smsSent: 0, errors: [error?.message || 'Authorized document contacts could not be loaded.'] }
+  } catch (error: unknown) {
+    return { email: 'failed', sms: 'failed', emailSent: 0, smsSent: 0, errors: [error instanceof Error ? error.message : 'Authorized document contacts could not be loaded.'] }
   }
 
+  const priorRows = (prior || []) as ReminderHistoryRow[]
   const emails = uniqueEmails(authorizedContactEmails(contactProfiles))
   const emailKey = `document-reminder-${document.id}-email`
-  const lastEmail = (prior || []).find((row: any) => row.automation_key === emailKey)
+  const lastEmail = priorRows.find((row) => row.automation_key === emailKey)
   const copy = documentCopy(document, camper, Boolean(lastEmail))
   const summary = { email: 'skipped', sms: 'skipped', emailSent: 0, smsSent: 0, errors: [] as string[] }
 
   if (emails.length && documentReminderIsDue(lastEmail?.sent_at, today)) {
-    const existingToday = (prior || []).some((row: any) => row.automation_key === emailKey && documentReminderCentralDay(row.sent_at) === today)
+    const existingToday = priorRows.some((row) => row.automation_key === emailKey && documentReminderCentralDay(row.sent_at) === today)
     if (!existingToday) {
       const result = await sendEmail(emails, copy)
       const logError = await logDelivery(client, {
@@ -210,12 +239,12 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
     for (const phone of phones) {
       const phoneDigits = phone.replace(/\D/g, '')
       const smsKey = `document-reminder-${document.id}-sms-${phoneDigits}`
-      const lastSms = (prior || []).find((row: any) => (
+      const lastSms = priorRows.find((row) => (
         row.recipient_phone === phone &&
         (row.automation_key === smsKey || String(row.reminder_type || '').toLowerCase() === 'season renewal')
       ))
       if (!documentReminderIsDue(lastSms?.sent_at, today)) continue
-      const existingToday = (prior || []).some((row: any) => row.automation_key === smsKey && documentReminderCentralDay(row.sent_at) === today)
+      const existingToday = priorRows.some((row) => row.automation_key === smsKey && documentReminderCentralDay(row.sent_at) === today)
       if (existingToday) continue
 
       const smsCopy = documentCopy(document, camper, Boolean(lastSms))
@@ -251,7 +280,7 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
   return summary
 }
 
-export async function runPendingDocumentSignatureReminders(client: any, documentIds?: string[]) {
+export async function runPendingDocumentSignatureReminders(client: SupabaseClient, documentIds?: string[]) {
   let documentQuery = client
     .from('documents')
     .select('id,camper_id,document_name,document_type,signature_status')
@@ -261,7 +290,8 @@ export async function runPendingDocumentSignatureReminders(client: any, document
   const { data: documents, error: documentError } = await documentQuery
   if (documentError) throw new Error(documentError.message)
 
-  const camperIds = Array.from(new Set((documents || []).map((document: any) => document.camper_id).filter(Boolean)))
+  const documentRows = (documents || []) as ReminderDocumentRow[]
+  const camperIds = Array.from(new Set(documentRows.map((document) => document.camper_id).filter(Boolean)))
   const { data: campers, error: camperError } = camperIds.length
     ? await client
         .from('campers')
@@ -271,8 +301,9 @@ export async function runPendingDocumentSignatureReminders(client: any, document
     : { data: [], error: null }
   if (camperError) throw new Error(camperError.message)
 
-  const camperById = new Map<string, any>((campers || []).map((camper: any) => [String(camper.id), camper]))
-  const renewalDocumentIds = (documents || []).filter(isRenewalDocument).map((document: any) => String(document.id))
+  const camperRows = (campers || []) as AuthCamperRecord[]
+  const camperById = new Map(camperRows.map((camper) => [String(camper.id), camper]))
+  const renewalDocumentIds = documentRows.filter(isRenewalDocument).map((document) => String(document.id))
   const { data: renewals, error: renewalError } = renewalDocumentIds.length
     ? await client
         .from('season_renewals')
@@ -280,10 +311,11 @@ export async function runPendingDocumentSignatureReminders(client: any, document
         .in('renewal_document_id', renewalDocumentIds)
     : { data: [], error: null }
   if (renewalError) throw new Error(renewalError.message)
-  const renewalByDocumentId = new Map<string, any>((renewals || []).map((renewal: any) => [String(renewal.renewal_document_id), renewal]))
+  const renewalRows = (renewals || []) as ReminderRenewalRow[]
+  const renewalByDocumentId = new Map(renewalRows.map((renewal) => [String(renewal.renewal_document_id), renewal]))
 
   const results = []
-  for (const document of documents || []) {
+  for (const document of documentRows) {
     const camper = camperById.get(String(document.camper_id))
     if (!camper || ['admin', 'maintenance'].includes(String(camper.role || '').toLowerCase())) continue
     if (isRenewalDocument(document)) {
@@ -334,3 +366,5 @@ export async function runPendingDocumentSignatureReminders(client: any, document
     results,
   }
 }
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AuthCamperRecord } from './auth-account-match'
