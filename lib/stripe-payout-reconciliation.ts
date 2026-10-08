@@ -1,4 +1,28 @@
 import Stripe from 'stripe'
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+type PayoutTransactionSource = {
+  id?: string
+  metadata?: Stripe.Metadata | null
+  payment_intent?: string | { id?: string } | null
+  statement_descriptor?: string | null
+  description?: string | null
+}
+
+type PayoutCamperRow = {
+  first_name: string | null
+  last_name: string | null
+  lot_number: string | null
+}
+
+type PayoutInvoiceRow = {
+  id: string
+  invoice_number: string | null
+  invoice_type: string | null
+  total_due: number | string | null
+  payment_reference: string | null
+  campers: PayoutCamperRow | PayoutCamperRow[] | null
+}
 
 export type StripePayoutInvoice = {
   id: string
@@ -86,9 +110,10 @@ export function isPayoutComponentTransaction(transaction: Pick<Stripe.BalanceTra
   return transaction.type !== 'payout'
 }
 
-function sourceObject(transaction: Stripe.BalanceTransaction) {
-  return transaction.source && typeof transaction.source !== 'string' && !('deleted' in transaction.source)
-    ? transaction.source as any
+function sourceObject(transaction: Stripe.BalanceTransaction): PayoutTransactionSource | null {
+  const source = transaction.source
+  return source && typeof source !== 'string' && !('deleted' in source)
+    ? source as unknown as PayoutTransactionSource
     : null
 }
 
@@ -97,7 +122,7 @@ function sourceId(transaction: Stripe.BalanceTransaction) {
   return transaction.source?.id || ''
 }
 
-function descriptionFor(transaction: Stripe.BalanceTransaction, source: any) {
+function descriptionFor(transaction: Stripe.BalanceTransaction, source: PayoutTransactionSource | null) {
   const statement = source?.statement_descriptor || source?.description
   if (statement) return String(statement)
   if (transaction.description) return transaction.description
@@ -128,7 +153,11 @@ async function allBalanceTransactions(stripe: Stripe, payoutId: string) {
   return rows
 }
 
-export async function loadStripePayoutDetail(stripe: Stripe, admin: any, payoutId: string): Promise<StripePayoutDetail> {
+function normalizedCamper(invoice: PayoutInvoiceRow) {
+  return Array.isArray(invoice.campers) ? invoice.campers[0] || null : invoice.campers
+}
+
+export async function loadStripePayoutDetail(stripe: Stripe, admin: SupabaseClient, payoutId: string): Promise<StripePayoutDetail> {
   const payout = await stripe.payouts.retrieve(payoutId)
   // Stripe's filtered ledger can include the negative payout transfer itself.
   // The report needs the component activity that made up the payout, not the
@@ -163,18 +192,18 @@ export async function loadStripePayoutDetail(stripe: Stripe, admin: any, payoutI
 
   const allInvoiceIds = [...new Set([...metadataInvoiceIds.values()].flat())]
   const invoiceSelect = 'id,invoice_number,invoice_type,total_due,payment_reference,campers(first_name,last_name,lot_number)'
-  const byId = new Map<string, any>()
-  const byReference = new Map<string, any[]>()
+  const byId = new Map<string, PayoutInvoiceRow>()
+  const byReference = new Map<string, PayoutInvoiceRow[]>()
 
   if (allInvoiceIds.length) {
     const { data, error } = await admin.from('invoices').select(invoiceSelect).in('id', allInvoiceIds)
     if (error) throw new Error(`Unable to match Stripe deposit invoices: ${error.message}`)
-    for (const invoice of data || []) byId.set(String(invoice.id), invoice)
+    for (const invoice of (data || []) as PayoutInvoiceRow[]) byId.set(String(invoice.id), invoice)
   }
   if (paymentReferences.size) {
     const { data, error } = await admin.from('invoices').select(invoiceSelect).in('payment_reference', [...paymentReferences])
     if (error) throw new Error(`Unable to match Stripe payment references: ${error.message}`)
-    for (const invoice of data || []) {
+    for (const invoice of (data || []) as PayoutInvoiceRow[]) {
       const key = String(invoice.payment_reference || '')
       byReference.set(key, [...(byReference.get(key) || []), invoice])
     }
@@ -185,18 +214,23 @@ export async function loadStripePayoutDetail(stripe: Stripe, admin: any, payoutI
     const reference = sourceId(transaction)
     const intentReference = typeof source?.payment_intent === 'string' ? source.payment_intent : source?.payment_intent?.id
     const matches = [
-      ...(metadataInvoiceIds.get(transaction.id) || []).map((id) => byId.get(id)).filter(Boolean),
+      ...(metadataInvoiceIds.get(transaction.id) || [])
+        .map((id) => byId.get(id))
+        .filter((invoice): invoice is PayoutInvoiceRow => Boolean(invoice)),
       ...(byReference.get(reference) || []),
       ...(byReference.get(intentReference || '') || []),
     ]
-    const invoices = [...new Map(matches.map((invoice) => [String(invoice.id), invoice])).values()].map((invoice: any) => ({
-      id: String(invoice.id),
-      invoiceNumber: String(invoice.invoice_number || 'Invoice'),
-      invoiceType: String(invoice.invoice_type || 'Campground charge'),
-      camper: `${invoice.campers?.first_name || ''} ${invoice.campers?.last_name || ''}`.trim() || 'Camper',
-      lot: String(invoice.campers?.lot_number || '—'),
-      amountCents: Math.round(Number(invoice.total_due || 0) * 100),
-    }))
+    const invoices = [...new Map(matches.map((invoice) => [String(invoice.id), invoice])).values()].map((invoice) => {
+      const camper = normalizedCamper(invoice)
+      return {
+        id: String(invoice.id),
+        invoiceNumber: String(invoice.invoice_number || 'Invoice'),
+        invoiceType: String(invoice.invoice_type || 'Campground charge'),
+        camper: `${camper?.first_name || ''} ${camper?.last_name || ''}`.trim() || 'Camper',
+        lot: String(camper?.lot_number || '—'),
+        amountCents: Math.round(Number(invoice.total_due || 0) * 100),
+      }
+    })
 
     return {
       id: transaction.id,

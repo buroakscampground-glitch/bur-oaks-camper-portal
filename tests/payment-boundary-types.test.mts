@@ -9,6 +9,7 @@ test('remaining payment reconciliation and alert clients use explicit Supabase c
     read('lib/stripe-ach-reconciliation.ts'),
     read('lib/payment-alerts.ts'),
     read('lib/stripe-payout-alerts.ts'),
+    read('lib/stripe-payout-reconciliation.ts'),
     read('lib/payment-fees.ts'),
   ])
 
@@ -16,6 +17,14 @@ test('remaining payment reconciliation and alert clients use explicit Supabase c
     assert.match(source, /SupabaseClient/)
     assert.doesNotMatch(source, /admin:\s*any|client:\s*any/)
   }
+})
+
+test('Stripe payout matching normalizes provider sources and joined camper rows', async () => {
+  const source = await read('lib/stripe-payout-reconciliation.ts')
+  assert.match(source, /type PayoutTransactionSource =/)
+  assert.match(source, /type PayoutInvoiceRow =/)
+  assert.match(source, /function normalizedCamper\(invoice: PayoutInvoiceRow\)/)
+  assert.doesNotMatch(source, /as any|source: any|Map<string, any/)
 })
 
 test('ACH reconciliation normalizes database rows and unknown provider failures once', async () => {
