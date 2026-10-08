@@ -1,7 +1,8 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminNotification } from './admin-notifications'
 
 type PaymentAlertInput = {
-  admin: any
+  admin: SupabaseClient
   invoiceIds: string[]
   camperId?: string | null
   amountPaid: number

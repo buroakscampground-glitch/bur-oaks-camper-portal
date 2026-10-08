@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendPaymentReceivedAlert } from './payment-alerts'
 import { requiredStripePaymentEvents, stripePaymentResolution } from './stripe-ach-status'
 import { achExpectedFromStripeEvent } from './ach-expected-date'
@@ -16,6 +17,19 @@ function metadataInvoiceIds(intent: Stripe.PaymentIntent) {
 function sameIds(left: string[], right: string[]) {
   return left.length === right.length && left.every((id) => right.includes(id))
 }
+
+type ProcessingAchInvoice = {
+  id: string
+  camper_id: string | null
+  invoice_number: string | null
+  total_due: number | string | null
+  status: string | null
+  payment_method: string | null
+  payment_reference: string | null
+  ach_expected_date: string | null
+}
+
+type UpdatedInvoice = { id: string }
 
 export async function ensureStripePaymentWebhook(stripe: Stripe, siteUrl: string) {
   const expectedUrl = `${siteUrl.replace(/\/+$/, '')}/api/stripe-webhook`
@@ -58,7 +72,7 @@ export async function reconcileProcessingAchPayments({
   origin,
 }: {
   stripe: Stripe
-  admin: any
+  admin: SupabaseClient
   origin: string
 }) {
   const { data: invoices, error } = await admin
@@ -70,8 +84,9 @@ export async function reconcileProcessingAchPayments({
 
   if (error) throw error
 
-  const groups = new Map<string, any[]>()
-  for (const invoice of invoices || []) {
+  const invoiceRows = (invoices || []) as ProcessingAchInvoice[]
+  const groups = new Map<string, ProcessingAchInvoice[]>()
+  for (const invoice of invoiceRows) {
     const reference = String(invoice.payment_reference || '')
     if (!reference.startsWith('pi_')) continue
     groups.set(reference, [...(groups.get(reference) || []), invoice])
@@ -129,7 +144,7 @@ export async function reconcileProcessingAchPayments({
         if (updated?.length) {
           await sendPaymentReceivedAlert({
             admin,
-            invoiceIds: updated.map((invoice: any) => String(invoice.id)),
+            invoiceIds: (updated as UpdatedInvoice[]).map((invoice) => String(invoice.id)),
             camperId: paymentInvoices[0]?.camper_id,
             amountPaid: expectedInvoiceCents / 100,
             paymentType: 'Online payment',
@@ -163,12 +178,12 @@ export async function reconcileProcessingAchPayments({
       }
 
       summary.results.push({ paymentReference, status: intent.status, resolution, invoiceIds })
-    } catch (paymentError: any) {
+    } catch (paymentError: unknown) {
       summary.failedPayments += 1
       summary.results.push({
         paymentReference,
         status: 'check-failed',
-        error: paymentError?.message || 'Unable to check Stripe payment.',
+        error: paymentError instanceof Error ? paymentError.message : 'Unable to check Stripe payment.',
       })
     }
   }

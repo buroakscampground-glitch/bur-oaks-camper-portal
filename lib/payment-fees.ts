@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 const defaultPercent = 3
 const defaultFlatCents = 30
 const percentKey = 'card_processing_fee_percent'
@@ -47,7 +49,9 @@ export function normalizeCardProcessingFeeSettings(settings?: Partial<CardProces
   }
 }
 
-export async function loadPaymentFeeSettings(client: any): Promise<CardProcessingFeeSettings> {
+type PaymentFeeSettingRow = { key: string; value: string | number | null }
+
+export async function loadPaymentFeeSettings(client: SupabaseClient): Promise<CardProcessingFeeSettings> {
   const fallback = cardProcessingFeeSettings()
 
   if (!client?.from) return fallback
@@ -60,7 +64,7 @@ export async function loadPaymentFeeSettings(client: any): Promise<CardProcessin
   if (error?.code === '42P01' || error?.code === 'PGRST205') return fallback
   if (error) return fallback
 
-  const values = new Map((data || []).map((row: any) => [row.key, row.value]))
+  const values = new Map(((data || []) as PaymentFeeSettingRow[]).map((row) => [row.key, row.value]))
 
   return normalizeCardProcessingFeeSettings({
     percent: values.has(percentKey) ? Number(values.get(percentKey)) : fallback.percent,

@@ -1,4 +1,5 @@
 import Stripe from 'stripe'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminNotification } from './admin-notifications'
 import { sendAdminAlertEmail } from './admin-alert-email'
 
@@ -11,7 +12,7 @@ export async function alertStripePayoutProblem({
   payout,
   origin,
 }: {
-  admin: any
+  admin: SupabaseClient
   payout: Stripe.Payout
   origin?: string | null
 }) {
