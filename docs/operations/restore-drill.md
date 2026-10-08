@@ -24,6 +24,8 @@ Production has Supabase Pro managed daily database backups. The isolated Bur Oak
 8. Delete the drill fixtures or rebuild staging from the approved schema to prove repeatability.
 9. Record recovery time objective achieved, latest recoverable point, defects found, and the next drill date.
 
+For Storage, use only a successfully verified encrypted archive and its matching receipt from `docs/operations/storage-backup.md`. Decrypt and restore it only into the isolated staging project after the staging schema and synthetic access controls are ready. Compare the restored object count, total bytes, and checksums to the encrypted manifest; never restore a drill object into production.
+
 ## Pass criteria
 
 - Production remains untouched.

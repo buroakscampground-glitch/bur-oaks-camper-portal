@@ -12,7 +12,7 @@ The downloadable System Health operations record is a convenience summary. It is
 ## Protection priorities
 
 1. Keep managed database backups enabled and review their freshness.
-2. Add independent encrypted protection for Supabase Storage objects; database backups do not include them.
+2. Run the guarded independent encrypted Storage export in `docs/operations/storage-backup.md`; database backups do not include Storage objects.
 3. Perform restore drills only in isolated staging.
 4. Keep secrets out of source control, exports, browser logs, screenshots, and support notes.
 5. Use opaque request references instead of customer details when investigating failures.

@@ -302,11 +302,11 @@ export default function CamperPortalPage() {
                     return result
                   })
                   .catch(async () => {
-                    const { data } = await supabase
+                    const { data, error } = await supabase
                       .from('invoices')
                       .select('*')
                       .eq('camper_id', camperData.id)
-                    return { invoices: data || [] }
+                    return { invoices: data || [], error }
                   })
               : Promise.resolve({ invoices: [] }),
             supabase
@@ -400,7 +400,12 @@ export default function CamperPortalPage() {
           messageResult,
           pendingOfficeResult,
           siteCareResult,
-        ].some((result) => Boolean(result?.error))
+        ].some((result) => Boolean(result?.error)) || Boolean(
+          invoiceResult?.error ||
+          !documentResult ||
+          !pumpOutResult ||
+          !authorizedBillingResult
+        )
 
         if (dashboardReadFailed) {
           setLoadError('Some portal information could not be loaded. Nothing was changed. Check your connection and try again.')
@@ -670,6 +675,34 @@ export default function CamperPortalPage() {
         <div className="portal-loading">
           <TentTree size={34} />
           <p>Opening your camper portal…</p>
+        </div>
+      </main>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <main className="camper-portal-page">
+        <div className="portal-shell">
+          <header className="portal-premium-header">
+            <div className="portal-premium-brandline">
+              <a href="/portal"><img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" /><span><strong>Bur Oaks Campground</strong><small>Camper Portal</small></span></a>
+              <button type="button" onClick={handleLogout}><LogOut size={17} /><span>Sign out</span></button>
+            </div>
+            <div className="portal-premium-welcome">
+              <div><small>{formatFriendlyToday()}</small><h1>Your account summary is temporarily unavailable.</h1></div>
+              <span>LOT {camper?.lot_number || '—'}</span>
+            </div>
+          </header>
+          <section className="portal-load-warning" role="alert" aria-labelledby="portal-load-error-title">
+            <AlertTriangle size={24} aria-hidden="true" />
+            <div>
+              <strong id="portal-load-error-title">We could not verify the complete account.</strong>
+              <p>{loadError}</p>
+              <p>Balances, documents, messages, and service statuses are hidden until every required account check succeeds.</p>
+            </div>
+            <button type="button" onClick={() => window.location.reload()}>Try again</button>
+          </section>
         </div>
       </main>
     )
