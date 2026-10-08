@@ -1,5 +1,8 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { uniquePrinterEmails } from './report-printer-emails.ts'
+
+type PaymentCamperRow = { first_name?: string | null; last_name?: string | null; lot_number?: string | null }
 
 type PaymentRow = {
   id: string
@@ -8,8 +11,26 @@ type PaymentRow = {
   total_due?: number | string | null
   payment_method?: string | null
   paid_at?: string | null
-  campers?: { first_name?: string | null; last_name?: string | null; lot_number?: string | null } | null
+  campers?: PaymentCamperRow | null
   source?: 'invoice' | 'manual'
+}
+
+type PaymentQueryRow = Omit<PaymentRow, 'campers'> & { campers?: PaymentCamperRow | PaymentCamperRow[] | null }
+
+type ManualPaymentRow = {
+  id: string
+  amount: number | string | null
+  payment_method: string | null
+  created_at: string | null
+  campers: PaymentCamperRow | PaymentCamperRow[] | null
+}
+
+type AllocationInvoiceRow = { invoice_number: string | null; invoice_type: string | null }
+type ManualPaymentAllocationRow = {
+  payment_id: string
+  invoice_id: string | null
+  amount_applied: number | string | null
+  invoices: AllocationInvoiceRow | AllocationInvoiceRow[] | null
 }
 
 type DeliveryResult = {
@@ -49,6 +70,10 @@ function reportDateLabel(value: string) {
 
 function camperName(row: PaymentRow) {
   return safeText(`${row.campers?.first_name || ''} ${row.campers?.last_name || ''}`) || 'Camper'
+}
+
+function oneRelationship<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? value[0] || null : value || null
 }
 
 function fit(text: string, font: PDFFont, size: number, width: number) {
@@ -148,7 +173,7 @@ async function sendPaymentReportEmail(to: string, pdfBytes: Uint8Array, reportDa
 }
 
 export async function sendDailyPaymentReport(
-  client: any,
+  client: SupabaseClient,
   reportDate: string,
   options: { sendOffice?: boolean; sendPrinter?: boolean } = {},
 ) {
@@ -162,21 +187,21 @@ export async function sendDailyPaymentReport(
   if (invoiceResult.error) throw new Error(invoiceResult.error.message)
   if (manualResult.error) throw new Error(manualResult.error.message)
 
-  const manualPayments = manualResult.data || []
-  const paymentIds = manualPayments.map((payment: any) => payment.id)
+  const manualPayments = (manualResult.data || []) as ManualPaymentRow[]
+  const paymentIds = manualPayments.map((payment) => payment.id)
   const allocationResult = paymentIds.length
     ? await client.from('manual_payment_allocations').select('payment_id,invoice_id,amount_applied,invoices(invoice_number,invoice_type)').in('payment_id', paymentIds)
     : { data: [], error: null }
   if (allocationResult.error) throw new Error(allocationResult.error.message)
-  const allocations = allocationResult.data || []
-  const manuallyPaidInvoiceIds = new Set(allocations.map((allocation: any) => String(allocation.invoice_id)).filter(Boolean))
-  const onlineRows = ((invoiceResult.data || []) as PaymentRow[])
+  const allocations = (allocationResult.data || []) as ManualPaymentAllocationRow[]
+  const manuallyPaidInvoiceIds = new Set(allocations.map((allocation) => String(allocation.invoice_id || '')).filter(Boolean))
+  const onlineRows = ((invoiceResult.data || []) as PaymentQueryRow[])
     .filter((row) => row.paid_at && centralDateKey(row.paid_at) === reportDate && !manuallyPaidInvoiceIds.has(String(row.id)))
-    .map((row) => ({ ...row, source: 'invoice' as const }))
-  const manualRows = manualPayments.map((payment: any) => {
-    const paymentAllocations = allocations.filter((allocation: any) => String(allocation.payment_id) === String(payment.id))
-    const invoiceNumbers = paymentAllocations.map((allocation: any) => allocation.invoices?.invoice_number).filter(Boolean).join(', ')
-    const invoiceTypes = [...new Set(paymentAllocations.map((allocation: any) => allocation.invoices?.invoice_type).filter(Boolean))].join(' + ')
+    .map((row) => ({ ...row, campers: oneRelationship(row.campers), source: 'invoice' as const }))
+  const manualRows = manualPayments.map((payment) => {
+    const paymentAllocations = allocations.filter((allocation) => String(allocation.payment_id) === String(payment.id))
+    const invoiceNumbers = paymentAllocations.map((allocation) => oneRelationship(allocation.invoices)?.invoice_number).filter(Boolean).join(', ')
+    const invoiceTypes = [...new Set(paymentAllocations.map((allocation) => oneRelationship(allocation.invoices)?.invoice_type).filter((value): value is string => Boolean(value)))].join(' + ')
     return {
       id: `manual-${payment.id}`,
       invoice_number: invoiceNumbers || 'Account credit',
@@ -184,7 +209,7 @@ export async function sendDailyPaymentReport(
       total_due: payment.amount,
       payment_method: payment.payment_method,
       paid_at: payment.created_at,
-      campers: payment.campers,
+      campers: oneRelationship(payment.campers),
       source: 'manual' as const,
     }
   }) as PaymentRow[]

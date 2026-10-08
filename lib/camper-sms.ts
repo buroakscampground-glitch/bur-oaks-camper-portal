@@ -1,7 +1,9 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AuthCamperRecord } from './auth-account-match'
 import { formatSmsPhone } from './twilio-sms'
 import { filterOptedInPhones } from './sms-recipient-filter'
 
-export function camperSmsPhones(camper: any) {
+export function camperSmsPhones(camper: AuthCamperRecord | null | undefined) {
   const phones = [
     camper?.phone,
     camper?.alternate_phone,
@@ -13,7 +15,7 @@ export function camperSmsPhones(camper: any) {
   return Array.from(new Set(phones))
 }
 
-export async function consentedCamperSmsPhones(client: any, camper: any) {
+export async function consentedCamperSmsPhones(client: SupabaseClient, camper: AuthCamperRecord | null | undefined) {
   if (!camper?.sms_opt_in) return []
 
   const phones = camperSmsPhones(camper)

@@ -7,13 +7,35 @@ import { authorizedContactEmails, loadAuthorizedContactProfiles } from './author
 type InvoiceEmailKind = InvoiceNoticeKind
 
 type SendInvoiceEmailOptions = {
-  client: any
+  client: SupabaseClient
   invoiceId: string
   kind: InvoiceEmailKind
   automationKey: string
   reminderDate: string
   sentBy?: string | null
 }
+
+type InvoiceItemRow = {
+  description: string | null
+  quantity: number | string | null
+  unit_price: number | string | null
+  total: number | string | null
+}
+
+type InvoiceEmailRow = {
+  id: string
+  camper_id: string
+  invoice_number: string | null
+  invoice_type: string | null
+  total_due: number | string | null
+  late_fee: number | string | null
+  due_date: string | null
+  status: string | null
+  campers: AuthCamperRecord | AuthCamperRecord[] | null
+  invoice_items: InvoiceItemRow[] | null
+}
+
+type ReminderRecipientRow = { recipient_email: string | null }
 
 type EmailProvider = 'sendgrid' | 'resend'
 
@@ -40,9 +62,9 @@ function prettyDate(value?: string | null) {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 }
 
-function invoiceCamper(invoice: any) {
-  if (Array.isArray(invoice?.campers)) return invoice.campers[0] || null
-  return invoice?.campers || null
+function invoiceCamper(invoice: InvoiceEmailRow): AuthCamperRecord | null {
+  if (Array.isArray(invoice.campers)) return invoice.campers[0] || null
+  return invoice.campers || null
 }
 
 function cleanEmail(value: unknown) {
@@ -227,7 +249,7 @@ async function sendInvoiceEmailPayload(payload: EmailPayload) {
   return { ...result, provider: 'resend' as EmailProvider }
 }
 
-function emailCopy(invoice: any, kind: InvoiceEmailKind) {
+function emailCopy(invoice: InvoiceEmailRow, kind: InvoiceEmailKind) {
   const invoiceNumber = invoice.invoice_number || 'new invoice'
   const total = money(invoice.total_due)
   const due = prettyDate(invoice.due_date)
@@ -311,7 +333,7 @@ function emailCopy(invoice: any, kind: InvoiceEmailKind) {
   }
 }
 
-function itemRows(items: any[]) {
+function itemRows(items: InvoiceItemRow[]) {
   if (!items.length) return ''
 
   return items
@@ -372,7 +394,9 @@ export async function sendInvoiceEmail({
     return { status: 'failed', error: invoiceError?.message || 'Invoice was not found.' }
   }
 
-  const invoiceStatus = String(invoice.status || '').toLowerCase()
+  const invoiceRow = invoice as InvoiceEmailRow
+
+  const invoiceStatus = String(invoiceRow.status || '').toLowerCase()
   if (invoiceStatus === 'paid' || invoiceStatus === 'processing') {
     return {
       status: 'skipped',
@@ -380,7 +404,7 @@ export async function sendInvoiceEmail({
     }
   }
 
-  const camper = invoiceCamper(invoice)
+  const camper = invoiceCamper(invoiceRow)
   if (!camper) {
     return { status: 'skipped', reason: 'Camper billing record was not found.' }
   }
@@ -393,11 +417,11 @@ export async function sendInvoiceEmail({
     return { status: 'skipped', reason: 'Archived campers only receive their newly issued final invoice email.' }
   }
 
-  let contactProfiles: any[]
+  let contactProfiles: AuthCamperRecord[]
   try {
     contactProfiles = await loadAuthorizedContactProfiles(client, camper)
-  } catch (error: any) {
-    return { status: 'failed', error: error?.message || 'Authorized billing contacts could not be loaded.' }
+  } catch (error: unknown) {
+    return { status: 'failed', error: error instanceof Error ? error.message : 'Authorized billing contacts could not be loaded.' }
   }
 
   const recipients = authorizedContactEmails(contactProfiles)
@@ -408,7 +432,7 @@ export async function sendInvoiceEmail({
   const { data: existing, error: existingError } = await client
     .from('text_reminders')
     .select('recipient_email')
-    .eq('invoice_id', invoice.id)
+    .eq('invoice_id', invoiceRow.id)
     .eq('automation_key', automationKey)
     .eq('status', 'sent')
 
@@ -417,8 +441,8 @@ export async function sendInvoiceEmail({
   }
 
   const deliveredEmails = new Set(
-    (existing || [])
-      .flatMap((row: any) => String(row.recipient_email || '').split(','))
+    ((existing || []) as ReminderRecipientRow[])
+      .flatMap((row) => String(row.recipient_email || '').split(','))
       .map(cleanEmail)
       .filter(isRealEmail)
   )
@@ -430,14 +454,14 @@ export async function sendInvoiceEmail({
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://www.buroakscampground.com'
   const finalInvoiceToken = isArchivedFinalInvoice
-    ? createFinalInvoiceToken(String(invoice.id), String(camper.id))
+    ? createFinalInvoiceToken(String(invoiceRow.id), String(camper.id))
     : ''
   const actionUrl = isArchivedFinalInvoice
     ? `${siteUrl}/final-invoice/${encodeURIComponent(finalInvoiceToken)}`
-    : `${siteUrl}/invoices/${invoice.id}`
+    : `${siteUrl}/invoices/${invoiceRow.id}`
   const camperName = `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'there'
-  const copy = emailCopy(invoice, kind)
-  const items = Array.isArray(invoice.invoice_items) ? invoice.invoice_items : []
+  const copy = emailCopy(invoiceRow, kind)
+  const items = Array.isArray(invoiceRow.invoice_items) ? invoiceRow.invoice_items : []
   const rows = itemRows(items)
   const from = providerStatus.from
   const replyTo = providerStatus.replyTo
@@ -448,15 +472,15 @@ export async function sendInvoiceEmail({
     copy.heading,
     copy.intro,
     copy.statusLine,
-    Number(invoice.late_fee || 0) > 0 ? `Late fee: ${money(invoice.late_fee)}` : '',
-    `Due date: ${prettyDate(invoice.due_date)}`,
-    invoice.invoice_number ? `Invoice: ${invoice.invoice_number}` : '',
+    Number(invoiceRow.late_fee || 0) > 0 ? `Late fee: ${money(invoiceRow.late_fee)}` : '',
+    `Due date: ${prettyDate(invoiceRow.due_date)}`,
+    invoiceRow.invoice_number ? `Invoice: ${invoiceRow.invoice_number}` : '',
     camper.lot_number ? `Lot: ${camper.lot_number}` : '',
     '',
     items.length
       ? [
           'Invoice details:',
-          ...items.map((item: any) => `- ${item.description || 'Charge'}: ${money(item.total)}`),
+          ...items.map((item) => `- ${item.description || 'Charge'}: ${money(item.total)}`),
           '',
         ].join('\n')
       : '',
@@ -481,10 +505,10 @@ export async function sendInvoiceEmail({
           <p style="font-size:16px;line-height:1.55">${escapeHtml(copy.intro)}</p>
           <div style="display:grid;gap:8px;margin:18px 0;padding:18px;border-radius:16px;background:#f4f7f1;border:1px solid #e3eadf">
             <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Lot</span><strong>${escapeHtml(String(camper.lot_number || '—'))}</strong></div>
-            <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Invoice</span><strong>${escapeHtml(String(invoice.invoice_number || '—'))}</strong></div>
-            <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Due date</span><strong>${escapeHtml(prettyDate(invoice.due_date))}</strong></div>
-            ${Number(invoice.late_fee || 0) > 0 ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Late fee</span><strong>${escapeHtml(money(invoice.late_fee))}</strong></div>` : ''}
-            <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">${escapeHtml(copy.statusLine.split(':')[0])}</span><strong>${escapeHtml(money(invoice.total_due))}</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Invoice</span><strong>${escapeHtml(String(invoiceRow.invoice_number || '—'))}</strong></div>
+            <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Due date</span><strong>${escapeHtml(prettyDate(invoiceRow.due_date))}</strong></div>
+            ${Number(invoiceRow.late_fee || 0) > 0 ? `<div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">Late fee</span><strong>${escapeHtml(money(invoiceRow.late_fee))}</strong></div>` : ''}
+            <div style="display:flex;justify-content:space-between;gap:12px"><span style="color:#718078">${escapeHtml(copy.statusLine.split(':')[0])}</span><strong>${escapeHtml(money(invoiceRow.total_due))}</strong></div>
           </div>
           ${
             rows
@@ -513,7 +537,7 @@ export async function sendInvoiceEmail({
   const message = `${copy.heading} ${copy.intro} ${copy.statusLine} View and pay: ${actionUrl}${isArchivedFinalInvoice ? ' Final-billing access only; camper portal remains closed.' : ''}`
   const logRow = {
     camper_id: camper.id,
-    invoice_id: invoice.id,
+    invoice_id: invoiceRow.id,
     reminder_type: `${copy.reminderType} Email`,
     message,
     sent_at: new Date().toISOString(),
@@ -605,3 +629,5 @@ export async function sendInvoiceEmailTest(to: string, origin = 'https://www.bur
     providerStatus: status,
   }
 }
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AuthCamperRecord } from './auth-account-match'

@@ -34,3 +34,21 @@ test('ACH reconciliation normalizes database rows and unknown provider failures 
   assert.match(source, /catch \(paymentError: unknown\)/)
   assert.match(source, /paymentError instanceof Error/)
 })
+
+test('automated invoice delivery and the payment register use typed database boundaries', async () => {
+  const files = await Promise.all([
+    read('lib/camper-sms.ts'),
+    read('lib/invoice-texting.ts'),
+    read('lib/invoice-emailing.ts'),
+    read('lib/daily-payment-report.ts'),
+  ])
+
+  for (const source of files) {
+    assert.match(source, /SupabaseClient/)
+    assert.doesNotMatch(source, /client:\s*any/)
+  }
+  assert.doesNotMatch(files[1], /invoice:\s*any|camper:\s*any|contactProfiles:\s*any/)
+  assert.doesNotMatch(files[2], /invoice:\s*any|items:\s*any|contactProfiles:\s*any|row:\s*any/)
+  assert.doesNotMatch(files[3], /payment:\s*any|allocation:\s*any/)
+  assert.match(files[3], /oneRelationship/)
+})

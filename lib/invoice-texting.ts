@@ -10,12 +10,24 @@ import { singleSegmentSms } from './sms-segments'
 type InvoiceTextKind = InvoiceNoticeKind
 
 type SendInvoiceTextOptions = {
-  client: any
+  client: SupabaseClient
   invoiceId: string
   kind: InvoiceTextKind
   automationKey: string
   reminderDate: string
   sentBy?: string | null
+}
+
+type InvoiceTextRow = {
+  id: string
+  camper_id: string
+  invoice_number: string | null
+  invoice_type: string | null
+  total_due: number | string | null
+  late_fee: number | string | null
+  due_date: string | null
+  status: string | null
+  campers: AuthCamperRecord | AuthCamperRecord[] | null
 }
 
 export { daysUntilDate, todayInCentral }
@@ -34,12 +46,12 @@ function prettyDate(value?: string | null) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 }
 
-function invoiceCamper(invoice: any) {
-  if (Array.isArray(invoice?.campers)) return invoice.campers[0] || null
-  return invoice?.campers || null
+function invoiceCamper(invoice: InvoiceTextRow): AuthCamperRecord | null {
+  if (Array.isArray(invoice.campers)) return invoice.campers[0] || null
+  return invoice.campers || null
 }
 
-function buildInvoiceSms(invoice: any, kind: InvoiceTextKind, camper: any) {
+function buildInvoiceSms(invoice: InvoiceTextRow, kind: InvoiceTextKind, camper: AuthCamperRecord) {
   const invoiceNumber = invoice.invoice_number || 'new invoice'
   const total = money(invoice.total_due)
   const due = prettyDate(invoice.due_date)
@@ -115,7 +127,9 @@ export async function sendInvoiceText({
     return { status: 'failed', error: invoiceError?.message || 'Invoice was not found.' }
   }
 
-  const invoiceStatus = String(invoice.status || '').toLowerCase()
+  const invoiceRow = invoice as InvoiceTextRow
+
+  const invoiceStatus = String(invoiceRow.status || '').toLowerCase()
   if (invoiceStatus === 'paid' || invoiceStatus === 'processing') {
     return {
       status: 'skipped',
@@ -123,7 +137,7 @@ export async function sendInvoiceText({
     }
   }
 
-  const camper = invoiceCamper(invoice)
+  const camper = invoiceCamper(invoiceRow)
   if (!camper?.active) {
     return { status: 'skipped', reason: 'Camper is not active.' }
   }
@@ -133,11 +147,11 @@ export async function sendInvoiceText({
 
   const recipients: Array<{ camperId: string; phone: string; automationKey: string }> = []
   const delegateEmails = new Set(billingDelegateEmailsForLot(camper.lot_number).map(normalizeBillingEmail))
-  let contactProfiles: any[]
+  let contactProfiles: AuthCamperRecord[]
   try {
     contactProfiles = await loadAuthorizedContactProfiles(client, camper)
-  } catch (error: any) {
-    return { status: 'failed', error: error?.message || 'Authorized billing contacts could not be loaded.' }
+  } catch (error: unknown) {
+    return { status: 'failed', error: error instanceof Error ? error.message : 'Authorized billing contacts could not be loaded.' }
   }
 
   for (const profile of contactProfiles) {
@@ -168,7 +182,7 @@ export async function sendInvoiceText({
     return { status: 'skipped', reason: 'No opted-in phone numbers are available for this invoice.' }
   }
 
-  const message = buildInvoiceSms(invoice, kind, camper)
+  const message = buildInvoiceSms(invoiceRow, kind, camper)
   const reminderType =
     kind === 'new'
       ? 'New Invoice'
@@ -196,7 +210,7 @@ export async function sendInvoiceText({
     const { data: delivered, error: deliveredError } = await client
       .from('text_reminders')
       .select('id')
-      .eq('invoice_id', invoice.id)
+      .eq('invoice_id', invoiceRow.id)
       .eq('automation_key', recipient.automationKey)
       .eq('recipient_phone', recipient.phone)
       .eq('status', 'sent')
@@ -216,7 +230,7 @@ export async function sendInvoiceText({
 
     const reservationRow = {
       camper_id: recipient.camperId,
-      invoice_id: invoice.id,
+      invoice_id: invoiceRow.id,
       reminder_type: reminderType,
       message,
       sent_at: new Date().toISOString(),
@@ -294,3 +308,5 @@ export async function sendInvoiceText({
       : 'No invoice texts were sent.',
   }
 }
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { AuthCamperRecord } from './auth-account-match'
