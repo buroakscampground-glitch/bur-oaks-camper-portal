@@ -9,9 +9,21 @@ application triggers, row-level security on all 59 tables, and exactly zero
 application rows. The 37th public staging function is Supabase's pre-existing
 `rls_auto_enable` safeguard; the baseline itself contains the 36 Bur Oaks
 functions present in production. No production camper, billing, payment,
-document, authentication, or storage data was copied. Synthetic fixture and
-signed-in journey validation remain pending, so this is a successful schema
-restore milestone rather than the completed end-to-end recovery drill.
+document, authentication, or storage data was copied.
+
+The first synthetic journey layer is also complete. Three confirmed staging
+Auth identities use reserved `.invalid` emails, no phone numbers, no consent,
+and random Keychain-only passwords. The fixture includes one `TEST-01` camper,
+office administrator, maintenance user, campsite, two invoices, a credit,
+document, meter reading, maintenance request, pump-out request, renewal, event,
+RSVP, and office message. A local staging build with Stripe, email, SMS,
+printer, webhook, and cron credentials removed proved all three roles can sign
+in and see their intended records; camper and maintenance accounts were denied
+the office workspace. The drill also caught missing base table grants in the
+first snapshot. The baseline was corrected with the exact read-only production
+grant catalog before all three journeys passed. A repeat clean rebuild and
+write-path journeys remain pending, so the end-to-end recovery drill is not yet
+closed.
 
 ## Non-negotiable safeguards
 

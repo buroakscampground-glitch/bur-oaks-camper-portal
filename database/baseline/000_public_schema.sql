@@ -2480,6 +2480,27 @@ ALTER TABLE public."stripe_webhook_events" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."tawk_webhook_events" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."text_reminders" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."waitlist" ENABLE ROW LEVEL SECURITY;
+GRANT ALL PRIVILEGES ON TABLE
+  public."account_credit_applications", public."account_credits", public."admin_notifications",
+  public."announcements", public."app_settings", public."birthday_wishes",
+  public."camper_celebration_deliveries", public."campers", public."community_comments",
+  public."community_digest_deliveries", public."community_member_controls",
+  public."community_moderation_log", public."community_notification_preferences",
+  public."community_notifications", public."community_posts", public."community_reactions",
+  public."community_reads", public."community_reports", public."document_templates",
+  public."documents", public."electric_readings", public."event_reminder_deliveries",
+  public."event_rsvps", public."events", public."gate_cards", public."invoice_items",
+  public."invoices", public."lots", public."maintenance_inventory_items",
+  public."maintenance_receipts", public."maintenance_supply_requests",
+  public."maintenance_ticket_comments", public."maintenance_ticket_parts",
+  public."maintenance_tickets", public."meter_reading_submissions", public."office_messages",
+  public."payments", public."portal_invite_log", public."saturday_dinner_signups",
+  public."scheduled_reports", public."season_renewals", public."sewer_pump_out_requests",
+  public."site_care_notices", public."site_service_charges", public."stripe_webhook_events",
+  public."text_reminders", public."waitlist"
+TO "anon", "authenticated";
+GRANT SELECT ON TABLE public."admin_audit_events" TO "authenticated";
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "service_role";
 GRANT EXECUTE ON FUNCTION public."apply_account_credits_to_invoice_atomic"(p_camper_id uuid, p_invoice_id uuid, p_invoice_total numeric, p_applied_by text) TO "authenticated";
 GRANT EXECUTE ON FUNCTION public."apply_account_credits_to_invoice_atomic"(p_camper_id uuid, p_invoice_id uuid, p_invoice_total numeric, p_applied_by text) TO "service_role";
 GRANT EXECUTE ON FUNCTION public."apply_maintenance_part_inventory"() TO "service_role";

@@ -35,3 +35,4 @@ The gate runs the dependency audit, all application tests, route-aware TypeScrip
 - [Data protection and retention](docs/operations/data-protection-and-retention.md)
 - [Migration safety](migrations/README.md)
 - [Schema-only baseline workflow](database/baseline/README.md)
+- [Synthetic staging fixtures](database/staging/README.md)

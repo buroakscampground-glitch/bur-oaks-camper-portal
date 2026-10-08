@@ -43,7 +43,6 @@ try {
       '--schema',
       'public',
       '--no-owner',
-      '--no-privileges',
       '--file',
       temporaryFile,
     ],
