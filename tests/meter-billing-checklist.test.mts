@@ -48,3 +48,39 @@ test('monthly billing checklist treats a saved zero-usage reading as complete wi
   assert.equal(result.entries[0]?.status, 'no_bill')
   assert.deepEqual(result.counts, { not_read: 0, photo_ready: 0, needs_retake: 0, no_bill: 1, invoice_created: 0, paid: 0 })
 })
+
+test('monthly billing checklist safely accepts null query results', () => {
+  const result = buildMonthlyBillingChecklist({
+    lots: null,
+    campers: null,
+    submissions: null,
+    invoices: null,
+  })
+
+  assert.deepEqual(result.entries, [])
+  assert.deepEqual(result.counts, { not_read: 0, photo_ready: 0, needs_retake: 0, no_bill: 0, invoice_created: 0, paid: 0 })
+})
+
+test('monthly billing checklist prefers the invoice explicitly linked to the latest photo', () => {
+  const result = buildMonthlyBillingChecklist({
+    lots: [{ lot_number: '12', camper_id: 'camper-12' }],
+    campers: [{ id: 'camper-12', first_name: 'Linked', last_name: 'Invoice', lot_number: '12', role: 'camper', active: true }],
+    submissions: [{
+      id: 'photo-12',
+      camper_id: 'camper-12',
+      lot_number: '12',
+      status: 'used',
+      reviewed_reading: 2200,
+      invoice_id: 'linked-invoice',
+      captured_at: '2026-09-30T10:00:00Z',
+    }],
+    invoices: [
+      { id: 'newer-unrelated', camper_id: 'camper-12', status: 'open', created_at: '2026-10-02T10:00:00Z' },
+      { id: 'linked-invoice', camper_id: 'camper-12', status: 'paid', created_at: '2026-10-01T10:00:00Z', paid_at: '2026-10-03T10:00:00Z' },
+    ],
+  })
+
+  assert.equal(result.entries[0]?.invoice_id, 'linked-invoice')
+  assert.equal(result.entries[0]?.status, 'paid')
+  assert.equal(result.entries[0]?.paid_at, '2026-10-03T10:00:00Z')
+})

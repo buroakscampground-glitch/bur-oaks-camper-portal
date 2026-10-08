@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { displayLotNumber, meterLabelCode, meterLotLabelsMatch, meterLotLabelsShareBase, normalizeLotKey } from '../../../lib/meter-reading'
-import { buildMonthlyBillingChecklist } from '../../../lib/meter-billing-checklist'
+import {
+  buildMonthlyBillingChecklist,
+  type MeterBillingCamper,
+  type MeterBillingInvoice,
+  type MeterBillingLot,
+  type MeterBillingSubmission,
+} from '../../../lib/meter-billing-checklist'
 import { recognizeMeterWithVision } from '../../../lib/meter-vision'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
@@ -12,6 +18,26 @@ export const maxDuration = 60
 
 const MAX_PHOTO_SIZE = 8 * 1024 * 1024
 const allowedRoles = new Set(['admin', 'maintenance'])
+
+type AuthenticatedContext = NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>
+type MeterLotRow = MeterBillingLot & { id?: string; lot_number?: unknown }
+type MeterCamperRow = MeterBillingCamper
+type MeterSubmissionRow = MeterBillingSubmission & Record<string, unknown> & {
+  photo_path?: string | null
+  captured_by_email?: string | null
+}
+type MeterSubmissionUpdate = {
+  updated_at: string
+  reviewed_reading?: number
+  reviewed_by?: string | null
+  reviewed_at?: string
+  status?: string
+  invoice_id?: string
+}
+
+function requestObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
 
 function currentMonthStart() {
   const now = new Date()
@@ -25,7 +51,7 @@ function requestedMonthStart(value: string | null) {
   return new Date(Date.UTC(year, month - 1, 1)).toISOString()
 }
 
-function staffRole(context: any) {
+function staffRole(context: Awaited<ReturnType<typeof getAuthenticatedContext>>) {
   return String(context?.camper?.role || '').trim().toLowerCase()
 }
 
@@ -37,25 +63,27 @@ function safePhotoType(bytes: ArrayBuffer) {
   return null
 }
 
-async function findSiteCamper(context: any, lotNumber: string) {
+async function findSiteCamper(context: AuthenticatedContext, lotNumber: string) {
   const normalizedLot = normalizeLotKey(lotNumber)
   const [{ data: lotRows }, { data: camperRows }] = await Promise.all([
     context.admin.from('lots').select('id,lot_number,meter_number,camper_id'),
     context.admin.from('campers').select('id,first_name,last_name,lot_number,role,active'),
   ])
 
-  const lot = (lotRows || []).find((row: any) => normalizeLotKey(row.lot_number) === normalizedLot) || null
-  const operational = (camperRows || []).filter((camper: any) =>
+  const typedLots = (lotRows || []) as MeterLotRow[]
+  const typedCampers = (camperRows || []) as MeterCamperRow[]
+  const lot = typedLots.find((row) => normalizeLotKey(row.lot_number) === normalizedLot) || null
+  const operational = typedCampers.filter((camper) =>
     camper.active !== false &&
     isOperationalCamper(camper) &&
     normalizeLotKey(camper.lot_number) === normalizedLot
   )
-  const camper = operational.find((item: any) => item.id === lot?.camper_id) || operational[0] || null
-  const knownLotNumbers = [...(lotRows || []), ...(camperRows || [])].map((row: any) => row.lot_number)
+  const camper = operational.find((item) => item.id === lot?.camper_id) || operational[0] || null
+  const knownLotNumbers = [...typedLots, ...typedCampers].map((row) => row.lot_number)
   return { lot, camper, knownLotNumbers }
 }
 
-async function latestReadingForCamper(context: any, camperId: string | null | undefined) {
+async function latestReadingForCamper(context: AuthenticatedContext, camperId: string | null | undefined) {
   if (!camperId) return null
   const { data } = await context.admin
     .from('electric_readings')
@@ -68,7 +96,7 @@ async function latestReadingForCamper(context: any, camperId: string | null | un
   return Number.isFinite(value) ? value : null
 }
 
-async function signedSubmission(context: any, submission: any) {
+async function signedSubmission(context: AuthenticatedContext, submission: MeterSubmissionRow) {
   if (!submission?.photo_path) return submission
   const { data } = await context.admin.storage
     .from('meter-reading-photos')
@@ -107,7 +135,12 @@ export async function GET(request: Request) {
         .order('created_at', { ascending: false }),
     ])
 
-    const { entries, counts } = buildMonthlyBillingChecklist({ lots, campers, submissions, invoices })
+    const { entries, counts } = buildMonthlyBillingChecklist({
+      lots: (lots || []) as MeterBillingLot[],
+      campers: (campers || []) as MeterBillingCamper[],
+      submissions: (submissions || []) as MeterBillingSubmission[],
+      invoices: (invoices || []) as MeterBillingInvoice[],
+    })
 
     return NextResponse.json({ entries, counts, monthStart })
   }
@@ -123,15 +156,18 @@ export async function GET(request: Request) {
         .neq('status', 'cancelled')
         .order('captured_at', { ascending: false }),
     ])
-    const capturedByLot = new Map<string, any>()
-    for (const row of capturedRows || []) {
+    const typedLots = (lots || []) as MeterLotRow[]
+    const typedCampers = (campers || []) as MeterCamperRow[]
+    const typedCapturedRows = (capturedRows || []) as MeterSubmissionRow[]
+    const capturedByLot = new Map<string, MeterSubmissionRow>()
+    for (const row of typedCapturedRows) {
       const key = normalizeLotKey(row.lot_number)
       if (key && !capturedByLot.has(key)) capturedByLot.set(key, row)
     }
-    const siteMap = new Map<string, { lot_number: string; meter_number: string | null; captured: any }>()
-    for (const camper of campers || []) {
+    const siteMap = new Map<string, { lot_number: string; meter_number: string | null; captured: MeterSubmissionRow | null }>()
+    for (const camper of typedCampers) {
       if (camper.active === false || !isOperationalCamper(camper) || !normalizeLotKey(camper.lot_number)) continue
-      const lot = (lots || []).find((item: any) => normalizeLotKey(item.lot_number) === normalizeLotKey(camper.lot_number))
+      const lot = typedLots.find((item) => normalizeLotKey(item.lot_number) === normalizeLotKey(camper.lot_number))
       siteMap.set(normalizeLotKey(camper.lot_number), {
         lot_number: String(camper.lot_number),
         meter_number: lot?.meter_number || null,
@@ -160,7 +196,7 @@ export async function GET(request: Request) {
   const { data, error } = await query
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const submissions = await Promise.all((data || []).map((item: any) => signedSubmission(context, item)))
+  const submissions = await Promise.all(((data || []) as MeterSubmissionRow[]).map((item) => signedSubmission(context, item)))
   return NextResponse.json(id ? { submission: submissions[0] || null } : { submissions })
 }
 
@@ -231,7 +267,7 @@ export async function POST(request: Request) {
       .gte('captured_at', currentMonthStart())
       .not('status', 'in', '(cancelled,retake)')
       .order('captured_at', { ascending: false })
-    const existing = (currentMonthRows || []).find((row: any) => normalizeLotKey(row.lot_number) === normalizeLotKey(lotNumber))
+    const existing = ((currentMonthRows || []) as MeterSubmissionRow[]).find((row) => normalizeLotKey(row.lot_number) === normalizeLotKey(lotNumber))
     if (existing) {
       return NextResponse.json({
         error: `Lot ${lotNumber} already has a meter photo for this month.`,
@@ -325,7 +361,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Admin access is required.' }, { status: 403 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = requestObject(await request.json().catch(() => ({})))
   const id = String(body.id || '').trim()
   if (!id) return NextResponse.json({ error: 'Meter submission ID is required.' }, { status: 400 })
 
@@ -363,7 +399,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'Staff access is required.' }, { status: 403 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = requestObject(await request.json().catch(() => ({})))
   const id = String(body.id || '').trim()
   if (!id) return NextResponse.json({ error: 'Meter submission ID is required.' }, { status: 400 })
 
@@ -382,7 +418,7 @@ export async function PATCH(request: Request) {
     if (!submission) return NextResponse.json({ error: 'This meter photo was not found.' }, { status: 404 })
     if (submission.invoice_id) return NextResponse.json({ error: 'This meter photo is already connected to an invoice.' }, { status: 409 })
 
-    let ocrData: Record<string, any> = {}
+    let ocrData: Record<string, unknown> = {}
     try {
       const parsed = JSON.parse(String(submission.ocr_text || '{}'))
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ocrData = parsed
@@ -537,7 +573,7 @@ export async function PATCH(request: Request) {
     }
   }
 
-  const updates: Record<string, any> = { updated_at: new Date().toISOString() }
+  const updates: MeterSubmissionUpdate = { updated_at: new Date().toISOString() }
   if (role === 'admin') {
     if (body.reviewedReading !== undefined) {
       const reviewed = Number(body.reviewedReading)
@@ -546,7 +582,8 @@ export async function PATCH(request: Request) {
       updates.reviewed_by = context.user.email || null
       updates.reviewed_at = new Date().toISOString()
     }
-    if (['pending', 'retake', 'ready', 'used', 'cancelled'].includes(body.status)) updates.status = body.status
+    const requestedStatus = String(body.status || '')
+    if (['pending', 'retake', 'ready', 'used', 'cancelled'].includes(requestedStatus)) updates.status = requestedStatus
     if (body.invoiceId) updates.invoice_id = String(body.invoiceId)
   } else {
     if (body.status !== 'cancelled') return NextResponse.json({ error: 'The office must review this reading.' }, { status: 403 })

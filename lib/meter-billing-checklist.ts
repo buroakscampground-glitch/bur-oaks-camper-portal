@@ -1,29 +1,98 @@
 import { isOperationalCamper } from './camper-records.ts'
 import { normalizeLotKey } from './meter-reading.ts'
 
-export function buildMonthlyBillingChecklist({ lots = [], campers = [], submissions = [], invoices = [] }: any) {
-  const lotsByKey = new Map(lots.map((lot: any) => [normalizeLotKey(lot.lot_number), lot]))
-  const campersByLot = new Map<string, any[]>()
-  for (const camper of campers) {
+export type MeterBillingLot = {
+  lot_number?: unknown
+  camper_id?: string | null
+  meter_number?: string | null
+}
+
+export type MeterBillingCamper = {
+  id: string
+  first_name?: string | null
+  last_name?: string | null
+  lot_number?: unknown
+  role?: unknown
+  active?: boolean | null
+}
+
+export type MeterBillingSubmission = {
+  id: string
+  camper_id?: string | null
+  lot_number?: unknown
+  status?: string | null
+  detected_reading?: number | string | null
+  submitted_reading?: number | string | null
+  reviewed_reading?: number | string | null
+  captured_at?: string | null
+  invoice_id?: string | null
+  ocr_text?: string | null
+}
+
+export type MeterBillingInvoice = {
+  id: string
+  camper_id?: string | null
+  status?: string | null
+  created_at?: string | null
+  paid_at?: string | null
+  invoice_type?: string | null
+}
+
+export type MeterBillingChecklistInput = {
+  lots?: MeterBillingLot[] | null
+  campers?: MeterBillingCamper[] | null
+  submissions?: MeterBillingSubmission[] | null
+  invoices?: MeterBillingInvoice[] | null
+}
+
+export type MeterBillingChecklistStatus = 'not_read' | 'photo_ready' | 'needs_retake' | 'no_bill' | 'invoice_created' | 'paid'
+
+export type MeterBillingChecklistEntry = {
+  lot_number: string
+  camper_id: string
+  camper_name: string
+  status: MeterBillingChecklistStatus
+  submission_id: string | null
+  captured_at: string | null
+  reading: number | null
+  invoice_id: string | null
+  invoice_status: string | null
+  invoiced_at: string | null
+  paid_at: string | null
+}
+
+export function buildMonthlyBillingChecklist({
+  lots = [],
+  campers = [],
+  submissions = [],
+  invoices = [],
+}: MeterBillingChecklistInput) {
+  const safeLots = lots || []
+  const safeCampers = campers || []
+  const safeSubmissions = submissions || []
+  const safeInvoices = invoices || []
+  const lotsByKey = new Map(safeLots.map((lot) => [normalizeLotKey(lot.lot_number), lot]))
+  const campersByLot = new Map<string, MeterBillingCamper[]>()
+  for (const camper of safeCampers) {
     const key = normalizeLotKey(camper.lot_number)
     if (!key || camper.active === false || !isOperationalCamper(camper)) continue
     campersByLot.set(key, [...(campersByLot.get(key) || []), camper])
   }
 
-  const submissionsByLot = new Map<string, any[]>()
-  for (const submission of submissions) {
+  const submissionsByLot = new Map<string, MeterBillingSubmission[]>()
+  for (const submission of safeSubmissions) {
     const key = normalizeLotKey(submission.lot_number)
     if (key) submissionsByLot.set(key, [...(submissionsByLot.get(key) || []), submission])
   }
 
-  const invoicesByCamper = new Map<string, any[]>()
-  for (const invoice of invoices) {
+  const invoicesByCamper = new Map<string, MeterBillingInvoice[]>()
+  for (const invoice of safeInvoices) {
     const key = String(invoice.camper_id || '')
     if (key) invoicesByCamper.set(key, [...(invoicesByCamper.get(key) || []), invoice])
   }
 
-  const entries = [...campersByLot.entries()].map(([lotKey, siteCampers]) => {
-    const lot: any = lotsByKey.get(lotKey)
+  const entries: MeterBillingChecklistEntry[] = [...campersByLot.entries()].map(([lotKey, siteCampers]) => {
+    const lot = lotsByKey.get(lotKey)
     const camper = siteCampers.find((item) => item.id === lot?.camper_id) || siteCampers[0]
     const siteSubmissions = submissionsByLot.get(lotKey) || []
     const latestSubmission = siteSubmissions[0] || null
@@ -31,7 +100,7 @@ export function buildMonthlyBillingChecklist({ lots = [], campers = [], submissi
       .flatMap((item) => invoicesByCamper.get(String(item.id)) || [])
       .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))
     const linkedInvoice = latestSubmission?.invoice_id
-      ? invoices.find((invoice: any) => invoice.id === latestSubmission.invoice_id) || null
+      ? safeInvoices.find((invoice) => invoice.id === latestSubmission.invoice_id) || null
       : null
     const invoice = linkedInvoice || siteInvoices[0] || null
     const reading = [latestSubmission?.reviewed_reading, latestSubmission?.submitted_reading, latestSubmission?.detected_reading]
@@ -43,7 +112,7 @@ export function buildMonthlyBillingChecklist({ lots = [], campers = [], submissi
       noUsage = false
     }
 
-    let status = 'not_read'
+    let status: MeterBillingChecklistStatus = 'not_read'
     if (noUsage) status = 'no_bill'
     else if (invoice?.status === 'paid') status = 'paid'
     else if (invoice || latestSubmission?.invoice_id || latestSubmission?.status === 'used') status = 'invoice_created'

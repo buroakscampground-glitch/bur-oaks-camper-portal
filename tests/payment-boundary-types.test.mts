@@ -68,3 +68,17 @@ test('renewal signatures, rent continuation, reconciliation, and reminders use t
   assert.doesNotMatch(files[1], /renewal:\s*any|document:\s*any/)
   assert.doesNotMatch(files[3], /profiles:\s*any|document:\s*any|camper:\s*any|row:\s*any/)
 })
+
+test('meter capture, labels, and monthly billing use typed database and request boundaries', async () => {
+  const files = await Promise.all([
+    read('app/api/meter-readings/route.ts'),
+    read('app/api/meter-labels/route.ts'),
+    read('lib/meter-billing-checklist.ts'),
+  ])
+
+  assert.match(files[0], /type AuthenticatedContext =/)
+  assert.match(files[0], /function requestObject\(value: unknown\)/)
+  assert.match(files[1], /type AuthenticatedContext =/)
+  assert.match(files[2], /type MeterBillingChecklistInput =/)
+  for (const source of files) assert.doesNotMatch(source, /\bany\b/)
+})

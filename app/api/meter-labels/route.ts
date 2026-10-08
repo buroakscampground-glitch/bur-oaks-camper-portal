@@ -6,6 +6,10 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 
 export const runtime = 'nodejs'
 
+type AuthenticatedContext = NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>
+type MeterLabelLotRow = { lot_number?: unknown; meter_number?: string | null }
+type MeterLabelCamperRow = { lot_number?: unknown; role?: unknown; active?: boolean | null }
+
 function parseSender(value: string) {
   const match = value.trim().match(/^(.*?)<([^>]+)>$/)
   return match
@@ -13,20 +17,22 @@ function parseSender(value: string) {
     : { email: value.trim() }
 }
 
-async function loadSites(context: any) {
+async function loadSites(context: AuthenticatedContext) {
   const [{ data: lots }, { data: campers }] = await Promise.all([
     context.admin.from('lots').select('lot_number,meter_number'),
     context.admin.from('campers').select('lot_number,role,active'),
   ])
+  const lotRows = (lots || []) as MeterLabelLotRow[]
+  const camperRows = (campers || []) as MeterLabelCamperRow[]
   const meterByLot = new Map<string, string | null>()
   const sites = new Map<string, { lot_number: string; meter_number: string | null }>()
-  for (const lot of lots || []) {
+  for (const lot of lotRows) {
     const key = normalizeLotKey(lot.lot_number)
     if (!key || key === 'STAFF' || !isOperationalCamper({ lot_number: lot.lot_number, role: 'camper' })) continue
     meterByLot.set(key, lot.meter_number || null)
     sites.set(key, { lot_number: String(lot.lot_number), meter_number: lot.meter_number || null })
   }
-  for (const camper of campers || []) {
+  for (const camper of camperRows) {
     const key = normalizeLotKey(camper.lot_number)
     if (!key || camper.active === false || !isOperationalCamper(camper)) continue
     if (!sites.has(key)) sites.set(key, { lot_number: String(camper.lot_number), meter_number: meterByLot.get(key) || null })
