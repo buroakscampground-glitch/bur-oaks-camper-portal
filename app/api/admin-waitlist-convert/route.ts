@@ -156,7 +156,6 @@ export async function POST(request: Request) {
     if (createdLotId) await admin.from('lots').delete().eq('id', createdLotId)
     else if (lot && !temporarySpot) await admin.from('lots').update({ camper_id: priorLotCamperId, lot_rent_amount: priorLotRentAmount }).eq('id', lot.id)
     await admin.from('campers').delete().eq('id', createdCamper.id)
-    await admin.from('waitlist').update({ status: waitlistEntry.status, removed_at: waitlistEntry.removed_at || null }).eq('id', waitlistId)
   }
 
   if (!temporarySpot) {
@@ -214,12 +213,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Nothing was converted because the rent invoice details could not be created.' }, { status: 500 })
   }
 
-  const { error: convertedError } = await context.admin.from('waitlist').update({ status: 'Converted', removed_at: null }).eq('id', waitlistId)
-  if (convertedError) {
-    await rollback()
-    return NextResponse.json({ error: 'Nothing was converted because the waitlist record could not be updated.' }, { status: 500 })
-  }
-
   let firstPaymentRecorded = false
   if (recordFirstPayment) {
     const firstInvoice = createdInvoices.find((invoice) => invoice.due_date === rentSchedule[0].dueDate) || createdInvoices[0]
@@ -237,6 +230,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Nothing was converted because the first payment could not be recorded: ${paymentError.message}` }, { status: 500 })
     }
     firstPaymentRecorded = true
+  }
+
+  const { error: convertedError } = await context.admin.rpc('record_waitlist_activity_atomic', {
+    p_waitlist_id: waitlistId,
+    p_activity_type: 'converted',
+    p_detail: temporarySpot
+      ? `Converted to temporary portal camper record ${camper.id}; permanent campsite still pending.`
+      : `Converted to camper record ${camper.id} at Site ${lotNumber}.`,
+    p_occurred_at: new Date().toISOString(),
+    p_follow_up_on: null,
+    p_new_status: 'Converted',
+    p_recorded_by: context.user.email || 'office',
+    p_converted_camper_id: camper.id,
+  })
+  if (convertedError) {
+    await rollback()
+    return NextResponse.json({ error: 'Nothing was converted because the protected prospect history could not be updated.' }, { status: 500 })
   }
 
   let welcomeDelivery: 'not_requested' | 'sent' | 'manual' = 'not_requested'

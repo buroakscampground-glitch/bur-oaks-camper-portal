@@ -2,17 +2,66 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, ArrowRight, CheckCircle2, Clock3, LoaderCircle, Mail, Phone, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, CalendarClock, CheckCircle2, Clock3, History, LoaderCircle, Mail, Phone, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { canConvertWaitlistStatus, NEW_CAMPER_ANNUAL_RENT, NEW_CAMPER_ASSOCIATION_FEE, NEW_CAMPER_INSTALLMENT, TEMPORARY_SITE_OPTION, waitlistWelcomeCopy } from '../../../lib/waitlist-conversion'
-import { summarizeWaitlistFollowUp } from '../../../lib/waitlist-follow-up'
+import { summarizeProspectPipeline, summarizeWaitlistFollowUp } from '../../../lib/waitlist-follow-up'
+
+type WaitlistPerson = {
+  id: string
+  created_at?: string | null
+  updated_at?: string | null
+  first_name?: string | null
+  last_name?: string | null
+  phone?: string | null
+  email?: string | null
+  desired_site?: string | null
+  notes?: string | null
+  status?: string | null
+  last_check_in_at?: string | null
+  removed_at?: string | null
+  last_contact_at?: string | null
+  next_follow_up_on?: string | null
+  tour_scheduled_at?: string | null
+  tour_completed_at?: string | null
+  offer_made_at?: string | null
+  converted_at?: string | null
+  converted_camper_id?: string | null
+}
+
+type WaitlistActivity = {
+  id: string
+  waitlist_id: string
+  activity_type: string
+  detail?: string | null
+  occurred_at: string
+  follow_up_on?: string | null
+  recorded_by?: string | null
+}
+
+type ConversionResult = {
+  camperId?: string
+  existing?: boolean
+  temporarySpot?: boolean
+  camperName?: string
+  lotNumber?: string
+  firstPaymentRecorded?: boolean
+  welcomeDelivery?: 'not_requested' | 'sent' | 'manual'
+  warning?: string
+  setupUrl?: string
+}
 
 const siteKey = (value: unknown) => String(value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date())
+const localDateTime = () => {
+  const now = new Date(Date.now() - new Date().getTimezoneOffset() * 60_000)
+  return now.toISOString().slice(0, 16)
+}
 
 export default function WaitlistPage() {
-  const [people, setPeople] = useState<any[]>([])
+  const [people, setPeople] = useState<WaitlistPerson[]>([])
+  const [activities, setActivities] = useState<WaitlistActivity[]>([])
   const [vacantSites, setVacantSites] = useState<string[]>([])
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -24,14 +73,18 @@ export default function WaitlistPage() {
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
-  const [conversionPerson, setConversionPerson] = useState<any | null>(null)
+  const [conversionPerson, setConversionPerson] = useState<WaitlistPerson | null>(null)
   const [conversionForm, setConversionForm] = useState({ firstName: '', lastName: '', phone: '', email: '', lotNumber: '', contractStartDate: today() })
   const [recordFirstPayment, setRecordFirstPayment] = useState(false)
   const [paymentForm, setPaymentForm] = useState({ method: 'Check', receivedOn: today(), reference: '' })
   const [sendWelcome, setSendWelcome] = useState(true)
   const [converting, setConverting] = useState(false)
   const [conversionError, setConversionError] = useState('')
-  const [conversionResult, setConversionResult] = useState<any | null>(null)
+  const [conversionResult, setConversionResult] = useState<ConversionResult | null>(null)
+  const [activityPerson, setActivityPerson] = useState<WaitlistPerson | null>(null)
+  const [activityForm, setActivityForm] = useState({ activityType: 'call', occurredAt: localDateTime(), followUpOn: '', newStatus: 'Contacted', detail: '' })
+  const [savingActivity, setSavingActivity] = useState(false)
+  const [activityError, setActivityError] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
   const router = useRouter()
@@ -41,18 +94,20 @@ export default function WaitlistPage() {
   async function loadWaitlist() {
     setLoading(true)
     setLoadError('')
-    const [waitlistResult, lotResult, camperResult] = await Promise.all([
+    const [waitlistResult, activityResult, lotResult, camperResult] = await Promise.all([
       supabase.from('waitlist').select('*').order('created_at', { ascending: false }),
+      supabase.from('waitlist_activities').select('id,waitlist_id,activity_type,detail,occurred_at,follow_up_on,recorded_by').order('occurred_at', { ascending: false }).limit(1000),
       supabase.from('lots').select('lot_number').order('lot_number', { ascending: true }),
       supabase.from('campers').select('lot_number,role,active').eq('active', true),
     ])
 
-    if (waitlistResult.error || lotResult.error || camperResult.error) {
-      setLoadError('The waitlist, site roster, or camper roster could not be loaded. Changes are blocked until all three are available.')
+    if (waitlistResult.error || activityResult.error || lotResult.error || camperResult.error) {
+      setLoadError('The prospect queue, activity history, site roster, or camper roster could not be loaded. Changes are blocked until every source is available.')
       setLoading(false)
       return
     }
-    setPeople(waitlistResult.data || [])
+    setPeople((waitlistResult.data || []) as WaitlistPerson[])
+    setActivities((activityResult.data || []) as WaitlistActivity[])
     const occupied = new Set((camperResult.data || [])
       .filter(isOperationalCamper)
       .map((camper) => siteKey(camper.lot_number))
@@ -83,31 +138,66 @@ export default function WaitlistPage() {
     loadWaitlist()
   }
 
-  async function updateStatus(id: string, newStatus: string) {
-    const { error } = await supabase.from('waitlist').update({
-      status: newStatus,
-      removed_at: newStatus === 'Removed' ? new Date().toISOString() : null,
-    }).eq('id', id)
-    if (error) {
-      setMessage(error.message)
-      return
-    }
-    setMessage('Status updated.')
-    loadWaitlist()
+  async function saveActivity(payload: { waitlistId: string, activityType: string, occurredAt?: string, followUpOn?: string, newStatus?: string, detail?: string }) {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) throw new Error('Your admin login expired. Sign in again and retry.')
+    const response = await fetch('/api/admin-waitlist-activity', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const result = await response.json().catch(() => ({}))
+    if (!response.ok) throw new Error(result.error || 'The activity could not be saved.')
   }
 
-  async function deletePerson(id: string) {
-    if (!confirm('Delete this waitlist entry?')) return
-    const { error } = await supabase.from('waitlist').delete().eq('id', id)
-    if (error) {
-      setMessage(error.message)
-      return
+  async function updateStatus(person: WaitlistPerson, newStatus: string) {
+    if (newStatus === person.status) return
+    if (newStatus === 'Removed' && !confirm(`Remove ${person.first_name || 'this person'} from the active prospect queue? Their history will be kept.`)) return
+    try {
+      await saveActivity({
+        waitlistId: person.id,
+        activityType: 'status_changed',
+        newStatus,
+        detail: `Status changed from ${person.status || 'Waiting'} to ${newStatus}.`,
+      })
+      setMessage(newStatus === 'Removed' ? 'Removed from the active queue. The full history was preserved.' : 'Status and history updated.')
+      await loadWaitlist()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The status could not be updated.')
     }
-    setMessage('Waitlist entry deleted.')
-    loadWaitlist()
   }
 
-  function openConversion(person: any) {
+  function openActivity(person: WaitlistPerson, activityType = 'call') {
+    const defaultStatus = ['call', 'email', 'tour_completed', 'offer_made'].includes(activityType) ? 'Contacted' : ''
+    setActivityPerson(person)
+    setActivityForm({ activityType, occurredAt: localDateTime(), followUpOn: person.next_follow_up_on || '', newStatus: defaultStatus, detail: '' })
+    setActivityError('')
+  }
+
+  function closeActivity() {
+    if (savingActivity) return
+    setActivityPerson(null)
+    setActivityError('')
+  }
+
+  async function submitActivity() {
+    if (!activityPerson) return
+    setSavingActivity(true)
+    setActivityError('')
+    try {
+      await saveActivity({ waitlistId: activityPerson.id, ...activityForm })
+      setMessage('Prospect activity and next step saved.')
+      setActivityPerson(null)
+      await loadWaitlist()
+    } catch (error) {
+      setActivityError(error instanceof Error ? error.message : 'The activity could not be saved.')
+    } finally {
+      setSavingActivity(false)
+    }
+  }
+
+  function openConversion(person: WaitlistPerson) {
     setConversionPerson(person)
     setConversionForm({ firstName: String(person.first_name || ''), lastName: String(person.last_name || ''), phone: String(person.phone || ''), email: String(person.email || ''), lotNumber: '', contractStartDate: today() })
     setRecordFirstPayment(false)
@@ -177,14 +267,14 @@ export default function WaitlistPage() {
     }
   }
 
-  const counts = useMemo(() => ({
-    Waiting: people.filter((person) => person.status === 'Waiting').length,
-    Contacted: people.filter((person) => person.status === 'Contacted').length,
-    Accepted: people.filter((person) => person.status === 'Accepted').length,
-    Converted: people.filter((person) => person.status === 'Converted').length,
-    Declined: people.filter((person) => person.status === 'Declined').length,
-    Removed: people.filter((person) => person.status === 'Removed').length,
-  }), [people])
+  const pipeline = useMemo(() => summarizeProspectPipeline(people), [people])
+  const counts = {
+    'Active prospects': pipeline.active,
+    'Needs action': pipeline.needsFollowUp,
+    'Tours scheduled': pipeline.tours,
+    'Offers / accepted': pipeline.offers,
+    'Converted · 30d': pipeline.converted30Days,
+  }
 
   const visiblePeople = people
     .map((person) => ({ person, followUp: summarizeWaitlistFollowUp(person) }))
@@ -233,15 +323,16 @@ export default function WaitlistPage() {
             <div className="admin-waitlist-list">
               {visiblePeople.map(({ person, followUp }) => (
                 <article key={person.id}>
-                  <header><div><span>{person.first_name?.[0] || '?'}{person.last_name?.[0] || ''}</span><div><h3>{person.first_name} {person.last_name}</h3><small>{person.phone || 'No phone'} · {person.email || 'No email'}</small></div></div><em>{person.status}</em></header>
+                  <header><div><span>{person.first_name?.[0] || '?'}{person.last_name?.[0] || ''}</span><div><h3>{person.first_name} {person.last_name}</h3><small>{person.phone || 'No phone'} · {person.email || 'No email'}</small></div></div><em>{followUp.stage}</em></header>
                   <div className={`admin-waitlist-next-action${followUp.needsFollowUp ? ' needs-follow-up' : ''}`}><Clock3 size={15} /><span><small>{followUp.ageLabel} · {followUp.source}{followUp.tourRequested ? ' · Tour requested' : ''}</small><strong>{followUp.nextAction}</strong></span></div>
-                  <dl><div><dt>Camper setup</dt><dd>{followUp.camperSummary}</dd></div><div><dt>Site preference</dt><dd>{person.desired_site || 'Not provided'}</dd></div><div><dt>Last automatic check-in</dt><dd>{person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent'}</dd></div>{person.notes && <div className="wide"><dt>Notes</dt><dd>{person.notes}</dd></div>}</dl>
+                  <dl><div><dt>Camper setup</dt><dd>{followUp.camperSummary}</dd></div><div><dt>Site preference</dt><dd>{person.desired_site || 'Not provided'}</dd></div><div><dt>Last personal contact</dt><dd>{followUp.lastContactLabel}</dd></div><div><dt>Tour</dt><dd>{followUp.tourLabel}</dd></div><div><dt>Next follow-up</dt><dd>{followUp.followUpOn || 'Not scheduled'}</dd></div><div><dt>Last automatic check-in</dt><dd>{person.last_check_in_at ? new Date(person.last_check_in_at).toLocaleDateString() : 'Not sent'}</dd></div>{person.notes && <div className="wide"><dt>Original notes</dt><dd>{person.notes}</dd></div>}</dl>
+                  {activities.some((activity) => activity.waitlist_id === person.id) && <div className="admin-prospect-mini-history"><small><History size={13} /> Recent history</small>{activities.filter((activity) => activity.waitlist_id === person.id).slice(0, 3).map((activity) => <p key={activity.id}><strong>{activity.activity_type.replaceAll('_', ' ')}</strong><span>{activity.detail || 'No note'} · {new Date(activity.occurred_at).toLocaleDateString()}</span></p>)}</div>}
                   <footer>
                     {canConvertWaitlistStatus(person.status) && <button className="convert" type="button" onClick={() => openConversion(person)}><UserPlus size={16} /> Convert to Camper</button>}
-                    {person.phone && <a className="contact" href={`tel:${String(person.phone).replace(/[^+\d]/g, '')}`}><Phone size={14} /> Call</a>}
-                    {person.email && <a className="contact" href={`mailto:${encodeURIComponent(String(person.email))}`}><Mail size={14} /> Email</a>}
-                    <select aria-label={`Change status for ${person.first_name} ${person.last_name}`} value={person.status} onChange={(event) => updateStatus(person.id, event.target.value)}><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Declined</option><option>Removed</option>{person.status === 'Converted' && <option>Converted</option>}</select>
-                    <button className="delete" type="button" onClick={() => deletePerson(person.id)}>Delete</button>
+                    <button className="activity" type="button" onClick={() => openActivity(person)}><Activity size={15} /> Log activity</button>
+                    {person.phone && <a className="contact" href={`tel:${String(person.phone).replace(/[^+\d]/g, '')}`} onClick={() => openActivity(person, 'call')}><Phone size={14} /> Call</a>}
+                    {person.email && <a className="contact" href={`mailto:${encodeURIComponent(String(person.email))}`} onClick={() => openActivity(person, 'email')}><Mail size={14} /> Email</a>}
+                    <select aria-label={`Change status for ${person.first_name} ${person.last_name}`} value={person.status || 'Waiting'} onChange={(event) => updateStatus(person, event.target.value)}><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Declined</option><option>Removed</option>{person.status === 'Converted' && <option>Converted</option>}</select>
                   </footer>
                 </article>
               ))}
@@ -287,6 +378,24 @@ export default function WaitlistPage() {
                 <footer><button type="button" onClick={closeConversion}>Cancel</button><button className="primary" type="button" onClick={convertToCamper} disabled={converting}>{converting ? <LoaderCircle className="admin-spin" size={17} /> : <Mail size={17} />}{converting ? 'Creating camper…' : sendWelcome ? 'Create Camper & Send Welcome' : 'Create Camper'}</button></footer>
               </>
             )}
+          </section>
+        </div>
+      )}
+
+      {activityPerson && (
+        <div className="admin-waitlist-modal-backdrop" role="dialog" aria-modal="true" aria-label="Log prospect activity">
+          <section className="admin-waitlist-modal admin-prospect-activity-modal">
+            <header><div><small>PROSPECT HISTORY</small><h2>{activityPerson.first_name} {activityPerson.last_name}</h2></div><button type="button" onClick={closeActivity} aria-label="Close"><X size={20} /></button></header>
+            <div className="admin-prospect-activity-grid">
+              <label><span>Activity</span><select value={activityForm.activityType} onChange={(event) => setActivityForm((current) => ({ ...current, activityType: event.target.value }))}><option value="call">Phone call</option><option value="email">Email</option><option value="tour_scheduled">Tour scheduled</option><option value="tour_completed">Tour completed</option><option value="offer_made">Offer made</option><option value="follow_up">Follow-up scheduled</option><option value="note">Office note</option></select></label>
+              <label><span>{activityForm.activityType === 'tour_scheduled' ? 'Tour date and time' : 'Activity date and time'}</span><input type="datetime-local" value={activityForm.occurredAt} onChange={(event) => setActivityForm((current) => ({ ...current, occurredAt: event.target.value }))} /></label>
+              <label><span>Next follow-up</span><input type="date" value={activityForm.followUpOn} onChange={(event) => setActivityForm((current) => ({ ...current, followUpOn: event.target.value }))} /></label>
+              <label><span>Update status</span><select value={activityForm.newStatus} onChange={(event) => setActivityForm((current) => ({ ...current, newStatus: event.target.value }))}><option value="">Keep current status</option><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Declined</option><option>Removed</option></select></label>
+              <label className="wide"><span>Private office note</span><textarea rows={4} maxLength={2000} placeholder="What happened, what matters, and what comes next?" value={activityForm.detail} onChange={(event) => setActivityForm((current) => ({ ...current, detail: event.target.value }))} /></label>
+            </div>
+            <section className="admin-prospect-full-history"><h3><History size={16} /> Activity timeline</h3>{activities.filter((activity) => activity.waitlist_id === activityPerson.id).length === 0 ? <p>No activity has been logged yet.</p> : activities.filter((activity) => activity.waitlist_id === activityPerson.id).map((activity) => <article key={activity.id}><span>{activity.activity_type.replaceAll('_', ' ')}</span><div><strong>{new Date(activity.occurred_at).toLocaleString()}</strong><p>{activity.detail || 'No note'}</p>{activity.follow_up_on && <small>Follow up: {activity.follow_up_on}</small>}</div></article>)}</section>
+            {activityError && <p className="admin-waitlist-conversion-error">{activityError}</p>}
+            <footer><button type="button" onClick={closeActivity}>Cancel</button><button className="primary" type="button" onClick={submitActivity} disabled={savingActivity}>{savingActivity ? <LoaderCircle className="admin-spin" size={17} /> : <CalendarClock size={17} />}{savingActivity ? 'Saving…' : 'Save activity'}</button></footer>
           </section>
         </div>
       )}

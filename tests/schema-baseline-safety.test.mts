@@ -66,6 +66,7 @@ test('Admin-only financial RPCs are never granted to browser roles', () => {
     'void_account_credit_audited',
     'delete_invoice_with_audit_atomic',
     'record_manual_payment_audited',
+    'record_waitlist_activity_atomic',
     'remove_invoice_late_fee_audited',
     'set_camper_active_audited',
     'update_camper_profile_audited',

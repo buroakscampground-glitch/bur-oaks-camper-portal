@@ -12,6 +12,7 @@ const fixturePumpOutId = '10000000-0000-4000-8000-000000000090'
 const meterInvoiceNumber = 'STAGING-METER-WRITE-0001'
 const meterOperationKey = 'staging-meter-write-0001'
 const meterReading = 987654
+const prospectId = '10000000-0000-4000-8000-000000000099'
 let stripeInvoiceId = ''
 let stripeInvoiceItemId = ''
 let stripeEventId = ''
@@ -104,6 +105,11 @@ async function cleanupCredits(admin: SupabaseClient) {
   if (deleted.error) throw deleted.error
 }
 
+async function cleanupProspect(admin: SupabaseClient) {
+  const deleted = await admin.from('waitlist').delete().eq('id', prospectId)
+  if (deleted.error) throw deleted.error
+}
+
 async function cleanupMeterBilling(admin: SupabaseClient) {
   const submissions = await admin.from('meter_reading_submissions').select('id,photo_path').eq('lot_number', 'TEST-01').eq('submitted_reading', meterReading)
   if (submissions.error) throw submissions.error
@@ -168,6 +174,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupPumpOut(admin)
     await cleanupDocument(admin)
     await cleanupCredits(admin)
+    await cleanupProspect(admin)
     await cleanupMeterBilling(admin)
     await cleanupStripeBilling(admin)
   })
@@ -178,6 +185,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupPumpOut(admin)
     await cleanupDocument(admin)
     await cleanupCredits(admin)
+    await cleanupProspect(admin)
     await cleanupMeterBilling(admin)
     await cleanupStripeBilling(admin)
   })
@@ -273,6 +281,48 @@ test.describe.serial('reversible staging write journeys', () => {
     const camperAttempt = await anon.rpc('create_account_credit_audited', args)
     expect(camperAttempt.error).toBeTruthy()
     expect(['42501', 'PGRST202']).toContain(camperAttempt.error?.code)
+  })
+
+  test('administrator logs one prospect follow-up while browser roles remain read-only', async ({ request }) => {
+    const { anon, admin } = clients()
+    const seeded = await admin.from('waitlist').insert({
+      id: prospectId,
+      first_name: 'Staging',
+      last_name: 'Prospect',
+      email: 'staging.prospect@staging.buroaks.invalid',
+      status: 'Waiting',
+      notes: 'STAGING-WRITE-PROSPECT fictional record; never contact.',
+    })
+    expect(seeded.error).toBeNull()
+
+    const token = await tokenFor(anon, 'office.admin@staging.buroaks.invalid', 'BUR_OAKS_STAGING_ADMIN_PASSWORD')
+    const followUpOn = new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10)
+    const saved = await request.post('/api/admin-waitlist-activity', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: {
+        waitlistId: prospectId,
+        activityType: 'call',
+        occurredAt: new Date().toISOString(),
+        followUpOn,
+        newStatus: 'Contacted',
+        detail: 'STAGING WRITE spoke with fictional prospect.',
+      },
+    })
+    expect(saved.status()).toBe(200)
+    expect(await saved.json()).toMatchObject({ success: true })
+
+    const prospect = await admin.from('waitlist').select('status,last_contact_at,next_follow_up_on').eq('id', prospectId).single()
+    expect(prospect.error).toBeNull()
+    expect(prospect.data?.status).toBe('Contacted')
+    expect(prospect.data?.last_contact_at).toBeTruthy()
+    expect(prospect.data?.next_follow_up_on).toBe(followUpOn)
+    const history = await admin.from('waitlist_activities').select('activity_type,detail').eq('waitlist_id', prospectId)
+    expect(history.error).toBeNull()
+    expect(history.data).toEqual([{ activity_type: 'call', detail: 'STAGING WRITE spoke with fictional prospect.' }])
+
+    const browserWrite = await anon.from('waitlist_activities').insert({ waitlist_id: prospectId, activity_type: 'note', detail: 'must be blocked' })
+    expect(browserWrite.error).toBeTruthy()
+    expect(browserWrite.error?.code).toBe('42501')
   })
 
   test('meter photo produces one review record and one reversible electric bill', async ({ request }) => {

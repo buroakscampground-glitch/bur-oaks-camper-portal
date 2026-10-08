@@ -139,7 +139,7 @@ test('remaining office rosters and action queues fail closed instead of looking 
   const checks = [
     ['app/admin/settings/page.tsx', /app_settings.*select\('key'\)/s, /Campground settings are temporarily unavailable/],
     ['app/admin/lots/page.tsx', /lotResult\.error \|\| camperResult\.error/, /Lots and sites are temporarily unavailable/],
-    ['app/admin/waitlist/page.tsx', /waitlistResult\.error \|\| lotResult\.error \|\| camperResult\.error/, /Waitlist is temporarily unavailable/],
+    ['app/admin/waitlist/page.tsx', /waitlistResult\.error \|\| activityResult\.error \|\| lotResult\.error \|\| camperResult\.error/, /Waitlist is temporarily unavailable/],
     ['app/admin/site-care/page.tsx', /camperResult\.error \|\| noticeResult\.error/, /Site care is temporarily unavailable/],
     ['app/admin/notifications/page.tsx', /Handling controls are blocked/, /Notifications are temporarily unavailable/],
     ['app/admin/directory/page.tsx', /No roster is being shown as empty/, /Camper directory is temporarily unavailable/],
