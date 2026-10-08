@@ -619,7 +619,7 @@ export default function InvoicesPage() {
                               </span>
                               <strong>{formatMoney(invoice.total_due)}</strong>
                               <div>
-                                <a href={`/invoices/${invoice.id}?family=1`}>View invoice</a>
+                                <a href={`/invoices/${invoice.id}?family=1`}>{isPaid ? 'View receipt' : 'View invoice'}</a>
                                 {!isPaid && !isProcessing && (
                                   <button
                                     type="button"
@@ -830,7 +830,7 @@ export default function InvoicesPage() {
                       </div>
                       <div className="account-invoice-action">
                         <a className="account-view-invoice" href={`/invoices/${invoice.id}`}>
-                          View invoice
+                          {isPaid ? 'View receipt' : 'View invoice'}
                         </a>
                         {isProcessing ? (
                           <span className="account-processing-mark"><Hourglass size={17} /> {achExpectedLabel(invoice) || 'Processing'} · Do not pay again</span>

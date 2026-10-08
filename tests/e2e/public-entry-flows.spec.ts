@@ -371,6 +371,73 @@ async function installSyntheticCamperWriteSession(page: Page) {
   }
 }
 
+async function installSyntheticPaymentReceiptSession(page: Page) {
+  let paymentState: 'paid' | 'credited' | 'processing' = 'paid'
+  const now = Math.floor(Date.now() / 1000)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'receipt-check-user', email: 'receipt-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.receipt-check`
+  const user = { id: 'receipt-check-user', aud: 'authenticated', role: 'authenticated', email: 'receipt-check@example.invalid', user_metadata: {}, app_metadata: {}, created_at: new Date(0).toISOString() }
+  const camper = { id: 'receipt-check-camper', lot_number: 'TEST', first_name: 'Receipt', last_name: 'Check', email: user.email, role: 'camper', active: true }
+
+  function invoice() {
+    return {
+      id: 'receipt-check-invoice',
+      camper_id: camper.id,
+      invoice_number: 'TEST-100',
+      invoice_type: 'Quarterly Lot Rent',
+      subtotal: 500,
+      late_fee: 0,
+      total_due: paymentState === 'credited' ? 0 : 500,
+      due_date: '2026-10-01',
+      status: paymentState === 'processing' ? 'processing' : 'paid',
+      paid_at: paymentState === 'processing' ? null : '2026-10-07T15:15:00.000Z',
+      payment_method: paymentState === 'paid' ? 'Online card' : paymentState === 'credited' ? 'Paid by account credit' : 'Online ACH processing',
+      ach_expected_date: paymentState === 'processing' ? '2026-10-12' : null,
+      invoice_items: [{ id: 'receipt-check-item', description: 'Quarterly Lot Rent', quantity: 1, unit_price: 500, total: 500 }],
+    }
+  }
+
+  await page.addInitScript(({ session }) => {
+    const originalGetItem = Storage.prototype.getItem
+    Storage.prototype.getItem = function getItem(key: string) {
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) return JSON.stringify(session)
+      return originalGetItem.call(this, key)
+    }
+  }, { session: { access_token: accessToken, refresh_token: 'receipt-check-refresh', token_type: 'bearer', expires_in: 3600, expires_at: now + 3600, user } })
+
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/.*/, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/auth/v1/user') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
+      return
+    }
+    if (url.pathname === '/rest/v1/campers') {
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '0-0/1' }, body: JSON.stringify([camper]) })
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '*/0' }, body: '[]' })
+  })
+
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    const payloads: Record<string, object> = {
+      '/api/camper-invoices': { camper, invoice: invoice(), invoices: [invoice()], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
+      '/api/authorized-billing': { accounts: [] },
+      '/api/camper-meter-photos': { photos: [] },
+    }
+    await route.fulfill({ status: payloads[pathname] ? 200 : 503, contentType: 'application/json', body: JSON.stringify(payloads[pathname] || { error: 'Synthetic receipt-check boundary' }) })
+  })
+
+  return {
+    showCredited() {
+      paymentState = 'credited'
+    },
+    showProcessing() {
+      paymentState = 'processing'
+    },
+  }
+}
+
 test('health endpoint identifies the release without caching or customer data', async ({ request }) => {
   const response = await request.get('/api/health')
   expect(response.ok()).toBeTruthy()
@@ -554,6 +621,38 @@ test('camper pump-out explains duplicate, rejection, and unknown results safely'
   await expect(page.getByRole('status')).toContainText('could not confirm whether your pump-out request was saved')
   await expect(page.locator('.portal-premium-pump')).toBeEnabled()
   expect(synthetic.pumpPosts()).toBe(3)
+})
+
+test('camper payment detail separates a confirmed receipt from a payment still processing', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated receipt and processing states.')
+  const synthetic = await installSyntheticPaymentReceiptSession(page)
+
+  await page.goto('/invoices/receipt-check-invoice')
+  await expect(page.getByRole('heading', { name: 'Payment recorded' })).toBeVisible()
+  await expect(page.getByText('Amount received').locator('..')).toContainText('$500.00')
+  await expect(page.getByText('Paid on').locator('..')).toContainText('October 7, 2026')
+  await expect(page.getByText('Method').locator('..')).toContainText('Online card')
+  await expect(page.getByText('Applied to').locator('..')).toContainText('Invoice #TEST-100')
+  const printReceipt = page.getByRole('button', { name: 'Print receipt' })
+  expect((await printReceipt.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await expect(page.getByRole('button', { name: /Pay by/ })).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+
+  synthetic.showCredited()
+  await page.reload()
+  const creditReceipt = page.locator('.camper-payment-receipt')
+  await expect(creditReceipt.getByRole('heading', { name: 'Account credit applied' })).toBeVisible()
+  await expect(creditReceipt.getByText('Amount credited').locator('..')).toContainText('$500.00')
+  await expect(creditReceipt.getByText('Method').locator('..')).toContainText('Paid by account credit')
+  await expect(page.getByRole('button', { name: /Pay by/ })).toHaveCount(0)
+
+  synthetic.showProcessing()
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'This is not a receipt yet.' })).toBeVisible()
+  await expect(page.getByText(/please do not pay this invoice again/i)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Payment recorded' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Pay by/ })).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
 })
 
 test('weak-connection recovery is actionable and contained on priority camper screens', async ({ page }, testInfo) => {

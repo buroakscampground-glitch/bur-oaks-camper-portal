@@ -27,7 +27,7 @@ import {
 import { saveSmsConsentPreference } from '../../../lib/sms-consent'
 import InvoiceSmsOptInAlert from '../../components/invoice-sms-opt-in-alert'
 import { printPageWithFlag } from '../../../lib/print-page'
-import { isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
+import { invoiceRecordedTotal, isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
 import { achExpectedLabel } from '../../../lib/ach-expected-date'
 
 function formatMoney(value: unknown) {
@@ -47,6 +47,23 @@ function formatDate(value?: string) {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
+  })
+}
+
+function formatPaymentDate(value?: string) {
+  if (!value) return 'Recorded as paid'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+
+  return date.toLocaleString('en-US', {
+    timeZone: 'America/Chicago',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
   })
 }
 
@@ -305,6 +322,8 @@ export default function CamperInvoiceDetailPage() {
   const isClosed = isInvoiceClosed(invoice)
   const subtotal = items.reduce((sum, item) => sum + Number(item.total || 0), 0)
   const invoiceBalance = Number(invoice.total_due || 0)
+  const recordedTotal = invoiceRecordedTotal(invoice)
+  const paidByAccountCredit = /account credit/i.test(String(invoice.payment_method || ''))
   const enteredPaymentTotal = Math.min(10_000, Math.max(0, Number(paymentTotal) || 0))
   const paymentUnderAmount = enteredPaymentTotal > 0 && enteredPaymentTotal < invoiceBalance
   const paymentSubtotal = Math.max(invoiceBalance, enteredPaymentTotal || invoiceBalance)
@@ -352,8 +371,8 @@ export default function CamperInvoiceDetailPage() {
             <strong>{formatDate(invoice.due_date)}</strong>
           </article>
           <article>
-            <small>{isClosed ? 'Canceled amount — not due' : 'Total due'}</small>
-            <strong>{formatMoney(invoice.total_due)}</strong>
+            <small>{isPaid ? (paidByAccountCredit ? 'Amount credited' : 'Amount paid') : isClosed ? 'Canceled amount — not due' : 'Total due'}</small>
+            <strong>{formatMoney(isPaid ? recordedTotal : invoice.total_due)}</strong>
           </article>
         </section>
 
@@ -439,7 +458,7 @@ export default function CamperInvoiceDetailPage() {
           <div className="camper-invoice-total-box">
             <p><span>Subtotal</span><strong>{formatMoney(subtotal || invoice.subtotal || invoice.total_due)}</strong></p>
             <p><span>Late fee</span><strong>{formatMoney(invoice.late_fee)}</strong></p>
-            <p className="grand-total"><span>{isClosed ? 'Canceled invoice amount — nothing due' : 'Total due'}</span><strong>{formatMoney(invoice.total_due)}</strong></p>
+            <p className="grand-total"><span>{isPaid ? (paidByAccountCredit ? 'Amount satisfied by account credit' : 'Amount paid') : isClosed ? 'Canceled invoice amount — nothing due' : 'Total due'}</span><strong>{formatMoney(isPaid ? recordedTotal : invoice.total_due)}</strong></p>
             {!isPaid && !isProcessing && !isClosed && (
               <>
                 <p><span>{paymentMethod === 'ach' ? achProcessingFeeLabel : feeSettings.label}</span><strong>{formatMoney(processingFee)}</strong></p>
@@ -453,6 +472,40 @@ export default function CamperInvoiceDetailPage() {
               </>
             )}
           </div>
+
+          {isPaid && (
+            <section className="camper-payment-receipt" aria-labelledby="camper-payment-receipt-title">
+              <header>
+                <span><ReceiptText size={22} /></span>
+                <div>
+                  <small>PAYMENT RECEIPT</small>
+                  <h2 id="camper-payment-receipt-title">{paidByAccountCredit ? 'Account credit applied' : 'Payment recorded'}</h2>
+                  <p>This invoice is complete. Nothing else is due on it.</p>
+                </div>
+              </header>
+              <div className="camper-payment-receipt-grid">
+                <article><small>{paidByAccountCredit ? 'Amount credited' : 'Amount received'}</small><strong>{formatMoney(recordedTotal)}</strong></article>
+                <article><small>{paidByAccountCredit ? 'Credit applied' : 'Paid on'}</small><strong>{formatPaymentDate(invoice.paid_at)}</strong></article>
+                <article><small>Method</small><strong>{invoice.payment_method || 'Payment recorded by Bur Oaks'}</strong></article>
+                <article><small>Applied to</small><strong>Invoice #{invoice.invoice_number}</strong></article>
+              </div>
+              <footer>
+                <p><CheckCircle2 size={16} /> Billing &amp; Payments is the source of truth for this receipt.</p>
+                <button type="button" onClick={printInvoice}><Printer size={16} /> Print receipt</button>
+              </footer>
+            </section>
+          )}
+
+          {isProcessing && (
+            <section className="camper-payment-pending" aria-labelledby="camper-payment-pending-title">
+              <Hourglass size={22} />
+              <div>
+                <small>PAYMENT IN PROGRESS</small>
+                <h2 id="camper-payment-pending-title">This is not a receipt yet.</h2>
+                <p>{achExpectedLabel(invoice, 'long') || 'Your bank payment is still processing.'} Please do not pay this invoice again. A printable receipt will appear here after the payment is confirmed.</p>
+              </div>
+            </section>
+          )}
 
           <div className="camper-invoice-detail-actions">
             {isPaid ? (
