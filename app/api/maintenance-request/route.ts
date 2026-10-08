@@ -7,6 +7,14 @@ import { checkRateLimit } from '../../../lib/rate-limit'
 
 export const runtime = 'nodejs'
 
+function requestObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback
+}
+
 export async function POST(request: Request) {
   const rateLimit = await checkRateLimit(request, 'maintenance-request', 10, 10 * 60_000)
   if (!rateLimit.allowed) return NextResponse.json({ error: 'Too many maintenance requests. Please wait and try again.' }, { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } })
@@ -17,7 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = requestObject(await request.json().catch(() => ({})))
   const title = String(body.title || '').trim().slice(0, 120)
   const description = String(body.description || '').trim().slice(0, 5000)
   const requestedCategory = String(body.category || 'General').trim()
@@ -116,18 +124,18 @@ export async function POST(request: Request) {
         actionLabel: 'Review request',
       })
 
-      if ((emailResult as any)?.skipped) {
+      if (emailResult.skipped) {
         emailStatus = 'skipped'
-        emailMessage = (emailResult as any)?.reason || 'Email alert is not configured.'
+        emailMessage = emailResult.reason || 'Email alert is not configured.'
       } else {
         console.info('Maintenance request alert email sent:', {
           ticketId: ticket.id,
-          resendId: (emailResult as any)?.id,
+          providerMessageId: emailResult.id,
         })
       }
-    } catch (emailError: any) {
+    } catch (emailError: unknown) {
       emailStatus = 'failed'
-      emailMessage = emailError?.message || 'Admin alert email failed.'
+      emailMessage = errorMessage(emailError, 'Admin alert email failed.')
       console.error('Maintenance alert email failed:', emailError)
     }
 
@@ -137,8 +145,8 @@ export async function POST(request: Request) {
       emailStatus,
       emailMessage,
     })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Maintenance request submit failed:', error)
-    return NextResponse.json({ error: error?.message || 'Unable to submit maintenance request.' }, { status: 500 })
+    return NextResponse.json({ error: errorMessage(error, 'Unable to submit maintenance request.') }, { status: 500 })
   }
 }

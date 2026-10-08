@@ -4,6 +4,10 @@ import { printCompletedMaintenanceWorkOrder } from '../../../lib/maintenance-wor
 
 export const runtime = 'nodejs'
 
+function requestObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
 export async function POST(request: Request) {
   const context = await getAuthenticatedContext(request)
   const role = String(context?.camper?.role || '').toLowerCase()
@@ -11,7 +15,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Only an admin or maintenance team member can print a completed work order.' }, { status: 403 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = requestObject(await request.json().catch(() => ({})))
   const ticketId = String(body?.ticketId || '').trim()
   if (!ticketId) return NextResponse.json({ error: 'A work order is required.' }, { status: 400 })
 
@@ -24,7 +28,7 @@ export async function POST(request: Request) {
         ? result.reason
         : 'Completed work order sent to the first Epson printer for the office files.',
     })
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'The completed work order could not be printed.' }, { status: 502 })
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'The completed work order could not be printed.' }, { status: 502 })
   }
 }

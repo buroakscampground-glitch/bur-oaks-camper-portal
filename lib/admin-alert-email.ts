@@ -18,6 +18,14 @@ type AdminAlertEmailInput = {
 
 type EmailProvider = 'sendgrid' | 'resend'
 
+export type AdminAlertEmailResult = {
+  provider?: EmailProvider
+  id?: string | null
+  recipients?: number
+  skipped?: boolean
+  reason?: string
+}
+
 export function adminAlertEmailConfigured() {
   return Boolean(process.env.SENDGRID_API_KEY || process.env.RESEND_API_KEY)
 }
@@ -128,7 +136,7 @@ export async function sendAdminAlertEmail({
   actionLabel = 'Open admin portal',
   recipients,
   attachments = [],
-}: AdminAlertEmailInput) {
+}: AdminAlertEmailInput): Promise<AdminAlertEmailResult> {
   const providerStatus = adminAlertEmailProviderStatus()
 
   if (!providerStatus.configured || !providerStatus.provider) {
@@ -287,7 +295,7 @@ export async function sendAdminAlertEmail({
     }),
   })
 
-  const result = await response.json().catch(() => ({}))
+  const result = await response.json().catch(() => ({})) as { id?: string; message?: string; name?: string }
 
   if (!response.ok) {
     console.error('Admin alert email rejected by Resend:', {
@@ -305,5 +313,5 @@ export async function sendAdminAlertEmail({
     recipients: to.length,
   })
 
-  return result
+  return { provider: 'resend', id: result.id || null, recipients: to.length }
 }

@@ -82,3 +82,21 @@ test('meter capture, labels, and monthly billing use typed database and request 
   assert.match(files[2], /type MeterBillingChecklistInput =/)
   for (const source of files) assert.doesNotMatch(source, /\bany\b/)
 })
+
+test('maintenance intake and Epson report paths use typed provider, request, and database boundaries', async () => {
+  const files = await Promise.all([
+    read('lib/admin-alert-email.ts'),
+    read('lib/maintenance-work-order-report.ts'),
+    read('lib/pump-out-report.ts'),
+    read('app/api/maintenance-request/route.ts'),
+    read('app/api/maintenance-staff-request/route.ts'),
+    read('app/api/maintenance-completion-print/route.ts'),
+    read('app/api/maintenance-work-order-report/route.ts'),
+    read('app/api/maintenance-pump-outs/route.ts'),
+  ])
+
+  assert.match(files[0], /Promise<AdminAlertEmailResult>/)
+  assert.match(files[1], /SupabaseClient/)
+  assert.match(files[2], /SupabaseClient/)
+  for (const source of files) assert.doesNotMatch(source, /\bany\b/)
+})

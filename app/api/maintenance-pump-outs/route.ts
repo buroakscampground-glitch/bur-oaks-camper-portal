@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { isSystemPortalAccount } from '../../../lib/camper-records'
-import { orderPumpOutWorkerStops } from '../../../lib/pump-out-worker'
+import { orderPumpOutWorkerStops, type PumpOutWorkerStop } from '../../../lib/pump-out-worker'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
 export const runtime = 'nodejs'
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 
   if (error) return response({ success: false, error: error.message }, 500)
 
-  const stops = orderPumpOutWorkerStops((data || []).filter((row: any) => !isSystemPortalAccount(row)))
+  const stops = orderPumpOutWorkerStops(((data || []) as PumpOutWorkerStop[]).filter((row) => !isSystemPortalAccount(row)))
   return response({ success: true, stops })
 }
 

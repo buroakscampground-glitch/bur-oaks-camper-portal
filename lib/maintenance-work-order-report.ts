@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { maintenanceTaskForDisplay } from './maintenance-ticket-display.ts'
 import { isCompletedTicketStatus } from './maintenance-status.ts'
 
@@ -212,7 +213,7 @@ export async function buildCompletedMaintenanceWorkOrderPdf(order: MaintenanceWo
   return pdf.save()
 }
 
-export async function loadNewMaintenanceWorkOrders(client: any) {
+export async function loadNewMaintenanceWorkOrders(client: SupabaseClient) {
   const { data, error } = await client
     .from('maintenance_tickets')
     .select('id,title,description,category,priority,status,assigned_to,lot_number,reported_by,created_at,approved_at,work_order_printed_at,photo_urls')
@@ -342,14 +343,15 @@ function centralDate(value = new Date()) {
   return `${part('year')}-${part('month')}-${part('day')}`
 }
 
-export async function printCompletedMaintenanceWorkOrder(client: any, ticketId: string) {
-  const { data: order, error: orderError } = await client
+export async function printCompletedMaintenanceWorkOrder(client: SupabaseClient, ticketId: string) {
+  const { data: orderRow, error: orderError } = await client
     .from('maintenance_tickets')
     .select('id,title,description,category,priority,status,assigned_to,lot_number,reported_by,created_at,approved_at,completed_at,completion_notes,work_order_printed_at,photo_urls')
     .eq('id', ticketId)
     .maybeSingle()
 
   if (orderError) throw new Error(orderError.message)
+  const order = orderRow as MaintenanceWorkOrder | null
   if (!order) throw new Error('The completed work order could not be found.')
   if (!isCompletedTicketStatus(order.status)) throw new Error('The work order must be completed before it can print.')
 
@@ -379,8 +381,9 @@ export async function printCompletedMaintenanceWorkOrder(client: any, ticketId: 
 
     if (existing.error) throw new Error(existing.error.message)
     const runningRecently = existing.data?.status === 'running' && Date.now() - new Date(existing.data.started_at || 0).getTime() < 5 * 60 * 1000
-    if (existing.data?.status === 'sent' || runningRecently) {
-      return { order, skipped: true, printer: null, reason: existing.data.status === 'sent' ? 'This completed work order already printed.' : 'This completed work order is already being sent to the printer.' }
+    const existingReservation = existing.data
+    if (existingReservation?.status === 'sent' || runningRecently) {
+      return { order, skipped: true, printer: null, reason: existingReservation?.status === 'sent' ? 'This completed work order already printed.' : 'This completed work order is already being sent to the printer.' }
     }
 
     reservation = existing.data
@@ -411,9 +414,9 @@ export async function printCompletedMaintenanceWorkOrder(client: any, ticketId: 
 
     if (!printer.sent) throw new Error(printer.error || 'The completed work order did not reach the Epson printer.')
     return { order, skipped: false, printer, printerEmail }
-  } catch (error: any) {
+  } catch (error: unknown) {
     await client.from('scheduled_reports').update({
-      status: 'failed', error_message: String(error?.message || error).slice(0, 2000),
+      status: 'failed', error_message: String(error instanceof Error ? error.message : error).slice(0, 2000),
       completed_at: new Date().toISOString(), updated_at: new Date().toISOString(),
     }).eq('id', reservation.id)
     throw error
@@ -421,7 +424,7 @@ export async function printCompletedMaintenanceWorkOrder(client: any, ticketId: 
 }
 
 export async function sendMaintenanceWorkOrderReport(
-  client: any,
+  client: SupabaseClient,
   reportDate: string,
   options: { sendOffice?: boolean; sendPrinter?: boolean } = {},
 ) {

@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { isSystemPortalAccount } from './camper-records'
 import { uniquePrinterEmails } from './report-printer-emails'
 
@@ -220,7 +221,7 @@ async function sendReportEmail(to: string, pdfBytes: Uint8Array, reportDate: str
 }
 
 export async function sendPumpOutReport(
-  client: any,
+  client: SupabaseClient,
   reportDate: string,
   options: { sendOffice?: boolean; sendPrinter?: boolean } = {},
 ) {

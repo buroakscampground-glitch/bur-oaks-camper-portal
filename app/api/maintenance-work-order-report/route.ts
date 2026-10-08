@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         ? `Sent ${result.orders.length} new work order${result.orders.length === 1 ? '' : 's'} to Gmail and the Epson printer. ${result.orders.length === 1 ? 'It is' : 'They are'} now marked printed.`
         : `The packet was created, but one or more deliveries failed. Gmail: ${result.office?.sent ? 'sent' : result.office?.error}. Printer: ${result.printer?.sent ? 'sent' : result.printer?.error}.`,
     }, { status: success ? 200 : 502 })
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Unable to create the work-order packet.' }, { status: 500 })
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to create the work-order packet.' }, { status: 500 })
   }
 }
