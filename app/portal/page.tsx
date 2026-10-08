@@ -1155,6 +1155,7 @@ export default function CamperPortalPage() {
           <button className="portal-premium-pump" type="button" onClick={openPumpOutChooser} disabled={requestingPump}>
             <span><Droplets size={23} /></span><div><small>ONE-TOUCH SERVICE</small><strong>{activePumpOutRequests.length ? 'Pump-out already requested' : 'Request a pump-out'}</strong><em>{activePumpOutRequests.length ? 'Your lot is on the office list' : `$${displayedPumpOutFee.toFixed(2)} added after confirmation`}</em></div><ArrowRight size={19} />
           </button>
+          {pumpMessage && <p className="portal-premium-pump-status" role="status" aria-live="polite">{pumpMessage}</p>}
 
           <div className="portal-premium-section-title"><h2>Around the campground</h2></div>
           <div className="portal-premium-around">

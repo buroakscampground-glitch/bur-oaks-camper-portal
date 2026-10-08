@@ -272,6 +272,105 @@ async function installSyntheticDeepLinkLogin(page: Page) {
   })
 }
 
+async function installSyntheticCamperWriteSession(page: Page) {
+  type Outcome = 'success' | 'duplicate' | 'rejected' | 'unknown'
+  let maintenanceOutcome: Outcome = 'success'
+  let pumpOutcome: Outcome = 'success'
+  let maintenancePosts = 0
+  let pumpPosts = 0
+  let maintenanceTickets: object[] = []
+  let pumpRequests: object[] = []
+  const now = Math.floor(Date.now() / 1000)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'write-check-user', email: 'write-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.write-check`
+  const user = { id: 'write-check-user', aud: 'authenticated', role: 'authenticated', email: 'write-check@example.invalid', user_metadata: {}, app_metadata: {}, created_at: new Date(0).toISOString() }
+  const camper = { id: 'write-check-camper', lot_number: 'TEST', first_name: 'Write', last_name: 'Check', email: user.email, role: 'camper', active: true }
+
+  await page.addInitScript(({ session }) => {
+    const originalGetItem = Storage.prototype.getItem
+    Storage.prototype.getItem = function getItem(key: string) {
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) return JSON.stringify(session)
+      return originalGetItem.call(this, key)
+    }
+  }, { session: { access_token: accessToken, refresh_token: 'write-check-refresh', token_type: 'bearer', expires_in: 3600, expires_at: now + 3600, user } })
+
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/.*/, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/auth/v1/user') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
+      return
+    }
+    if (url.pathname === '/rest/v1/campers') {
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '0-0/1' }, body: JSON.stringify([camper]) })
+      return
+    }
+    if (url.pathname === '/rest/v1/maintenance_tickets') {
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': maintenanceTickets.length ? `0-${maintenanceTickets.length - 1}/${maintenanceTickets.length}` : '*/0' }, body: JSON.stringify(maintenanceTickets) })
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '*/0' }, body: '[]' })
+  })
+
+  await page.route('**/api/**', async (route) => {
+    const request = route.request()
+    const pathname = new URL(request.url()).pathname
+
+    if (pathname === '/api/maintenance-request' && request.method() === 'POST') {
+      maintenancePosts += 1
+      if (maintenanceOutcome === 'unknown') {
+        await route.abort('connectionfailed')
+        return
+      }
+      if (maintenanceOutcome === 'rejected') {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'The office request queue is temporarily unavailable.' }) })
+        return
+      }
+      const duplicate = maintenanceOutcome === 'duplicate'
+      const ticket = { id: 'synthetic-ticket-1', camper_id: camper.id, lot_number: camper.lot_number, title: 'Synthetic water check', description: 'Synthetic browser test only', category: 'Water', status: 'Open', admin_approved: false, created_at: new Date().toISOString() }
+      maintenanceTickets = [ticket]
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, duplicate, ticketId: ticket.id, emailStatus: duplicate ? 'skipped' : 'daily_summary' }) })
+      return
+    }
+
+    if (pathname === '/api/sewer-pump-out' && request.method() === 'POST') {
+      pumpPosts += 1
+      if (pumpOutcome === 'unknown') {
+        await route.abort('connectionfailed')
+        return
+      }
+      if (pumpOutcome === 'rejected') {
+        await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'The pump-out queue is temporarily unavailable.' }) })
+        return
+      }
+      const duplicate = pumpOutcome === 'duplicate'
+      const pumpRequest = { id: 'synthetic-pump-1', camper_id: camper.id, lot_number: camper.lot_number, status: 'Requested', requested_at: new Date().toISOString() }
+      pumpRequests = [pumpRequest]
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, duplicate, request: pumpRequest, serviceLot: camper.lot_number, billingLot: camper.lot_number, chargeAmount: 10, emailStatus: duplicate ? 'skipped' : 'daily_summary' }) })
+      return
+    }
+
+    const payloads: Record<string, object> = {
+      '/api/messages': { messages: [] },
+      '/api/camper-documents': { documents: [], suggestedSignerName: 'Write Check' },
+      '/api/camper-invoices': { invoices: [], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
+      '/api/authorized-billing': { accounts: [] },
+      '/api/sewer-pump-out': { success: true, requests: pumpRequests, serviceLots: [camper.lot_number], serviceAccounts: [{ serviceLot: camper.lot_number, billingLot: camper.lot_number }] },
+      '/api/birthdays': { success: true, birthdays: [], officeGreetings: [] },
+    }
+    const payload = payloads[pathname]
+    await route.fulfill({ status: payload ? 200 : 503, contentType: 'application/json', body: JSON.stringify(payload || { error: 'Synthetic write-check boundary' }) })
+  })
+
+  return {
+    maintenancePosts: () => maintenancePosts,
+    pumpPosts: () => pumpPosts,
+    setMaintenanceOutcome: (outcome: Outcome) => { maintenanceOutcome = outcome },
+    setPumpOutcome: (outcome: Outcome) => { pumpOutcome = outcome },
+  }
+}
+
 test('health endpoint identifies the release without caching or customer data', async ({ request }) => {
   const response = await request.get('/api/health')
   expect(response.ok()).toBeTruthy()
@@ -389,6 +488,72 @@ test('signed-out visitors are returned to login with their private destination p
     )
     await expect(page.getByRole('heading', { name: /sign in/i })).toBeVisible()
   }
+})
+
+test('camper maintenance success blocks duplicate taps and shows the saved request', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated write journey.')
+  const synthetic = await installSyntheticCamperWriteSession(page)
+  await page.goto('/maintenance')
+  await page.getByLabel('Issue title').fill('Synthetic water check')
+  await page.getByLabel('Category').selectOption('Water')
+  await page.getByLabel('Description').fill('Synthetic browser test only')
+  const submit = page.getByRole('button', { name: 'Submit Request' })
+  await submit.evaluate((button: HTMLButtonElement) => { button.click(); button.click() })
+  await expect(page.getByRole('status')).toContainText('Maintenance request submitted')
+  expect(synthetic.maintenancePosts()).toBe(1)
+  await expect(page.getByRole('heading', { name: 'Synthetic water check' })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
+})
+
+test('camper maintenance preserves the draft when delivery cannot be confirmed', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated unknown-result journey.')
+  const synthetic = await installSyntheticCamperWriteSession(page)
+  synthetic.setMaintenanceOutcome('unknown')
+  await page.goto('/maintenance')
+  await page.getByLabel('Issue title').fill('Synthetic uncertain request')
+  await page.getByLabel('Description').fill('Keep this synthetic draft visible')
+  await page.getByRole('button', { name: 'Submit Request' }).click()
+  await expect(page.getByRole('status')).toContainText('could not confirm whether your request was submitted')
+  await expect(page.getByLabel('Issue title')).toHaveValue('Synthetic uncertain request')
+  await expect(page.getByLabel('Description')).toHaveValue('Keep this synthetic draft visible')
+  await expect(page.getByRole('button', { name: 'Submit Request' })).toBeEnabled()
+  expect(synthetic.maintenancePosts()).toBe(1)
+})
+
+test('camper pump-out success blocks duplicate taps and announces the saved charge', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated write journey.')
+  const synthetic = await installSyntheticCamperWriteSession(page)
+  await page.goto('/portal')
+  await page.locator('.portal-premium-pump').click()
+  const confirm = page.getByRole('dialog').getByRole('button', { name: 'Request pump-out' })
+  await confirm.evaluate((button: HTMLButtonElement) => { button.click(); button.click() })
+  await expect(page.getByRole('status')).toContainText('Sewer pump-out requested for Lot TEST')
+  await expect(page.getByRole('status')).toContainText('$10.00')
+  expect(synthetic.pumpPosts()).toBe(1)
+  await expectNoHorizontalOverflow(page)
+})
+
+test('camper pump-out explains duplicate, rejection, and unknown results safely', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves isolated failure outcomes.')
+  const synthetic = await installSyntheticCamperWriteSession(page)
+  await page.goto('/portal')
+
+  synthetic.setPumpOutcome('duplicate')
+  await page.locator('.portal-premium-pump').click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Request pump-out' }).click()
+  await expect(page.getByRole('status')).toContainText('No duplicate charge was added')
+
+  synthetic.setPumpOutcome('rejected')
+  await page.locator('.portal-premium-pump').click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Request pump-out' }).click()
+  await expect(page.getByRole('status')).toContainText('pump-out queue is temporarily unavailable')
+
+  synthetic.setPumpOutcome('unknown')
+  await page.locator('.portal-premium-pump').click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Request pump-out' }).click()
+  await expect(page.getByRole('status')).toContainText('could not confirm whether your pump-out request was saved')
+  await expect(page.locator('.portal-premium-pump')).toBeEnabled()
+  expect(synthetic.pumpPosts()).toBe(3)
 })
 
 test('weak-connection recovery is actionable and contained on priority camper screens', async ({ page }, testInfo) => {
