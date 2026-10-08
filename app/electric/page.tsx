@@ -2,59 +2,76 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 
 export default function ElectricPage() {
   const [readings, setReadings] = useState<any[]>([])
   const [meterPhotos, setMeterPhotos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const router = useRouter()
 
   useEffect(() => {
-    async function loadElectricHistory() {
+    loadElectricHistory()
+  }, [])
+
+  async function loadElectricHistory() {
+    setLoading(true)
+    setLoadError('')
+
+    try {
       const {
         data: { user },
+        error: authError,
       } = await supabase.auth.getUser()
+
+      if (authError) throw authError
 
       if (!user) {
         window.location.href = '/login'
         return
       }
 
+      const { error: camperAvailabilityError } = await supabase.from('campers').select('id').limit(1)
+      if (camperAvailabilityError) throw camperAvailabilityError
+
       const camper = await getCurrentCamper()
+      if (!camper) throw new Error('Camper account was not available.')
 
-      if (!camper) {
-        setLoading(false)
-        return
-      }
-
-      const { data } = await supabase
+      const { data, error: readingsError } = await supabase
         .from('electric_readings')
         .select('*')
         .eq('camper_id', camper.id)
         .order('reading_date', { ascending: false })
 
+      if (readingsError) throw readingsError
       setReadings(data || [])
 
-      const { data: sessionData } = await supabase.auth.getSession()
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
       const token = sessionData.session?.access_token
-      if (token) {
-        const response = await fetch('/api/camper-meter-photos', {
-          headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => null)
+      if (!token) throw new Error('Your secure session could not be confirmed.')
 
-        if (response?.ok) {
-          const result = await response.json()
-          setMeterPhotos(Array.isArray(result.photos) ? result.photos : [])
-        }
-      }
+      const response = await fetch('/api/camper-meter-photos', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!response.ok) throw new Error('Meter photos could not be loaded.')
+
+      const result = await response.json()
+      setMeterPhotos(Array.isArray(result.photos) ? result.photos : [])
+    } catch (error: any) {
+      setReadings([])
+      setMeterPhotos([])
+      setLoadError(error?.message || 'Electric history could not be loaded.')
+    } finally {
       setLoading(false)
     }
+  }
 
-    loadElectricHistory()
-  }, [])
+  if (loading) return <div className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading electric history…</h1><p>Your readings, charges, and meter photos are being checked.</p></div>
 
-  if (loading) return <p style={{ padding: '40px' }}>Loading electric history...</p>
+  if (loadError) return <div className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>Electric history is temporarily unavailable</h1><p>Usage totals, charges, and meter photos are hidden until the complete history can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadElectricHistory}>Try again</button></div>
 
   const latest = readings[0]
   const totalDue = readings.reduce(

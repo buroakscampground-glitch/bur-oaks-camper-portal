@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, CheckCircle2, CircleMinus, CreditCard, FileText, Pencil, Plus, Printer, ReceiptText, Save, Send, Trash2, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, CircleMinus, CreditCard, FileText, Loader2, Pencil, Plus, Printer, ReceiptText, Save, Send, Trash2, X } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { deleteInvoiceWithCreditRestore, formatCreditMoney, updateInvoiceBundle } from '../../../../lib/account-credits'
 import { calculateAchProcessingFee, calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../../lib/payment-fees'
@@ -120,7 +120,7 @@ export default function InvoiceDetailPage() {
     try {
       if (!invoiceId) throw new Error('This invoice link is missing its invoice number.')
 
-      const [invoiceResult, itemResult, creditResult, paymentFeeSettings] = await withInvoiceLoadTimeout(Promise.all([
+      const [invoiceResult, itemResult, creditResult, paymentFeeSettings, settingsResult] = await withInvoiceLoadTimeout(Promise.all([
         supabase
           .from('invoices')
           .select(`
@@ -146,9 +146,13 @@ export default function InvoiceDetailPage() {
           .select('amount_applied')
           .eq('invoice_id', invoiceId),
         loadPaymentFeeSettings(supabase),
+        supabase.from('app_settings').select('key').limit(1),
       ]))
 
       if (invoiceResult.error) throw invoiceResult.error
+      if (itemResult.error) throw itemResult.error
+      if (creditResult.error) throw creditResult.error
+      if (settingsResult.error) throw settingsResult.error
 
       setFeeSettings(paymentFeeSettings)
       setInvoice(invoiceResult.data || null)
@@ -170,6 +174,7 @@ export default function InvoiceDetailPage() {
             .eq('camper_id', invoiceResult.data.camper_id)
             .order('due_date', { ascending: true }),
         )
+        if (openInvoiceResult.error) throw openInvoiceResult.error
         setPaymentInvoices(openInvoiceResult.data || [])
       }
     } catch (error: any) {
@@ -437,12 +442,14 @@ export default function InvoiceDetailPage() {
     return (
       <main className="admin-invoice-detail-page">
         <div className="camper-invoice-detail-empty">
-          <ReceiptText size={34} />
+          <Loader2 className="admin-spin" size={34} aria-hidden="true" />
           <h1>Loading invoice…</h1>
         </div>
       </main>
     )
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Invoice detail is temporarily unavailable</h1><p>{loadError} Editing, payment, printing, texting, and deletion controls are blocked until every billing source loads.</p><button className="portal-loading-retry" type="button" onClick={() => loadInvoice(true)}>Try again</button></main>
 
   if (!invoice) {
     return (

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
-import { CakeSlice, CheckCircle2, ClipboardCheck, Eye, FileUp, PartyPopper, ShieldCheck, UsersRound } from 'lucide-react'
+import { AlertTriangle, CakeSlice, CheckCircle2, ClipboardCheck, Eye, FileUp, Loader2, PartyPopper, ShieldCheck, UsersRound } from 'lucide-react'
 import AddressFinder from '../../components/AddressFinder'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
 import { isPhonePortalLoginEmail } from '../../lib/phone-portal-login'
@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null)
   const [uploadingInsurance, setUploadingInsurance] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [insuranceMessage, setInsuranceMessage] = useState('')
@@ -26,32 +27,47 @@ export default function ProfilePage() {
   }, [])
 
   async function loadProfile() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    setLoading(true)
+    setLoadError('')
 
-    if (!user) {
-      window.location.href = '/login'
-      return
-    }
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
 
-    setCurrentLoginEmail(String(user.email || '').trim().toLowerCase())
+      if (authError) throw authError
 
-    const data = await getCurrentCamper()
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
 
-    setCamper(data)
+      setCurrentLoginEmail(String(user.email || '').trim().toLowerCase())
 
-    if (data?.id) {
-      const { data: documents } = await supabase
+      const { error: camperAvailabilityError } = await supabase.from('campers').select('id').limit(1)
+      if (camperAvailabilityError) throw camperAvailabilityError
+
+      const data = await getCurrentCamper()
+      if (!data) throw new Error('Camper profile was not available.')
+
+      setCamper(data)
+
+      const { data: documents, error: documentsError } = await supabase
         .from('documents')
         .select('*')
         .eq('camper_id', data.id)
         .eq('document_type', 'Golf Cart Insurance')
 
+      if (documentsError) throw documentsError
       setInsuranceDocuments(documents || [])
+    } catch (error: any) {
+      setCamper(null)
+      setInsuranceDocuments([])
+      setLoadError(error?.message || 'Profile information could not be loaded.')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   async function saveProfile() {
@@ -214,7 +230,7 @@ export default function ProfilePage() {
       setInsuranceDocuments((current) => [result.document, ...current])
       setInsuranceMessage('✅ Golf cart insurance uploaded successfully.')
     } catch {
-      setInsuranceMessage('Unable to upload your insurance. Please try again.')
+      setInsuranceMessage('The upload result could not be confirmed. Check your insurance documents or contact the office before uploading again.')
     } finally {
       setUploadingInsurance(false)
     }
@@ -226,16 +242,21 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div style={{ padding: '40px' }}>
-        Loading Profile...
+      <div className="portal-loading" role="alert">
+        <Loader2 className="portal-loading-spinner" aria-hidden="true" />
+        <h1>Loading your profile…</h1>
+        <p>Your saved information and documents are being checked.</p>
       </div>
     )
   }
 
-  if (!camper) {
+  if (loadError || !camper) {
     return (
-      <div style={{ padding: '40px' }}>
-        Unable to load profile.
+      <div className="portal-loading portal-loading-error" role="alert">
+        <AlertTriangle aria-hidden="true" />
+        <h1>Profile is temporarily unavailable</h1>
+        <p>Your saved profile and insurance documents have not been changed. Editing and upload controls are blocked until the current information can be confirmed.</p>
+        <button className="portal-loading-retry" type="button" onClick={loadProfile}>Try again</button>
       </div>
     )
   }

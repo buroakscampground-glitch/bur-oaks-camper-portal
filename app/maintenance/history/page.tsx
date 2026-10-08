@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { MaintenanceBadge } from '../../../components/MaintenanceBadge'
 import MaintenanceLogoutButton from '../../../components/MaintenanceLogoutButton'
@@ -18,19 +19,24 @@ export default function MaintenanceHistoryPage() {
   }, [])
 
   async function loadHistory() {
-    const { data, error: loadError } = await supabase
-      .from('maintenance_tickets')
-      .select('*')
-      .eq('status', 'Completed')
-      .order('completed_at', { ascending: false, nullsFirst: false })
+    setLoading(true)
+    setError('')
 
-    if (loadError) {
-      setError(loadError.message)
-    } else {
+    try {
+      const { data, error: loadError } = await supabase
+        .from('maintenance_tickets')
+        .select('*')
+        .eq('status', 'Completed')
+        .order('completed_at', { ascending: false, nullsFirst: false })
+
+      if (loadError) throw loadError
       setTickets(data || [])
+    } catch (loadError: any) {
+      setTickets([])
+      setError(loadError?.message || 'Maintenance history could not be loaded.')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   const assignees = useMemo(
@@ -62,8 +68,10 @@ export default function MaintenanceHistoryPage() {
   })
 
   if (loading) {
-    return <div style={{ padding: '40px' }}>Loading maintenance history...</div>
+    return <div className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading maintenance history…</h1><p>Completed work and notes are being checked.</p></div>
   }
+
+  if (error) return <div className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>Maintenance history is temporarily unavailable</h1><p>Completion totals, work orders, and notes are hidden until the full history can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadHistory}>Try again</button></div>
 
   return (
     <main className="page">
@@ -140,9 +148,7 @@ export default function MaintenanceHistoryPage() {
             </select>
           </div>
 
-          {error && <p style={{ color: '#b91c1c' }}>{error}</p>}
-
-          {!error && filteredTickets.length === 0 && (
+          {filteredTickets.length === 0 && (
             <p className="muted">No completed maintenance tickets found.</p>
           )}
 

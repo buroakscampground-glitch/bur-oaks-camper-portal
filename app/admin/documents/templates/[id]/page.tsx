@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Download, ExternalLink, FileText, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Download, ExternalLink, FileText, Loader2, ShieldCheck } from 'lucide-react'
 import { supabase } from '../../../../../lib/supabase'
 
 function canPreviewInBrowser(fileUrl?: string) {
@@ -30,37 +30,43 @@ export default function AdminTemplateViewerPage() {
   }, [templateId])
 
   async function loadTemplate() {
-    if (!templateId) return
+    if (!templateId) {
+      setMessage('This library document link is incomplete.')
+      setLoading(false)
+      return
+    }
 
     setLoading(true)
     setMessage('')
 
-    const { data: templateData, error: templateError } = await supabase
-      .from('document_templates')
-      .select('*')
-      .eq('id', templateId)
-      .single()
+    try {
+      const { data: templateData, error: templateError } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('id', templateId)
+        .single()
 
-    if (templateError || !templateData?.storage_path) {
-      setMessage('Unable to load this library document.')
+      if (templateError || !templateData?.storage_path) throw new Error('Unable to load this library document.')
+
+      const { data, error } = await supabase.storage
+        .from('camper-documents')
+        .createSignedUrl(templateData.storage_path, 60)
+
+      if (error || !data?.signedUrl) throw new Error('Unable to open this library document.')
+
+      setTemplate(templateData)
+      setUrl(data.signedUrl)
+    } catch (error: any) {
+      setTemplate(null)
+      setUrl('')
+      setMessage(error?.message || 'Unable to open this library document.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    const { data, error } = await supabase.storage
-      .from('camper-documents')
-      .createSignedUrl(templateData.storage_path, 60)
-
-    if (error || !data?.signedUrl) {
-      setMessage('Unable to open this library document.')
-      setLoading(false)
-      return
-    }
-
-    setTemplate(templateData)
-    setUrl(data.signedUrl)
-    setLoading(false)
   }
+
+  if (loading) return <main className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Preparing library document…</h1></main>
+  if (message) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Library document is temporarily unavailable</h1><p>{message} No document contents are being presented as current.</p><button className="portal-loading-retry" type="button" onClick={loadTemplate}>Try again</button></main>
 
   return (
     <main className="document-viewer-page">

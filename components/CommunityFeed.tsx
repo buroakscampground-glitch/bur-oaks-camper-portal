@@ -1,6 +1,6 @@
 'use client'
 
-import { Ban, Bell, Camera, Check, CheckCircle2, Clock, Edit3, ExternalLink, Eye, Heart, Image as ImageIcon, MessageCircle, MoreHorizontal, Pin, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X, ZoomIn } from 'lucide-react'
+import { AlertTriangle, Ban, Bell, Camera, Check, CheckCircle2, Clock, Edit3, ExternalLink, Eye, Heart, Image as ImageIcon, Loader2, MessageCircle, MoreHorizontal, Pin, RefreshCw, Send, ShieldCheck, Trash2, UserCheck, UsersRound, X, ZoomIn } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { communityActionHref, communityActionLabel } from '../lib/community-actions'
 import { communityPostAuthor, communityPostLocation } from '../lib/community-branding'
@@ -74,6 +74,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState('')
   const [notice, setNotice] = useState('')
+  const [loadError, setLoadError] = useState('')
   const [linkedPostId, setLinkedPostId] = useState('')
   const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set())
   const fileRef = useRef<HTMLInputElement>(null)
@@ -157,10 +158,19 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   async function loadFeed(silent = false) {
     if (!silent) setLoading(true)
     setNotice('')
-    const response = await fetch('/api/community-feed', { headers: await authHeaders(false) })
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setNotice(result.error || 'Campground Messenger could not be opened.')
+    setLoadError('')
+    let response: Response
+    let result: any
+    try {
+      response = await fetch('/api/community-feed', { headers: await authHeaders(false) })
+      result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Campground Messenger could not be opened.')
+    } catch {
+      if (silent) {
+        setNotice('Campground Messenger could not refresh. The last successfully loaded conversation is still shown.')
+      } else {
+        setLoadError('Campground Messenger could not be loaded. Posts, member access, reports, and posting controls are hidden.')
+      }
       setLoading(false)
       return
     }
@@ -392,6 +402,9 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
   }), [posts, tab, category, viewer])
   const unreadCount = visiblePosts.filter((post) => post.status === 'published' && !post.read_by_me).length
   const filteredMembers = useMemo(() => members.filter((member) => `${member.name} ${member.lotNumber}`.toLowerCase().includes(memberSearch.trim().toLowerCase())), [members, memberSearch])
+
+  if (loading) return <main className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading Campground Messenger…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Campground Messenger is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={() => loadFeed()}>Try again</button></main>
 
   if (!loading && blocked) {
     return (

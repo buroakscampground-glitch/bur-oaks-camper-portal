@@ -120,19 +120,20 @@ export default function AdminLaunchPage() {
       return
     }
 
-    const response = await fetch('/api/launch-checklist', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const result = await response.json().catch(() => null)
+    try {
+      const response = await fetch('/api/launch-checklist', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const result = await response.json().catch(() => null)
 
-    if (!response.ok) {
-      setMessage(result?.error || 'Unable to load launch checklist.')
+      if (!response.ok || !result?.counts || !Array.isArray(result?.groups)) throw new Error(result?.error || 'Unable to load launch checklist.')
+      setChecklist(result)
+    } catch {
+      setChecklist(null)
+      setMessage('Launch readiness could not be loaded. Readiness totals are hidden until every check is available.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    setChecklist(result)
-    setLoading(false)
   }
 
   const launchScore = useMemo(() => {
@@ -159,16 +160,7 @@ export default function AdminLaunchPage() {
   }
 
   if (!checklist) {
-    return (
-      <main className="admin-launch-page">
-        <section className="admin-launch-empty">
-          <AlertTriangle size={30} />
-          <h2>Checklist unavailable</h2>
-          <p>{message || 'Try refreshing this page.'}</p>
-          <button type="button" onClick={loadChecklist}>Try again</button>
-        </section>
-      </main>
-    )
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Launch checklist is temporarily unavailable</h1><p>{message || 'Try refreshing this page.'}</p><button className="portal-loading-retry" type="button" onClick={loadChecklist}>Try again</button></main>
   }
 
   return (

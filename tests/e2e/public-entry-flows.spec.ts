@@ -274,6 +274,10 @@ test('weak-connection recovery is actionable and contained on priority camper sc
     { path: '/maintenance', message: 'We could not open your maintenance requests' },
     { path: '/invoices', message: 'We could not open your billing account' },
     { path: '/portal', message: 'Some portal information could not be loaded' },
+    { path: '/profile', message: 'Profile is temporarily unavailable' },
+    { path: '/electric', message: 'Electric history is temporarily unavailable' },
+    { path: '/directory', message: 'Camper directory is temporarily unavailable' },
+    { path: '/maintenance/history', message: 'Maintenance history is temporarily unavailable' },
   ]
 
   for (const recovery of recoveryChecks) {
@@ -347,6 +351,10 @@ test('office money and operations screens fail closed on a synthetic outage', as
     { path: '/admin/open-balance/release-check-camper', heading: 'Account statement is temporarily unavailable' },
     { path: '/admin/maintenance/release-check-ticket', heading: 'Maintenance ticket is temporarily unavailable' },
     { path: '/maintenance/dashboard/release-check-ticket', heading: 'Field work order is temporarily unavailable' },
+    { path: '/admin/invoices/release-check-invoice', heading: 'Invoice detail is temporarily unavailable' },
+    { path: '/admin/documents/templates/release-check-template', heading: 'Library document is temporarily unavailable' },
+    { path: '/admin/launch', heading: 'Launch checklist is temporarily unavailable' },
+    { path: '/admin/community-feed', heading: 'Campground Messenger is temporarily unavailable' },
   ]
 
   for (const recovery of recoveryChecks) {

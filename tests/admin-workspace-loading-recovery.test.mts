@@ -223,3 +223,39 @@ test('maintenance detail acknowledges attention only after the ticket loads', ()
   const markSeen = page.indexOf("await markAdminAlertsSeen(supabase, 'maintenance_request'")
   assert.ok(readGuard >= 0 && markSeen > readGuard)
 })
+
+test('remaining launch, document, billing, and community views fail closed', () => {
+  const checks = [
+    ['app/admin/invoices/[id]/page.tsx', /Editing, payment, printing, texting, and deletion controls are blocked/, /Invoice detail is temporarily unavailable/],
+    ['app/admin/documents/templates/[id]/page.tsx', /No document contents are being presented as current/, /Library document is temporarily unavailable/],
+    ['app/admin/launch/page.tsx', /Readiness totals are hidden/, /Launch checklist is temporarily unavailable/],
+    ['components/CommunityFeed.tsx', /Posts, member access, reports, and posting controls are hidden/, /Campground Messenger is temporarily unavailable/],
+  ] as const
+
+  for (const [path, safetyCopy, recoveryHeading] of checks) {
+    const page = read(path)
+    assert.match(page, safetyCopy, path)
+    assert.match(page, recoveryHeading, path)
+    assert.match(page, /role="alert"/, path)
+    assert.match(page, /portal-loading-retry/, path)
+  }
+})
+
+test('camper account and maintenance history views never present failed reads as empty', () => {
+  const checks = [
+    ['app/profile/page.tsx', /Editing and upload controls are blocked/, /Profile is temporarily unavailable/],
+    ['app/electric/page.tsx', /Usage totals, charges, and meter photos are hidden/, /Electric history is temporarily unavailable/],
+    ['app/directory/page.tsx', /phone numbers, and search controls are hidden/, /Camper directory is temporarily unavailable/],
+    ['app/maintenance/history/page.tsx', /Completion totals, work orders, and notes are hidden/, /Maintenance history is temporarily unavailable/],
+  ] as const
+
+  for (const [path, safetyCopy, recoveryHeading] of checks) {
+    const page = read(path)
+    assert.match(page, safetyCopy, path)
+    assert.match(page, recoveryHeading, path)
+    assert.match(page, /role="alert"/, path)
+    assert.match(page, /portal-loading-retry/, path)
+  }
+
+  assert.match(read('app/profile/page.tsx'), /upload result could not be confirmed/)
+})

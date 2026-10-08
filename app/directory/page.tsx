@@ -1,38 +1,46 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { MapPin, Phone, Search, ShieldCheck, UsersRound } from 'lucide-react'
+import { AlertTriangle, Loader2, MapPin, Phone, Search, ShieldCheck, UsersRound } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 export default function CamperDirectoryPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
-  const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadDirectory()
   }, [])
 
   async function loadDirectory() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    setLoading(true)
+    setLoadError('')
 
-    if (!user) {
-      window.location.href = '/login'
-      return
-    }
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
 
-    const { data, error } = await supabase.rpc('get_camper_directory')
+      if (authError) throw authError
 
-    if (error) {
-      setMessage('The camper directory is being set up. Please check back soon.')
-    } else {
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
+
+      const { data, error } = await supabase.rpc('get_camper_directory')
+      if (error) throw error
+
       setCampers(data || [])
+    } catch (error: any) {
+      setCampers([])
+      setLoadError(error?.message || 'The camper directory could not be loaded.')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   const filteredCampers = campers.filter((camper) => {
@@ -41,8 +49,10 @@ export default function CamperDirectoryPage() {
   })
 
   if (loading) {
-    return <div className="directory-loading">Opening camper directory…</div>
+    return <div className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Opening camper directory…</h1><p>Current opt-in listings are being checked.</p></div>
   }
+
+  if (loadError) return <div className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>Camper directory is temporarily unavailable</h1><p>Names, lot numbers, phone numbers, and search controls are hidden until current opt-in listings can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadDirectory}>Try again</button></div>
 
   return (
     <main className="page">
@@ -71,9 +81,7 @@ export default function CamperDirectoryPage() {
             />
           </div>
 
-          {message && <p className="directory-message">{message}</p>}
-
-          {!message && filteredCampers.length === 0 && (
+          {filteredCampers.length === 0 && (
             <div className="directory-empty">
               <UsersRound size={30} />
               <h3>No campers found</h3>
