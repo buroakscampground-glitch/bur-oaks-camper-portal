@@ -1,7 +1,10 @@
+import { randomUUID } from 'node:crypto'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { expect, test } from '@playwright/test'
+import Stripe from 'stripe'
 
 const enabled = process.env.BUR_OAKS_STAGING_WRITE_E2E === '1'
+const stripeTestEnabled = process.env.BUR_OAKS_STRIPE_TEST_E2E === '1'
 const stagingHost = 'pgstmfovnzsgrkawzivc.supabase.co'
 const camperId = '10000000-0000-4000-8000-000000000001'
 const documentId = '10000000-0000-4000-8000-000000000060'
@@ -9,6 +12,10 @@ const fixturePumpOutId = '10000000-0000-4000-8000-000000000090'
 const meterInvoiceNumber = 'STAGING-METER-WRITE-0001'
 const meterOperationKey = 'staging-meter-write-0001'
 const meterReading = 987654
+let stripeInvoiceId = ''
+let stripeInvoiceItemId = ''
+let stripeEventId = ''
+let stripePaymentReference = ''
 test.use({ screenshot: 'off', trace: 'off' })
 
 function required(name: string) {
@@ -126,6 +133,32 @@ async function cleanupMeterBilling(admin: SupabaseClient) {
   if (operation.error) throw operation.error
 }
 
+async function cleanupStripeBilling(admin: SupabaseClient) {
+  const invoices = await admin.from('invoices').select('id,payment_reference').ilike('invoice_number', 'STAGING-STRIPE-%')
+  if (invoices.error) throw invoices.error
+  const invoiceIds = (invoices.data || []).map((row) => String(row.id))
+  const paymentReferences = (invoices.data || []).map((row) => String(row.payment_reference || '')).filter(Boolean)
+  if (stripePaymentReference) paymentReferences.push(stripePaymentReference)
+  if (paymentReferences.length) {
+    const notifications = await admin.from('admin_notifications').delete().eq('source_table', 'stripe_payment_intents').in('source_id', [...new Set(paymentReferences)])
+    if (notifications.error) throw notifications.error
+  }
+  if (stripeEventId) {
+    const ledger = await admin.from('stripe_webhook_events').delete().eq('event_id', stripeEventId)
+    if (ledger.error) throw ledger.error
+  }
+  if (invoiceIds.length) {
+    const items = await admin.from('invoice_items').delete().in('invoice_id', invoiceIds)
+    if (items.error) throw items.error
+    const deleted = await admin.from('invoices').delete().in('id', invoiceIds)
+    if (deleted.error) throw deleted.error
+  }
+  stripeInvoiceId = ''
+  stripeInvoiceItemId = ''
+  stripeEventId = ''
+  stripePaymentReference = ''
+}
+
 test.describe.serial('reversible staging write journeys', () => {
   test.skip(!enabled, 'Runs only against the isolated Bur Oaks staging project')
 
@@ -136,6 +169,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupDocument(admin)
     await cleanupCredits(admin)
     await cleanupMeterBilling(admin)
+    await cleanupStripeBilling(admin)
   })
 
   test.afterEach(async () => {
@@ -145,6 +179,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupDocument(admin)
     await cleanupCredits(admin)
     await cleanupMeterBilling(admin)
+    await cleanupStripeBilling(admin)
   })
 
   test('maintenance submission saves once and rejects a rapid duplicate', async ({ request }) => {
@@ -301,6 +336,7 @@ test.describe.serial('reversible staging write journeys', () => {
   })
 
   test('checkout fails closed without a test Stripe provider and leaves billing unchanged', async ({ request }) => {
+    test.skip(stripeTestEnabled, 'The explicit Stripe sandbox journey replaces this no-provider check.')
     const { anon, admin } = clients()
     const before = await admin.from('invoices').select('id,status,total_due,payment_method,payment_reference').eq('id', '10000000-0000-4000-8000-000000000020').single()
     expect(before.error).toBeNull()
@@ -320,6 +356,102 @@ test.describe.serial('reversible staging write journeys', () => {
       payment_method: before.data?.payment_method,
       payment_reference: before.data?.payment_reference,
     })
+  })
+
+  test('Stripe sandbox checkout posts one signed payment and rejects the webhook replay', async ({ page, request }) => {
+    test.skip(!stripeTestEnabled, 'Requires the explicit Stripe sandbox runner and Keychain credential.')
+    test.setTimeout(90_000)
+    const { anon, admin } = clients()
+    stripeInvoiceId = randomUUID()
+    stripeInvoiceItemId = randomUUID()
+    const invoiceNumber = `STAGING-STRIPE-${Date.now()}`
+    const dueDate = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+    const invoice = await admin.from('invoices').insert({
+      id: stripeInvoiceId,
+      camper_id: camperId,
+      invoice_number: invoiceNumber,
+      invoice_type: 'Staging Stripe proof',
+      subtotal: 1,
+      late_fee: 0,
+      total_due: 1,
+      due_date: dueDate,
+      status: 'sent',
+    })
+    expect(invoice.error).toBeNull()
+    const item = await admin.from('invoice_items').insert({
+      id: stripeInvoiceItemId,
+      invoice_id: stripeInvoiceId,
+      description: 'STAGING Stripe sandbox proof',
+      quantity: 1,
+      unit_price: 1,
+      total: 1,
+    })
+    expect(item.error).toBeNull()
+
+    const token = await tokenFor(anon, 'camper.one@staging.buroaks.invalid', 'BUR_OAKS_STAGING_CAMPER_PASSWORD')
+    const checkout = await request.post('/api/create-checkout-session', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { invoiceIds: [stripeInvoiceId], paymentMethod: 'card' },
+    })
+    expect(checkout.status()).toBe(200)
+    const checkoutBody = await checkout.json()
+    expect(checkoutBody).toMatchObject({ success: true })
+    expect(checkoutBody.id).toMatch(/^cs_test_/)
+    expect(checkoutBody.url).toContain('checkout.stripe.com')
+
+    await page.goto(checkoutBody.url)
+    await page.locator('input[name="cardNumber"]').fill('4242424242424242')
+    await page.locator('input[name="cardExpiry"]').fill('1234')
+    await page.locator('input[name="cardCvc"]').fill('123')
+    await page.getByRole('textbox', { name: 'Phone number', exact: true }).fill('2015550123')
+    const billingName = page.locator('input[name="billingName"]')
+    if (await billingName.count()) await billingName.fill('Casey Camper')
+    await page.getByRole('textbox', { name: 'ZIP', exact: true }).fill('62025')
+    await page.getByRole('button', { name: /pay/i }).click()
+    await page.waitForURL(/^https:\/\/www\.buroakscampground\.com\/success/, { timeout: 30_000 })
+
+    const stripe = new Stripe(required('STRIPE_SECRET_KEY'))
+    const session = await stripe.checkout.sessions.retrieve(checkoutBody.id, { expand: ['payment_intent'] })
+    expect(session.payment_status).toBe('paid')
+    stripePaymentReference = typeof session.payment_intent === 'string' ? session.payment_intent : session.payment_intent?.id || ''
+    expect(stripePaymentReference).toMatch(/^pi_/)
+
+    stripeEventId = `evt_buroaks_staging_${randomUUID().replaceAll('-', '')}`
+    const payload = JSON.stringify({
+      id: stripeEventId,
+      object: 'event',
+      api_version: null,
+      created: Math.floor(Date.now() / 1000),
+      data: { object: session },
+      livemode: false,
+      pending_webhooks: 1,
+      request: null,
+      type: 'checkout.session.completed',
+    })
+    const signature = Stripe.webhooks.generateTestHeaderString({ payload, secret: required('STRIPE_WEBHOOK_SECRET') })
+    const firstWebhook = await request.post('/api/stripe-webhook', {
+      headers: { 'content-type': 'application/json', 'stripe-signature': signature },
+      data: payload,
+    })
+    expect(firstWebhook.status()).toBe(200)
+    expect(await firstWebhook.json()).toMatchObject({ received: true })
+
+    const paid = await admin.from('invoices').select('status,payment_method,payment_reference,paid_at').eq('id', stripeInvoiceId).single()
+    expect(paid.error).toBeNull()
+    expect(paid.data?.status).toBe('paid')
+    expect(paid.data?.payment_method).toBe('Online card')
+    expect(paid.data?.payment_reference).toBe(stripePaymentReference)
+    expect(paid.data?.paid_at).toBeTruthy()
+
+    const replay = await request.post('/api/stripe-webhook', {
+      headers: { 'content-type': 'application/json', 'stripe-signature': signature },
+      data: payload,
+    })
+    expect(replay.status()).toBe(200)
+    expect(await replay.json()).toMatchObject({ received: true, duplicate: true })
+    const ledger = await admin.from('stripe_webhook_events').select('event_id').eq('event_id', stripeEventId)
+    expect(ledger.error).toBeNull()
+    expect(ledger.data).toHaveLength(1)
   })
 
   test('administrator creates and voids a fictional credit with an audit trail', async ({ request }) => {

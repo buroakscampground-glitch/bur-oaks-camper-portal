@@ -39,9 +39,14 @@ its service-only grants. The baseline now explicitly revokes `PUBLIC`, `anon`,
 and `authenticated` access, and a permanent regression test covers all eight
 functions. The final ten-journey run passed, including meter-photo upload,
 electric invoice creation, invoice linkage, and reversible cleanup. With no
-Stripe test credential present, checkout was proven to fail closed and leave
-the invoice unchanged; an actual Stripe test-mode session and webhook remain a
-provider-integration follow-up rather than a recovery blocker.
+Stripe test credential present, checkout was first proven to fail closed and
+leave the invoice unchanged. The explicit provider run then completed a genuine
+Stripe-hosted sandbox card checkout for a fresh fictional invoice, submitted
+the signed completion event through the portal webhook twice, proved the first
+event marks the invoice paid and the replay is idempotent, and removed the
+staging invoice and ledger evidence afterward. Stripe retained only its normal
+sandbox transaction record. The core recovery and provider-boundary drill is
+complete.
 
 ## Non-negotiable safeguards
 

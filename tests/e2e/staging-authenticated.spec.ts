@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 const enabled = process.env.BUR_OAKS_STAGING_E2E === '1'
+const stripeTestEnabled = process.env.BUR_OAKS_STRIPE_TEST_E2E === '1'
 test.use({ screenshot: 'off', trace: 'off' })
 
 async function signIn(page: Page, email: string, password: string, destination: RegExp) {
@@ -28,7 +29,9 @@ test.describe('authenticated synthetic staging journeys', () => {
     await page.getByRole('tab', { name: /Due in 8–30/ }).click()
     await expect(page.getByText('TEST-OPEN-0001', { exact: false }).first()).toBeVisible()
     await expect(page.getByText('$86.40', { exact: false }).first()).toBeVisible()
-    await expect(page.getByText('Stripe is not configured.', { exact: true })).toBeVisible()
+    if (!stripeTestEnabled) {
+      await expect(page.getByText('Stripe is not configured.', { exact: true })).toBeVisible()
+    }
 
     await page.goto('/documents')
     await expect(page.getByText('Synthetic Seasonal Agreement', { exact: false }).first()).toBeVisible()

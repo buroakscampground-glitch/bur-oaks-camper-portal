@@ -33,3 +33,13 @@ proves that one fictional photo can become one linked electric invoice before
 removing the test photo and operational rows. When no Stripe test credential is
 configured, the checkout journey must fail closed and leave its invoice exactly
 unchanged; never substitute a live Stripe key to make that test pass.
+
+Run `npm run staging:verify:stripe` only when the Stripe sandbox secret has been
+saved in the Mac login Keychain under service `Bur Oaks Stripe Test` and account
+`bur-oaks-staging`. This explicit provider run creates a fresh fictional staging
+invoice, completes a genuine Stripe-hosted sandbox card checkout, submits the
+session through the locally signed webhook boundary twice, proves the first
+event marks the invoice paid and the replay is idempotent, then removes the
+staging invoice and webhook ledger row. Stripe retains its ordinary sandbox
+transaction evidence. The key is never printed, copied into an environment
+file, or used by the ordinary provider-disabled staging command.

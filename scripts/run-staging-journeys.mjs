@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
 import { createClient } from '@supabase/supabase-js'
 
 const STAGING_REF = 'pgstmfovnzsgrkawzivc'
@@ -6,6 +7,8 @@ const STAGING_URL = `https://${STAGING_REF}.supabase.co`
 const CREDENTIAL_SERVICE = 'Codex MCP Credentials'
 const CREDENTIAL_ACCOUNT = 'supabase|400707e8a250a19d'
 const TEST_PASSWORD_SERVICE = 'Bur Oaks Staging Test Accounts'
+const STRIPE_TEST_SERVICE = 'Bur Oaks Stripe Test'
+const stripeTestEnabled = process.argv.includes('--stripe')
 
 function keychainPassword(service, account) {
   return execFileSync('/usr/bin/security', [
@@ -75,7 +78,17 @@ for (const name of [
   'PUMP_OUT_PRINTER_EMAIL', 'PUMP_OUT_REPORT_EMAIL', 'PUMP_OUT_SECOND_PRINTER_EMAIL',
 ]) environment[name] = ''
 
-console.log(`Building against isolated staging project ${STAGING_REF}; all delivery and payment providers are disabled.`)
+if (stripeTestEnabled) {
+  environment.STRIPE_SECRET_KEY = keychainPassword(STRIPE_TEST_SERVICE, 'bur-oaks-staging')
+  environment.STRIPE_WEBHOOK_SECRET = `whsec_${randomBytes(32).toString('hex')}`
+  environment.BUR_OAKS_STRIPE_TEST_E2E = '1'
+}
+
+console.log(
+  stripeTestEnabled
+    ? `Building against isolated staging project ${STAGING_REF}; Stripe sandbox is enabled and all live delivery providers are disabled.`
+    : `Building against isolated staging project ${STAGING_REF}; all delivery and payment providers are disabled.`,
+)
 run('npm', ['run', 'build'], environment)
 run('node_modules/.bin/playwright', [
   'test',
