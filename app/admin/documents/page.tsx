@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArchiveRestore,
+  AlertTriangle,
   ArrowUpRight,
   CheckCircle2,
   FileCheck2,
@@ -45,38 +46,48 @@ export default function AdminDocumentsPage() {
   const [futureTemplateId, setFutureTemplateId] = useState('')
   const [removingDocumentId, setRemovingDocumentId] = useState('')
   const [requiresTwoSignatures, setRequiresTwoSignatures] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   async function loadData() {
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
+    setLoading(true)
+    setLoadError('')
 
-    const [camperResult, templateResult, documentResponse] = await Promise.all([
-      supabase.from('campers').select('*').eq('active', true).order('lot_number'),
-      supabase.from('document_templates').select('*').order('created_at', { ascending: false }),
-      token
-        ? fetch('/api/admin-documents', {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession()
+      const token = sessionData.session?.access_token
+      if (!token) throw new Error('Your office session expired. Please sign in again.')
+
+      const [camperResult, templateResult, documentResponse] = await Promise.all([
+        supabase.from('campers').select('*').eq('active', true).order('lot_number'),
+        supabase.from('document_templates').select('*').order('created_at', { ascending: false }),
+        fetch('/api/admin-documents', {
             headers: { Authorization: `Bearer ${token}` },
-          })
-        : Promise.resolve(null),
-    ])
+        }),
+      ])
 
-    setCampers((camperResult.data || []).filter(isOperationalCamper))
-    setTemplates(templateResult.data || [])
-
-    if (documentResponse) {
-      const documentResult = await documentResponse.json().catch(() => null)
-      if (documentResponse.ok) {
-        setDocuments(documentResult?.documents || [])
-      } else {
-        setDocuments([])
-        setMessage(documentResult?.error || 'Unable to load assigned documents.')
+      if (camperResult.error) throw camperResult.error
+      if (templateResult.error) {
+        if (/document_templates/i.test(templateResult.error.message)) {
+          throw new Error('The document library is not ready. Run migration 009 before adding launch templates.')
+        }
+        throw templateResult.error
       }
-    } else {
-      setDocuments([])
-    }
 
-    if (templateResult.error && /document_templates/i.test(templateResult.error.message)) {
-      setMessage('Run migration 009 before adding the launch templates.')
+      const documentResult = await documentResponse.json().catch(() => null)
+      if (!documentResponse.ok) throw new Error(documentResult?.error || 'Unable to load assigned documents.')
+
+      setCampers((camperResult.data || []).filter(isOperationalCamper))
+      setTemplates(templateResult.data || [])
+      setDocuments(documentResult?.documents || [])
+    } catch (error: any) {
+      console.error(error)
+      setCampers([])
+      setTemplates([])
+      setDocuments([])
+      setLoadError(error?.message || 'Document records could not be loaded. Counts and empty states are hidden until the office can reconnect.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -478,6 +489,14 @@ export default function AdminDocumentsPage() {
     })
   const pendingSignatureCount = documents.filter(isWaitingSignature).length
   const signedSignatureCount = documents.filter(isSignedDocument).length
+
+  if (loading) {
+    return <main className="portal-loading"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading documents…</h1><p>Checking the library and signature records.</p></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Documents are temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadData}>Try again</button></main>
+  }
 
   return (
     <main className="admin-document-center">

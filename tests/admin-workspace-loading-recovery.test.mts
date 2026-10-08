@@ -21,3 +21,35 @@ test('System Health always leaves loading and refuses stale-looking totals after
   assert.match(page, /No totals below should be treated as current/)
   assert.match(page, /role="alert"/)
 })
+
+test('open balances cannot turn a failed billing read into zero dollars', () => {
+  const page = read('app/admin/open-balance/page.tsx')
+  assert.match(page, /if \(error\) throw error/)
+  assert.match(page, /No totals on this screen should be treated as current/)
+  assert.match(page, /Open balances are temporarily unavailable/)
+  assert.match(page, /onClick=\{loadBalances\}>Try again/)
+})
+
+test('maintenance only clears attention after tickets load successfully', () => {
+  const page = read('app/admin/maintenance/page.tsx')
+  const readGuard = page.indexOf('if (error) throw error')
+  const markSeen = page.indexOf("await markAdminAlertsSeen(supabase, 'maintenance_request')")
+  assert.ok(readGuard >= 0 && markSeen > readGuard)
+  assert.match(page, /Counts and empty states are hidden/)
+  assert.match(page, /Maintenance is temporarily unavailable/)
+})
+
+test('camper management requires both core records and health reads', () => {
+  const page = read('app/admin/campers/page.tsx')
+  assert.match(page, /if \(error\) throw error/)
+  assert.match(page, /if \(failedResult\?\.error\) throw failedResult\.error/)
+  assert.match(page, /Camper management is temporarily unavailable/)
+})
+
+test('document center blocks false empty states after any required read fails', () => {
+  const page = read('app/admin/documents/page.tsx')
+  assert.match(page, /if \(camperResult\.error\) throw camperResult\.error/)
+  assert.match(page, /if \(!documentResponse\.ok\) throw/)
+  assert.match(page, /Documents are temporarily unavailable/)
+  assert.match(page, /finally \{\s*setLoading\(false\)/)
+})

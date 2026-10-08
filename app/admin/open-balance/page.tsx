@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from 'next/navigation'
-import { ArrowRight, Download, Search, WalletCards } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Download, Loader2, Search, WalletCards } from 'lucide-react'
 import { supabase } from "../../../lib/supabase"
 import { achExpectedLabel } from '../../../lib/ach-expected-date'
 import { invoiceTimingBucket, isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, todayInCentral } from '../../../lib/invoice-balance'
@@ -11,6 +11,8 @@ export default function OpenBalancePage() {
   const [balances, setBalances] = useState<any[]>([])
   const [search, setSearch] = useState("")
   const [pastDueOnly, setPastDueOnly] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -19,22 +21,23 @@ export default function OpenBalancePage() {
   }, [])
 
   async function loadBalances() {
-    const { data: invoices, error } = await supabase
-      .from("invoices")
-      .select(`
+    setLoading(true)
+    setLoadError('')
+
+    try {
+      const { data: invoices, error } = await supabase
+        .from("invoices")
+        .select(`
         *,
         campers (
           first_name,
           last_name,
           lot_number
         )
-      `)
-      .neq("status", "paid")
+        `)
+        .neq("status", "paid")
 
-    if (error) {
-      console.error(error)
-      return
-    }
+      if (error) throw error
 
     const grouped: any = {}
     const dueInvoices = (invoices || []).filter((invoice) =>
@@ -104,8 +107,15 @@ export default function OpenBalancePage() {
       })
     })
 
-    const results = Object.values(grouped).sort((a: any, b: any) => b.balance - a.balance)
-    setBalances(results)
+      const results = Object.values(grouped).sort((a: any, b: any) => b.balance - a.balance)
+      setBalances(results)
+    } catch (error) {
+      console.error(error)
+      setBalances([])
+      setLoadError('Open balances could not be loaded. No totals on this screen should be treated as current.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const scopedBalances = useMemo(
@@ -157,6 +167,14 @@ export default function OpenBalancePage() {
     link.download = `${pastDueOnly ? 'Past-Due-Payments' : 'Open-Balances'}-${new Date().toISOString().slice(0, 10)}.csv`
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  if (loading) {
+    return <main className="portal-loading"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading open balances…</h1><p>Checking the current billing records.</p></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Open balances are temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadBalances}>Try again</button></main>
   }
 
   return (

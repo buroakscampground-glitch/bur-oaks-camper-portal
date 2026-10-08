@@ -4,9 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Archive,
+  AlertTriangle,
   ArrowRight,
   ClipboardList,
   Hammer,
+  Loader2,
   Printer,
   Search,
   ShieldCheck,
@@ -39,11 +41,13 @@ export default function MaintenancePage() {
   const [archivedCount, setArchivedCount] = useState(0)
   const [creating, setCreating] = useState(false)
   const [sendingWorkOrders, setSendingWorkOrders] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const creatingRef = useRef(false)
   const router = useRouter()
 
   useEffect(() => {
-    loadTickets()
+    loadTickets(true)
 
     const reload = () => loadTickets()
     window.addEventListener('focus', reload)
@@ -55,18 +59,29 @@ export default function MaintenancePage() {
     }
   }, [])
 
-  async function loadTickets() {
-    await markAdminAlertsSeen(supabase, 'maintenance_request')
-    window.dispatchEvent(new Event('admin-attention-changed'))
+  async function loadTickets(showLoading = false) {
+    if (showLoading) setLoading(true)
+    setLoadError('')
 
-    const { data } = await supabase
-      .from('maintenance_tickets')
-      .select('*')
-      .order('created_at', { ascending: false })
+    try {
+      const { data, error } = await supabase
+        .from('maintenance_tickets')
+        .select('*')
+        .order('created_at', { ascending: false })
 
-    const allTickets = data || []
-    setTickets(allTickets.filter((ticket) => !isCompletedTicket(ticket)))
-    setArchivedCount(allTickets.filter(isCompletedTicket).length)
+      if (error) throw error
+
+      const allTickets = data || []
+      setTickets(allTickets.filter((ticket) => !isCompletedTicket(ticket)))
+      setArchivedCount(allTickets.filter(isCompletedTicket).length)
+      await markAdminAlertsSeen(supabase, 'maintenance_request')
+      window.dispatchEvent(new Event('admin-attention-changed'))
+    } catch (error) {
+      console.error(error)
+      setLoadError('Work orders could not be loaded. Counts and empty states are hidden until the office can reconnect.')
+    } finally {
+      if (showLoading) setLoading(false)
+    }
   }
 
   async function createTicket() {
@@ -239,6 +254,14 @@ export default function MaintenancePage() {
 
     return matchesSearch && matchesStatus
   })
+
+  if (loading) {
+    return <main className="portal-loading"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading work orders…</h1><p>Checking the maintenance queue.</p></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Maintenance is temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={() => loadTickets(true)}>Try again</button></main>
+  }
 
   return (
     <main className="admin-maintenance-page">

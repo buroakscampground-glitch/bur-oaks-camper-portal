@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isSystemPortalAccount } from '../../../lib/camper-records'
 import { isPhonePortalLoginEmail } from '../../../lib/phone-portal-login'
@@ -27,17 +28,31 @@ export default function AdminCampersPage() {
   const [bulkConfirmMode, setBulkConfirmMode] = useState<'new_batch' | 'resend_pending' | 'secondary_new' | null>(null)
   const [search, setSearch] = useState('')
   const [portalFilter, setPortalFilter] = useState<'accepted' | 'pending' | 'none'>('accepted')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const router = useRouter()
   async function loadCampers() {
-    const { data } = await supabase
-      .from('campers')
-      .select('*')
-      .eq('active', true)
-      .order('lot_number', { ascending: true })
+    setLoading(true)
+    setLoadError('')
+    try {
+      const { data, error } = await supabase
+        .from('campers')
+        .select('*')
+        .eq('active', true)
+        .order('lot_number', { ascending: true })
 
-    const activeCampers = (data || []).filter((camper) => !isSystemPortalAccount(camper))
-    setCampers(activeCampers)
-    loadCamperHealth(activeCampers)
+      if (error) throw error
+      const activeCampers = (data || []).filter((camper) => !isSystemPortalAccount(camper))
+      await loadCamperHealth(activeCampers)
+      setCampers(activeCampers)
+    } catch (error) {
+      console.error(error)
+      setCampers([])
+      setCamperHealth({})
+      setLoadError('Camper records could not be loaded. Counts and camper lists are hidden until the office can reconnect.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   async function loadCamperHealth(activeCampers: any[]) {
@@ -56,6 +71,10 @@ export default function AdminCampersPage() {
       supabase.from('documents').select('camper_id,document_type').in('camper_id', camperIds).eq('document_type', 'Golf Cart Insurance'),
       supabase.from('sewer_pump_out_requests').select('camper_id,status,billed_at').in('camper_id', camperIds),
     ])
+
+    const failedResult = [invoiceResult, documentResult, maintenanceResult, insuranceResult, pumpOutResult]
+      .find((result) => result.error)
+    if (failedResult?.error) throw failedResult.error
 
     const health: Record<string, any> = {}
     const insuranceIds = new Set((insuranceResult.data || []).map((doc) => String(doc.camper_id)))
@@ -389,6 +408,14 @@ export default function AdminCampersPage() {
     accepted: 'Accepted',
     pending: 'Invite Pending',
     none: 'Not Set Up',
+  }
+
+  if (loading) {
+    return <main className="portal-loading"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading campers…</h1><p>Checking camper records and account health.</p></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Camper management is temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadCampers}>Try again</button></main>
   }
 
   return (
