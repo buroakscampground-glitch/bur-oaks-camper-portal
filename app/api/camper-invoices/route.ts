@@ -2,9 +2,15 @@ import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isInvoiceClosed } from '../../../lib/invoice-balance'
 import { loadCamperPaymentReceipt } from '../../../lib/camper-payment-receipt'
+import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+type CreditBalanceRow = {
+  remaining_amount?: number | string | null
+  applies_to?: string | null
+}
 
 export async function GET(request: Request) {
   const context = await getAuthenticatedContext(request)
@@ -33,13 +39,14 @@ export async function GET(request: Request) {
     if (invoiceError) throw invoiceError
     if (creditError && !['42P01', 'PGRST205'].includes(creditError.code || '')) throw creditError
 
-    const accountCredit = (credits || []).reduce(
-      (sum: number, credit: any) => sum + Number(credit.remaining_amount || 0),
+    const creditRows = (credits || []) as CreditBalanceRow[]
+    const accountCredit = creditRows.reduce(
+      (sum, credit) => sum + Number(credit.remaining_amount || 0),
       0,
     )
     const accountCreditDetails = {
-      lotRent: (credits || []).filter((credit: any) => credit.applies_to === 'lot_rent').reduce((sum: number, credit: any) => sum + Number(credit.remaining_amount || 0), 0),
-      general: (credits || []).filter((credit: any) => credit.applies_to !== 'lot_rent').reduce((sum: number, credit: any) => sum + Number(credit.remaining_amount || 0), 0),
+      lotRent: creditRows.filter((credit) => credit.applies_to === 'lot_rent').reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+      general: creditRows.filter((credit) => credit.applies_to !== 'lot_rent').reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
     }
 
     if (invoiceId) {
@@ -55,7 +62,15 @@ export async function GET(request: Request) {
       accountCredit,
       accountCreditDetails,
     }, { headers: { 'Cache-Control': 'no-store' } })
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Unable to load camper invoices.' }, { status: 500 })
+  } catch (error: unknown) {
+    const requestId = reportOperationalFailure(request, {
+      operation: 'camper-invoices-load',
+      actorRole: String(context.camper.role || 'camper'),
+      identifiers: { camperId: context.camper.id },
+    }, error)
+    return NextResponse.json({
+      error: supportReferenceMessage('Your billing details are temporarily unavailable. Please try again.', requestId),
+      requestId,
+    }, { status: 500 })
   }
 }
