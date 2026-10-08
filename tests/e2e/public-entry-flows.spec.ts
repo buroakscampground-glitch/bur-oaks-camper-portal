@@ -353,7 +353,11 @@ async function installSyntheticCamperWriteSession(page: Page) {
 
     const payloads: Record<string, object> = {
       '/api/messages': { messages: [] },
-      '/api/camper-documents': { documents: [], suggestedSignerName: 'Write Check' },
+      '/api/camper-documents': { documents: [
+        { id: 'doc-action', document_name: 'Rules acknowledgment', document_type: 'Rules', signature_status: 'pending', requires_two_signatures: false, signed_email: null, second_signed_email: null },
+        { id: 'doc-waiting', document_name: 'Two-signer agreement', document_type: 'Agreement', signature_status: 'pending_second_signature', requires_two_signatures: true, signed_name: 'Write Check', signed_email: user.email, second_signed_email: null },
+        { id: 'doc-complete', document_name: 'Completed lease', document_type: 'Lease', signature_status: 'signed', requires_two_signatures: false, signed_name: 'Write Check', signed_email: user.email, signed_at: '2026-10-07T15:15:00.000Z' },
+      ], suggestedSignerName: 'Write Check' },
       '/api/camper-invoices': { invoices: [], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
       '/api/authorized-billing': { accounts: [] },
       '/api/sewer-pump-out': { success: true, requests: pumpRequests, serviceLots: [camper.lot_number], serviceAccounts: [{ serviceLot: camper.lot_number, billingLot: camper.lot_number }] },
@@ -397,6 +401,22 @@ async function installSyntheticPaymentReceiptSession(page: Page) {
     }
   }
 
+  function receipt() {
+    if (paymentState === 'processing') return null
+    if (paymentState === 'credited') return {
+      kind: 'account_credit', totalReceived: 500, receivedOn: '2026-10-07T15:15:00.000Z', method: 'Paid by account credit',
+      allocations: [{ invoiceId: 'receipt-check-invoice', invoiceNumber: 'TEST-100', invoiceType: 'Quarterly Lot Rent', amount: 500 }], savedCredit: null,
+    }
+    return {
+      kind: 'online', totalReceived: 650, receivedOn: '2026-10-07T15:15:00.000Z', method: 'Online card',
+      allocations: [
+        { invoiceId: 'receipt-check-invoice', invoiceNumber: 'TEST-100', invoiceType: 'Quarterly Lot Rent', amount: 500 },
+        { invoiceId: 'receipt-check-second', invoiceNumber: 'TEST-101', invoiceType: 'Electric', amount: 100 },
+      ],
+      savedCredit: { amount: 50, remainingAmount: 50, destination: 'lot_rent' },
+    }
+  }
+
   await page.addInitScript(({ session }) => {
     const originalGetItem = Storage.prototype.getItem
     Storage.prototype.getItem = function getItem(key: string) {
@@ -421,7 +441,7 @@ async function installSyntheticPaymentReceiptSession(page: Page) {
   await page.route('**/api/**', async (route) => {
     const pathname = new URL(route.request().url()).pathname
     const payloads: Record<string, object> = {
-      '/api/camper-invoices': { camper, invoice: invoice(), invoices: [invoice()], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
+      '/api/camper-invoices': { camper, invoice: invoice(), receipt: receipt(), invoices: [invoice()], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
       '/api/authorized-billing': { accounts: [] },
       '/api/camper-meter-photos': { photos: [] },
     }
@@ -629,10 +649,14 @@ test('camper payment detail separates a confirmed receipt from a payment still p
 
   await page.goto('/invoices/receipt-check-invoice')
   await expect(page.getByRole('heading', { name: 'Payment recorded' })).toBeVisible()
-  await expect(page.getByText('Amount received').locator('..')).toContainText('$500.00')
+  await expect(page.getByText('Account payment').locator('..')).toContainText('$650.00')
   await expect(page.getByText('Paid on').locator('..')).toContainText('October 7, 2026')
   await expect(page.getByText('Method').locator('..')).toContainText('Online card')
-  await expect(page.getByText('Applied to').locator('..')).toContainText('Invoice #TEST-100')
+  await expect(page.getByText('Applied to this invoice').locator('..')).toContainText('$500.00')
+  await expect(page.getByRole('heading', { name: 'How this payment was applied' })).toBeVisible()
+  await expect(page.getByText('Invoice #TEST-101')).toBeVisible()
+  await expect(page.getByText('Saved as account credit')).toBeVisible()
+  await expect(page.getByText('Reserved for future lot rent · $50.00 remaining')).toBeVisible()
   const printReceipt = page.getByRole('button', { name: 'Print receipt' })
   expect((await printReceipt.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
   await expect(page.getByRole('button', { name: /Pay by/ })).toHaveCount(0)
@@ -652,6 +676,20 @@ test('camper payment detail separates a confirmed receipt from a payment still p
   await expect(page.getByText(/please do not pay this invoice again/i)).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Payment recorded' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Pay by/ })).toHaveCount(0)
+  await expectNoHorizontalOverflow(page)
+})
+
+test('document center separates my action from another signer’s action', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the actionable document grouping.')
+  await installSyntheticCamperWriteSession(page)
+  await page.goto('/documents')
+  await expect(page.getByText('Your action').locator('..')).toContainText('1')
+  await expect(page.getByText('Waiting on others').locator('..')).toContainText('1')
+  await expect(page.getByRole('heading', { name: 'Documents waiting for your signature' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Waiting for another signer' })).toBeVisible()
+  await expect(page.getByText('Your signature is saved — waiting for the other signer')).toBeVisible()
+  await expect(page.getByText('Two-signer agreement').locator('..').getByRole('button', { name: 'Review & Sign' })).toHaveCount(0)
+  await expect(page.getByText('Rules acknowledgment').locator('..').getByRole('button', { name: 'Review & Sign' })).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
 

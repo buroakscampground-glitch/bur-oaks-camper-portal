@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isInvoiceClosed } from '../../../lib/invoice-balance'
+import { loadCamperPaymentReceipt } from '../../../lib/camper-payment-receipt'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -44,7 +45,8 @@ export async function GET(request: Request) {
     if (invoiceId) {
       const invoice = (invoices || [])[0] || null
       if (!invoice) return NextResponse.json({ error: 'This invoice is not available for your camper account.' }, { status: 404 })
-      return NextResponse.json({ camper: context.camper, invoice, accountCredit, accountCreditDetails }, { headers: { 'Cache-Control': 'no-store' } })
+      const receipt = await loadCamperPaymentReceipt(context.admin, String(context.camper.id), invoice)
+      return NextResponse.json({ camper: context.camper, invoice, receipt, accountCredit, accountCreditDetails }, { headers: { 'Cache-Control': 'no-store' } })
     }
 
     return NextResponse.json({

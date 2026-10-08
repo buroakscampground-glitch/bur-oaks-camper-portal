@@ -294,20 +294,26 @@ export default function DocumentsPage() {
     )
   }
 
-  const documentsNeedingSignature = documents.filter(
-    (doc) => doc.signature_status !== 'signed' && doc.signature_status !== 'not_required' && doc.signature_status !== 'declined'
-  )
-  const signedDocuments = documents.filter((doc) => doc.signature_status === 'signed')
-  const referenceDocuments = documents.filter((doc) => doc.signature_status === 'not_required')
-  const declinedDocuments = documents.filter((doc) => doc.signature_status === 'declined')
-  const signatureProgress = documents.length
-    ? Math.round(((signedDocuments.length + referenceDocuments.length + declinedDocuments.length) / documents.length) * 100)
-    : 100
   const normalizedEmail = currentUserEmail.trim().toLowerCase()
   const hasCurrentUserSigned = (doc: any) =>
     [doc.signed_email, doc.second_signed_email]
       .map((email) => String(email || '').trim().toLowerCase())
       .includes(normalizedEmail)
+  const canCurrentUserSign = (doc: any) =>
+    doc.signature_status !== 'signed' &&
+    doc.signature_status !== 'not_required' &&
+    doc.signature_status !== 'declined' &&
+    !hasCurrentUserSigned(doc)
+  const documentsNeedingSignature = documents.filter(canCurrentUserSign)
+  const documentsWaitingForOthers = documents.filter((doc) =>
+    doc.signature_status !== 'signed' &&
+    doc.signature_status !== 'not_required' &&
+    doc.signature_status !== 'declined' &&
+    hasCurrentUserSigned(doc)
+  )
+  const signedDocuments = documents.filter((doc) => doc.signature_status === 'signed')
+  const referenceDocuments = documents.filter((doc) => doc.signature_status === 'not_required')
+  const declinedDocuments = documents.filter((doc) => doc.signature_status === 'declined')
   const documentStatusText = (doc: any) => {
     if (doc.signature_status === 'signed') {
       if (doc.requires_two_signatures) return 'Both signatures complete'
@@ -315,14 +321,10 @@ export default function DocumentsPage() {
     }
     if (doc.signature_status === 'not_required') return 'No signature required'
     if (doc.signature_status === 'declined') return 'You chose not to renew; the office was notified'
-    if (doc.signature_status === 'pending_second_signature') return 'Waiting for second signer'
-    return doc.requires_two_signatures ? 'Waiting for first signer' : 'Signature pending'
+    if (doc.signature_status === 'pending_second_signature' && hasCurrentUserSigned(doc)) return 'Your signature is saved — waiting for the other signer'
+    if (doc.signature_status === 'pending_second_signature') return 'Your signature is required as the second signer'
+    return 'Your signature is required'
   }
-  const canCurrentUserSign = (doc: any) =>
-    doc.signature_status !== 'signed' &&
-    doc.signature_status !== 'not_required' &&
-    doc.signature_status !== 'declined' &&
-    !hasCurrentUserSigned(doc)
 
   const isRenewalDocument = (doc: any) => /renewal/i.test(`${doc.document_name || ''} ${doc.document_type || ''}`)
   const pendingRenewalDocuments = documentsNeedingSignature.filter(isRenewalDocument)
@@ -391,17 +393,18 @@ export default function DocumentsPage() {
   }
 
   function renderDocumentCard(doc: any) {
-    const needsSignature = doc.signature_status !== 'signed' &&
-      doc.signature_status !== 'not_required' &&
-      doc.signature_status !== 'declined'
+    const needsSignature = canCurrentUserSign(doc)
+    const waitingForOtherSigner = documentsWaitingForOthers.includes(doc)
 
     return (
       <section
         key={doc.id}
         className={doc.signature_status === 'signed'
           ? 'camper-document-card signed'
-          : doc.signature_status === 'declined'
-            ? 'camper-document-card declined'
+            : doc.signature_status === 'declined'
+              ? 'camper-document-card declined'
+            : waitingForOtherSigner
+              ? 'camper-document-card waiting'
             : needsSignature
               ? 'camper-document-card needs-signature'
               : 'camper-document-card'}
@@ -478,9 +481,9 @@ export default function DocumentsPage() {
         <h1>Leases, renewals, and campground documents.</h1>
         <p>Review documents assigned to your campsite or an authorized family account, open the original file, and electronically sign when required.</p>
         <div className="camper-documents-summary">
-          <article><small>Needs signature</small><strong>{documentsNeedingSignature.length}</strong></article>
+          <article><small>Your action</small><strong>{documentsNeedingSignature.length}</strong></article>
+          <article><small>Waiting on others</small><strong>{documentsWaitingForOthers.length}</strong></article>
           <article><small>Completed / records</small><strong>{signedDocuments.length + referenceDocuments.length + declinedDocuments.length}</strong></article>
-          <article><small>Progress</small><strong>{signatureProgress}%</strong></article>
         </div>
       </section>
 
@@ -518,6 +521,19 @@ export default function DocumentsPage() {
             </div>
             <div className="camper-documents-grid urgent">
               {documentsNeedingSignature.map(renderDocumentCard)}
+            </div>
+          </section>
+        )}
+
+        {documentsWaitingForOthers.length > 0 && (
+          <section className="camper-document-section">
+            <div className="camper-document-section-heading">
+              <span>YOU ARE DONE FOR NOW</span>
+              <h2>Waiting for another signer</h2>
+              <p>Your signature is safely recorded. The other signer must finish these documents; no repeat signature is needed from you.</p>
+            </div>
+            <div className="camper-documents-grid waiting">
+              {documentsWaitingForOthers.map(renderDocumentCard)}
             </div>
           </section>
         )}

@@ -11598,6 +11598,16 @@ tbody tr:hover {
   background: linear-gradient(180deg,#fff,#f2f8f0);
 }
 
+.camper-document-card.waiting {
+  border-color: #d8c688;
+  background: linear-gradient(180deg,#fff,#fff9e8);
+}
+
+.camper-document-card.waiting .camper-document-icon {
+  background: #f3ead0;
+  color: #7a5a1d;
+}
+
 .camper-document-card.declined {
   border-color: #e3b8b0;
   background: linear-gradient(180deg,#fff,#fff2ef);
@@ -16268,6 +16278,7 @@ main.admin-report-page .admin-report-hero h1{color:#fff!important}
 .camper-payment-receipt>header{display:flex;align-items:center;gap:12px}.camper-payment-receipt>header>span{display:grid;width:46px;height:46px;flex:0 0 46px;place-items:center;border-radius:14px;background:#315f3d;color:#fff}.camper-payment-receipt header small,.camper-payment-pending small{color:#397047;font-size:9px;font-weight:950;letter-spacing:.12em}.camper-payment-receipt h2,.camper-payment-pending h2{margin:3px 0 0;color:#263d2e;font:600 24px Georgia,serif}.camper-payment-receipt header p,.camper-payment-pending p{margin:4px 0 0;color:#617066;font-size:11px;line-height:1.5}
 .camper-payment-receipt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:16px}.camper-payment-receipt-grid article{display:grid;gap:4px;padding:12px;border:1px solid #d9e7da;border-radius:12px;background:#fff}.camper-payment-receipt-grid small{color:#748078;font-size:9px;font-weight:900;text-transform:uppercase}.camper-payment-receipt-grid strong{color:#294633;font-size:13px;overflow-wrap:anywhere}
 .camper-payment-receipt>footer{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}.camper-payment-receipt footer p{display:flex;align-items:center;gap:7px;margin:0;color:#397047;font-size:10px;font-weight:800}.camper-payment-receipt footer button{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:44px;padding:0 14px;border:0;border-radius:11px;background:#315f3d;color:#fff;font-weight:900}
+.camper-payment-allocation{margin-top:14px;padding:14px;border:1px solid #d9e7da;border-radius:13px;background:#fff}.camper-payment-allocation h3{margin:0 0 9px;color:#294633;font:600 17px Georgia,serif}.camper-payment-allocation>div{display:grid;gap:6px}.camper-payment-allocation a,.camper-payment-allocation article{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:9px 11px;border-radius:10px;background:#f4f8f3;color:#294633;text-decoration:none}.camper-payment-allocation a[aria-current="page"]{box-shadow:inset 3px 0 #315f3d}.camper-payment-allocation span{display:grid;gap:2px;min-width:0}.camper-payment-allocation span>strong{font-size:11px}.camper-payment-allocation small{color:#708076;font-size:9px}.camper-payment-allocation>a>strong,.camper-payment-allocation>div>article>strong{white-space:nowrap;font-size:12px}.camper-payment-allocation>p{margin:9px 0 0;color:#708076;font-size:9px;line-height:1.5}
 .camper-payment-pending{display:flex;align-items:flex-start;gap:12px;margin:20px 23px;padding:17px;border:1px solid #c5d7e4;border-radius:16px;background:#eef5fa;color:#35658a}.camper-payment-pending>svg{flex:0 0 auto;margin-top:2px}.camper-payment-pending small{color:#35658a}.camper-payment-pending h2{color:#294f69}
 @media(max-width:600px){.camper-payment-receipt,.camper-payment-pending{margin-right:14px;margin-left:14px}.camper-payment-receipt-grid{grid-template-columns:1fr}.camper-payment-receipt>footer{align-items:stretch;flex-direction:column}.camper-payment-receipt footer button{width:100%}}
 @media print{body[data-print-camper-invoice] .camper-payment-receipt{box-shadow:none!important;break-inside:avoid}body[data-print-camper-invoice] .camper-payment-receipt footer button{display:none!important}}

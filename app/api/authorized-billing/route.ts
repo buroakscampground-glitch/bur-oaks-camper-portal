@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { loadAuthorizedBillingCampers } from '../../../lib/authorized-billing'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { isInvoiceClosed } from '../../../lib/invoice-balance'
+import { loadCamperPaymentReceipt } from '../../../lib/camper-payment-receipt'
 
 export const runtime = 'nodejs'
 
@@ -41,7 +42,8 @@ export async function GET(request: Request) {
         return NextResponse.json({ error: 'This invoice is not available to your login.' }, { status: 404 })
       }
       const account = accounts.find((item: any) => String(item.id) === String(invoice.camper_id))
-      return NextResponse.json({ account, invoice })
+      const receipt = await loadCamperPaymentReceipt(context.admin, String(invoice.camper_id), invoice)
+      return NextResponse.json({ account, invoice, receipt }, { headers: { 'Cache-Control': 'no-store' } })
     }
 
     return NextResponse.json({

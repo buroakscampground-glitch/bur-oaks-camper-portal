@@ -29,6 +29,7 @@ import InvoiceSmsOptInAlert from '../../components/invoice-sms-opt-in-alert'
 import { printPageWithFlag } from '../../../lib/print-page'
 import { invoiceRecordedTotal, isInvoiceClosed, isInvoicePaid, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
 import { achExpectedLabel } from '../../../lib/ach-expected-date'
+import type { CamperPaymentReceipt } from '../../../lib/camper-payment-receipt'
 
 function formatMoney(value: unknown) {
   return Number(value || 0).toLocaleString('en-US', {
@@ -79,6 +80,7 @@ export default function CamperInvoiceDetailPage() {
   const [message, setMessage] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
   const [authorizedFamilyBilling, setAuthorizedFamilyBilling] = useState(false)
+  const [receipt, setReceipt] = useState<CamperPaymentReceipt | null>(null)
   const [paymentMethod, setPaymentMethod] = useState<InvoicePaymentMethod>('card')
   const [paymentTotal, setPaymentTotal] = useState('')
   const [extraPaymentDestination, setExtraPaymentDestination] = useState<ExtraPaymentDestination>('lot_rent')
@@ -116,6 +118,7 @@ export default function CamperInvoiceDetailPage() {
         if (response?.ok) {
           const result = await response.json()
           data = result.invoice || null
+          setReceipt(result.receipt || null)
           visibleCamper = result.camper || camperData
         } else if (response) {
           const result = await response.json().catch(() => null)
@@ -147,6 +150,7 @@ export default function CamperInvoiceDetailPage() {
           if (response?.ok) {
             const familyResult = await response.json()
             data = familyResult.invoice || null
+            setReceipt(familyResult.receipt || null)
             visibleCamper = familyResult.account || camperData
             setAuthorizedFamilyBilling(Boolean(data))
             setMessage('')
@@ -192,6 +196,7 @@ export default function CamperInvoiceDetailPage() {
         const familyResult = await response.json()
         if (familyResult.invoice) {
           setInvoice(familyResult.invoice)
+          setReceipt(familyResult.receipt || null)
           setItems(Array.isArray(familyResult.invoice.invoice_items) ? familyResult.invoice.invoice_items : [])
         }
         return
@@ -208,6 +213,7 @@ export default function CamperInvoiceDetailPage() {
         const result = await response.json()
         if (result.invoice) {
           setInvoice(result.invoice)
+          setReceipt(result.receipt || null)
           setItems(Array.isArray(result.invoice.invoice_items) ? result.invoice.invoice_items : [])
         }
       }
@@ -324,6 +330,10 @@ export default function CamperInvoiceDetailPage() {
   const invoiceBalance = Number(invoice.total_due || 0)
   const recordedTotal = invoiceRecordedTotal(invoice)
   const paidByAccountCredit = /account credit/i.test(String(invoice.payment_method || ''))
+  const receiptTotal = receipt?.totalReceived ?? recordedTotal
+  const receiptAllocations = receipt?.allocations?.length
+    ? receipt.allocations
+    : [{ invoiceId: String(invoice.id), invoiceNumber: String(invoice.invoice_number), invoiceType: String(invoice.invoice_type || 'Campground charge'), amount: recordedTotal }]
   const enteredPaymentTotal = Math.min(10_000, Math.max(0, Number(paymentTotal) || 0))
   const paymentUnderAmount = enteredPaymentTotal > 0 && enteredPaymentTotal < invoiceBalance
   const paymentSubtotal = Math.max(invoiceBalance, enteredPaymentTotal || invoiceBalance)
@@ -484,11 +494,31 @@ export default function CamperInvoiceDetailPage() {
                 </div>
               </header>
               <div className="camper-payment-receipt-grid">
-                <article><small>{paidByAccountCredit ? 'Amount credited' : 'Amount received'}</small><strong>{formatMoney(recordedTotal)}</strong></article>
-                <article><small>{paidByAccountCredit ? 'Credit applied' : 'Paid on'}</small><strong>{formatPaymentDate(invoice.paid_at)}</strong></article>
-                <article><small>Method</small><strong>{invoice.payment_method || 'Payment recorded by Bur Oaks'}</strong></article>
-                <article><small>Applied to</small><strong>Invoice #{invoice.invoice_number}</strong></article>
+                <article><small>{paidByAccountCredit ? 'Amount credited' : receiptAllocations.length > 1 || receipt?.savedCredit ? 'Account payment' : 'Amount received'}</small><strong>{formatMoney(receiptTotal)}</strong></article>
+                <article><small>{paidByAccountCredit ? 'Credit applied' : 'Paid on'}</small><strong>{formatPaymentDate(receipt?.receivedOn || invoice.paid_at)}</strong></article>
+                <article><small>Method</small><strong>{receipt?.method || invoice.payment_method || 'Payment recorded by Bur Oaks'}</strong></article>
+                <article><small>Applied to this invoice</small><strong>{formatMoney(receiptAllocations.find((item) => item.invoiceId === String(invoice.id))?.amount ?? recordedTotal)}</strong></article>
               </div>
+              {(receiptAllocations.length > 1 || receipt?.savedCredit) && (
+                <section className="camper-payment-allocation" aria-label="How this payment was applied">
+                  <h3>How this payment was applied</h3>
+                  <div>
+                    {receiptAllocations.map((item) => (
+                      <a key={item.invoiceId} href={`/invoices/${item.invoiceId}`} aria-current={item.invoiceId === String(invoice.id) ? 'page' : undefined}>
+                        <span><strong>Invoice #{item.invoiceNumber}</strong><small>{item.invoiceType}</small></span>
+                        <strong>{formatMoney(item.amount)}</strong>
+                      </a>
+                    ))}
+                    {receipt?.savedCredit && (
+                      <article>
+                        <span><strong>Saved as account credit</strong><small>{receipt.savedCredit.destination === 'lot_rent' ? 'Reserved for future lot rent' : 'Available for a future bill'} · {formatMoney(receipt.savedCredit.remainingAmount)} remaining</small></span>
+                        <strong>{formatMoney(receipt.savedCredit.amount)}</strong>
+                      </article>
+                    )}
+                  </div>
+                  <p>Each amount is tied to this one payment. Open another invoice above to view its itemized receipt.</p>
+                </section>
+              )}
               <footer>
                 <p><CheckCircle2 size={16} /> Billing &amp; Payments is the source of truth for this receipt.</p>
                 <button type="button" onClick={printInvoice}><Printer size={16} /> Print receipt</button>
