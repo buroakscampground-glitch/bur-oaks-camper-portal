@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { financialOperationFailure } from '../../../lib/financial-operation-error'
+import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -38,10 +40,20 @@ export async function POST(request: Request) {
   })
 
   if (error) {
-    const migrationMissing = ['42883', 'PGRST202'].includes(error.code || '')
+    const failure = financialOperationFailure(error, {
+      migrationMessage: 'The protected payment audit update is not installed yet.',
+      fallbackMessage: 'The payment could not be recorded.',
+      allowedMessages: ['A payment reason is required.', 'Invoice not found.'],
+    })
+    if (!failure.report) return NextResponse.json({ error: failure.message }, { status: failure.status })
+    const requestId = reportOperationalFailure(request, {
+      operation: 'manual-payment-record',
+      actorRole: 'admin',
+      identifiers: { invoiceId, operationKey },
+    }, error)
     return NextResponse.json(
-      { error: migrationMissing ? 'The protected payment audit update is not installed yet.' : error.message },
-      { status: migrationMissing ? 503 : 400 },
+      { error: supportReferenceMessage(failure.message, requestId), requestId },
+      { status: failure.status },
     )
   }
 

@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 export type PaymentInvoice = {
   id: string
   invoice_number?: string | null
@@ -14,6 +16,12 @@ export type PaymentAllocation = {
   invoiceType: string
   dueDate: string | null
   amount: number
+}
+
+export type ManualPaymentResult = {
+  appliedTotal?: number | string | null
+  creditAmount?: number | string | null
+  allocations?: unknown[] | null
 }
 
 const CLOSED_STATUSES = new Set(['paid', 'processing', 'void', 'canceled', 'cancelled'])
@@ -73,7 +81,7 @@ export async function submitManualPayment({
   reference,
   reason,
 }: {
-  client: any
+  client: SupabaseClient
   invoiceId: string
   amount: number
   method: string
@@ -98,7 +106,9 @@ export async function submitManualPayment({
       operationKey: crypto.randomUUID(),
     }),
   })
-  const result = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(result.error || 'The payment could not be recorded.')
-  return result
+  const result = await response.json().catch(() => null) as (ManualPaymentResult & { error?: unknown }) | null
+  if (!response.ok) {
+    throw new Error(typeof result?.error === 'string' ? result.error : 'The payment could not be recorded.')
+  }
+  return result || {}
 }

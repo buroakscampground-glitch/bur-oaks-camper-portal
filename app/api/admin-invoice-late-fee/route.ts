@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { financialOperationFailure } from '../../../lib/financial-operation-error'
+import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 
 function money(value: unknown) {
   return Math.round(Number(value || 0) * 100) / 100
@@ -20,7 +22,26 @@ export async function POST(request: Request) {
   const { data, error } = await context.admin.rpc('remove_invoice_late_fee_audited', {
     p_invoice_id: invoiceId, p_reason: reason.slice(0, 1000), p_actor_email: context.user.email || 'office',
   })
-  if (error) return NextResponse.json({ error: ['42883', 'PGRST202'].includes(error.code || '') ? 'The protected waiver audit update is not installed yet.' : error.message }, { status: 400 })
+  if (error) {
+    const failure = financialOperationFailure(error, {
+      migrationMessage: 'The protected waiver audit update is not installed yet.',
+      fallbackMessage: 'The late fee could not be removed.',
+      allowedMessages: [
+        'A late-fee waiver reason is required.',
+        'Invoice not found.',
+        'Late fees can only be removed from an open invoice.',
+        'This invoice does not have a late fee.',
+      ],
+    })
+    if (!failure.report) return NextResponse.json({ error: failure.message }, { status: failure.status })
+    const requestId = reportOperationalFailure(request, {
+      operation: 'invoice-late-fee-waive', actorRole: 'admin', identifiers: { invoiceId },
+    }, error)
+    return NextResponse.json(
+      { error: supportReferenceMessage(failure.message, requestId), requestId },
+      { status: failure.status },
+    )
+  }
   const removedFee = money(data?.removedFee)
   const totalDue = money(data?.totalDue)
 
