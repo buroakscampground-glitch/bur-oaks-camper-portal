@@ -39,6 +39,7 @@ export default function SystemHealthPage() {
   const [view, setView] = useState<View>('health')
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [auditingElectric, setAuditingElectric] = useState(false)
   const [electricAudit, setElectricAudit] = useState<any>(null)
   const [message, setMessage] = useState('')
@@ -46,17 +47,25 @@ export default function SystemHealthPage() {
   async function load() {
     setLoading(true)
     setMessage('')
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-    if (!token) {
-      window.location.href = '/login'
-      return
+    setLoadError('')
+    try {
+      const { data } = await supabase.auth.getSession()
+      const token = data.session?.access_token
+      if (!token) {
+        window.location.href = '/login'
+        return
+      }
+      const response = await fetch('/api/admin-operations', { headers: { Authorization: `Bearer ${token}` } })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok || !result.snapshot) throw new Error(result.error || 'The operations snapshot could not be loaded.')
+      setSnapshot(result.snapshot)
+    } catch (error) {
+      console.error('Unable to load operations health:', error)
+      setSnapshot(null)
+      setLoadError('System Health could not verify the current records. No totals below should be treated as current.')
+    } finally {
+      setLoading(false)
     }
-    const response = await fetch('/api/admin-operations', { headers: { Authorization: `Bearer ${token}` } })
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok) setMessage(result.error || 'The operations snapshot could not be loaded.')
-    else setSnapshot(result.snapshot)
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -120,6 +129,18 @@ export default function SystemHealthPage() {
   const resultCount = Object.values(results).reduce((sum, rows) => sum + rows.length, 0)
 
   if (loading) return <main className="operations-health-page"><div className="operations-health-loading"><Loader2 size={28} /><strong>Checking every portal system…</strong></div></main>
+
+  if (loadError) {
+    return (
+      <main className="operations-health-page">
+        <div className="operations-health-loading" role="alert">
+          <AlertTriangle size={34} />
+          <strong>{loadError}</strong>
+          <button type="button" className="portal-loading-retry" onClick={load}>Try again</button>
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="operations-health-page">

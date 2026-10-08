@@ -111,6 +111,7 @@ export default function AdminInvoicesPage() {
   const [monthFilter, setMonthFilter] = useState('')
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [creating, setCreating] = useState(false)
   const [deletingInvoiceId, setDeletingInvoiceId] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
@@ -127,7 +128,7 @@ export default function AdminInvoicesPage() {
   }
 
   async function loadInvoices() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('invoices')
       .select(`
         *,
@@ -135,6 +136,8 @@ export default function AdminInvoicesPage() {
         invoice_items (description, quantity, unit_price, total)
       `)
       .order('created_at', { ascending: false })
+
+    if (error) throw error
 
     const sortedInvoices = (data || []).sort((a: any, b: any) => {
       if (isInvoiceClosed(a) && !isInvoiceClosed(b)) return 1
@@ -150,25 +153,34 @@ export default function AdminInvoicesPage() {
 
   useEffect(() => {
     async function loadWorkspace() {
-      const searchParams = new URLSearchParams(window.location.search)
-      const requestedFilter = searchParams.get('filter')
-      if (requestedFilter && ['all', 'open', 'paid', 'due-7', 'due-8-30', 'future', 'upcoming-30', 'closed'].includes(requestedFilter)) {
-        setFilter(requestedFilter as InvoiceFilter)
+      setLoading(true)
+      setLoadError('')
+      try {
+        const searchParams = new URLSearchParams(window.location.search)
+        const requestedFilter = searchParams.get('filter')
+        if (requestedFilter && ['all', 'open', 'paid', 'due-7', 'due-8-30', 'future', 'upcoming-30', 'closed'].includes(requestedFilter)) {
+          setFilter(requestedFilter as InvoiceFilter)
+        }
+        const requestedMonth = searchParams.get('month') || ''
+        if (/^\d{4}-\d{2}$/.test(requestedMonth)) setMonthFilter(requestedMonth)
+        const requestedSearch = searchParams.get('search') || ''
+        if (requestedSearch) setSearchText(requestedSearch)
+
+        const [, camperResult, paymentFeeSettings] = await Promise.all([
+          loadInvoices(),
+          supabase.from('campers').select('*').eq('active', true).order('lot_number'),
+          loadPaymentFeeSettings(supabase),
+        ])
+
+        if (camperResult.error) throw camperResult.error
+        setCampers((camperResult.data || []).filter(isOperationalCamper))
+        setFeeSettings(paymentFeeSettings)
+      } catch (error) {
+        console.error('Unable to load office billing:', error)
+        setLoadError('Billing records could not be verified. No totals on this screen should be treated as current.')
+      } finally {
+        setLoading(false)
       }
-      const requestedMonth = searchParams.get('month') || ''
-      if (/^\d{4}-\d{2}$/.test(requestedMonth)) setMonthFilter(requestedMonth)
-      const requestedSearch = searchParams.get('search') || ''
-      if (requestedSearch) setSearchText(requestedSearch)
-
-      const [, camperResult, paymentFeeSettings] = await Promise.all([
-        loadInvoices(),
-        supabase.from('campers').select('*').eq('active', true).order('lot_number'),
-        loadPaymentFeeSettings(supabase),
-      ])
-
-      setCampers((camperResult.data || []).filter(isOperationalCamper))
-      setFeeSettings(paymentFeeSettings)
-      setLoading(false)
     }
 
     loadWorkspace()
@@ -189,6 +201,19 @@ export default function AdminInvoicesPage() {
       window.removeEventListener('pageshow', refreshStatuses)
     }
   }, [])
+
+  if (loadError) {
+    return (
+      <main className="admin-billing-page">
+        <div className="admin-invoice-empty" role="alert">
+          <ReceiptText size={34} />
+          <h2>Billing is temporarily unavailable</h2>
+          <p>{loadError}</p>
+          <button className="admin-create-invoice-button" type="button" onClick={() => window.location.reload()}>Try again</button>
+        </div>
+      </main>
+    )
+  }
 
   async function createInvoice() {
     setMessage('')
