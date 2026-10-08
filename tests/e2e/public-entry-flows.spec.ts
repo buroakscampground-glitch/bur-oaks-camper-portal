@@ -193,9 +193,7 @@ async function installSyntheticAdminSession(page: Page) {
   }
 }
 
-async function installSyntheticRoleRouter(page: Page) {
-  let role = 'camper'
-  let destination = '/portal'
+async function installSyntheticRoleRouter(page: Page, role = 'camper', destination = '/portal') {
   const now = Math.floor(Date.now() / 1000)
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'role-check-user', email: 'role-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.role-check`
@@ -246,13 +244,6 @@ async function installSyntheticRoleRouter(page: Page) {
     }
     await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Synthetic role-route boundary' }) })
   })
-
-  return {
-    use(nextRole: string, nextDestination: string) {
-      role = nextRole
-      destination = nextDestination
-    },
-  }
 }
 
 async function installSyntheticDeepLinkLogin(page: Page) {
@@ -663,31 +654,33 @@ test('password recovery stays readable and ready without sending a request', asy
   expect(submitBox?.height ?? 0).toBeGreaterThanOrEqual(44)
 })
 
-test('the wrong signed-in account is explained without exposing the admin workspace', async ({ page }, testInfo) => {
+test('the wrong signed-in account is explained without exposing the admin workspace', async ({ page, context }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the authenticated role boundary and account-switch recovery.')
-  const router = await installSyntheticRoleRouter(page)
   const cases = [
     { role: 'camper', destination: '/portal' },
     { role: 'maintenance', destination: '/maintenance/dashboard' },
-    { role: 'event_coordinator', destination: '/community' },
   ]
 
   for (const item of cases) {
-    router.use(item.role, item.destination)
-    await page.goto('/admin')
-    await expect(page.getByRole('heading', { name: new RegExp(`This ${item.role === 'event_coordinator' ? 'event coordinator' : item.role} account cannot open this page`, 'i') })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Return to this account’s home' })).toHaveAttribute('href', item.destination)
-    await expect(page.getByRole('button', { name: 'Sign out and use an administrator account' })).toBeVisible()
-    await expect(page.locator('.admin-sidebar')).toHaveCount(0)
-    expect(new URL(page.url()).pathname).toBe('/admin')
+    const rolePage = await context.newPage()
+    await installSyntheticRoleRouter(rolePage, item.role, item.destination)
+    await rolePage.goto('/admin')
+    await expect(rolePage.getByRole('heading', { name: new RegExp(`This ${item.role} account cannot open this page`, 'i') })).toBeVisible()
+    await expect(rolePage.getByRole('link', { name: 'Return to this account’s home' })).toHaveAttribute('href', item.destination)
+    await expect(rolePage.getByRole('button', { name: 'Sign out and use an administrator account' })).toBeVisible()
+    await expect(rolePage.locator('.admin-sidebar')).toHaveCount(0)
+    expect(new URL(rolePage.url()).pathname).toBe('/admin')
+    await rolePage.close()
   }
 
-  router.use('admin', '/admin')
-  await page.goto('/admin')
-  await expect(page.locator('.admin-sidebar')).toBeVisible()
-  await expect(page.locator('.role-mismatch-card')).toHaveCount(0)
+  const adminPage = await context.newPage()
+  await installSyntheticRoleRouter(adminPage, 'admin', '/admin')
+  await adminPage.goto('/admin')
+  await expect(adminPage.locator('.admin-sidebar')).toBeVisible()
+  await expect(adminPage.locator('.role-mismatch-card')).toHaveCount(0)
+  await adminPage.close()
 
-  router.use('event_coordinator', '/community')
+  await installSyntheticRoleRouter(page, 'event_coordinator', '/community')
   await page.goto('/admin')
   await expect(page.getByRole('heading', { name: /This event coordinator account cannot open this page/i })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out and use an administrator account' }).click()
