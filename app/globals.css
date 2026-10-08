@@ -8336,6 +8336,40 @@ tbody tr:hover {
   font-weight: 800;
 }
 
+.role-mismatch-card {
+  width: min(620px, calc(100% - 32px));
+  margin: 10vh auto;
+  padding: clamp(26px, 6vw, 42px);
+  border: 1px solid #d9dfd6;
+  border-radius: 24px;
+  background: #fff;
+  color: #2b4031;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(31, 53, 39, .12);
+}
+
+.role-mismatch-card > span {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 14px;
+  place-items: center;
+  border-radius: 18px;
+  background: #e8f1e6;
+  color: #315f3d;
+}
+
+.role-mismatch-card small { color: #9a7834; font-weight: 900; letter-spacing: .12em; }
+.role-mismatch-card h1 { margin: 8px 0; font: 500 clamp(28px, 5vw, 40px)/1.1 Georgia, serif; }
+.role-mismatch-card p { margin: 0 auto; color: #68766d; line-height: 1.55; }
+.role-mismatch-card > div { display: grid; gap: 10px; margin-top: 24px; }
+.role-mismatch-card a,
+.role-mismatch-card button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 0 16px; border-radius: 12px; font-weight: 900; text-decoration: none; }
+.role-mismatch-card a { border: 1px solid #d7ddd5; background: #fff; color: #315f3d; }
+.role-mismatch-card button { border: 0; background: #315f3d; color: #fff; }
+.role-mismatch-card button:disabled { opacity: .6; }
+.role-mismatch-card .role-mismatch-error { margin-top: 14px; color: #9d3e37; font-weight: 800; }
+
 .admin-birds-loading {
   gap: 4px;
   color: #004c54;

@@ -1,9 +1,21 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ShieldCheck } from 'lucide-react'
+import { ArrowRight, LogOut, ShieldCheck } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { effectivePortalRole } from '../lib/staff-roles'
+import { effectivePortalRole, portalDestinationForRole } from '../lib/staff-roles'
+
+type RoleMismatch = {
+  role: string
+  destination: string
+}
+
+function accountLabel(role: string) {
+  if (role === 'admin') return 'administrator account'
+  if (role === 'maintenance') return 'maintenance account'
+  if (role === 'event_coordinator') return 'event coordinator account'
+  return 'camper account'
+}
 
 export default function RoleGuard({
   allowedRoles,
@@ -17,6 +29,9 @@ export default function RoleGuard({
   const [allowed, setAllowed] = useState(false)
   const [checkError, setCheckError] = useState('')
   const [checkAttempt, setCheckAttempt] = useState(0)
+  const [roleMismatch, setRoleMismatch] = useState<RoleMismatch | null>(null)
+  const [switchingAccount, setSwitchingAccount] = useState(false)
+  const [switchError, setSwitchError] = useState('')
   const allowedRolesKey = allowedRoles.join(',')
   const isAdminOnly = allowedRoles.length === 1 && allowedRoles[0] === 'admin'
 
@@ -32,6 +47,7 @@ export default function RoleGuard({
 
     async function checkRole() {
       setCheckError('')
+      setRoleMismatch(null)
       try {
         const { data: sessionData } = await withTimeout(supabase.auth.getSession(), 6000)
         const session = sessionData.session
@@ -58,16 +74,8 @@ export default function RoleGuard({
         }
 
         if (response.ok && role) {
-          const destination = role === 'admin'
-            ? '/admin'
-            : role === 'event_coordinator'
-              ? '/community'
-              : role === 'maintenance'
-                ? '/maintenance/dashboard'
-                : role === 'camper'
-                  ? '/portal'
-                  : '/login'
-          window.location.replace(destination)
+          const destination = portalDestinationForRole(role) || '/login'
+          if (active) setRoleMismatch({ role, destination })
           return
         }
 
@@ -91,6 +99,10 @@ export default function RoleGuard({
             if (active) setAllowed(true)
             return
           }
+          if (fallbackRole) {
+            if (active) setRoleMismatch({ role: fallbackRole, destination: portalDestinationForRole(fallbackRole) || '/login' })
+            return
+          }
         }
 
         throw new Error(result?.error || 'Permission check failed')
@@ -105,6 +117,41 @@ export default function RoleGuard({
     checkRole()
     return () => { active = false }
   }, [allowedRolesKey, checkAttempt, loginPath])
+
+  async function switchAccount() {
+    setSwitchingAccount(true)
+    setSwitchError('')
+    try {
+      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      window.location.href = `${loginPath}?returnTo=${encodeURIComponent(returnTo)}&reason=wrong-account`
+    } catch {
+      setSwitchError('This account could not be signed out. Please try again; no account information was changed.')
+      setSwitchingAccount(false)
+    }
+  }
+
+  if (roleMismatch) {
+    const requiredAccount = isAdminOnly ? 'administrator account' : 'account assigned to this workspace'
+    return (
+      <main className="page">
+        <section className="role-mismatch-card" role="alert" aria-labelledby="role-mismatch-heading">
+          <span><ShieldCheck size={30} /></span>
+          <small>RIGHT PERSON · WRONG WORKSPACE</small>
+          <h1 id="role-mismatch-heading">This {accountLabel(roleMismatch.role)} cannot open this page.</h1>
+          <p>You are still safely signed in. This page requires an {requiredAccount}.</p>
+          <div>
+            <a href={roleMismatch.destination}><ArrowRight size={16} /> Return to this account’s home</a>
+            <button type="button" onClick={switchAccount} disabled={switchingAccount}>
+              <LogOut size={16} /> {switchingAccount ? 'Signing out…' : `Sign out and use an ${requiredAccount}`}
+            </button>
+          </div>
+          {switchError && <p className="role-mismatch-error">{switchError}</p>}
+        </section>
+      </main>
+    )
+  }
 
   if (!allowed) {
     return (

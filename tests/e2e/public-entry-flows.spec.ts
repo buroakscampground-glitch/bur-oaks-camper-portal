@@ -632,27 +632,29 @@ test('password recovery stays readable and ready without sending a request', asy
   expect(submitBox?.height ?? 0).toBeGreaterThanOrEqual(44)
 })
 
-test('authenticated roles are routed only to their assigned workspace', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the four authenticated role destinations.')
+test('the wrong signed-in account is explained without exposing the admin workspace', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the authenticated role boundary and account-switch recovery.')
   const router = await installSyntheticRoleRouter(page)
   const cases = [
     { role: 'camper', destination: '/portal' },
-    { role: 'admin', destination: '/admin' },
     { role: 'maintenance', destination: '/maintenance/dashboard' },
     { role: 'event_coordinator', destination: '/community' },
   ]
 
   for (const item of cases) {
     router.use(item.role, item.destination)
-    await page.goto('/portal').catch((error) => {
-      if (!String(error).includes('ERR_ABORTED')) throw error
-    })
-    // The role router can replace /portal while Playwright is still observing the
-    // original navigation. Poll the settled URL instead of attaching a second
-    // load waiter, which can itself be aborted by that intentional replacement.
-    await expect.poll(() => new URL(page.url()).pathname).toBe(item.destination)
-    expect(new URL(page.url()).pathname).toBe(item.destination)
+    await page.goto('/admin')
+    await expect(page.getByRole('heading', { name: new RegExp(`This ${item.role === 'event_coordinator' ? 'event coordinator' : item.role} account cannot open this page`, 'i') })).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Return to this account’s home' })).toHaveAttribute('href', item.destination)
+    await expect(page.getByRole('button', { name: 'Sign out and use an administrator account' })).toBeVisible()
+    await expect(page.locator('.admin-sidebar')).toHaveCount(0)
+    expect(new URL(page.url()).pathname).toBe('/admin')
   }
+
+  router.use('admin', '/admin')
+  await page.goto('/admin')
+  await expect(page.locator('.admin-sidebar')).toBeVisible()
+  await expect(page.locator('.role-mismatch-card')).toHaveCount(0)
 })
 
 test('camper sign-in preserves an authorized billing deep link', async ({ page }, testInfo) => {
