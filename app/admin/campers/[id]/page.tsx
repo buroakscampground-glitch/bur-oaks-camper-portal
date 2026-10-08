@@ -143,6 +143,7 @@ export default function CamperDetailPage() {
   const [sendingPhoneSetup, setSendingPhoneSetup] = useState(false)
   const [message, setMessage] = useState('')
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState('')
   const [internalHistory, setInternalHistory] = useState<any | null>(null)
   const [historyView, setHistoryView] = useState<HistoryView>('activity')
   const [historyError, setHistoryError] = useState('')
@@ -166,6 +167,8 @@ export default function CamperDetailPage() {
   async function loadCamper() {
     setLoading(true)
     setMessage('')
+    setLoadError('')
+    setNotFound(false)
 
     const [camperResult, invoiceResult, documentResult] = await Promise.all([
       supabase.from('campers').select('*').eq('id', camperId).single(),
@@ -178,7 +181,14 @@ export default function CamperDetailPage() {
     ])
 
     if (camperResult.error || !camperResult.data) {
-      setNotFound(true)
+      if (camperResult.error?.code === 'PGRST116') setNotFound(true)
+      else setLoadError('The camper profile could not be loaded. Editing and account actions are blocked.')
+      setLoading(false)
+      return
+    }
+
+    if (invoiceResult.error || documentResult.error) {
+      setLoadError('The camper profile, invoice ledger, or document record could not be loaded completely. Editing and account actions are blocked.')
       setLoading(false)
       return
     }
@@ -191,11 +201,17 @@ export default function CamperDetailPage() {
 
     const currentLotNumber = String(camperResult.data.lot_number || '').trim()
     if (currentLotNumber) {
-      const { data: lotRows } = await supabase
+      const { data: lotRows, error: lotError } = await supabase
         .from('lots')
         .select('lot_rent_amount')
         .eq('lot_number', currentLotNumber)
         .limit(1)
+
+      if (lotError) {
+        setLoadError('The camper lot and rent record could not be loaded. Editing and billing actions are blocked.')
+        setLoading(false)
+        return
+      }
 
       const savedRent = lotRows?.[0]?.lot_rent_amount
       setAnnualLotRent(savedRent === null || savedRent === undefined ? '' : String(savedRent))
@@ -587,6 +603,8 @@ export default function CamperDetailPage() {
       </main>
     )
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Camper profile is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadCamper}>Try again</button></main>
 
   if (notFound) {
     return (

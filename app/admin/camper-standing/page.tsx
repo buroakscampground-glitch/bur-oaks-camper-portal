@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, History, Search, ShieldCheck, TrendingUp, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, History, Loader2, Search, ShieldCheck, TrendingUp, Users } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import type { CamperStandingRow, CamperStanding } from '../../../lib/camper-standing'
 
@@ -80,6 +80,9 @@ export default function CamperStandingPage() {
   function careCount(row: CamperStandingRow) {
     return windowChoice === '12' ? row.siteCare12Months : windowChoice === '24' ? row.siteCare24Months : row.siteCareLifetime
   }
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading camper standing…</h1></main>
+  if (error) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Camper standing is temporarily unavailable</h1><p>{error} Standing totals are hidden until the complete record set loads.</p><button className="portal-loading-retry" type="button" onClick={loadStanding}>Try again</button></main>
 
   return (
     <main className="camper-standing-page">

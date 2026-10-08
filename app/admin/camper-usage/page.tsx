@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Activity, AlertTriangle, BrainCircuit, CalendarRange, CheckCircle2, CircleHelp, Gauge, RefreshCw, Search, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, BrainCircuit, CalendarRange, CheckCircle2, CircleHelp, Gauge, Loader2, RefreshCw, Search, Zap } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { buildCamperSeasonUsage, camperUsageRiskOrder, camperUsageSeasonWindow, usageCampersBySite } from '../../../lib/camper-season-usage'
 
@@ -27,6 +27,7 @@ export default function CamperUsagePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   const loadUsage = useCallback(async (initial = false) => {
     if (initial) setLoading(true)
@@ -37,6 +38,7 @@ export default function CamperUsagePage() {
     ])
     const errors = [camperResult.error, readingResult.error].filter(Boolean)
     setMessage(errors.map((error) => error?.message).join(' '))
+    setLoadError(errors.length ? 'Camper records or electric readings could not be loaded. Usage totals and review signals are hidden.' : '')
     if (!errors.length) {
       setCampers(usageCampersBySite(camperResult.data || []))
       setReadings(readingResult.data || [])
@@ -104,6 +106,9 @@ export default function CamperUsagePage() {
   const noDataCount = rows.filter((row) => row.signal === 'no_data').length
   const bandCounts = useMemo(() => usageBands.map((band) => ({ band, count: rows.filter((row) => row.usageBand === band).length })), [rows])
   const largestBand = Math.max(1, ...bandCounts.map((item) => item.count))
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading camper usage…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Camper usage is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={() => loadUsage(true)}>Try again</button></main>
 
   return (
     <main className="admin-camper-usage-page">

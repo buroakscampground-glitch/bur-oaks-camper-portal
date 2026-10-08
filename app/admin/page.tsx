@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import {
+  AlertTriangle,
   Archive,
   ArrowRight,
   BarChart3,
@@ -197,6 +198,7 @@ export default function AdminPage() {
   const [recentPayments, setRecentPayments] = useState<MoneyActivityItem[]>([])
   const [upcomingBalances, setUpcomingBalances] = useState<MoneyActivityItem[]>([])
   const [toolSearch, setToolSearch] = useState('')
+  const [loadError, setLoadError] = useState('')
   const achReconciliationAttempted = useRef(false)
 
   useEffect(() => {
@@ -227,20 +229,30 @@ export default function AdminPage() {
   }, [checkingAuth])
 
   async function checkAdmin() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    setLoadError('')
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError) {
+      setLoadError('The admin session could not be verified. Dashboard totals and actions are hidden.')
+      setCheckingAuth(false)
+      return
+    }
 
     if (!user) {
       window.location.href = '/login'
       return
     }
 
-    const { data: camper } = await supabase
+    const { data: camper, error: roleError } = await supabase
       .from('campers')
       .select('role')
       .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
       .single()
+
+    if (roleError) {
+      setLoadError('Admin access and dashboard data could not be verified. Nothing below should be treated as current.')
+      setCheckingAuth(false)
+      return
+    }
 
     if (!camper || camper.role?.toLowerCase() !== 'admin') {
       window.location.href = '/portal'
@@ -252,6 +264,7 @@ export default function AdminPage() {
   }
 
   async function loadStats() {
+    setLoadError('')
     const [
       campersResult,
       archivedResult,
@@ -291,6 +304,12 @@ export default function AdminPage() {
       supabase.from('maintenance_supply_requests').select('*').in('status', ['Requested', 'Ordered']).order('requested_at', { ascending: false }),
       supabase.from('site_care_notices').select('*').neq('status', 'Resolved').order('created_at', { ascending: false }),
     ])
+
+    const failedResult = [campersResult, archivedResult, invoicesResult, eventsResult, announcementsResult, rsvpsResult, electricResult, maintenanceResult, waitlistResult, notificationResult, documentResult, pumpOutResult, siteServiceResult, creditResult, messageResult, dinnerResult, supplyRequestResult, siteCareResult].find((result) => result.error)
+    if (failedResult?.error) {
+      setLoadError('The command center could not load every required source. Totals and action queues are hidden to prevent false zeroes.')
+      return
+    }
 
     const invoices = invoicesResult.data || []
     const centralMonthParts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Chicago', year: 'numeric', month: '2-digit' }).formatToParts(new Date())
@@ -548,6 +567,8 @@ export default function AdminPage() {
       </main>
     )
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Admin command center is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={() => { setCheckingAuth(true); checkAdmin() }}>Try again</button></main>
 
   const operationGroups = [
     {

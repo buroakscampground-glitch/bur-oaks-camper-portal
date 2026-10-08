@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, ClipboardList, Save, Wrench } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ClipboardList, Loader2, Save, Wrench } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
@@ -21,17 +21,26 @@ export default function TicketDetailPage() {
   const [assignedTo, setAssignedTo] = useState('')
   const [completionNotes, setCompletionNotes] = useState('')
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadTicket()
   }, [])
 
   async function loadTicket() {
-    const { data } = await supabase
+    setLoading(true)
+    setLoadError('')
+    const { data, error } = await supabase
       .from('maintenance_tickets')
       .select('*')
       .eq('id', params.id)
       .single()
+
+    if (error) {
+      setLoadError('This work order could not be loaded. Field updates are blocked until the live ticket is available.')
+      setLoading(false)
+      return
+    }
 
     setTicket(data)
 
@@ -85,8 +94,10 @@ export default function TicketDetailPage() {
   }
 
   if (loading) {
-    return <div style={{ padding: '40px' }}>Loading...</div>
+    return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading work order…</h1></main>
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Field work order is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadTicket}>Try again</button></main>
 
   if (!ticket) {
     return <div style={{ padding: '40px' }}>Ticket not found</div>

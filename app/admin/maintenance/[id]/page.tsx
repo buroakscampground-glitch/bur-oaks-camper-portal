@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useRouter } from 'next/navigation'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import MaintenancePhotos from '../../../../components/MaintenancePhotos'
@@ -25,6 +26,7 @@ export default function MaintenanceTicketPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
 
   const [completionNotes, setCompletionNotes] = useState('')
   const [status, setStatus] = useState('')
@@ -35,7 +37,8 @@ export default function MaintenanceTicketPage() {
   }, [])
 
   async function loadTicket() {
-    await markAdminAlertsSeen(supabase, 'maintenance_request', String(params.id))
+    setLoading(true)
+    setLoadError('')
 
     const { data, error } = await supabase
       .from('maintenance_tickets')
@@ -43,11 +46,14 @@ export default function MaintenanceTicketPage() {
       .eq('id', params.id)
       .single()
 
-    if (!error && data) {
+    if (error) {
+      setLoadError('This maintenance ticket could not be loaded. Editing and alert acknowledgement are blocked.')
+    } else if (data) {
       setTicket(data)
       setCompletionNotes(data.completion_notes || '')
       setStatus(data.status || 'Open')
       setAssignedTo(data.assigned_to || 'Open')
+      await markAdminAlertsSeen(supabase, 'maintenance_request', String(params.id))
     }
 
     setLoading(false)
@@ -179,14 +185,10 @@ export default function MaintenanceTicketPage() {
   }
 
   if (loading) {
-    return (
-      <main className="page">
-        <div className="container">
-          Loading...
-        </div>
-      </main>
-    )
+    return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading maintenance ticket…</h1></main>
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Maintenance ticket is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadTicket}>Try again</button></main>
 
   if (!ticket) {
     return (

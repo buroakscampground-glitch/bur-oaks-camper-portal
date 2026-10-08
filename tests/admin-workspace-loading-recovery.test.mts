@@ -195,3 +195,31 @@ test('an interrupted meter-photo write is treated as unknown instead of definite
   assert.match(page, /check the meter review queue before submitting this lot again/i)
   assert.doesNotMatch(page, /Nothing was saved—tap Retake/)
 })
+
+test('command, intelligence, and record-detail screens require authoritative reads', () => {
+  const checks = [
+    ['app/admin/page.tsx', /Totals and action queues are hidden to prevent false zeroes/, /Admin command center is temporarily unavailable/],
+    ['app/admin/camper-standing/page.tsx', /Standing totals are hidden/, /Camper standing is temporarily unavailable/],
+    ['app/admin/camper-usage/page.tsx', /Usage totals and review signals are hidden/, /Camper usage is temporarily unavailable/],
+    ['app/admin/map/page.tsx', /Occupied and vacant labels are hidden/, /Campground map is temporarily unavailable/],
+    ['app/admin/campers/[id]/page.tsx', /invoice ledger, or document record could not be loaded completely/, /Camper profile is temporarily unavailable/],
+    ['app/admin/open-balance/[id]/page.tsx', /Payment, reminder, printing, and deletion controls are blocked/, /Account statement is temporarily unavailable/],
+    ['app/admin/maintenance/[id]/page.tsx', /Editing and alert acknowledgement are blocked/, /Maintenance ticket is temporarily unavailable/],
+    ['app/maintenance/dashboard/[id]/page.tsx', /Field updates are blocked/, /Field work order is temporarily unavailable/],
+  ] as const
+
+  for (const [path, safetyCopy, recoveryHeading] of checks) {
+    const page = read(path)
+    assert.match(page, safetyCopy, path)
+    assert.match(page, recoveryHeading, path)
+    assert.match(page, /role="alert"/, path)
+    assert.match(page, /portal-loading-retry/, path)
+  }
+})
+
+test('maintenance detail acknowledges attention only after the ticket loads', () => {
+  const page = read('app/admin/maintenance/[id]/page.tsx')
+  const readGuard = page.indexOf("if (error) {")
+  const markSeen = page.indexOf("await markAdminAlertsSeen(supabase, 'maintenance_request'")
+  assert.ok(readGuard >= 0 && markSeen > readGuard)
+})

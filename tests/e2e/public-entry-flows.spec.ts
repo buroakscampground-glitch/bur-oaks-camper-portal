@@ -339,6 +339,14 @@ test('office money and operations screens fail closed on a synthetic outage', as
     { path: '/maintenance/dashboard', heading: 'Maintenance work orders are temporarily unavailable' },
     { path: '/maintenance/dashboard/inventory', heading: 'Field inventory is temporarily unavailable' },
     { path: '/maintenance/dashboard/meter-readings', heading: 'Meter route is temporarily unavailable' },
+    { path: '/admin', heading: 'Admin command center is temporarily unavailable' },
+    { path: '/admin/camper-standing', heading: 'Camper standing is temporarily unavailable' },
+    { path: '/admin/camper-usage', heading: 'Camper usage is temporarily unavailable' },
+    { path: '/admin/map', heading: 'Campground map is temporarily unavailable' },
+    { path: '/admin/campers/release-check-camper', heading: 'Camper profile is temporarily unavailable' },
+    { path: '/admin/open-balance/release-check-camper', heading: 'Account statement is temporarily unavailable' },
+    { path: '/admin/maintenance/release-check-ticket', heading: 'Maintenance ticket is temporarily unavailable' },
+    { path: '/maintenance/dashboard/release-check-ticket', heading: 'Field work order is temporarily unavailable' },
   ]
 
   for (const recovery of recoveryChecks) {

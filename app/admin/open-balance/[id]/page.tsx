@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { ArrowLeft, CheckCircle2, CircleMinus, ClipboardCopy, Printer, ReceiptText, Trash2, WalletCards } from "lucide-react"
+import { AlertTriangle, ArrowLeft, CheckCircle2, CircleMinus, ClipboardCopy, Loader2, Printer, ReceiptText, Trash2, WalletCards } from "lucide-react"
 import { useParams } from "next/navigation"
 import { supabase } from "../../../../lib/supabase"
 import { deleteInvoiceWithCreditRestore } from "../../../../lib/account-credits"
@@ -45,6 +45,8 @@ export default function CamperBalancePage() {
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [paymentReference, setPaymentReference] = useState("")
   const [paymentAmount, setPaymentAmount] = useState("")
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState("")
 
   useEffect(() => {
     loadData()
@@ -67,22 +69,30 @@ export default function CamperBalancePage() {
   }, [])
 
   async function loadData() {
+    setLoading(true)
+    setLoadError("")
     const camperId = params.id
 
-    const { data: camperData } = await supabase
+    const { data: camperData, error: camperError } = await supabase
       .from("campers")
       .select("*")
       .eq("id", camperId)
       .single()
 
-    setCamper(camperData)
-
-    const { data: invoiceData } = await supabase
+    const { data: invoiceData, error: invoiceError } = await supabase
       .from("invoices")
       .select("*")
       .eq("camper_id", camperId)
       .neq("status", "paid")
       .order("due_date")
+
+    if (camperError || invoiceError || !camperData) {
+      setLoadError('The camper account or invoice ledger could not be loaded. Payment, reminder, printing, and deletion controls are blocked.')
+      setLoading(false)
+      return
+    }
+
+    setCamper(camperData)
 
     const outstandingInvoices = (invoiceData || []).filter(isInvoiceOutstanding)
     setAllOpenInvoices(outstandingInvoices)
@@ -90,6 +100,7 @@ export default function CamperBalancePage() {
     setInvoices(dueInvoices)
     setTotalDue(totalInvoiceBalance(dueInvoices))
     setFeeSettings(await loadPaymentFeeSettings(supabase))
+    setLoading(false)
   }
 
   function openPaymentForm(invoiceId: string) {
@@ -226,6 +237,9 @@ Bur Oaks Campground
   })
   const billingReminderMessage = buildBillingReminderMessage(invoices)
   const invoiceMonthGroups = groupInvoicesByDueMonth(invoices)
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading account statement…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Account statement is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadData}>Try again</button></main>
 
   return (
     <main className="admin-open-balance-page admin-open-detail-page">

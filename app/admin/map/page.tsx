@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Map as MapIcon, Search, TentTree, UsersRound, Wrench } from 'lucide-react'
+import { AlertTriangle, Loader2, Map as MapIcon, Search, TentTree, UsersRound, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isSystemPortalAccount } from '../../../lib/camper-records'
 
@@ -12,21 +12,30 @@ export default function AdminMapPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [maintenance, setMaintenance] = useState<any[]>([])
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadMap()
   }, [])
 
   async function loadMap() {
+    setLoading(true)
+    setLoadError('')
     const [lotResult, camperResult, maintenanceResult] = await Promise.all([
       supabase.from('lots').select('*').order('lot_number', { ascending: true }),
       supabase.from('campers').select('*').eq('active', true).order('lot_number', { ascending: true }),
       supabase.from('maintenance_tickets').select('*').neq('status', 'Completed'),
     ])
 
-    setLots(lotResult.data || [])
-    setCampers((camperResult.data || []).filter((camper) => !isSystemPortalAccount(camper)))
-    setMaintenance(maintenanceResult.data || [])
+    if (lotResult.error || camperResult.error || maintenanceResult.error) {
+      setLoadError('Lots, campers, or maintenance activity could not be loaded. Occupied and vacant labels are hidden.')
+    } else {
+      setLots(lotResult.data || [])
+      setCampers((camperResult.data || []).filter((camper) => !isSystemPortalAccount(camper)))
+      setMaintenance(maintenanceResult.data || [])
+    }
+    setLoading(false)
   }
 
   const sites = useMemo(() => {
@@ -52,6 +61,9 @@ export default function AdminMapPage() {
     campers.some((camper) => siteKey(camper.lot_number) === siteKey(site.lot_number))
   ).length
   const maintenanceLots = new Set(maintenance.map((ticket) => siteKey(ticket.lot_number)))
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading campground map…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Campground map is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadMap}>Try again</button></main>
 
   return (
     <main className="admin-map-page">
