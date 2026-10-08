@@ -34,8 +34,13 @@ test('schema baseline audit blocks copied or inserted rows', () => {
 test('schema export fixes the production target and keeps credentials out of arguments', () => {
   assert.match(exporter, /postgres\.\$\{productionProjectRef\}@aws-1-us-west-1\.pooler\.supabase\.com/)
   assert.match(exporter, /PGPASSWORD: databasePassword/)
+  assert.match(exporter, /BUR_OAKS_PG_DUMP_BINARY/)
+  assert.match(exporter, /'--schema-only'/)
+  assert.match(exporter, /'--no-owner'/)
+  assert.match(exporter, /'--no-privileges'/)
   assert.match(exporter, /replaceAll\(databasePassword, '\[REDACTED_PASSWORD\]'\)/)
   assert.match(exporter, /--schema[\s\S]*'public'/)
   assert.doesNotMatch(exporter, /'--password'/)
   assert.doesNotMatch(exporter, /console\.log\(databasePassword\)/)
+  assert.doesNotMatch(exporter, /'supabase@latest'/)
 })

@@ -11,6 +11,7 @@ import { analyzeSchemaBaseline } from './audit-schema-baseline.mjs'
 const productionProjectRef = 'mzywctpxnpejglnspyqi'
 const productionDatabaseUrl = `postgresql://postgres.${productionProjectRef}@aws-1-us-west-1.pooler.supabase.com:5432/postgres`
 const databasePassword = process.env.BUR_OAKS_PRODUCTION_DB_PASSWORD || ''
+const pgDumpBinary = process.env.BUR_OAKS_PG_DUMP_BINARY || 'pg_dump'
 
 function fail(message) {
   console.error(`Blocked: ${message}`)
@@ -34,16 +35,15 @@ function redact(value) {
 
 try {
   const result = spawnSync(
-    'npx',
+    pgDumpBinary,
     [
-      '--yes',
-      'supabase@latest',
-      'db',
-      'dump',
-      '--db-url',
+      '--dbname',
       productionDatabaseUrl,
+      '--schema-only',
       '--schema',
       'public',
+      '--no-owner',
+      '--no-privileges',
       '--file',
       temporaryFile,
     ],
@@ -56,7 +56,7 @@ try {
 
   if (result.status !== 0) {
     const detail = redact(`${result.stderr || ''}\n${result.stdout || ''}`.trim())
-    fail(`Supabase schema export failed${detail ? `:\n${detail}` : ''}`)
+    fail(`PostgreSQL schema export failed${detail ? `:\n${detail}` : ''}`)
   }
 
   const sql = await readFile(temporaryFile, 'utf8')

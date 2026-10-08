@@ -2,7 +2,16 @@
 
 ## Current status
 
-Production has Supabase Pro managed daily database backups. The isolated Bur Oaks Staging project exists and contains no production camper, billing, payment, document, authentication, or storage data. A full restore drill is pending the reviewed schema-only baseline; historical migrations must not be used as a substitute.
+Production has Supabase Pro managed daily database backups. On October 8, 2026,
+the reviewed schema-only baseline was restored successfully into the isolated
+Bur Oaks Staging project. Validation found 59 public tables, 78 policies, 12
+application triggers, row-level security on all 59 tables, and exactly zero
+application rows. The 37th public staging function is Supabase's pre-existing
+`rls_auto_enable` safeguard; the baseline itself contains the 36 Bur Oaks
+functions present in production. No production camper, billing, payment,
+document, authentication, or storage data was copied. Synthetic fixture and
+signed-in journey validation remain pending, so this is a successful schema
+restore milestone rather than the completed end-to-end recovery drill.
 
 ## Non-negotiable safeguards
 
