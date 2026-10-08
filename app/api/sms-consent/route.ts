@@ -2,11 +2,17 @@ import { NextResponse } from 'next/server'
 import { camperSmsPhones } from '../../../lib/camper-sms'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
+type SmsConsentRow = { phone_number?: string | null }
+
+function requestObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
 export async function POST(request: Request) {
   const context = await getAuthenticatedContext(request)
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json().catch(() => ({}))
+  const body = requestObject(await request.json().catch(() => ({})))
   if (typeof body.enabled !== 'boolean') {
     return NextResponse.json({ error: 'Choose whether text alerts are on or off.' }, { status: 400 })
   }
@@ -33,7 +39,7 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'The phone consent migration has not been installed.' }, { status: 503 })
       }
 
-      const existingPhones = new Set((existing || []).map((row: any) => String(row.phone_number)))
+      const existingPhones = new Set(((existing || []) as SmsConsentRow[]).map((row) => String(row.phone_number)))
       phonesToUpdate = phones.filter((phone) => !existingPhones.has(phone))
     }
 

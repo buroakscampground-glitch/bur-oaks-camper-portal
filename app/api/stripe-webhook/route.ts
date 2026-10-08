@@ -7,12 +7,18 @@ import { getSiteUrl } from '../../../lib/site-url'
 import { reconcileAndPrintStripePayout } from '../../../lib/stripe-payout-printing'
 import { alertStripePayoutProblem } from '../../../lib/stripe-payout-alerts'
 import { priorPaymentReview } from '../../../lib/stripe-payment-review'
+import type { PriorPaymentInvoice } from '../../../lib/stripe-payment-review'
 import { achExpectedFromStripeEvent } from '../../../lib/ach-expected-date'
 import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 import { alertStripeWebhookFailure } from '../../../lib/cron-failure-alert'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+
+type DuplicatePaymentInvoice = PriorPaymentInvoice & {
+  invoice_number?: string | number | null
+  camper_id?: string | null
+}
 
 function checkoutInvoiceIds(session: Stripe.Checkout.Session) {
   try {
@@ -184,7 +190,7 @@ export async function POST(request: Request) {
     return { invoiceIds, invoices }
   }
 
-  async function notifyDuplicatePayment(paymentReference: string, amountCents: number, invoices: any[]) {
+  async function notifyDuplicatePayment(paymentReference: string, amountCents: number, invoices: DuplicatePaymentInvoice[]) {
     const firstInvoice = invoices[0]
     const invoiceNumbers = invoices.map((invoice) => invoice.invoice_number).join(', ')
     const amount = Number(amountCents || 0) / 100

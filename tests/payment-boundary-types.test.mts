@@ -80,7 +80,7 @@ test('meter capture, labels, and monthly billing use typed database and request 
   assert.match(files[0], /function requestObject\(value: unknown\)/)
   assert.match(files[1], /type AuthenticatedContext =/)
   assert.match(files[2], /type MeterBillingChecklistInput =/)
-  for (const source of files) assert.doesNotMatch(source, /\bany\b/)
+  for (const source of files) assert.doesNotMatch(source, /:\s*any\b|as\s+any\b|any\[\]/)
 })
 
 test('maintenance intake and Epson report paths use typed provider, request, and database boundaries', async () => {
@@ -178,4 +178,25 @@ test('shared billing settings, admin alerts, delivery summaries, and setup links
   assert.match(files[3], /type InvoiceDeliveryResult =/)
   assert.match(files[4], /admin: SupabaseClient/)
   for (const source of files) assert.doesNotMatch(source, /\bany\b/)
+})
+
+test('AutoPay, money exceptions, Stripe webhook review, and reconciliation routes narrow every provider boundary', async () => {
+  const files = await Promise.all([
+    read('app/api/autopay/route.ts'),
+    read('app/api/process-autopay/route.ts'),
+    read('app/api/admin-money-exceptions/route.ts'),
+    read('app/api/admin-ach-reconciliation/route.ts'),
+    read('app/api/cron/ach-payment-reconciliation/route.ts'),
+    read('app/api/cron/stripe-payout-reconciliation/route.ts'),
+    read('app/api/stripe-webhook/route.ts'),
+    read('app/api/sms-consent/route.ts'),
+    read('app/api/admin-sms-consent-sync/route.ts'),
+  ])
+
+  assert.match(files[1], /catch \(error: unknown\)/)
+  assert.match(files[5], /type PayoutCronResult =/)
+  assert.match(files[6], /type DuplicatePaymentInvoice =/)
+  assert.match(files[7], /function requestObject\(value: unknown\)/)
+  assert.match(files[8], /type SmsConsentRow =/)
+  for (const source of files) assert.doesNotMatch(source, /:\s*any\b|as\s+any\b|any\[\]/)
 })

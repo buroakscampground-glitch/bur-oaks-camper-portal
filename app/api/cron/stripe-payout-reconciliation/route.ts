@@ -14,6 +14,15 @@ export const maxDuration = 60
 // Prevent the first release from unexpectedly printing years of old deposits.
 const AUTOMATIC_PRINT_START = Math.floor(Date.parse('2026-09-01T00:00:00-05:00') / 1000)
 
+type PayoutCronResult = {
+  id: string
+  amount: number
+  status: 'already-alerted' | 'alerted' | 'failed' | 'waiting' | 'already-printed' | 'printed'
+  error?: string
+  transactionCount?: number
+  difference?: number
+}
+
 async function runCron(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) return NextResponse.json({ error: 'Cron is not authorized.' }, { status: 401 })
@@ -26,14 +35,14 @@ async function runCron(request: Request) {
   const admin = createClient(supabaseUrl, serviceRoleKey)
   const payouts = await stripe.payouts.list({ limit: 25 })
   const candidates = payouts.data.filter((payout) => payout.status === 'paid' && payout.automatic && payout.created >= AUTOMATIC_PRINT_START)
-  const results: any[] = []
+  const results: PayoutCronResult[] = []
 
   for (const payout of payouts.data.filter((item) => item.status === 'failed' || (item.status === 'canceled' && item.automatic))) {
     try {
       const alert = await alertStripePayoutProblem({ admin, payout, origin: getSiteUrl() })
       results.push({ id: payout.id, amount: payout.amount, status: alert.skipped ? 'already-alerted' : 'alerted' })
-    } catch (error: any) {
-      results.push({ id: payout.id, amount: payout.amount, status: 'failed', error: String(error?.message || error).slice(0, 500) })
+    } catch (error: unknown) {
+      results.push({ id: payout.id, amount: payout.amount, status: 'failed', error: String(error instanceof Error ? error.message : error).slice(0, 500) })
     }
   }
 
@@ -46,8 +55,8 @@ async function runCron(request: Request) {
       }
       const result = await reconcileAndPrintStripePayout(stripe, admin, payout.id)
       results.push({ id: payout.id, amount: payout.amount, status: result.skipped ? 'already-printed' : 'printed' })
-    } catch (error: any) {
-      results.push({ id: payout.id, amount: payout.amount, status: 'failed', error: String(error?.message || error).slice(0, 500) })
+    } catch (error: unknown) {
+      results.push({ id: payout.id, amount: payout.amount, status: 'failed', error: String(error instanceof Error ? error.message : error).slice(0, 500) })
     }
   }
 

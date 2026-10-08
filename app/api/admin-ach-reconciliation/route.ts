@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       : { status: 'check-failed', error: webhookResult.reason?.message || 'Unable to update Stripe webhook events.' }
     const reconciliation = reconciliationResult.value
     return NextResponse.json({ success: true, webhook, reconciliation })
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Unable to reconcile bank payments.' }, { status: 500 })
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to reconcile bank payments.' }, { status: 500 })
   }
 }

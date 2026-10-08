@@ -202,15 +202,17 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ charged: false, reason: intent.status })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('PROCESS AUTOPAY ERROR:', error)
+    const errorCode = typeof error === 'object' && error && 'code' in error ? String(error.code || '') : ''
+    const errorMessage = error instanceof Error ? error.message : ''
     return NextResponse.json(
       {
         charged: false,
         error:
-          error.code === 'authentication_required'
+          errorCode === 'authentication_required'
             ? 'The saved payment method requires customer verification. The invoice remains open.'
-            : error.message || 'AutoPay charge failed. The invoice remains open.',
+            : errorMessage || 'AutoPay charge failed. The invoice remains open.',
       },
       { status: 500 }
     )

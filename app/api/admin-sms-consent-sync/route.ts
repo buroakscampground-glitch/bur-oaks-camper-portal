@@ -2,13 +2,19 @@ import { NextResponse } from 'next/server'
 import { camperSmsPhones } from '../../../lib/camper-sms'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
+type SmsConsentRow = { phone_number?: string | null; opted_in?: boolean | null }
+
+function requestObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
+}
+
 export async function POST(request: Request) {
   const context = await getAuthenticatedContext(request)
   if (!context || String(context.camper.role || '').toLowerCase() !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = requestObject(await request.json().catch(() => ({})))
   const camperId = String(body.camperId || '').trim()
   if (!camperId) return NextResponse.json({ error: 'Choose a camper first.' }, { status: 400 })
 
@@ -34,7 +40,8 @@ export async function POST(request: Request) {
 
   if (existingError) return NextResponse.json({ error: existingError.message }, { status: 500 })
 
-  const existingPhones = new Set((existing || []).map((row: any) => String(row.phone_number)))
+  const existingRows = (existing || []) as SmsConsentRow[]
+  const existingPhones = new Set(existingRows.map((row) => String(row.phone_number)))
   const missingPhones = phones.filter((phone) => !existingPhones.has(phone))
 
   if (missingPhones.length) {
@@ -54,6 +61,6 @@ export async function POST(request: Request) {
     if (insertError) return NextResponse.json({ error: insertError.message }, { status: 500 })
   }
 
-  const active = (existing || []).filter((row: any) => row.opted_in === true).length + missingPhones.length
+  const active = existingRows.filter((row) => row.opted_in === true).length + missingPhones.length
   return NextResponse.json({ success: true, added: missingPhones.length, active })
 }

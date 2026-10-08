@@ -6,6 +6,10 @@ import { buildMoneyExceptionQueue } from '../../../lib/money-exceptions'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+function paymentIntentId(value: string | Stripe.PaymentIntent | null) {
+  return typeof value === 'string' ? value : value?.id || null
+}
+
 export async function GET(request: Request) {
   const context = await getAuthenticatedContext(request)
   if (!context || String(context.camper.role || '').toLowerCase() !== 'admin') {
@@ -38,15 +42,19 @@ export async function GET(request: Request) {
 
     const disputes = disputePage.data
       .filter((dispute) => !['won', 'lost'].includes(String(dispute.status)))
-      .map((dispute: any) => ({
+      .map((dispute) => ({
         id: dispute.id, amount: dispute.amount, status: dispute.status, created: dispute.created,
-        paymentIntent: typeof dispute.charge === 'object' ? dispute.charge?.payment_intent : null,
+        paymentIntent: typeof dispute.charge === 'object' && dispute.charge ? paymentIntentId(dispute.charge.payment_intent) : null,
       }))
-    const refunds = refundPage.data.map((refund: any) => ({
+    const refunds = refundPage.data.map((refund) => ({
       id: refund.id, amount: refund.amount, status: refund.status, created: refund.created,
-      paymentIntent: typeof refund.payment_intent === 'string' ? refund.payment_intent : refund.payment_intent?.id,
+      paymentIntent: paymentIntentId(refund.payment_intent),
     }))
-    const references = Array.from(new Set([...disputes, ...refunds].map((row) => row.paymentIntent).filter(Boolean)))
+    const references = Array.from(new Set(
+      [...disputes, ...refunds]
+        .map((row) => row.paymentIntent)
+        .filter((reference): reference is string => Boolean(reference))
+    ))
     const invoiceResult = references.length
       ? await context.admin.from('invoices')
           .select('id,invoice_number,payment_reference,campers(lot_number)').in('payment_reference', references)
@@ -71,7 +79,7 @@ export async function GET(request: Request) {
       },
       exceptions,
     }, { headers: { 'Cache-Control': 'no-store' } })
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Unable to verify money exceptions.' }, { status: 500 })
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to verify money exceptions.' }, { status: 500 })
   }
 }

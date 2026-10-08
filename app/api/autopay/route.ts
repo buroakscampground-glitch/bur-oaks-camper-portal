@@ -184,10 +184,10 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ url: session.url })
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('AUTOPAY ERROR:', error)
     return NextResponse.json(
-      { error: error.message || 'Unable to manage AutoPay.' },
+      { error: error instanceof Error ? error.message : 'Unable to manage AutoPay.' },
       { status: 500 }
     )
   }
