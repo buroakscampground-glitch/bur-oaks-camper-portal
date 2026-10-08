@@ -1501,7 +1501,7 @@ button:hover {
 }
 
 .portal-load-warning button {
-  min-height: 36px;
+  min-height: 44px;
   flex: 0 0 auto;
   background: #674f1e;
 }

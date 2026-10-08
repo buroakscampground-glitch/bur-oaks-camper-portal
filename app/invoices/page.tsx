@@ -205,6 +205,9 @@ export default function InvoicesPage() {
                   supabase.from('invoices').select('*, invoice_items(*)').eq('camper_id', camperData.id).order('due_date', { ascending: false }),
                   supabase.from('account_credits').select('remaining_amount,status,applies_to').eq('camper_id', camperData.id).eq('status', 'active').gt('remaining_amount', 0),
                 ])
+                if (invoiceFallback.error || creditFallback.error) {
+                  throw invoiceFallback.error || creditFallback.error
+                }
                 return {
                   invoices: invoiceFallback.data || [],
                   accountCredit: (creditFallback.data || []).reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),

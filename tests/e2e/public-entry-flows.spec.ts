@@ -9,6 +9,7 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 async function installSyntheticCamperSession(page: Page) {
+  let simulateReadFailure = true
   const now = Math.floor(Date.now() / 1000)
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'release-check-user', email: 'release-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.release-check`
@@ -54,15 +55,49 @@ async function installSyntheticCamperSession(page: Page) {
       })
       return
     }
-    await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic release-check read failure' }) })
+    if (simulateReadFailure) {
+      await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic release-check read failure' }) })
+      return
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'content-range': '*/0' },
+      body: '[]',
+    })
   })
 
-  for (const endpoint of ['/api/messages', '/api/camper-documents']) {
-    await page.route(endpoint, (route) => route.fulfill({
-      status: 503,
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    if (simulateReadFailure && ['/api/messages', '/api/camper-documents', '/api/camper-invoices'].includes(pathname)) {
+      await route.fulfill({
+        status: 503,
+        contentType: 'application/json',
+        body: JSON.stringify({ error: 'Synthetic release-check outage' }),
+      })
+      return
+    }
+
+    const payloads: Record<string, object> = {
+      '/api/messages': { messages: [] },
+      '/api/camper-documents': { documents: [], suggestedSignerName: 'Release Check' },
+      '/api/camper-invoices': { invoices: [], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
+      '/api/authorized-billing': { accounts: [] },
+      '/api/sewer-pump-out': { requests: [], serviceLots: ['TEST'], serviceAccounts: [] },
+      '/api/birthdays': { success: true, birthdays: [], officeGreetings: [] },
+    }
+    const payload = payloads[pathname]
+    await route.fulfill({
+      status: payload ? 200 : 503,
       contentType: 'application/json',
-      body: JSON.stringify({ error: 'Synthetic release-check outage' }),
-    }))
+      body: JSON.stringify(payload || { error: 'Synthetic release-check outage' }),
+    })
+  })
+
+  return {
+    recoverReads() {
+      simulateReadFailure = false
+    },
   }
 }
 
@@ -153,12 +188,14 @@ test('signed-out visitors are returned to login with their private destination p
 
 test('weak-connection recovery is actionable and contained on priority camper screens', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One required phone width covers synthetic failure recovery without touching production data.')
-  await installSyntheticCamperSession(page)
+  const synthetic = await installSyntheticCamperSession(page)
 
   const recoveryChecks = [
     { path: '/messages', message: 'We could not open your conversation' },
     { path: '/documents', message: 'We could not open your documents' },
     { path: '/maintenance', message: 'We could not open your maintenance requests' },
+    { path: '/invoices', message: 'We could not open your billing account' },
+    { path: '/portal', message: 'Some portal information could not be loaded' },
   ]
 
   for (const recovery of recoveryChecks) {
@@ -169,4 +206,11 @@ test('weak-connection recovery is actionable and contained on priority camper sc
     expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(42)
     await expectNoHorizontalOverflow(page)
   }
+
+  await page.goto('/messages')
+  await expect(page.getByRole('alert').filter({ hasText: 'We could not open your conversation' })).toBeVisible()
+  synthetic.recoverReads()
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByText('No messages yet. Send the first note to the office.')).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'We could not open your conversation' })).toHaveCount(0)
 })

@@ -34,3 +34,13 @@ test('failed startup loads provide safe retry guidance without implying a write'
     assert.match(source, /role="alert"/)
   }
 })
+
+test('billing and home never mistake a failed read for an empty account', () => {
+  const invoices = read('app/invoices/page.tsx')
+  const portal = read('app/portal/page.tsx')
+
+  assert.match(invoices, /if \(invoiceFallback\.error \|\| creditFallback\.error\)/)
+  assert.match(invoices, /throw invoiceFallback\.error \|\| creditFallback\.error/)
+  assert.match(portal, /const dashboardReadFailed =/)
+  assert.match(portal, /if \(dashboardReadFailed\)/)
+})

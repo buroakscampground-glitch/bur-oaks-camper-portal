@@ -395,6 +395,21 @@ export default function CamperPortalPage() {
               : Promise.resolve(null),
           ])
 
+        const dashboardReadFailed = [
+          electricResult,
+          eventResult,
+          announcementResult,
+          alertResult,
+          maintenanceResult,
+          messageResult,
+          pendingOfficeResult,
+          siteCareResult,
+        ].some((result) => Boolean(result?.error))
+
+        if (dashboardReadFailed) {
+          setLoadError('Some portal information could not be loaded. Nothing was changed. Check your connection and try again.')
+        }
+
         setInvoices(invoiceResult?.invoices || [])
         setAuthorizedBillingAccounts(authorizedBillingResult?.accounts || [])
         setLatestElectric(electricResult.data || null)
