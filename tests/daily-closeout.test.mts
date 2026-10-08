@@ -20,6 +20,8 @@ test('daily closeout explains online, office, allocation, and saved-credit dolla
   })
   assert.equal(result.balanced, true)
   assert.equal(result.counts.payoutProblems, 1)
+  assert.deepEqual(result.checks, { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: false })
+  assert.equal(result.readyToClose, false)
 })
 
 test('Central closeout boundaries honor both daylight-saving transition days', () => {
@@ -41,6 +43,16 @@ test('credit-paid invoices are not called new cash and unclassified payments blo
   assert.equal(result.totals.creditsApplied, 90)
   assert.equal(result.counts.unclassifiedInvoices, 1)
   assert.equal(result.balanced, false)
+  assert.equal(result.readyToClose, false)
+})
+
+test('a fully explained day with clear deposits is ready to close', () => {
+  const result = summarizeDailyCloseout({
+    invoices: [{ id: 'online', total_due: 50, payment_method: 'Online card' }],
+    payouts: [{ amount: 5000, status: 'paid' }],
+  })
+  assert.deepEqual(result.checks, { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: true })
+  assert.equal(result.readyToClose, true)
 })
 
 test('Supabase relationship arrays are normalized before money records reach the office view', () => {

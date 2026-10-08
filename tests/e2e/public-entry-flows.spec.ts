@@ -164,11 +164,13 @@ async function installSyntheticAdminSession(page: Page) {
       '/api/admin-documents': { documents: [] },
       '/api/admin-stripe-payouts': { payouts: [], health: null },
       '/api/admin-daily-closeout': {
-        date: '2026-10-08', balanced: true,
+        date: '2026-10-08', generatedAt: '2026-10-08T18:45:30Z', balanced: true, readyToClose: true,
+        checks: { paymentAllocation: true, paidInvoicesClassified: true, depositsClear: true },
         totals: { received: 675, onlineReceived: 525, manualReceived: 150, invoiceAllocations: 600, savedCredit: 75, creditsApplied: 40, bankDeposits: 575, difference: 0 },
         counts: { onlineInvoices: 1, manualPayments: 1, creditsCreated: 2, creditsApplied: 1, bankDeposits: 1, payoutProblems: 0, unclassifiedInvoices: 0 },
         onlineInvoices: [{ id: 'online', invoice_number: 'TEST-300', total_due: 500, payment_method: 'Online card', paid_at: '2026-10-08T15:00:00Z', campers: { first_name: 'Online', last_name: 'Camper', lot_number: 'T1' } }],
         manualPayments: [{ id: 'manual', amount: 150, payment_method: 'Check', created_at: '2026-10-08T16:00:00Z', result: { appliedTotal: 100, creditAmount: 50 }, campers: { first_name: 'Office', last_name: 'Camper', lot_number: 'T2' } }],
+        manualAllocations: [{ payment_id: 'manual', invoice_id: 'manual-invoice', amount_applied: 100, invoices: { invoice_number: 'TEST-302', invoice_type: 'Lot rent' } }],
         onlineExtraCredits: [{ id: 'extra', original_amount: 25, remaining_amount: 25, applies_to: 'lot_rent', campers: { lot_number: 'T1' } }],
         creditApplications: [{ id: 'application', amount_applied: 40, applied_at: '2026-10-08T17:00:00Z', invoices: { invoice_number: 'TEST-301', invoice_type: 'Electric' }, campers: { first_name: 'Credit', last_name: 'Camper', lot_number: 'T3' } }],
         payouts: [{ id: 'payout', amount: 57500, status: 'paid', automatic: true }], unclassifiedInvoices: [],
@@ -1063,11 +1065,14 @@ test('daily money closeout proves payment allocation without changing a ledger',
   synthetic.recoverReads()
   await page.goto('/admin/daily-closeout')
   await expect(page.getByRole('heading', { name: 'Every payment dollar is explained' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Ready to close' })).toBeVisible()
+  await expect(page.getByText('Verified Oct 8, 1:45:30 PM CT')).toBeVisible()
   const totals = page.locator('.daily-closeout-kpis')
   await expect(totals.getByText('Total received').locator('..')).toContainText('$675.00')
   await expect(totals.getByText('Applied to invoices').locator('..')).toContainText('$600.00')
   await expect(totals.getByText('Saved as credit').locator('..')).toContainText('$75.00')
   await expect(totals.getByText('Arrived at bank').locator('..')).toContainText('$575.00')
   await expect(page.getByText('Receipts and bank deposits are intentionally separate.')).toBeVisible()
+  await expect(page.getByRole('link', { name: /Applied to Invoice #TEST-302/ })).toContainText('$100.00')
   await expectNoHorizontalOverflow(page)
 })

@@ -146,6 +146,11 @@ export function summarizeDailyCloseout({
   const difference = amount(received - invoiceAllocations - savedCredit)
   const creditsApplied = amount(priorCreditApplications.reduce((sum, application) => sum + Number(application.amount_applied || 0), 0))
   const bankDeposits = amount(payouts.filter((payout) => payout.status === 'paid').reduce((sum, payout) => sum + Number(payout.amount || 0) / 100, 0))
+  const checks = {
+    paymentAllocation: Math.abs(difference) < 0.005,
+    paidInvoicesClassified: unclassifiedInvoices.length === 0,
+    depositsClear: payouts.every((payout) => !['failed', 'canceled'].includes(String(payout.status))),
+  }
 
   return {
     totals: {
@@ -174,7 +179,9 @@ export function summarizeDailyCloseout({
     creditApplications: priorCreditApplications,
     payouts,
     unclassifiedInvoices,
-    balanced: Math.abs(difference) < 0.005 && unclassifiedInvoices.length === 0,
+    checks,
+    balanced: checks.paymentAllocation && checks.paidInvoicesClassified,
+    readyToClose: checks.paymentAllocation && checks.paidInvoicesClassified && checks.depositsClear,
   }
 }
 

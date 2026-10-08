@@ -79,7 +79,7 @@ export async function GET(request: Request) {
       creditApplications: creditApplicationResult.data || [],
       payouts,
     })
-    return NextResponse.json({ date, ...closeout }, { headers: { 'Cache-Control': 'no-store' } })
+    return NextResponse.json({ date, generatedAt: new Date().toISOString(), ...closeout }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unable to build the daily money closeout.' }, { status: 500 })
   }

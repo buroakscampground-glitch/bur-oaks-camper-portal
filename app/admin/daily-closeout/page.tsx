@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2, ClipboardCheck, Printer, RefreshCw, TriangleAl
 import { supabase } from '../../../lib/supabase'
 import type { CloseoutCamper, DailyCloseoutSummary } from '../../../lib/daily-closeout'
 
-type DailyCloseoutResponse = DailyCloseoutSummary & { date: string }
+type DailyCloseoutResponse = DailyCloseoutSummary & { date: string; generatedAt: string }
 
 function campgroundToday() {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date())
@@ -22,6 +22,12 @@ function name(row: { campers?: CloseoutCamper | null }) {
 function time(value?: string | null) {
   if (!value) return '—'
   return new Date(value).toLocaleTimeString('en-US', { timeZone: 'America/Chicago', hour: 'numeric', minute: '2-digit' })
+}
+
+function verifiedAt(value: string) {
+  return new Date(value).toLocaleString('en-US', {
+    timeZone: 'America/Chicago', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit',
+  })
 }
 
 async function loadCloseout(date: string): Promise<DailyCloseoutResponse> {
@@ -86,6 +92,18 @@ export default function DailyCloseoutPage() {
             <div><small>PAYMENT ALLOCATION CHECK</small><h2>{closeout.balanced ? 'Every payment dollar is explained' : 'Review required before closing the day'}</h2><p>Received {money(totals.received)} = {money(totals.invoiceAllocations)} applied to invoices + {money(totals.savedCredit)} saved as credit. Difference: <strong>{money(totals.difference)}</strong>.{counts.unclassifiedInvoices ? ` ${counts.unclassifiedInvoices} paid invoice${counts.unclassifiedInvoices === 1 ? '' : 's'} has no matching online or office-payment ledger.` : ''}</p></div>
           </section>
 
+          <section className={`daily-closeout-readiness ${closeout.readyToClose ? 'ready' : 'review'}`} aria-label="End-of-day closeout checklist">
+            <header>
+              <div><small>END-OF-DAY CHECKLIST</small><h2>{closeout.readyToClose ? 'Ready to close' : 'Keep the day open for review'}</h2></div>
+              <p>Verified {verifiedAt(closeout.generatedAt)} CT · Refresh before printing.</p>
+            </header>
+            <div>
+              <article className={closeout.checks.paymentAllocation ? 'passed' : 'failed'}>{closeout.checks.paymentAllocation ? <CheckCircle2 /> : <TriangleAlert />}<span><strong>Payment dollars explained</strong><small>Received money equals invoice allocations plus saved credit.</small></span></article>
+              <article className={closeout.checks.paidInvoicesClassified ? 'passed' : 'failed'}>{closeout.checks.paidInvoicesClassified ? <CheckCircle2 /> : <TriangleAlert />}<span><strong>Paid invoices classified</strong><small>{closeout.checks.paidInvoicesClassified ? 'Every paid invoice has a known payment source.' : `${counts.unclassifiedInvoices} paid invoice${counts.unclassifiedInvoices === 1 ? '' : 's'} needs review.`}</small></span></article>
+              <article className={closeout.checks.depositsClear ? 'passed' : 'failed'}>{closeout.checks.depositsClear ? <CheckCircle2 /> : <TriangleAlert />}<span><strong>Stripe deposits clear</strong><small>{closeout.checks.depositsClear ? 'No failed or canceled deposits found for this date.' : `${counts.payoutProblems} deposit${counts.payoutProblems === 1 ? '' : 's'} needs review.`}</small></span></article>
+            </div>
+          </section>
+
           <section className="daily-closeout-kpis" aria-label="Daily closeout totals">
             <article><small>Total received</small><strong>{money(totals.received)}</strong><span>{counts.onlineInvoices} online invoice{counts.onlineInvoices === 1 ? '' : 's'} · {counts.manualPayments} office payment{counts.manualPayments === 1 ? '' : 's'}</span></article>
             <article><small>Applied to invoices</small><strong>{money(totals.invoiceAllocations)}</strong><span>From today’s online and office payments</span></article>
@@ -110,7 +128,13 @@ export default function DailyCloseoutPage() {
 
             <section className="daily-closeout-card">
               <header><small>OFFICE PAYMENTS</small><h2>Checks, cash, and manual entries</h2><strong>{money(totals.manualReceived)}</strong></header>
-              <div>{closeout.manualPayments.map((payment) => <article key={payment.id}><span><strong>Lot {payment.campers?.lot_number || '—'} · {name(payment)}</strong><small>{time(payment.created_at)} · {payment.payment_method || 'Office payment'} · {money(payment.result?.appliedTotal)} allocated{Number(payment.result?.creditAmount || 0) ? ` · ${money(payment.result?.creditAmount)} saved` : ''}</small></span><b>{money(payment.amount)}</b></article>)}</div>
+              <div>{closeout.manualPayments.map((payment) => {
+                const allocations = closeout.manualAllocations.filter((allocation) => allocation.payment_id === payment.id)
+                return <article className="daily-closeout-manual-payment" key={payment.id}>
+                  <div className="daily-closeout-payment-summary"><span><strong>Lot {payment.campers?.lot_number || '—'} · {name(payment)}</strong><small>{time(payment.created_at)} · {payment.payment_method || 'Office payment'} · {money(payment.result?.appliedTotal)} allocated{Number(payment.result?.creditAmount || 0) ? ` · ${money(payment.result?.creditAmount)} saved` : ''}</small></span><b>{money(payment.amount)}</b></div>
+                  {allocations.length > 0 && <div className="daily-closeout-allocation-links" aria-label="Invoices affected by this office payment">{allocations.map((allocation) => <a href={`/admin/invoices/${allocation.invoice_id}`} key={`${payment.id}-${allocation.invoice_id}`}><span>Applied to Invoice #{allocation.invoices?.invoice_number || '—'} · {allocation.invoices?.invoice_type || 'Campground charge'}</span><strong>{money(allocation.amount_applied)}</strong></a>)}</div>}
+                </article>
+              })}</div>
               {!closeout.manualPayments.length && <p className="daily-closeout-empty">No office payments were recorded.</p>}
             </section>
 
