@@ -1013,6 +1013,33 @@ test('office waitlist turns a synthetic website inquiry into a clear follow-up t
   await expectNoHorizontalOverflow(page)
 })
 
+test('office quick text verifies exact recipients and links before send', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the read-only campaign preview without sending a text.')
+  const synthetic = await installSyntheticAdminSession(page)
+  synthetic.recoverReads()
+
+  await page.route('**/api/text-alerts?**', async (route) => {
+    expect(route.request().method()).toBe('GET')
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, matchedCamperCount: 6, recipientCount: 7, duplicateRecipientCount: 2 }),
+    })
+  })
+
+  await page.goto('/admin/notifications')
+  await expect(page.getByText('EXACT RECIPIENT PREVIEW')).toBeVisible()
+  await expect(page.getByText('7 unique phones')).toBeVisible()
+  await expect(page.getByText('6 matching camper accounts · 2 duplicate phone entries removed')).toBeVisible()
+  await expect(page.getByText('Secure Bur Oaks portal link added automatically')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Review & send to 7' })).toBeEnabled()
+
+  await page.locator('.admin-quick-text textarea').fill('Open this shortened link: https://bit.ly/not-approved')
+  await expect(page.getByText('Unsafe link blocked')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Review & send to 7' })).toBeDisabled()
+  await expectNoHorizontalOverflow(page)
+})
+
 test('daily money closeout proves payment allocation without changing a ledger', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated closeout view.')
   const synthetic = await installSyntheticAdminSession(page)

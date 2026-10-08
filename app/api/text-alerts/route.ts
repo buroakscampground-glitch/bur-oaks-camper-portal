@@ -14,6 +14,7 @@ import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
 import { operationalControlEnabled } from '../../../lib/operational-feature-flags'
 import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 import { canManageCommunity, effectivePortalRole } from '../../../lib/staff-roles'
+import { reviewSmsLinks } from '../../../lib/sms-link-review'
 
 export const runtime = 'nodejs'
 export const maxDuration = 300
@@ -53,11 +54,69 @@ async function requireTextSender(request: Request) {
   return context
 }
 
+type TextTargetMode = 'all_opted_in' | 'open_balance' | 'one'
+
+async function planTextRecipients(
+  context: NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>,
+  targetMode: TextTargetMode,
+  camperId: string,
+  reminderType: string,
+) {
+  const isDirectBillingReminder = targetMode === 'one' && reminderType === 'Invoice Reminder'
+  let camperQuery = context.admin
+    .from('campers')
+    .select('id,lot_number,first_name,last_name,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
+    .eq('active', true)
+    .order('lot_number', { ascending: true })
+
+  if (!isDirectBillingReminder) camperQuery = camperQuery.eq('sms_opt_in', true)
+  if (targetMode === 'one') camperQuery = camperQuery.eq('id', camperId)
+
+  const { data: campers, error: camperError } = await camperQuery
+  if (camperError) throw camperError
+  let targetCampers = (campers || []).filter(isOperationalCamper)
+
+  if (targetMode === 'open_balance') {
+    const { data: invoices, error: invoiceError } = await context.admin
+      .from('invoices')
+      .select('camper_id,status,total_due')
+      .neq('status', 'paid')
+      .gt('total_due', 0)
+
+    if (invoiceError) throw invoiceError
+    const camperIdsWithBalance = new Set((invoices || [])
+      .filter(isInvoiceOutstanding)
+      .map((invoice: any) => String(invoice.camper_id)))
+    targetCampers = targetCampers.filter((camper: any) => camperIdsWithBalance.has(String(camper.id)))
+  }
+
+  const candidates = []
+  for (const camper of targetCampers) {
+    candidates.push({ camper, phones: await consentedCamperSmsPhones(context.admin, camper) })
+
+    if (isDirectBillingReminder) {
+      const contactProfiles = await loadAuthorizedContactProfiles(context.admin, camper)
+      for (const delegate of contactProfiles.filter((profile) => String(profile.id) !== String(camper.id))) {
+        candidates.push({
+          camper: delegate,
+          phones: await consentedCamperSmsPhones(context.admin, delegate),
+        })
+      }
+    }
+  }
+
+  return {
+    matchedCamperCount: targetCampers.length,
+    recipientPlan: uniqueSmsBroadcastRecipients(candidates),
+  }
+}
+
 export async function GET(request: Request) {
   const context = await getAuthenticatedContext(request)
   if (!context) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const broadcastId = new URL(request.url).searchParams.get('broadcastId')
+  const url = new URL(request.url)
+  const broadcastId = url.searchParams.get('broadcastId')
   if (broadcastId) {
     const isAdmin = String(context.camper.role || '').toLowerCase() === 'admin'
     if (!isAdmin) {
@@ -87,6 +146,36 @@ export async function GET(request: Request) {
   const isAdmin = role === 'admin'
   if (!isAdmin && role !== 'event_coordinator') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (url.searchParams.get('preview') === 'recipients') {
+    const targetMode = String(url.searchParams.get('targetMode') || 'all_opted_in') as TextTargetMode
+    const camperId = String(url.searchParams.get('camperId') || '')
+    const reminderType = String(url.searchParams.get('reminderType') || 'General Alert').slice(0, 80)
+    if (!['all_opted_in', 'open_balance', 'one'].includes(targetMode)) {
+      return NextResponse.json({ error: 'Choose a valid recipient group.' }, { status: 400 })
+    }
+    if (!isAdmin && targetMode !== 'all_opted_in') {
+      return NextResponse.json({ error: 'Event Coordinator texts can be sent only to all opted-in campers.' }, { status: 403 })
+    }
+    if (targetMode === 'one' && !camperId) {
+      return NextResponse.json({ error: 'Choose a camper first.' }, { status: 400 })
+    }
+
+    try {
+      const plan = await planTextRecipients(context, targetMode, camperId, reminderType)
+      return NextResponse.json({
+        success: true,
+        matchedCamperCount: plan.matchedCamperCount,
+        recipientCount: plan.recipientPlan.recipients.length,
+        duplicateRecipientCount: plan.recipientPlan.duplicateCount,
+      }, { headers: { 'Cache-Control': 'no-store' } })
+    } catch {
+      return NextResponse.json(
+        { error: 'The recipient list could not be verified. Sending remains blocked.' },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      )
+    }
   }
 
   let broadcastQuery = context.admin
@@ -177,7 +266,10 @@ export async function POST(request: Request) {
   const requestId = String(body.requestId || '')
   const role = effectivePortalRole(context.camper)
   const isAdmin = role === 'admin'
-  const isDirectBillingReminder = targetMode === 'one' && reminderType === 'Invoice Reminder'
+
+  if (!['all_opted_in', 'open_balance', 'one'].includes(targetMode)) {
+    return NextResponse.json({ error: 'Choose a valid recipient group.' }, { status: 400 })
+  }
 
   if (!isAdmin && !eventCoordinatorTextTypes.includes(reminderType)) {
     return NextResponse.json({ error: 'Event Coordinators can send only event, dinner, Thanksgiving, or Community updates.' }, { status: 403 })
@@ -189,6 +281,11 @@ export async function POST(request: Request) {
 
   if (!message) {
     return NextResponse.json({ error: 'Type a text message first.' }, { status: 400 })
+  }
+
+  const linkReview = reviewSmsLinks(message)
+  if (linkReview.blockedLinks.length) {
+    return NextResponse.json({ error: 'Remove insecure, shortened, or credential-bearing links before sending this text.' }, { status: 400 })
   }
 
   if (!validSmsBroadcastRequestId(requestId)) {
@@ -209,73 +306,16 @@ export async function POST(request: Request) {
     )
   }
 
-  let camperQuery = context.admin
-    .from('campers')
-    .select('id,lot_number,first_name,last_name,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,active,role')
-    .eq('active', true)
-    .order('lot_number', { ascending: true })
-
-  if (!isDirectBillingReminder) {
-    camperQuery = camperQuery.eq('sms_opt_in', true)
+  if (targetMode === 'one' && !camperId) {
+    return NextResponse.json({ error: 'Choose a camper first.' }, { status: 400 })
   }
 
-  if (targetMode === 'one') {
-    if (!camperId) {
-      return NextResponse.json({ error: 'Choose a camper first.' }, { status: 400 })
-    }
-    camperQuery = camperQuery.eq('id', camperId)
+  let recipientPlan: Awaited<ReturnType<typeof planTextRecipients>>['recipientPlan']
+  try {
+    recipientPlan = (await planTextRecipients(context, targetMode as TextTargetMode, camperId, reminderType)).recipientPlan
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || 'Text recipients could not be loaded.' }, { status: 500 })
   }
-
-  const { data: campers, error: camperError } = await camperQuery
-  if (camperError) return NextResponse.json({ error: camperError.message }, { status: 500 })
-
-  let targetCampers = (campers || []).filter(isOperationalCamper)
-
-  if (targetMode === 'open_balance') {
-    const { data: invoices, error: invoiceError } = await context.admin
-      .from('invoices')
-      .select('camper_id,status,total_due')
-      .neq('status', 'paid')
-      .gt('total_due', 0)
-
-    if (invoiceError) return NextResponse.json({ error: invoiceError.message }, { status: 500 })
-
-    const camperIdsWithBalance = new Set((invoices || [])
-      .filter(isInvoiceOutstanding)
-      .map((invoice: any) => String(invoice.camper_id)))
-    targetCampers = targetCampers.filter((camper: any) => camperIdsWithBalance.has(String(camper.id)))
-  }
-
-  if (targetCampers.length === 0) {
-    return NextResponse.json(
-      { error: 'No opted-in campers with phone numbers matched this text.' },
-      { status: 400 }
-    )
-  }
-
-  const candidates = []
-  for (const camper of targetCampers) {
-    const phones = await consentedCamperSmsPhones(context.admin, camper)
-    candidates.push({ camper, phones })
-
-    if (isDirectBillingReminder) {
-      let contactProfiles: any[]
-      try {
-        contactProfiles = await loadAuthorizedContactProfiles(context.admin, camper)
-      } catch (error: any) {
-        return NextResponse.json({ error: error?.message || 'Authorized billing contacts could not be loaded.' }, { status: 500 })
-      }
-
-      for (const delegate of contactProfiles.filter((profile) => String(profile.id) !== String(camper.id))) {
-        candidates.push({
-          camper: delegate,
-          phones: await consentedCamperSmsPhones(context.admin, delegate),
-        })
-      }
-    }
-  }
-
-  const recipientPlan = uniqueSmsBroadcastRecipients(candidates)
   if (!recipientPlan.recipients.length) {
     return NextResponse.json({ error: 'No opted-in phone numbers matched this text.' }, { status: 400 })
   }

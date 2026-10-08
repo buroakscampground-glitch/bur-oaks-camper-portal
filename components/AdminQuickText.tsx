@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { LoaderCircle, MessageSquareText, Send } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Link2, LoaderCircle, MessageSquareText, Send, UsersRound } from 'lucide-react'
 import { supabase } from '../lib/supabase'
+import { camperTextWithLink, portalPathForTextAlert } from '../lib/portal-sms-links'
+import { reviewSmsLinks } from '../lib/sms-link-review'
 
 type TargetMode = 'all_opted_in' | 'open_balance' | 'one'
 
@@ -10,6 +12,12 @@ type Template = {
   label: string
   type: string
   message: string
+}
+
+type RecipientPreview = {
+  matchedCamperCount: number
+  recipientCount: number
+  duplicateRecipientCount: number
 }
 
 const quickTemplates: Template[] = [
@@ -69,6 +77,9 @@ export default function AdminQuickText({
   const [message, setMessage] = useState(defaultMessage)
   const [status, setStatus] = useState('')
   const [sending, setSending] = useState(false)
+  const [recipientPreview, setRecipientPreview] = useState<RecipientPreview | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(true)
+  const [previewError, setPreviewError] = useState('')
   const sendingRef = useRef(false)
   const requestIdRef = useRef('')
 
@@ -81,6 +92,51 @@ export default function AdminQuickText({
     setReminderType(defaultType)
     requestIdRef.current = ''
   }, [camperId, defaultType])
+
+  useEffect(() => {
+    let current = true
+    const controller = new AbortController()
+
+    async function loadRecipientPreview() {
+      setPreviewLoading(true)
+      setPreviewError('')
+      setRecipientPreview(null)
+      try {
+        const { data } = await supabase.auth.getSession()
+        const token = data.session?.access_token || ''
+        if (!token) throw new Error('Sign in again to verify recipients.')
+
+        const params = new URLSearchParams({
+          preview: 'recipients',
+          targetMode: camperId ? 'one' : targetMode,
+          reminderType,
+        })
+        if (camperId) params.set('camperId', camperId)
+        const response = await fetch(`/api/text-alerts?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+          signal: controller.signal,
+        })
+        const result = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(result.error || 'Recipients could not be verified.')
+        if (current) setRecipientPreview({
+          matchedCamperCount: Number(result.matchedCamperCount || 0),
+          recipientCount: Number(result.recipientCount || 0),
+          duplicateRecipientCount: Number(result.duplicateRecipientCount || 0),
+        })
+      } catch (error: any) {
+        if (current && error?.name !== 'AbortError') setPreviewError(error?.message || 'Recipients could not be verified.')
+      } finally {
+        if (current) setPreviewLoading(false)
+      }
+    }
+
+    void loadRecipientPreview()
+    return () => {
+      current = false
+      controller.abort()
+    }
+  }, [camperId, targetMode, reminderType])
 
   async function getToken() {
     const { data } = await supabase.auth.getSession()
@@ -102,15 +158,24 @@ export default function AdminQuickText({
       return
     }
 
+    const linkReview = reviewSmsLinks(message)
+    if (linkReview.blockedLinks.length) {
+      setStatus('Remove insecure, shortened, or credential-bearing links before sending.')
+      return
+    }
+
+    if (!recipientPreview || previewLoading || previewError) {
+      setStatus('Wait until the exact recipient list is verified before sending.')
+      return
+    }
+
+    if (recipientPreview.recipientCount === 0) {
+      setStatus('No opted-in phone numbers match this text.')
+      return
+    }
+
     const finalTarget = camperId ? 'one' : targetMode
-    const warning =
-      finalTarget === 'open_balance'
-        ? 'Send this text to every saved phone number for opted-in campers with open balances?'
-        : finalTarget === 'all_opted_in'
-          ? 'Send this text to every valid phone number saved on each opted-in camper profile?'
-          : reminderType === 'Invoice Reminder'
-            ? 'Send this billing text to every opted-in phone for this account and its authorized billing contacts?'
-            : 'Send this text to every saved phone number on this camper profile?'
+    const warning = `Send this text to exactly ${recipientPreview.recipientCount} unique opted-in phone${recipientPreview.recipientCount === 1 ? '' : 's'}${linkReview.externalLinks.length ? `? It contains ${linkReview.externalLinks.length} external link${linkReview.externalLinks.length === 1 ? '' : 's'} that you should have opened and verified` : ''}?`
 
     if (!window.confirm(warning)) return
 
@@ -162,6 +227,14 @@ export default function AdminQuickText({
     }
   }
 
+  const linkReview = reviewSmsLinks(message)
+  const finalPreview = camperTextWithLink({
+    message: message.trim() || 'Your message will appear here.',
+    path: portalPathForTextAlert(reminderType, message),
+    compact: true,
+  })
+  const sendBlocked = sending || previewLoading || Boolean(previewError) || !recipientPreview?.recipientCount || Boolean(linkReview.blockedLinks.length) || !message.trim()
+
   return (
     <section className={`admin-quick-text ${compact ? 'compact' : ''}`}>
       <div className="admin-quick-text-heading">
@@ -209,12 +282,36 @@ export default function AdminQuickText({
         <textarea value={message} onChange={(event) => { requestIdRef.current = ''; setMessage(event.target.value) }} maxLength={1200} />
       </label>
 
-      <button type="button" onClick={sendText} disabled={sending}>
+      <div className={`admin-quick-text-review ${previewError || linkReview.blockedLinks.length ? 'blocked' : 'ready'}`} aria-live="polite">
+        <div>
+          {previewLoading ? <LoaderCircle className="admin-spin" size={18} /> : previewError || linkReview.blockedLinks.length ? <AlertTriangle size={18} /> : <UsersRound size={18} />}
+          <span>
+            <small>EXACT RECIPIENT PREVIEW</small>
+            <strong>{previewLoading ? 'Verifying opted-in phones…' : previewError ? 'Recipient verification unavailable' : `${recipientPreview?.recipientCount || 0} unique phone${recipientPreview?.recipientCount === 1 ? '' : 's'}`}</strong>
+            {!previewLoading && !previewError && recipientPreview && <em>{recipientPreview.matchedCamperCount} matching camper account{recipientPreview.matchedCamperCount === 1 ? '' : 's'}{recipientPreview.duplicateRecipientCount ? ` · ${recipientPreview.duplicateRecipientCount} duplicate phone entr${recipientPreview.duplicateRecipientCount === 1 ? 'y' : 'ies'} removed` : ''}</em>}
+            {previewError && <em>{previewError} Sending is blocked.</em>}
+          </span>
+        </div>
+        <div>
+          <MessageSquareText size={18} />
+          <span><small>FINAL PHONE PREVIEW</small><p>{finalPreview}</p></span>
+        </div>
+        <div>
+          {linkReview.blockedLinks.length ? <AlertTriangle size={18} /> : linkReview.externalLinks.length ? <Link2 size={18} /> : <CheckCircle2 size={18} />}
+          <span>
+            <small>LINK CHECK</small>
+            <strong>{linkReview.blockedLinks.length ? 'Unsafe link blocked' : linkReview.externalLinks.length ? `${linkReview.externalLinks.length} external HTTPS link${linkReview.externalLinks.length === 1 ? '' : 's'} — verify before sending` : linkReview.officialLinks.length ? 'Bur Oaks link verified' : 'Secure Bur Oaks portal link added automatically'}</strong>
+            {linkReview.blockedLinks.length > 0 && <em>Remove HTTP, shortened, or credential-bearing links.</em>}
+          </span>
+        </div>
+      </div>
+
+      <button type="button" onClick={sendText} disabled={sendBlocked}>
         {sending ? <LoaderCircle className="admin-spin" size={16} /> : <Send size={16} />}
-        {sending ? 'Sending…' : 'Send text'}
+        {sending ? 'Sending…' : recipientPreview?.recipientCount ? `Review & send to ${recipientPreview.recipientCount}` : 'Send unavailable'}
       </button>
 
-      {status && <p>{status}</p>}
+      {status && <p role="status">{status}</p>}
     </section>
   )
 }
