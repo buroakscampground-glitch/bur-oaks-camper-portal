@@ -547,6 +547,39 @@ test('public homepage stays accessible and action-ready at every release width',
   }
 })
 
+test('public interest form submits once and confirms the result without using production', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the intercepted public conversion journey.')
+  let submissions = 0
+  await page.route('**/api/public-waitlist', async (route) => {
+    submissions += 1
+    await new Promise((resolve) => setTimeout(resolve, 250))
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'x-request-id': 'synthetic-waitlist-check' },
+      body: JSON.stringify({ success: true, emailStatus: 'skipped', confirmationEmailStatus: 'skipped' }),
+    })
+  })
+
+  await page.goto('/availability#membership-inquiry')
+  const form = page.locator('form#membership-inquiry')
+  await form.getByLabel('First name').fill('Release')
+  await form.getByLabel('Last name').fill('Check')
+  await form.getByLabel(/Email/).fill('release-check@example.invalid')
+  await expect(form).toHaveAttribute('aria-busy', 'false')
+
+  await page.evaluate(() => {
+    const target = document.querySelector('form#membership-inquiry')
+    target?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+    target?.dispatchEvent(new SubmitEvent('submit', { bubbles: true, cancelable: true }))
+  })
+
+  await expect(form).toHaveAttribute('aria-busy', 'true')
+  await expect(form.getByRole('status')).toContainText('membership inquiry was received')
+  expect(submissions).toBe(1)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('sign-in stays visible, keyboard-ready, and contained at every release width', async ({ page, isMobile }) => {
   const response = await page.goto('/login')
   expect(response?.ok()).toBeTruthy()
