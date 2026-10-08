@@ -933,7 +933,7 @@ export default function ProfilePage() {
                   <button key={document.id} type="button" onClick={() => openInsuranceDocument(document.id)}>
                     <Eye size={15} />
                     <span>{document.document_name}</span>
-                    <em>{document.created_at ? new Date(document.created_at).toLocaleDateString() : 'Saved'}</em>
+                    <em>{document.uploaded_at ? new Date(document.uploaded_at).toLocaleDateString() : 'Saved'}</em>
                   </button>
                 ))
               )}

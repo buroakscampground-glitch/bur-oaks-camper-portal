@@ -1051,7 +1051,7 @@ export default function CamperDetailPage() {
                   <button key={document.id} type="button" onClick={() => openInsuranceDocument(document)}>
                     <Eye size={15} />
                     <span>{document.document_name}</span>
-                    <em>{document.created_at ? new Date(document.created_at).toLocaleDateString() : 'Saved'}</em>
+                    <em>{document.uploaded_at ? new Date(document.uploaded_at).toLocaleDateString() : 'Saved'}</em>
                   </button>
                 ))
               )}
@@ -1144,7 +1144,7 @@ export default function CamperDetailPage() {
                 <button key={document.id} type="button" onClick={() => openInsuranceDocument(document)}>
                   <Eye size={15} />
                   <span>{document.document_name}</span>
-                  <em>{document.document_type || 'Document'} · {document.created_at ? new Date(document.created_at).toLocaleDateString() : 'Saved'}</em>
+                  <em>{document.document_type || 'Document'} · {document.uploaded_at ? new Date(document.uploaded_at).toLocaleDateString() : 'Saved'}</em>
                 </button>
               ))
             )}
@@ -1182,9 +1182,9 @@ function documentSignatureSummary(document: any) {
   const names = [document.signed_name, document.second_signed_name].filter(Boolean).join(' and ')
   if (status === 'signed') return `Fully signed${names ? ` by ${names}` : ''}${document.signed_at ? ` on ${formatHistoryDate(document.signed_at)}` : ''}.`
   if (status === 'pending_second_signature') return `Partly signed${names ? ` by ${names}` : ''}; waiting for the second signature.`
-  if (status === 'not_required') return `Saved on ${formatHistoryDate(document.created_at)}; no electronic signature required.`
+  if (status === 'not_required') return `Saved on ${formatHistoryDate(document.uploaded_at)}; no electronic signature required.`
   if (status === 'declined') return 'Camper declined this document.'
-  return `Waiting for signature · Added ${formatHistoryDate(document.created_at)}`
+  return `Waiting for signature · Added ${formatHistoryDate(document.uploaded_at)}`
 }
 
 function HistoryTab({ active, onClick, icon, label, count }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string; count: number }) {
