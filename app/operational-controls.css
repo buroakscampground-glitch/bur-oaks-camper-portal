@@ -20,3 +20,5 @@
 @media (max-width: 680px) {
   .operations-control-status { grid-template-columns: 1fr; padding: 17px; }
 }
+
+.operations-health-checks .operations-health-next-action { color: #4f6557; font-weight: 750; }

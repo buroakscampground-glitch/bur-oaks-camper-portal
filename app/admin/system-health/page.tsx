@@ -183,8 +183,12 @@ export default function SystemHealthPage() {
             {snapshot?.health.map((item: any) => (
               <a className={item.tone} href={item.href} key={item.key}>
                 <span>{item.count ? <AlertTriangle size={20} /> : <CheckCircle2 size={20} />}</span>
-                <div><strong>{item.label}</strong><small>{item.count ? `${item.count} need attention` : 'All clear'}</small></div>
-                <em>{item.count}</em><ArrowRight size={16} />
+                <div>
+                  <strong>{item.label}</strong>
+                  <small>{item.count ? `${item.count} open · Owner: ${item.owner}${item.oldestOpenAt ? ` · Oldest ${shortDate(item.oldestOpenAt)}` : ''}` : 'Clear · No action needed'}</small>
+                  {item.count > 0 && <small className="operations-health-next-action">Next: {item.nextAction}</small>}
+                </div>
+                <em aria-label={item.count ? `${item.count} open exceptions` : 'Clear'}>{item.count || '✓'}</em><ArrowRight size={16} />
               </a>
             ))}
           </div>

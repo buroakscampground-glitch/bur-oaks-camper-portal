@@ -30,6 +30,12 @@ function shiftDate(value: string, days: number) {
   return date.toISOString().slice(0, 10)
 }
 
+function oldestDate(rows: any[], ...fields: string[]) {
+  return rows
+    .flatMap((row) => fields.map((field) => String(row?.[field] || '')).filter(Boolean))
+    .sort()[0] || null
+}
+
 export async function loadOperationsSnapshot(client: any) {
   const today = todayInCentral()
   const thirtyDaysAgo = new Date(`${today}T12:00:00Z`)
@@ -53,7 +59,7 @@ export async function loadOperationsSnapshot(client: any) {
   ] = await Promise.all([
     safeRows(client.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,email,secondary_email,phone,alternate_phone,second_profile_phone,sms_opt_in,role,active').order('lot_number')),
     safeRows(client.from('invoices').select('id,camper_id,invoice_number,invoice_type,total_due,due_date,status,paid_at,created_at,campers(first_name,last_name,lot_number)').order('created_at', { ascending: false }).limit(1000)),
-    safeRows(client.from('documents').select('id,camper_id,document_name,document_type,signature_status,requires_two_signatures,signed_at,campers(first_name,last_name,lot_number)').order('document_name', { ascending: true }).limit(500)),
+    safeRows(client.from('documents').select('id,camper_id,document_name,document_type,signature_status,requires_two_signatures,signed_at,created_at,campers(first_name,last_name,lot_number)').order('document_name', { ascending: true }).limit(500)),
     safeRows(client.from('maintenance_tickets').select('id,camper_id,lot_number,title,status,priority,admin_approved,created_at,completed_at').order('created_at', { ascending: false }).limit(500)),
     safeRows(client.from('sewer_pump_out_requests').select('id,camper_id,lot_number,camper_name,status,billed_at,requested_at,completed_at').order('requested_at', { ascending: false }).limit(500)),
     safeRows(client.from('office_messages').select('id,camper_id,lot_number,sender_role,sender_name,body,read_by_admin_at,created_at').order('created_at', { ascending: false }).limit(300)),
@@ -161,14 +167,14 @@ export async function loadOperationsSnapshot(client: any) {
   }
 
   const health = [
-    { key: 'communications', label: 'Failed communications', count: failedTexts.length + failedInvites.length, href: '/admin/texts', tone: failedTexts.length + failedInvites.length ? 'red' : 'green' },
-    { key: 'printing', label: 'Print/report problems', count: failedReports.length, href: '/admin/system-health#delivery', tone: failedReports.length ? 'red' : 'green' },
-    { key: 'documents', label: 'Documents awaiting signatures', count: unsignedDocuments.length, href: '/admin/documents', tone: unsignedDocuments.length ? 'gold' : 'green' },
-    { key: 'billing', label: 'Past-due invoices', count: pastDueInvoices.length, href: '/admin/open-balance', tone: pastDueInvoices.length ? 'red' : 'green' },
-    { key: 'maintenance', label: 'Maintenance awaiting approval', count: pendingMaintenance.length, href: '/admin/maintenance', tone: pendingMaintenance.length ? 'gold' : 'green' },
-    { key: 'pump', label: 'Pump-outs waiting', count: openPumpOuts.length, href: '/admin/pump-outs', tone: openPumpOuts.length ? 'gold' : 'green' },
-    { key: 'messages', label: 'Unread office messages', count: unreadMessages.length, href: '/admin/messages', tone: unreadMessages.length ? 'gold' : 'green' },
-    { key: 'profiles', label: 'Profiles missing email or phone', count: missingContact.length, href: '/admin/campers', tone: missingContact.length ? 'gold' : 'green' },
+    { key: 'communications', label: 'Failed communications', count: failedTexts.length + failedInvites.length, href: '/admin/texts', tone: failedTexts.length + failedInvites.length ? 'red' : 'green', owner: 'Office', nextAction: 'Review failure and resend only if still needed', oldestOpenAt: oldestDate([...failedTexts, ...failedInvites], 'sent_at', 'created_at') },
+    { key: 'printing', label: 'Print/report problems', count: failedReports.length, href: '/admin/system-health#delivery', tone: failedReports.length ? 'red' : 'green', owner: 'Office', nextAction: 'Open the failed report and correct its destination', oldestOpenAt: oldestDate(failedReports, 'completed_at', 'started_at', 'report_date') },
+    { key: 'documents', label: 'Documents awaiting signatures', count: unsignedDocuments.length, href: '/admin/documents', tone: unsignedDocuments.length ? 'gold' : 'green', owner: 'Office', nextAction: 'Review signer status and follow up', oldestOpenAt: oldestDate(unsignedDocuments, 'created_at') },
+    { key: 'billing', label: 'Past-due invoices', count: pastDueInvoices.length, href: '/admin/open-balance', tone: pastDueInvoices.length ? 'red' : 'green', owner: 'Office', nextAction: 'Review balance and latest payment activity', oldestOpenAt: oldestDate(pastDueInvoices, 'due_date', 'created_at') },
+    { key: 'maintenance', label: 'Maintenance awaiting approval', count: pendingMaintenance.length, href: '/admin/maintenance', tone: pendingMaintenance.length ? 'gold' : 'green', owner: 'Office', nextAction: 'Approve, assign, or close the request', oldestOpenAt: oldestDate(pendingMaintenance, 'created_at') },
+    { key: 'pump', label: 'Pump-outs waiting', count: openPumpOuts.length, href: '/admin/pump-outs', tone: openPumpOuts.length ? 'gold' : 'green', owner: 'Maintenance', nextAction: 'Schedule or complete the oldest request', oldestOpenAt: oldestDate(openPumpOuts, 'requested_at') },
+    { key: 'messages', label: 'Unread office messages', count: unreadMessages.length, href: '/admin/messages', tone: unreadMessages.length ? 'gold' : 'green', owner: 'Office', nextAction: 'Read and reply to the camper', oldestOpenAt: oldestDate(unreadMessages, 'created_at') },
+    { key: 'profiles', label: 'Profiles missing email or phone', count: missingContact.length, href: '/admin/campers', tone: missingContact.length ? 'gold' : 'green', owner: 'Office', nextAction: 'Confirm and add the missing contact detail', oldestOpenAt: null },
   ]
 
   const failures = [
