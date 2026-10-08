@@ -12,6 +12,7 @@ import {
 } from '../../../lib/sms-broadcast'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
 import { operationalControlEnabled } from '../../../lib/operational-feature-flags'
+import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 import { canManageCommunity, effectivePortalRole } from '../../../lib/staff-roles'
 
 export const runtime = 'nodejs'
@@ -317,8 +318,9 @@ export async function POST(request: Request) {
 
   if (campaignInsert.error || !campaignInsert.data) {
     const missingMigration = ['42P01', 'PGRST205'].includes(campaignInsert.error?.code || '')
+    const correlationId = reportOperationalFailure(request, { operation: 'manual-text-campaign-reserve', actorRole: role, identifiers: { campaignRequestId: requestId } }, campaignInsert.error)
     return NextResponse.json(
-      { error: missingMigration ? 'Text duplicate protection is not installed yet.' : campaignInsert.error?.message || 'Unable to reserve this text campaign.' },
+      { error: supportReferenceMessage(missingMigration ? 'Text duplicate protection is not installed yet.' : 'Unable to reserve this text campaign.', correlationId), requestId: correlationId },
       { status: 503 }
     )
   }
@@ -344,6 +346,14 @@ export async function POST(request: Request) {
       client: admin,
       camperId: camper.id,
     })
+
+    if (!result.sent) {
+      reportOperationalFailure(request, {
+        operation: 'manual-text-delivery',
+        actorRole: role,
+        identifiers: { campaignId: campaign.id, camperId: camper.id, providerCode: result.errorCode },
+      }, { name: 'ProviderDeliveryError', code: result.errorCode })
+    }
 
     await admin.from('sms_broadcast_deliveries').update({
       status: result.sent ? 'sent' : 'failed',

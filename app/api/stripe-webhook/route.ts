@@ -8,6 +8,7 @@ import { reconcileAndPrintStripePayout } from '../../../lib/stripe-payout-printi
 import { alertStripePayoutProblem } from '../../../lib/stripe-payout-alerts'
 import { priorPaymentReview } from '../../../lib/stripe-payment-review'
 import { achExpectedFromStripeEvent } from '../../../lib/ach-expected-date'
+import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -87,8 +88,11 @@ export async function POST(request: Request) {
   const ledgerMissing = ledgerError?.code === '42P01' || ledgerError?.code === 'PGRST205'
 
   if (ledgerError && !ledgerMissing) {
-    console.error('Unable to record Stripe webhook event:', ledgerError)
-    return NextResponse.json({ error: 'Webhook processing unavailable' }, { status: 500 })
+    const requestId = reportOperationalFailure(request, {
+      operation: 'stripe-webhook-ledger',
+      identifiers: { stripeEventId: event.id, stripeEventType: event.type },
+    }, ledgerError)
+    return NextResponse.json({ error: supportReferenceMessage('Webhook processing is temporarily unavailable.', requestId), requestId }, { status: 500 })
   }
 
   // During migration rollout, continue only when the ledger table is not present yet.
@@ -569,7 +573,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Stripe webhook processing failed:', error)
+    const requestId = reportOperationalFailure(request, {
+      operation: 'stripe-webhook-processing',
+      identifiers: { stripeEventId: event.id, stripeEventType: event.type },
+    }, error)
 
     if (ledgerActive) {
       await supabaseAdmin
@@ -578,6 +585,6 @@ export async function POST(request: Request) {
         .eq('event_id', event.id)
     }
 
-    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
+    return NextResponse.json({ error: supportReferenceMessage('Webhook processing failed.', requestId), requestId }, { status: 500 })
   }
 }

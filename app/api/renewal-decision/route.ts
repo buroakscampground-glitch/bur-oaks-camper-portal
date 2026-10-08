@@ -3,6 +3,7 @@ import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { todayInCentral } from '../../../lib/invoice-texting'
 import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
 import { operationalControlEnabled } from '../../../lib/operational-feature-flags'
+import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 
 export const runtime = 'nodejs'
 
@@ -28,7 +29,8 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (renewalError || !renewal) {
-    return NextResponse.json({ error: renewalError?.message || 'This document is not the active renewal for your site.' }, { status: 404 })
+    if (renewalError) reportOperationalFailure(request, { operation: 'renewal-load', actorRole: 'camper', identifiers: { documentId } }, renewalError)
+    return NextResponse.json({ error: 'This document is not the active renewal for your site.' }, { status: 404 })
   }
   if (renewal.status === 'Campground Not Renewing') {
     return NextResponse.json({ error: 'The campground has already recorded a separate decision for this site. Please contact the office.' }, { status: 409 })
@@ -79,7 +81,8 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (updateError || !updated) {
-    return NextResponse.json({ error: updateError?.message || 'Your non-renewal decision could not be recorded.' }, { status: 500 })
+    const requestId = reportOperationalFailure(request, { operation: 'renewal-decision-save', actorRole: 'camper', identifiers: { documentId, renewalId: renewal.id } }, updateError)
+    return NextResponse.json({ error: supportReferenceMessage('Your non-renewal decision could not be recorded.', requestId), requestId }, { status: 500 })
   }
 
   const { error: documentError } = await context.admin
@@ -90,7 +93,8 @@ export async function POST(request: Request) {
 
   if (documentError) {
     await context.admin.from('season_renewals').update({ automation_error: documentError.message }).eq('id', renewal.id)
-    return NextResponse.json({ error: 'Your decision was recorded, but the document screen could not be updated. Refresh or contact the office.' }, { status: 500 })
+    const requestId = reportOperationalFailure(request, { operation: 'renewal-document-sync', actorRole: 'camper', identifiers: { documentId, renewalId: renewal.id } }, documentError)
+    return NextResponse.json({ error: supportReferenceMessage('Your decision was recorded, but the document screen could not be updated. Refresh or contact the office.', requestId), requestId }, { status: 500 })
   }
 
   const lot = context.camper.lot_number || renewal.lot_number || '—'

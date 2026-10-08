@@ -5,6 +5,7 @@ import { buildMonthlyBillingChecklist } from '../../../lib/meter-billing-checkli
 import { recognizeMeterWithVision } from '../../../lib/meter-vision'
 import { checkRateLimit } from '../../../lib/rate-limit'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -194,7 +195,7 @@ export async function POST(request: Request) {
       }
       recognition = await recognizeMeterWithVision(bytes, { lotNumber, previousReading })
     } catch (error) {
-      console.error('Meter vision failed:', error)
+      reportOperationalFailure(request, { operation: 'meter-photo-analysis', actorRole: role }, error)
     }
     return NextResponse.json({ recognition })
   }
@@ -247,7 +248,7 @@ export async function POST(request: Request) {
     } catch (visionError) {
       // Never lose a field photo because the reader is temporarily unavailable.
       // Save it for office review, where the same managed reader can be retried.
-      console.error('Meter vision could not complete during submission:', visionError)
+      reportOperationalFailure(request, { operation: 'meter-photo-analysis-during-save', actorRole: role, identifiers: { lotNumber } }, visionError)
     }
   }
 
@@ -277,7 +278,10 @@ export async function POST(request: Request) {
   const { error: uploadError } = await context.admin.storage
     .from('meter-reading-photos')
     .upload(photoPath, bytes, { contentType: photoType.mime, upsert: false })
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
+  if (uploadError) {
+    const requestId = reportOperationalFailure(request, { operation: 'meter-photo-upload', actorRole: role, identifiers: { lotNumber } }, uploadError)
+    return NextResponse.json({ error: supportReferenceMessage('The meter photo could not be saved.', requestId), requestId }, { status: 500 })
+  }
 
   const { data, error } = await context.admin
     .from('meter_reading_submissions')
@@ -300,7 +304,8 @@ export async function POST(request: Request) {
 
   if (error) {
     await context.admin.storage.from('meter-reading-photos').remove([photoPath])
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    const requestId = reportOperationalFailure(request, { operation: 'meter-submission-save', actorRole: role, identifiers: { lotNumber } }, error)
+    return NextResponse.json({ error: supportReferenceMessage('The meter reading could not be saved.', requestId), requestId }, { status: 500 })
   }
 
   return NextResponse.json({
@@ -527,8 +532,8 @@ export async function PATCH(request: Request) {
       if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
       return NextResponse.json({ success: true, submission: await signedSubmission(context, updated) })
     } catch (error) {
-      console.error('Meter photo reanalysis failed:', error)
-      return NextResponse.json({ error: 'The meter photo reader could not finish.' }, { status: 500 })
+      const requestId = reportOperationalFailure(request, { operation: 'meter-photo-reanalysis', actorRole: role, identifiers: { submissionId: id } }, error)
+      return NextResponse.json({ error: supportReferenceMessage('The meter photo reader could not finish.', requestId), requestId }, { status: 500 })
     }
   }
 
