@@ -24,3 +24,11 @@ export function createAccountCreditAudited(input: { camperId: string; amount: nu
 export function voidAccountCreditAudited(creditId: string, reason: string) {
   return auditedPost('/api/admin-account-credits', { action: 'void', creditId, reason })
 }
+
+export function updateCamperProfileAudited(camperId: string, patch: Record<string, unknown>, reason: string) {
+  return auditedPost('/api/admin-camper-profile', { action: 'profile', camperId, patch, reason })
+}
+
+export function updateCamperRentTermsAudited(camperId: string, annualRent: number | null, paymentPlan: string, reason: string) {
+  return auditedPost('/api/admin-camper-profile', { action: 'rent-terms', camperId, annualRent, paymentPlan, reason })
+}

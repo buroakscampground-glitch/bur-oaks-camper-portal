@@ -15,6 +15,7 @@ import {
   ClipboardList,
   DoorOpen,
   FileText,
+  FileClock,
   Hammer,
   Home,
   KeyRound,
@@ -92,6 +93,7 @@ const pageNames: Record<string, string> = {
   'site-availability': 'Site Availability',
   'system-health': 'System Health & Search',
   'community-feed': 'Campground Messenger',
+  'audit-log': 'Office Audit Trail',
 }
 
 const navGroups = [
@@ -100,6 +102,7 @@ const navGroups = [
     links: [
       { href: '/admin', label: 'Command Center', icon: LayoutDashboard },
       { href: '/admin/system-health', label: 'System Health & Search', icon: ShieldCheck },
+      { href: '/admin/audit-log', label: 'Audit Trail', icon: FileClock },
       { href: '/admin/notifications', label: 'Needs Attention', icon: Bell },
       { href: '/admin/messages', label: 'Office Inbox', icon: MessageCircle },
       { href: '/admin/texts', label: 'Text Alerts', icon: Send },

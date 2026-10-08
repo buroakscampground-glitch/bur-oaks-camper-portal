@@ -434,6 +434,8 @@ export default function AdminRenewalsPage() {
   async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'clear' | 'mark-sent' | 'send-nonrenewal' | 'signed-previous-system' | 'confirm-signature-exempt', documentId = '') {
     const existing = renewals.find((record) => record.camper_id === camper.id)
     const draft = drafts[camper.id] || draftFrom(existing)
+    const reason = window.prompt(`Why is this renewal record being changed? This reason becomes permanent history for Lot ${camper.lot_number || '—'}.`, '')?.trim() || ''
+    if (reason.length < 5) throw new Error('Enter a clear reason before changing this renewal record.')
     const sessionResult = await Promise.race([
       supabase.auth.getSession(),
       new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('Your login check timed out. Please refresh and try again.')), 7000)),
@@ -457,6 +459,7 @@ export default function AdminRenewalsPage() {
           notes: draft.notes,
           rentPaymentPlan: camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual',
           annualRent: Number(draft.annual_rent),
+          reason,
           ...(action === 'signed-previous-system' ? { confirmed: true } : {}),
           ...(documentId ? { documentId } : {}),
         }),

@@ -37,7 +37,7 @@ import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/sta
 import { rentPaymentBreakdown } from '../../../../lib/rent-payment-summary'
 import { contractPaymentSnapshot } from '../../../../lib/contract-payment-snapshot'
 import { camperHouseholdName, primaryCamperName, secondaryCamperName } from '../../../../lib/camper-household'
-import { setCamperActiveAudited } from '../../../../lib/admin-audited-actions'
+import { setCamperActiveAudited, updateCamperProfileAudited, updateCamperRentTermsAudited } from '../../../../lib/admin-audited-actions'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 type HistoryView = 'activity' | 'documents' | 'billing' | 'credits' | 'site' | 'messages' | 'electric'
@@ -279,12 +279,14 @@ export default function CamperDetailPage() {
       !camper.mailing_state?.trim() ||
       !camper.mailing_zip?.trim()
 
+    const reason = window.prompt('Why is this camper profile being updated? This reason becomes part of the permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear reason before saving the camper profile.'); return }
+
     setSaving(true)
     setMessage('Saving camper profile…')
 
-    const { data, error } = await supabase
-      .from('campers')
-      .update({
+    try {
+      const result = await updateCamperProfileAudited(camperId, {
         lot_number: camper.lot_number?.trim() || null,
         first_name: camper.first_name.trim(),
         last_name: camper.last_name.trim(),
@@ -322,20 +324,13 @@ export default function CamperDetailPage() {
         camper_since_date: camper.camper_since_date || null,
         office_notes: camper.office_notes?.trim() || null,
         rent_payment_plan: camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual',
-      })
-      .eq('id', camperId)
-      .select('*')
-      .single()
+      }, reason)
+      const data = result.camper
+      if (!data) throw new Error('The saved camper profile could not be verified.')
 
-    if (error || !data) {
-      setMessage(error?.message || 'Unable to save this camper.')
-      setSaving(false)
-      return
-    }
-
-    let textSyncWarning = ''
-    if (data.sms_opt_in) {
-      try {
+      let textSyncWarning = ''
+      if (data.sms_opt_in) {
+        try {
         const { data: sessionData } = await supabase.auth.getSession()
         const token = sessionData.session?.access_token
         if (!token) throw new Error('Admin login expired')
@@ -350,18 +345,19 @@ export default function CamperDetailPage() {
         })
         const result = await response.json().catch(() => null)
         if (!response.ok) throw new Error(result?.error || 'Text-number sync failed')
-      } catch {
-        textSyncWarning = ' Text numbers could not be synchronized; please try saving again.'
+        } catch {
+          textSyncWarning = ' Text numbers could not be synchronized; please try saving again.'
+        }
       }
-    }
 
-    setCamper({ ...emptyCamper, ...data, role: effectivePortalRole(data) })
-    setMessage(
-      mailingAddressIncomplete
-        ? `Camper profile saved successfully. Mailing address is still needed.${textSyncWarning}`
-        : `Camper profile saved successfully.${textSyncWarning}`,
-    )
-    setSaving(false)
+      setCamper({ ...emptyCamper, ...data, role: effectivePortalRole(data) })
+      setMessage(mailingAddressIncomplete
+        ? `Camper profile saved with its audit reason. Mailing address is still needed.${textSyncWarning}`
+        : `Camper profile and audit reason saved successfully.${textSyncWarning}`)
+      await loadInternalHistory()
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to save this camper.')
+    } finally { setSaving(false) }
   }
 
   async function saveAnnualLotRent() {
@@ -378,50 +374,19 @@ export default function CamperDetailPage() {
       return
     }
 
+    const reason = window.prompt('Why are the annual rent or payment terms changing? This reason becomes permanent campsite history.', '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear reason before saving rent terms.'); return }
+
     setSavingAnnualRent(true)
     setMessage('Saving annual lot rent…')
-
-    const { data: lotRows, error: lookupError } = await supabase
-      .from('lots')
-      .select('id')
-      .eq('lot_number', currentLotNumber)
-      .limit(1)
-
-    if (lookupError) {
-      setMessage(lookupError.message || 'Unable to find this lot record.')
-      setSavingAnnualRent(false)
-      return
-    }
-
-    const existingLot = lotRows?.[0]
-    const result = existingLot
-      ? await supabase.from('lots').update({ lot_rent_amount: rentAmount }).eq('id', existingLot.id)
-      : await supabase.from('lots').insert({
-          lot_number: currentLotNumber,
-          camper_id: camperId,
-          lot_rent_amount: rentAmount,
-        })
-
-    if (result.error) {
-      setMessage(result.error.message || 'Unable to save annual lot rent.')
-      setSavingAnnualRent(false)
-      return
-    }
-
-    const { error: planError } = await supabase
-      .from('campers')
-      .update({ rent_payment_plan: camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual' })
-      .eq('id', camperId)
-
-    if (planError) {
-      setMessage(planError.message || 'Annual rent saved, but the payment plan could not be saved.')
-      setSavingAnnualRent(false)
-      return
-    }
-
-    setAnnualLotRent(rentAmount === null ? '' : String(rentAmount))
-    setMessage('Annual lot rent and payment plan saved successfully.')
-    setSavingAnnualRent(false)
+    try {
+      await updateCamperRentTermsAudited(camperId, rentAmount, camper.rent_payment_plan, reason)
+      setAnnualLotRent(rentAmount === null ? '' : String(rentAmount))
+      setMessage('Annual lot rent, payment plan, and audit reason saved successfully.')
+      await loadInternalHistory()
+    } catch (error: any) {
+      setMessage(error.message || 'Unable to save annual lot rent and payment plan.')
+    } finally { setSavingAnnualRent(false) }
   }
 
   async function sendPhonePortalSetup() {

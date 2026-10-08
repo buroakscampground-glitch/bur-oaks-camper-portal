@@ -49,6 +49,12 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const action = cleanText(body.action, 40) || 'save'
+  const auditReason = cleanText(body.reason, 1000)
+  const auditedActions = new Set(['save','approve','decline','clear','mark-sent','send-nonrenewal','signed-previous-system','confirm-signature-exempt'])
+  if (auditedActions.has(action) && auditReason.length < 5) {
+    return NextResponse.json({ error: 'Enter a clear reason before changing a renewal record.' }, { status: 400 })
+  }
+  const auditActor = context.user.email || 'office'
   if (action === 'reconcile') {
     try {
       const reconciliation = await reconcileRenewalsWithDocuments(context.admin)
@@ -140,10 +146,12 @@ export async function POST(request: Request) {
     ? body.rentPaymentPlan
     : camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual'
   if (camper.rent_payment_plan !== rentPaymentPlan) {
-    const { error: planError } = await context.admin
-      .from('campers')
-      .update({ rent_payment_plan: rentPaymentPlan })
-      .eq('id', camper.id)
+    const { error: planError } = await context.admin.rpc('update_camper_profile_audited', {
+      p_camper_id: camper.id,
+      p_patch: { rent_payment_plan: rentPaymentPlan },
+      p_reason: auditReason || 'Renewal payment plan synchronized',
+      p_actor_email: auditActor,
+    })
     if (planError) {
       return NextResponse.json({ error: planError.message || 'The rent payment plan could not be saved.' }, { status: 500 })
     }
@@ -185,6 +193,8 @@ export async function POST(request: Request) {
         automation_error: null,
         last_automation_at: new Date().toISOString(),
         notes,
+        audit_reason: auditReason,
+        audit_actor: auditActor,
       })
       .eq('id', existing.id)
       .select('*')
@@ -322,6 +332,8 @@ export async function POST(request: Request) {
           automation_error: null,
           last_automation_at: now,
           notes,
+          audit_reason: auditReason,
+          audit_actor: auditActor,
         })
         .eq('id', existing.id)
         .select('*')
@@ -367,6 +379,8 @@ export async function POST(request: Request) {
         automation_error: null,
         last_automation_at: now,
         notes,
+        audit_reason: auditReason,
+        audit_actor: auditActor,
       })
       .eq('id', existing.id)
       .select('*')
@@ -486,6 +500,8 @@ export async function POST(request: Request) {
         renewal_sent_at: todayInCentral(),
         last_automation_at: new Date().toISOString(),
         automation_error: null,
+        audit_reason: auditReason,
+        audit_actor: auditActor,
       })
       .eq('id', existing.id)
       .select('*')
@@ -568,6 +584,8 @@ export async function POST(request: Request) {
     automation_error: action === 'approve' ? null : existing?.automation_error || null,
     annual_rent: annualRent > 0 ? annualRent : existing?.annual_rent || null,
     rent_payment_plan: rentPaymentPlan,
+    audit_reason: auditReason,
+    audit_actor: auditActor,
   }
 
   if (annualRent > 0 && camper.lot_number) {
