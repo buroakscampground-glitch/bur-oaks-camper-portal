@@ -1,8 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { invoiceIdsFromMetadata, isPayoutComponentTransaction, summarizePayoutRows, type StripePayoutRow } from '../lib/stripe-payout-reconciliation.ts'
 import { buildStripePayoutPdf } from '../lib/stripe-payout-report.ts'
 import { PDFDocument } from 'pdf-lib'
+import { payoutPrintReservationDecision } from '../lib/stripe-payout-printing.ts'
 
 test('reads both single and grouped invoice metadata without duplicates', () => {
   assert.deepEqual(invoiceIdsFromMetadata({ invoice_id: 'a', invoice_ids: '["a","b"]' } as any), ['a', 'b'])
@@ -12,6 +14,22 @@ test('reads both single and grouped invoice metadata without duplicates', () => 
 test('does not count the bank-transfer ledger row as a payout component', () => {
   assert.equal(isPayoutComponentTransaction({ type: 'payout' } as any), false)
   assert.equal(isPayoutComponentTransaction({ type: 'charge' } as any), true)
+})
+
+test('automatic payout printing never retries an uncertain or failed reservation', () => {
+  assert.deepEqual(payoutPrintReservationDecision('sent', false), {
+    action: 'skip', reason: 'This Stripe deposit already printed.',
+  })
+  assert.match(payoutPrintReservationDecision('running', false).reason || '', /Check the Epson printer before reprinting/)
+  assert.match(payoutPrintReservationDecision('failed', false).reason || '', /manual reprint action/)
+  assert.deepEqual(payoutPrintReservationDecision('failed', true), { action: 'print' })
+})
+
+test('the Stripe deposit API treats an unknown print result as verify-before-retry', () => {
+  const source = readFileSync(new URL('../app/api/admin-stripe-payouts/route.ts', import.meta.url), 'utf8')
+  assert.match(source, /Check the Epson printer before retrying/)
+  assert.match(source, /reportOperationalFailure/)
+  assert.doesNotMatch(source, /error\?\.message/)
 })
 
 test('reconciles gross payments, refunds, fees, and net payout to the penny', () => {
