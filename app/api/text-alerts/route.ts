@@ -11,6 +11,7 @@ import {
   validSmsBroadcastRequestId,
 } from '../../../lib/sms-broadcast'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
+import { operationalControlEnabled } from '../../../lib/operational-feature-flags'
 import { canManageCommunity, effectivePortalRole } from '../../../lib/staff-roles'
 
 export const runtime = 'nodejs'
@@ -191,6 +192,13 @@ export async function POST(request: Request) {
 
   if (!validSmsBroadcastRequestId(requestId)) {
     return NextResponse.json({ error: 'This text needs a valid campaign ID. Refresh the page and try again.' }, { status: 400 })
+  }
+
+  if (!operationalControlEnabled('manualTextBroadcasts')) {
+    return NextResponse.json(
+      { error: 'Manual text sends are temporarily paused. Nothing was sent. Please try again later.' },
+      { status: 503, headers: { 'Retry-After': '900' } }
+    )
   }
 
   if (!isTwilioConfigured()) {

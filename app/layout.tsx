@@ -1,6 +1,7 @@
 import React from 'react'
 import type { Metadata } from 'next'
 import './globals.css'
+import './operational-controls.css'
 import GlobalBackButton from '../components/GlobalBackButton'
 import CamperChrome from '../components/CamperChrome'
 import AuthLinkRedirect from '../components/AuthLinkRedirect'

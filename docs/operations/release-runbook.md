@@ -33,3 +33,13 @@ The same gate runs through GitHub Actions on pull requests and pushes to `main`.
 ## Recovery
 
 Application-only releases roll back to the preceding known-good commit. Database changes must remain backward compatible until the application is verified. Financial mistakes are corrected with audited compensating records, never by silently rewriting history.
+
+## Emergency action controls
+
+Three server-only Vercel environment variables can pause high-risk actions while leaving the rest of the portal available. A missing variable and `true` both mean enabled. Set a variable to `false`, redeploy the current production commit, and confirm its state under **Admin → System Health → High-risk actions**.
+
+- `BUR_OAKS_BILLING_CHECKOUT_ENABLED` pauses creation of new Stripe checkout sessions. Existing invoices and payments are unchanged.
+- `BUR_OAKS_RENEWAL_DECISIONS_ENABLED` pauses new camper non-renewal decisions. Prior decisions and documents are unchanged.
+- `BUR_OAKS_MANUAL_TEXTS_ENABLED` pauses manual text campaigns before a campaign or delivery record is created. Automated transactional notices are unchanged.
+
+After the incident, correct and verify the underlying problem before setting the control to `true` and redeploying. Never use a switch to conceal or rewrite a payment, decision, or message that already occurred.

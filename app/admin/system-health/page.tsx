@@ -188,6 +188,21 @@ export default function SystemHealthPage() {
               </a>
             ))}
           </div>
+          <section className="operations-control-status" aria-labelledby="operational-control-heading">
+            <div>
+              <span>EMERGENCY CONTROLS</span>
+              <h3 id="operational-control-heading">High-risk actions</h3>
+              <p>These server-side controls can pause a risky action without changing saved camper or billing records.</p>
+            </div>
+            <div>
+              {snapshot?.operationalControls?.map((control: any) => (
+                <article className={control.enabled ? 'enabled' : 'paused'} key={control.key}>
+                  <strong>{control.label}</strong>
+                  <span>{control.enabled ? 'Available' : 'PAUSED'}</span>
+                </article>
+              ))}
+            </div>
+          </section>
           {snapshot?.errors.length > 0 && <div className="operations-health-errors"><strong>Data checks needing technical review</strong>{snapshot.errors.map((error: string) => <p key={error}>{error}</p>)}</div>}
         </section>
       )}

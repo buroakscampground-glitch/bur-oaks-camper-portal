@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { todayInCentral } from '../../../lib/invoice-texting'
 import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
+import { operationalControlEnabled } from '../../../lib/operational-feature-flags'
 
 export const runtime = 'nodejs'
 
@@ -51,6 +52,13 @@ export async function POST(request: Request) {
       decisionRecordedAt: renewal.decision_recorded_at,
       duplicate: true,
     })
+  }
+
+  if (!operationalControlEnabled('renewalDecisions')) {
+    return NextResponse.json(
+      { error: 'Renewal decisions are temporarily paused. Your prior decision has not changed. Please try again later or contact the office.' },
+      { status: 503, headers: { 'Retry-After': '900' } }
+    )
   }
 
   const today = todayInCentral()

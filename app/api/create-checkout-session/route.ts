@@ -14,6 +14,7 @@ import {
 import { getSiteUrl } from '../../../lib/site-url'
 import { loadAuthorizedBillingCampers } from '../../../lib/authorized-billing'
 import { isInvoiceOutstanding, normalizedInvoiceStatus } from '../../../lib/invoice-balance'
+import { operationalControlEnabled } from '../../../lib/operational-feature-flags'
 
 export const runtime = 'nodejs'
 
@@ -88,6 +89,13 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Select between 1 and 20 invoices.' },
         { status: 400 }
+      )
+    }
+
+    if (!operationalControlEnabled('billingCheckout')) {
+      return NextResponse.json(
+        { error: 'Online checkout is temporarily paused. Your invoice has not changed. Please try again later or contact the office.' },
+        { status: 503, headers: { 'Retry-After': '900' } }
       )
     }
 

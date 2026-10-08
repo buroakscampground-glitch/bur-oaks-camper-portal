@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { loadOperationsSnapshot, searchOperations } from '../../../lib/operations-health'
+import { getOperationalControls } from '../../../lib/operational-feature-flags'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -13,7 +14,8 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url)
-  const snapshot = await loadOperationsSnapshot(context.admin)
+  const operationsSnapshot = await loadOperationsSnapshot(context.admin)
+  const snapshot = { ...operationsSnapshot, operationalControls: getOperationalControls() }
 
   if (url.searchParams.get('export') === '1') {
     const stamp = snapshot.today.slice(0, 7)
