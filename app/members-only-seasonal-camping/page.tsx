@@ -1,5 +1,6 @@
 import { ArrowRight, CalendarDays, KeyRound, MessageCircle, Users } from 'lucide-react'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import LocalGuideTrust from '../../components/LocalGuideTrust'
 import { publicPageMetadata } from '../../lib/publicMetadata'
 
 export const metadata = publicPageMetadata(
@@ -8,6 +9,13 @@ export const metadata = publicPageMetadata(
   '/members-only-seasonal-camping',
   '/site-photos/IMG_8004.jpeg',
 )
+
+const questions = [
+  ['What does members-only seasonal camping mean?', 'Bur Oaks is organized around annual-site members and approved guests rather than public nightly reservations.'],
+  ['Can the public visit Bur Oaks?', 'Prospective members are welcome to request an arranged tour. The campground is not open for unplanned nightly or transient stays.'],
+  ['What happens after I submit a membership inquiry?', 'The office receives your contact information, camper details, timing, and tour request in its follow-up queue and can contact you about the next appropriate step.'],
+  ['Why does Bur Oaks review camper and site fit?', 'RV dimensions, site access, community expectations, and current openings differ. A conversation and visit help both the camper and campground make a thoughtful decision.'],
+] as const
 
 export default function MembersOnlySeasonalCampingPage() {
   return (
@@ -32,6 +40,7 @@ export default function MembersOnlySeasonalCampingPage() {
         <h2>What members can expect.</h2>
         <div><p>Bur Oaks is built around long-term seasonal camping, family-friendly activities, organized events, outdoor time, and neighbors who return throughout the season. Members keep their annual site as a familiar home base.</p><p>Campground rules and approved-guest policies help protect the private setting. Prospective members should review those expectations with the office during the inquiry and tour process.</p></div>
       </section>
+      <LocalGuideTrust pageTitle="How Members-Only Seasonal Camping Works" pagePath="/members-only-seasonal-camping" questions={questions} />
       <section className="public-cta"><div><span className="public-kicker">Ready to learn more?</span><h2>Your membership inquiry goes directly to our office.</h2></div><div><a href="/availability">Start an inquiry <ArrowRight size={18} /></a><a href="sms:+16188828063">Text 618-882-8063</a></div></section>
     </main></PublicShell>
   )

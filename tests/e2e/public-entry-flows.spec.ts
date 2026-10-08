@@ -557,6 +557,27 @@ test('public homepage stays accessible and action-ready at every release width',
   }
 })
 
+test('local camping guide proves the real place, visit path, and structured answers', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the shared local-guide section used by all four pages.')
+  await page.goto('/seasonal-camping-near-st-louis')
+  await expect(page.getByRole('heading', { name: 'See the campground you are asking about.' })).toBeVisible()
+  await expect(page.locator('.public-local-proof img')).toHaveCount(3)
+  await expect(page.getByText('These are current photographs of the seasonal sites and lake at Bur Oaks—not stock campground images.')).toBeVisible()
+  const directions = page.getByRole('link', { name: 'Get driving directions' })
+  await expect(directions).toHaveAttribute('href', /google\.com\/maps\/dir/)
+  await expect(directions).toHaveAttribute('target', '_blank')
+  await expect(page.getByRole('heading', { name: 'Straight answers about seasonal camping.' })).toBeVisible()
+  await expect(page.locator('.public-local-faq details')).toHaveCount(4)
+  const structuredTypes = await page.locator('script[type="application/ld+json"]').evaluateAll((scripts) => scripts.flatMap((script) => {
+    const value = JSON.parse(script.textContent || '{}')
+    return value['@graph']?.map((entry: { '@type'?: string }) => entry['@type']) || [value['@type']]
+  }))
+  expect(structuredTypes).toContain('Campground')
+  expect(structuredTypes).toContain('BreadcrumbList')
+  expect(structuredTypes).toContain('FAQPage')
+  await expectNoHorizontalOverflow(page)
+})
+
 test('public interest form submits once and confirms the result without using production', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the intercepted public conversion journey.')
   let submissions = 0

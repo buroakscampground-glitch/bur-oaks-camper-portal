@@ -1,5 +1,6 @@
 import { ArrowRight, CalendarDays, Car, Trees, Users } from 'lucide-react'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import LocalGuideTrust from '../../components/LocalGuideTrust'
 import { publicPageMetadata } from '../../lib/publicMetadata'
 
 export const metadata = publicPageMetadata(
@@ -8,6 +9,13 @@ export const metadata = publicPageMetadata(
   '/seasonal-camping-near-st-louis',
   '/site-photos/IMG_8008.jpeg',
 )
+
+const questions = [
+  ['Does Bur Oaks offer overnight camping near St. Louis?', 'No. Bur Oaks is a private, members-only seasonal campground with annual RV sites rather than nightly or transient camping.'],
+  ['Where is Bur Oaks Campground?', 'Bur Oaks is at 10303 Oaks Road in Alhambra, Illinois, in the Metro East region east of St. Louis.'],
+  ['Can I tour the campground before joining?', 'Yes. Prospective seasonal campers can request a tour, walk the campground, and discuss current availability and camper fit with the office.'],
+  ['How do I ask about a seasonal site?', 'Complete the seasonal interest form once with your camper size, timing, and contact details. The request goes directly to the Bur Oaks office follow-up queue.'],
+] as const
 
 export default function SeasonalCampingNearStLouisPage() {
   return (
@@ -32,6 +40,7 @@ export default function SeasonalCampingNearStLouisPage() {
         <h2>Choose the campground that fits how you camp.</h2>
         <div><p>Ask about available site sizes, camper fit, membership policies, guest access, pets, seasonal events, and the process for joining. Because availability changes, a direct conversation and scheduled visit are the clearest way to understand current options.</p><p>Bur Oaks is not open to the general public for nightly camping. Prospective members are welcome to contact the campground and arrange a visit before choosing a seasonal site.</p></div>
       </section>
+      <LocalGuideTrust pageTitle="Seasonal Camping Near St. Louis" pagePath="/seasonal-camping-near-st-louis" questions={questions} />
       <section className="public-cta"><div><span className="public-kicker">Your next season</span><h2>Come see if Bur Oaks feels like home.</h2></div><div><a href="/availability">Membership information <ArrowRight size={18} /></a><a href="/contact">Plan a tour</a></div></section>
     </main></PublicShell>
   )

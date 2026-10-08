@@ -1,5 +1,6 @@
 import { ArrowRight, CalendarDays, MapPin, Trees, Users } from 'lucide-react'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import LocalGuideTrust from '../../components/LocalGuideTrust'
 import { publicPageMetadata } from '../../lib/publicMetadata'
 
 export const metadata = publicPageMetadata(
@@ -8,6 +9,13 @@ export const metadata = publicPageMetadata(
   '/seasonal-camping-near-edwardsville-il',
   '/site-photos/IMG_8010.jpeg',
 )
+
+const questions = [
+  ['Is Bur Oaks a nightly campground near Edwardsville?', 'No. Bur Oaks is a private seasonal community offering annual RV sites for members and approved guests.'],
+  ['Where is Bur Oaks in relation to Edwardsville?', 'Bur Oaks is located at 10303 Oaks Road in Alhambra, Illinois. Use the driving-directions link for a current route from your starting point.'],
+  ['Can I see the campground before joining?', 'Yes. Request a tour so the office can arrange a visit, discuss your camper, and explain the current seasonal-site process.'],
+  ['Does submitting the form guarantee an open site?', 'No. Availability changes and site fit matters. The form places your information in the office follow-up queue so the team can contact you about suitable opportunities.'],
+] as const
 
 export default function SeasonalCampingNearEdwardsvillePage() {
   return (
@@ -32,6 +40,7 @@ export default function SeasonalCampingNearEdwardsvillePage() {
         <h2>Visit, ask questions, and make sure it fits.</h2>
         <div><p>During a tour, ask about site sizes, camper fit, membership policies, guests, pets, amenities, seasonal events, and the joining process. Availability changes, so contacting the Bur Oaks office is the best way to learn what may be open.</p><p>Prospective members can request a visit through our membership form. Your request goes directly to the campground waitlist in our office portal, where the Bur Oaks team can follow up with you.</p></div>
       </section>
+      <LocalGuideTrust pageTitle="Seasonal Camping Near Edwardsville, IL" pagePath="/seasonal-camping-near-edwardsville-il" questions={questions} />
       <section className="public-cta"><div><span className="public-kicker">Interested in Bur Oaks?</span><h2>Start with a conversation and a tour.</h2></div><div><a href="/availability#membership-inquiry">Request membership information <ArrowRight size={18} /></a><a href="tel:6184887927">Call 618-488-7927</a></div></section>
     </main></PublicShell>
   )

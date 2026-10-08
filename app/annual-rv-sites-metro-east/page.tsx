@@ -1,5 +1,6 @@
 import { ArrowRight, CheckCircle2, Ruler, ShieldCheck, TentTree } from 'lucide-react'
 import { PageHero, PublicShell } from '../../components/PublicSite'
+import LocalGuideTrust from '../../components/LocalGuideTrust'
 import { publicPageMetadata } from '../../lib/publicMetadata'
 
 export const metadata = publicPageMetadata(
@@ -8,6 +9,13 @@ export const metadata = publicPageMetadata(
   '/annual-rv-sites-metro-east',
   '/site-photos/IMG_7996.jpeg',
 )
+
+const questions = [
+  ['What is an annual RV site?', 'An annual RV site gives your camper one seasonal home base instead of a different nightly campsite for each trip. Membership terms and site details are reviewed with the office.'],
+  ['Can Bur Oaks match every RV to every site?', 'No. Camper dimensions, access, utilities, and the individual site all matter. Share your camper size so the office can discuss realistic options.'],
+  ['Are annual sites always available?', 'No. Seasonal openings change and are limited. Bur Oaks keeps an interest list and contacts prospective members when an appropriate conversation makes sense.'],
+  ['How should I compare seasonal campgrounds?', 'Visit in person and ask about the drive, site fit, membership policies, guests, pets, events, shared spaces, and how the campground communicates with members.'],
+] as const
 
 export default function AnnualRvSitesMetroEastPage() {
   return (
@@ -32,6 +40,7 @@ export default function AnnualRvSitesMetroEastPage() {
         <h2>Look beyond the campsite itself.</h2>
         <div><p>A strong seasonal fit includes the drive from home, site layout, campground atmosphere, guest rules, family activities, pet policies, maintenance expectations, and how easy it is to communicate with the office.</p><p>Bur Oaks encourages prospective members to visit, meet the team, experience the community, and ask questions before making a decision. The goal is a seasonal home base you will look forward to returning to.</p></div>
       </section>
+      <LocalGuideTrust pageTitle="Annual RV Sites in the Metro East" pagePath="/annual-rv-sites-metro-east" questions={questions} />
       <section className="public-cta"><div><span className="public-kicker">Find your site</span><h2>Tell us what you are looking for.</h2></div><div><a href="/availability">Request site information <ArrowRight size={18} /></a><a href="tel:6184887927">Call 618-488-7927</a></div></section>
     </main></PublicShell>
   )
