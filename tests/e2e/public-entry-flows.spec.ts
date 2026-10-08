@@ -682,16 +682,19 @@ test('the wrong signed-in account is explained without exposing the admin worksp
     expect(new URL(page.url()).pathname).toBe('/admin')
   }
 
+  router.use('admin', '/admin')
+  await page.goto('/admin')
+  await expect(page.locator('.admin-sidebar')).toBeVisible()
+  await expect(page.locator('.role-mismatch-card')).toHaveCount(0)
+
+  router.use('event_coordinator', '/community')
+  await page.goto('/admin')
+  await expect(page.getByRole('heading', { name: /This event coordinator account cannot open this page/i })).toBeVisible()
   await page.getByRole('button', { name: 'Sign out and use an administrator account' }).click()
   await page.waitForURL((url) => url.pathname === '/login' && url.searchParams.get('reason') === 'wrong-account')
   await expect(page.getByRole('heading', { name: 'Administrator sign-in required' })).toBeVisible()
   await expect(page.getByText('The previous account was signed out.')).toBeVisible()
   expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/admin')
-
-  router.use('admin', '/admin')
-  await page.goto('/admin')
-  await expect(page.locator('.admin-sidebar')).toBeVisible()
-  await expect(page.locator('.role-mismatch-card')).toHaveCount(0)
 })
 
 test('camper sign-in preserves an authorized billing deep link', async ({ page }, testInfo) => {

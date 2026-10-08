@@ -42,3 +42,32 @@ test('Stripe alerts only after cryptographic verification reaches a server failu
   assert.ok(postAt >= 0 && verifiedAt > postAt && ledgerAlertAt > verifiedAt && processingAlertAt > verifiedAt)
   assert.doesNotMatch(webhook.slice(postAt, verifiedAt), /alertStripeWebhookFailure/)
 })
+
+test('Twilio and tawk alerts cannot run before provider signature verification', () => {
+  const twilio = readFileSync(new URL('../app/api/twilio/inbound/route.ts', import.meta.url), 'utf8')
+  const twilioPostAt = twilio.indexOf('export async function POST')
+  const twilioVerifiedAt = twilio.indexOf('if (!validTwilioSignature')
+  const twilioAlertAt = twilio.indexOf("alertVerifiedWebhookFailure('twilio-")
+  assert.ok(twilioPostAt >= 0 && twilioVerifiedAt > twilioPostAt && twilioAlertAt > twilioVerifiedAt)
+  assert.doesNotMatch(twilio.slice(twilioPostAt, twilioVerifiedAt), /alertVerifiedWebhookFailure/)
+  for (const operation of [
+    'twilio-consent-account-lookup',
+    'twilio-consent-ledger',
+    'twilio-consent-household-check',
+    'twilio-consent-profile-sync',
+    'twilio-consent-event-ledger',
+  ]) assert.match(twilio, new RegExp(`alertVerifiedWebhookFailure\\('${operation}'`))
+  assert.match(twilio, /if \(campersError\)[\s\S]*status: 500/)
+  assert.match(twilio, /if \(camperUpdateError\)[\s\S]*status: 500/)
+  assert.match(twilio, /if \(logError[\s\S]*status: 500/)
+
+  const tawk = readFileSync(new URL('../app/api/tawk-chat-alert/route.ts', import.meta.url), 'utf8')
+  const tawkPostAt = tawk.indexOf('export async function POST')
+  const tawkVerifiedAt = tawk.indexOf('if (!signatureMatches')
+  const tawkAlertAt = tawk.indexOf("alertVerifiedWebhookFailure('tawk-")
+  assert.ok(tawkPostAt >= 0 && tawkVerifiedAt > tawkPostAt && tawkAlertAt > tawkVerifiedAt)
+  assert.doesNotMatch(tawk.slice(tawkPostAt, tawkVerifiedAt), /alertVerifiedWebhookFailure/)
+  for (const operation of ['tawk-chat-configuration', 'tawk-chat-event-ledger', 'tawk-chat-text-delivery']) {
+    assert.match(tawk, new RegExp(`alertVerifiedWebhookFailure\\('${operation}'`))
+  }
+})

@@ -12,7 +12,9 @@ function safeJobName(value: string) {
     .slice(0, 80) || 'scheduled-operation'
 }
 
-async function alertExternalFailure(kind: 'scheduled operation' | 'Stripe webhook', jobName: string, request: Request, status: number) {
+type ExternalFailureKind = 'scheduled operation' | 'Stripe webhook' | 'verified webhook'
+
+async function alertExternalFailure(kind: ExternalFailureKind, jobName: string, request: Request, status: number) {
   if (process.env.CRON_FAILURE_ALERTS_ENABLED === 'false') return
 
   const job = safeJobName(jobName)
@@ -61,4 +63,8 @@ export function withCronFailureAlert(jobName: string, handler: CronHandler): Cro
 
 export async function alertStripeWebhookFailure(operation: string, request: Request, status = 500) {
   await alertExternalFailure('Stripe webhook', operation, request, status)
+}
+
+export async function alertVerifiedWebhookFailure(operation: string, request: Request, status = 500) {
+  await alertExternalFailure('verified webhook', operation, request, status)
 }

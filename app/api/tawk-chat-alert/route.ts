@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import { formatSmsPhone, sendTwilioSms } from '../../../lib/twilio-sms'
+import { alertVerifiedWebhookFailure } from '../../../lib/cron-failure-alert'
 
 export const runtime = 'nodejs'
 
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseUrl || !serviceRoleKey || !alertPhone) {
+    await alertVerifiedWebhookFailure('tawk-chat-configuration', request, 503)
     return NextResponse.json({ error: 'Chat text alerts are not fully configured.' }, { status: 503 })
   }
 
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
 
   if (insertError) {
     console.error('Unable to reserve tawk.to webhook event:', insertError.code)
+    await alertVerifiedWebhookFailure('tawk-chat-event-ledger', request, 503)
     return NextResponse.json({ error: 'Unable to process this chat alert.' }, { status: 503 })
   }
 
@@ -131,6 +134,7 @@ export async function POST(request: Request) {
   if (!smsResult.sent) {
     await admin.from('tawk_webhook_events').delete().eq('event_id', eventId)
     console.error('Unable to send tawk.to chat text alert:', smsResult.error)
+    await alertVerifiedWebhookFailure('tawk-chat-text-delivery', request, 502)
     return NextResponse.json({ error: 'Unable to send the chat text alert.' }, { status: 502 })
   }
 

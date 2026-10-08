@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { formatSmsPhone } from '../../../../lib/twilio-sms'
 import { getSiteUrl } from '../../../../lib/site-url'
 import { camperSmsPhones } from '../../../../lib/camper-sms'
+import { alertVerifiedWebhookFailure } from '../../../../lib/cron-failure-alert'
 
 export const runtime = 'nodejs'
 
@@ -60,10 +61,15 @@ export async function POST(request: Request) {
   const admin = createClient(supabaseUrl, serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   })
-  const { data: campers } = await admin
+  const { data: campers, error: campersError } = await admin
     .from('campers')
     .select('id,phone,alternate_phone,second_profile_phone,sms_opt_in_at,event_reminders_opt_in_at')
     .eq('active', true)
+  if (campersError) {
+    console.error('Unable to match inbound Twilio consent:', campersError.code)
+    await alertVerifiedWebhookFailure('twilio-consent-account-lookup', request)
+    return NextResponse.json({ error: 'Unable to process text consent.' }, { status: 500 })
+  }
   const camper = (campers || []).find((item) => camperSmsPhones(item).includes(from || ''))
 
   if (camper && from && (action === 'opt_out' || action === 'opt_in')) {
@@ -81,21 +87,27 @@ export async function POST(request: Request) {
 
     if (consentError && !['42P01', 'PGRST205'].includes(consentError.code || '')) {
       console.error('Unable to update phone consent:', consentError.code)
+      await alertVerifiedWebhookFailure('twilio-consent-ledger', request)
       return NextResponse.json({ error: 'Unable to update text consent.' }, { status: 500 })
     }
 
     let householdEnabled = optedIn
     if (!consentError && !optedIn) {
       const savedPhones = camperSmsPhones(camper)
-      const { data: consentRows } = await admin
+      const { data: consentRows, error: consentRowsError } = await admin
         .from('sms_phone_consents')
         .select('phone_number,opted_in')
         .eq('camper_id', camper.id)
         .in('phone_number', savedPhones)
+      if (consentRowsError) {
+        console.error('Unable to verify household phone consent:', consentRowsError.code)
+        await alertVerifiedWebhookFailure('twilio-consent-household-check', request)
+        return NextResponse.json({ error: 'Unable to verify text consent.' }, { status: 500 })
+      }
       householdEnabled = (consentRows || []).some((row) => row.opted_in === true)
     }
 
-    await admin.from('campers').update({
+    const { error: camperUpdateError } = await admin.from('campers').update({
       sms_opt_in: householdEnabled,
       event_reminders_opt_in: householdEnabled,
       sms_opt_in_at: optedIn ? now : camper.sms_opt_in_at,
@@ -103,6 +115,11 @@ export async function POST(request: Request) {
       sms_opt_out_at: householdEnabled ? null : now,
       sms_last_keyword: keyword,
     }).eq('id', camper.id)
+    if (camperUpdateError) {
+      console.error('Unable to update camper text preference:', camperUpdateError.code)
+      await alertVerifiedWebhookFailure('twilio-consent-profile-sync', request)
+      return NextResponse.json({ error: 'Unable to finish text consent.' }, { status: 500 })
+    }
   }
 
   const { error: logError } = await admin.from('sms_consent_events').insert({
@@ -115,6 +132,8 @@ export async function POST(request: Request) {
 
   if (logError && logError.code !== '23505' && !['42P01', 'PGRST205'].includes(logError.code || '')) {
     console.error('Unable to log Twilio consent event:', logError.code)
+    await alertVerifiedWebhookFailure('twilio-consent-event-ledger', request)
+    return NextResponse.json({ error: 'Unable to record text consent.' }, { status: 500 })
   }
 
   return twiml()
