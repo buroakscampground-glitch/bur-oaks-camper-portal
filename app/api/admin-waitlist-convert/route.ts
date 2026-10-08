@@ -28,6 +28,7 @@ type RentInvoiceRow = {
   id: string
   due_date?: string | null
   total_due?: number | null
+  invoice_type?: string | null
 }
 
 function requestObject(value: unknown): Record<string, unknown> {
@@ -193,20 +194,29 @@ export async function POST(request: Request) {
     total_due: payment.amount,
     due_date: payment.dueDate,
     status: 'sent',
-  }))
-  const { data: invoices, error: invoiceError } = await context.admin.from('invoices').insert(invoicePayloads).select('id,due_date,total_due')
-  if (invoiceError || !invoices || invoices.length !== 2) {
+  })).concat([{
+    camper_id: camper.id,
+    invoice_number: `ASSOC-${siteKey(lotNumber) || 'NEW'}-${invoiceStamp}`,
+    invoice_type: 'Association Fee',
+    subtotal: NEW_CAMPER_ASSOCIATION_FEE,
+    late_fee: 0,
+    total_due: NEW_CAMPER_ASSOCIATION_FEE,
+    due_date: contractStartDate,
+    status: 'sent',
+  }])
+  const { data: invoices, error: invoiceError } = await context.admin.from('invoices').insert(invoicePayloads).select('id,due_date,total_due,invoice_type')
+  if (invoiceError || !invoices || invoices.length !== 3) {
     await rollback()
-    return NextResponse.json({ error: 'Nothing was converted because the two rent payments could not be scheduled.' }, { status: 500 })
+    return NextResponse.json({ error: 'Nothing was converted because the rent payments and association fee could not be scheduled.' }, { status: 500 })
   }
   const createdInvoices = invoices as RentInvoiceRow[]
   invoiceIds = createdInvoices.map((invoice) => String(invoice.id))
-  const { error: itemError } = await context.admin.from('invoice_items').insert(createdInvoices.map((invoice, index) => ({
+  const { error: itemError } = await context.admin.from('invoice_items').insert(createdInvoices.map((invoice) => ({
     invoice_id: invoice.id,
-    description: `Annual lot rent — payment ${index + 1} of 2`,
+    description: invoice.invoice_type === 'Association Fee' ? 'New camper association fee' : `Annual lot rent — payment ${rentSchedule.findIndex((payment) => payment.dueDate === invoice.due_date) + 1} of 2`,
     quantity: 1,
-    unit_price: NEW_CAMPER_INSTALLMENT,
-    total: NEW_CAMPER_INSTALLMENT,
+    unit_price: Number(invoice.total_due || 0),
+    total: Number(invoice.total_due || 0),
   })))
   if (itemError) {
     await rollback()
@@ -215,7 +225,11 @@ export async function POST(request: Request) {
 
   let firstPaymentRecorded = false
   if (recordFirstPayment) {
-    const firstInvoice = createdInvoices.find((invoice) => invoice.due_date === rentSchedule[0].dueDate) || createdInvoices[0]
+    const firstInvoice = createdInvoices.find((invoice) => invoice.invoice_type === 'Lot Rent' && invoice.due_date === rentSchedule[0].dueDate)
+    if (!firstInvoice) {
+      await rollback()
+      return NextResponse.json({ error: 'Nothing was converted because the first rent invoice could not be verified.' }, { status: 500 })
+    }
     const { error: paymentError } = await context.admin.rpc('record_manual_payment_atomic', {
       p_operation_key: `waitlist-conversion:${waitlistId}:first-rent`,
       p_selected_invoice_id: firstInvoice.id,

@@ -1085,6 +1085,59 @@ test('office waitlist turns a synthetic website inquiry into a clear follow-up t
   await expectNoHorizontalOverflow(page)
 })
 
+test('office onboarding turns verified source records into one mobile arrival checklist', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated onboarding workflow without reading production.')
+  await installSyntheticAdminSession(page)
+  let orientationComplete = false
+  let postCount = 0
+  await page.route('**/api/admin-onboarding', async (route) => {
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON()
+      expect(body).toMatchObject({ camperId: 'synthetic-new-camper', taskKey: 'orientation_completed', completed: true })
+      expect(body.note).toContain('walkthrough')
+      orientationComplete = true
+      postCount += 1
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) })
+      return
+    }
+    const tasks = [
+      { key: 'site', label: 'Permanent site assigned', detail: 'Site 42', complete: true, automatic: true, href: '/admin/site-availability' },
+      { key: 'contract', label: '12-month contract created', detail: 'Contract schedule is on file', complete: true, automatic: true, href: '/admin/renewals' },
+      { key: 'signature', label: 'Contract signed', detail: 'Signed document is on file', complete: true, automatic: true, href: '/admin/documents' },
+      { key: 'association_fee', label: '$250 association fee paid', detail: 'Invoice exists but remains open', complete: false, automatic: true, href: '/admin/campers/synthetic-new-camper' },
+      { key: 'first_rent', label: 'First $875 rent payment paid', detail: 'First rent invoice is paid', complete: true, automatic: true, href: '/admin/campers/synthetic-new-camper' },
+      { key: 'insurance', label: 'Golf cart insurance handled', detail: 'Upload proof or mark not required', complete: false, automatic: false, href: '/admin/campers/synthetic-new-camper', alternateManualKey: 'insurance_not_required' },
+      { key: 'gate', label: 'Gate access issued', detail: 'No active gate card found', complete: false, automatic: false, href: '/admin/gatecards', alternateManualKey: 'gate_access_not_required' },
+      { key: 'portal', label: 'Camper portal activated', detail: 'Matching login account exists', complete: true, automatic: true, href: '/admin/campers/synthetic-new-camper' },
+      { key: 'orientation', label: 'Campground orientation completed', detail: orientationComplete ? 'Staff confirmation saved' : 'Walkthrough still needs confirmation', complete: orientationComplete, automatic: false, manualKey: 'orientation_completed' },
+      { key: 'welcome', label: 'Welcome delivered', detail: 'Welcome delivery still needs confirmation', complete: false, automatic: false, manualKey: 'welcome_completed' },
+    ]
+    const completed = tasks.filter((task) => task.complete).length
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        generatedAt: '2026-10-08T18:00:00Z',
+        counts: { current: 1, needingAction: 1, ready: 0, allActive: 1 },
+        campers: [{ camperId: 'synthetic-new-camper', name: 'New Camper', lotNumber: '42', email: 'new@example.invalid', currentOnboarding: true, completed, total: 10, percent: completed * 10, ready: false, tasks }],
+      }),
+    })
+  })
+
+  await page.goto('/admin/onboarding')
+  await expect(page.getByRole('heading', { name: 'Onboarding Center' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'New Camper' })).toBeVisible()
+  await expect(page.getByText('5 of 10 onboarding checks complete')).toBeVisible()
+  await page.getByRole('button', { name: 'Open checklist' }).click()
+  await expect(page.getByText('Invoice exists but remains open')).toBeVisible()
+  await page.getByRole('button', { name: 'Confirm complete' }).first().click()
+  await page.getByPlaceholder(/Who handled this/).fill('Office walkthrough completed together.')
+  await page.getByRole('button', { name: 'Confirm completion' }).click()
+  await expect(page.getByText(/Onboarding task confirmed for New Camper/)).toBeVisible()
+  expect(postCount).toBe(1)
+  await expectNoHorizontalOverflow(page)
+})
+
 test('office quick text verifies exact recipients and links before send', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the read-only campaign preview without sending a text.')
   const synthetic = await installSyntheticAdminSession(page)

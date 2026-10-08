@@ -610,6 +610,7 @@ export default function AdminPage() {
         { href: '/admin/renewals', title: 'Renewal forecast', detail: 'Contracts & likely openings', icon: CalendarClock },
         { href: '/admin/directory', title: 'Directory', detail: 'Quick camper lookup', icon: UserRoundSearch },
         { href: '/admin/documents', title: 'Documents', detail: `${stats.documentActions} need action`, icon: FileText },
+        { href: '/admin/onboarding', title: 'New camper onboarding', detail: 'Arrival readiness', icon: ClipboardCheck },
         { href: '/admin/gatecards', title: 'Gate cards', detail: 'Access control', icon: KeyRound },
         { href: '/admin/waitlist', title: 'Waitlist', detail: `${stats.waitlist} waiting`, icon: ClipboardList },
         { href: '/admin/archived-campers', title: 'Camper archive', detail: `${stats.archivedCampers} records`, icon: Archive },

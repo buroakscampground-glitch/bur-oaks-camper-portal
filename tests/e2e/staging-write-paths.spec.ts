@@ -110,6 +110,13 @@ async function cleanupProspect(admin: SupabaseClient) {
   if (deleted.error) throw deleted.error
 }
 
+async function cleanupOnboarding(admin: SupabaseClient) {
+  const events = await admin.from('camper_onboarding_events').delete().eq('camper_id', camperId)
+  if (events.error) throw events.error
+  const tasks = await admin.from('camper_onboarding_tasks').delete().eq('camper_id', camperId)
+  if (tasks.error) throw tasks.error
+}
+
 async function cleanupMeterBilling(admin: SupabaseClient) {
   const submissions = await admin.from('meter_reading_submissions').select('id,photo_path').eq('lot_number', 'TEST-01').eq('submitted_reading', meterReading)
   if (submissions.error) throw submissions.error
@@ -175,6 +182,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupDocument(admin)
     await cleanupCredits(admin)
     await cleanupProspect(admin)
+    await cleanupOnboarding(admin)
     await cleanupMeterBilling(admin)
     await cleanupStripeBilling(admin)
   })
@@ -186,6 +194,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupDocument(admin)
     await cleanupCredits(admin)
     await cleanupProspect(admin)
+    await cleanupOnboarding(admin)
     await cleanupMeterBilling(admin)
     await cleanupStripeBilling(admin)
   })
@@ -323,6 +332,37 @@ test.describe.serial('reversible staging write journeys', () => {
     const browserWrite = await anon.from('waitlist_activities').insert({ waitlist_id: prospectId, activity_type: 'note', detail: 'must be blocked' })
     expect(browserWrite.error).toBeTruthy()
     expect(browserWrite.error?.code).toBe('42501')
+  })
+
+  test('administrator completes and reopens onboarding with immutable history', async ({ request }) => {
+    const { anon, admin } = clients()
+    const token = await tokenFor(anon, 'office.admin@staging.buroaks.invalid', 'BUR_OAKS_STAGING_ADMIN_PASSWORD')
+    const complete = await request.post('/api/admin-onboarding', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { camperId, taskKey: 'orientation_completed', completed: true, note: 'STAGING WRITE fictional orientation proof.' },
+    })
+    expect(complete.status()).toBe(200)
+    expect(await complete.json()).toMatchObject({ success: true })
+    const completedTask = await admin.from('camper_onboarding_tasks').select('task_key,completed_at,completed_by,note').eq('camper_id', camperId).eq('task_key', 'orientation_completed').single()
+    expect(completedTask.error).toBeNull()
+    expect(completedTask.data?.completed_at).toBeTruthy()
+    expect(completedTask.data?.completed_by).toBe('office.admin@staging.buroaks.invalid')
+
+    const browserWrite = await anon.from('camper_onboarding_events').insert({ camper_id: camperId, task_key: 'orientation_completed', action: 'completed' })
+    expect(browserWrite.error).toBeTruthy()
+    expect(browserWrite.error?.code).toBe('42501')
+
+    const reopen = await request.post('/api/admin-onboarding', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { camperId, taskKey: 'orientation_completed', completed: false, note: 'STAGING WRITE reopened to prove history.' },
+    })
+    expect(reopen.status()).toBe(200)
+    const reopenedTask = await admin.from('camper_onboarding_tasks').select('completed_at').eq('camper_id', camperId).eq('task_key', 'orientation_completed').single()
+    expect(reopenedTask.error).toBeNull()
+    expect(reopenedTask.data?.completed_at).toBeNull()
+    const history = await admin.from('camper_onboarding_events').select('action').eq('camper_id', camperId).eq('task_key', 'orientation_completed').order('created_at')
+    expect(history.error).toBeNull()
+    expect(history.data).toEqual([{ action: 'completed' }, { action: 'reopened' }])
   })
 
   test('meter photo produces one review record and one reversible electric bill', async ({ request }) => {
