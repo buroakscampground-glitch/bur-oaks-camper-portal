@@ -1,37 +1,18 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { effectivePortalRole } from './staff-roles.ts'
+import {
+  selectAuthenticatedCamperMatch,
+  selectAuthenticatedEmailMatch,
+  type AuthCamperRecord,
+} from './auth-account-match.ts'
+
+export { selectAuthenticatedCamperMatch, selectAuthenticatedEmailMatch } from './auth-account-match.ts'
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
   'https://mzywctpxnpejglnspyqi.supabase.co'
 
-export function selectAuthenticatedCamperMatch(matches: any[] = []) {
-  const uniqueActiveMatches = matches
-    .filter((match) => match?.active !== false)
-    .filter((match, index, all) => all.findIndex((item) => item?.id === match?.id) === index)
-
-  if (uniqueActiveMatches.length === 1) return uniqueActiveMatches[0]
-
-  // An email can legitimately appear on both a camper profile and a staff
-  // profile. In that case, select the one unambiguous staff identity. Never
-  // guess between multiple ordinary camper profiles or multiple staff roles.
-  const staffMatches = uniqueActiveMatches.filter((match) =>
-    ['admin', 'event_coordinator', 'maintenance'].includes(effectivePortalRole(match))
-  )
-
-  return staffMatches.length === 1 ? staffMatches[0] : null
-}
-
-export function selectAuthenticatedEmailMatch(primaryMatches: any[] = [], secondaryMatches: any[] = []) {
-  const activePrimaryMatches = primaryMatches.filter((match) => match?.active !== false)
-  if (activePrimaryMatches.length) {
-    return selectAuthenticatedCamperMatch(activePrimaryMatches)
-  }
-
-  return selectAuthenticatedCamperMatch(secondaryMatches)
-}
-
-async function findCamperForEmail(client: any, userEmail: string) {
+async function findCamperForEmail(client: SupabaseClient, userEmail: string): Promise<AuthCamperRecord | null> {
   const [primaryMatch, secondaryMatch] = await Promise.all([
     client
       .from('campers')
@@ -45,11 +26,16 @@ async function findCamperForEmail(client: any, userEmail: string) {
       .limit(10),
   ])
 
+  if (primaryMatch.error || secondaryMatch.error) return null
+
   // A person's own login email is authoritative. Secondary emails are used
   // only when that address is not the primary login on any active profile.
   // This prevents an authorized-contact copy on another camper from masking
   // Rachel's dedicated Event Coordinator profile.
-  return selectAuthenticatedEmailMatch(primaryMatch.data || [], secondaryMatch.data || [])
+  return selectAuthenticatedEmailMatch(
+    (primaryMatch.data || []) as AuthCamperRecord[],
+    (secondaryMatch.data || []) as AuthCamperRecord[],
+  )
 }
 
 export async function getAuthenticatedContext(request: Request) {

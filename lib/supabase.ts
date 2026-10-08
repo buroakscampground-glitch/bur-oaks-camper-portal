@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { effectivePortalRole } from './staff-roles'
+import { selectAuthenticatedEmailMatch, type AuthCamperRecord } from './auth-account-match'
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL ||
@@ -18,11 +19,15 @@ export type UserRole = 'admin' | 'event_coordinator' | 'maintenance' | 'camper'
 
 const DEFAULT_ROLE: UserRole = 'camper'
 
-function pickBestCamperMatch(matches: any[] = []) {
-  return (
-    matches.find((match) => match.active !== false && match.role) ||
-    matches.find((match) => match.active !== false) ||
-    null
+async function findCurrentCamperMatch(userEmail: string): Promise<AuthCamperRecord | null> {
+  const [primaryMatch, secondaryMatch] = await Promise.all([
+    supabase.from('campers').select('*').ilike('email', userEmail).limit(10),
+    supabase.from('campers').select('*').ilike('secondary_email', userEmail).limit(10),
+  ])
+  if (primaryMatch.error || secondaryMatch.error) return null
+  return selectAuthenticatedEmailMatch(
+    (primaryMatch.data || []) as AuthCamperRecord[],
+    (secondaryMatch.data || []) as AuthCamperRecord[],
   )
 }
 
@@ -34,13 +39,7 @@ export async function getCurrentCamper() {
   if (!user?.email) return null
 
   const userEmail = user.email.trim().toLowerCase()
-  const { data: camperMatches } = await supabase
-    .from('campers')
-    .select('*')
-    .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
-    .limit(10)
-
-  const camper = pickBestCamperMatch(camperMatches || [])
+  const camper = await findCurrentCamperMatch(userEmail)
   return camper ? { ...camper, role: effectivePortalRole(camper) } : null
 }
 
@@ -54,19 +53,13 @@ export async function getCurrentUserRole(): Promise<UserRole> {
   }
 
   const userEmail = user.email.trim().toLowerCase()
-  const { data: camperMatches, error } = await supabase
-    .from('campers')
-    .select('role,lot_number')
-    .or(`email.ilike.${userEmail},secondary_email.ilike.${userEmail}`)
-    .limit(10)
+  const camper = await findCurrentCamperMatch(userEmail)
 
-  const camper = pickBestCamperMatch(camperMatches || [])
-
-  if (error || !camper || !(camper as any).role) {
+  if (!camper || !camper.role) {
     return DEFAULT_ROLE
   }
 
-  const role = effectivePortalRole(camper as any)
+  const role = effectivePortalRole(camper)
 
   return ['admin', 'event_coordinator', 'maintenance'].includes(role)
     ? role as UserRole

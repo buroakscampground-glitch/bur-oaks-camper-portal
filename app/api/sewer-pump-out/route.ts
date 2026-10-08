@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import type { AuthCamperRecord } from '../../../lib/auth-account-match'
 import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge, isHoldingTankPumpOutLot } from '../../../lib/sewer-pump-fees'
 import { checkRateLimit } from '../../../lib/rate-limit'
@@ -76,7 +77,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'The billing account for that campsite could not be verified.' }, { status: 403 })
   }
 
-  let billingCamper = context.camper
+  let billingCamper: AuthCamperRecord | undefined = context.camper
   if (String(billingLot).toUpperCase() !== String(context.camper.lot_number || '').trim().toUpperCase()) {
     const { data: billingCampers, error: billingCamperError } = await context.admin
       .from('campers')
@@ -86,7 +87,8 @@ export async function POST(request: Request) {
     if (billingCamperError) {
       return NextResponse.json({ error: 'The authorized billing account could not be opened.' }, { status: 500 })
     }
-    billingCamper = (billingCampers || []).find((candidate: any) => String(candidate.role || 'camper').toLowerCase() === 'camper')
+    billingCamper = ((billingCampers || []) as AuthCamperRecord[])
+      .find((candidate) => String(candidate.role || 'camper').toLowerCase() === 'camper')
     if (!billingCamper) {
       return NextResponse.json({ error: `The active camper account for Lot ${billingLot} could not be found.` }, { status: 404 })
     }
