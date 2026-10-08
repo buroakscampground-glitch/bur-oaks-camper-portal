@@ -73,6 +73,11 @@ test('Admin-only financial RPCs are never granted to browser roles', () => {
   ]) {
     const browserGrant = new RegExp(`GRANT EXECUTE ON FUNCTION public\\."${functionName}"[^;]+ TO \\"(?:anon|authenticated)\\";`)
     assert.doesNotMatch(productionBaseline, browserGrant, `${functionName} must remain server-only`)
+    assert.match(
+      productionBaseline,
+      new RegExp(`REVOKE EXECUTE ON FUNCTION public\\."${functionName}"[^;]+ FROM PUBLIC, \\"anon\\", \\"authenticated\\";`),
+      `${functionName} must explicitly revoke PostgreSQL's default PUBLIC execute privilege`,
+    )
     assert.match(productionBaseline, new RegExp(`GRANT EXECUTE ON FUNCTION public\\."${functionName}"[^;]+ TO \\"service_role\\";`))
   }
 })

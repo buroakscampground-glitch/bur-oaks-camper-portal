@@ -27,4 +27,9 @@ authority and random test passwords from the Mac login Keychain, explicitly
 empties every payment, email, SMS, printer, webhook, and cron credential, builds
 the app against staging, and runs the 360-pixel signed-in and reversible write
 journeys. Write tests clean matching fictional records before and after every
-case, including failures; they never copy or address production records.
+case, including failures; they never copy or address production records. The
+runner also creates the private staging-only meter-photo bucket when absent and
+proves that one fictional photo can become one linked electric invoice before
+removing the test photo and operational rows. When no Stripe test credential is
+configured, the checkout journey must fail closed and leave its invoice exactly
+unchanged; never substitute a live Stripe key to make that test pass.

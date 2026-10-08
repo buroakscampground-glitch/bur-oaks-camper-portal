@@ -6,6 +6,9 @@ const stagingHost = 'pgstmfovnzsgrkawzivc.supabase.co'
 const camperId = '10000000-0000-4000-8000-000000000001'
 const documentId = '10000000-0000-4000-8000-000000000060'
 const fixturePumpOutId = '10000000-0000-4000-8000-000000000090'
+const meterInvoiceNumber = 'STAGING-METER-WRITE-0001'
+const meterOperationKey = 'staging-meter-write-0001'
+const meterReading = 987654
 test.use({ screenshot: 'off', trace: 'off' })
 
 function required(name: string) {
@@ -94,6 +97,35 @@ async function cleanupCredits(admin: SupabaseClient) {
   if (deleted.error) throw deleted.error
 }
 
+async function cleanupMeterBilling(admin: SupabaseClient) {
+  const submissions = await admin.from('meter_reading_submissions').select('id,photo_path').eq('lot_number', 'TEST-01').eq('submitted_reading', meterReading)
+  if (submissions.error) throw submissions.error
+  const photoPaths = (submissions.data || []).map((row) => String(row.photo_path || '')).filter(Boolean)
+  if (photoPaths.length) {
+    const photos = await admin.storage.from('meter-reading-photos').remove(photoPaths)
+    if (photos.error) throw photos.error
+  }
+  const submissionIds = (submissions.data || []).map((row) => String(row.id))
+  if (submissionIds.length) {
+    const deleted = await admin.from('meter_reading_submissions').delete().in('id', submissionIds)
+    if (deleted.error) throw deleted.error
+  }
+
+  const invoices = await admin.from('invoices').select('id').eq('invoice_number', meterInvoiceNumber)
+  if (invoices.error) throw invoices.error
+  const invoiceIds = (invoices.data || []).map((row) => String(row.id))
+  if (invoiceIds.length) {
+    for (const table of ['account_credit_applications', 'electric_readings', 'invoice_items']) {
+      const deleted = await admin.from(table).delete().in('invoice_id', invoiceIds)
+      if (deleted.error) throw deleted.error
+    }
+    const deletedInvoices = await admin.from('invoices').delete().in('id', invoiceIds)
+    if (deletedInvoices.error) throw deletedInvoices.error
+  }
+  const operation = await admin.from('billing_operation_keys').delete().eq('operation_key', meterOperationKey)
+  if (operation.error) throw operation.error
+}
+
 test.describe.serial('reversible staging write journeys', () => {
   test.skip(!enabled, 'Runs only against the isolated Bur Oaks staging project')
 
@@ -103,6 +135,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupPumpOut(admin)
     await cleanupDocument(admin)
     await cleanupCredits(admin)
+    await cleanupMeterBilling(admin)
   })
 
   test.afterEach(async () => {
@@ -111,6 +144,7 @@ test.describe.serial('reversible staging write journeys', () => {
     await cleanupPumpOut(admin)
     await cleanupDocument(admin)
     await cleanupCredits(admin)
+    await cleanupMeterBilling(admin)
   })
 
   test('maintenance submission saves once and rejects a rapid duplicate', async ({ request }) => {
@@ -204,6 +238,88 @@ test.describe.serial('reversible staging write journeys', () => {
     const camperAttempt = await anon.rpc('create_account_credit_audited', args)
     expect(camperAttempt.error).toBeTruthy()
     expect(['42501', 'PGRST202']).toContain(camperAttempt.error?.code)
+  })
+
+  test('meter photo produces one review record and one reversible electric bill', async ({ request }) => {
+    const { anon: maintenanceClient, admin } = clients()
+    const maintenanceToken = await tokenFor(maintenanceClient, 'maintenance.staff@staging.buroaks.invalid', 'BUR_OAKS_STAGING_MAINTENANCE_PASSWORD')
+    const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
+    const captured = await request.post('/api/meter-readings', {
+      headers: { Authorization: `Bearer ${maintenanceToken}` },
+      multipart: {
+        photo: { name: 'staging-meter.png', mimeType: 'image/png', buffer: pixel },
+        lotNumber: 'TEST-01',
+        reading: String(meterReading),
+        detectedReading: String(meterReading),
+        ocrConfidence: '1',
+        routeMode: '0',
+      },
+    })
+    expect(captured.status()).toBe(200)
+    const capturedBody = await captured.json()
+    expect(capturedBody).toMatchObject({ success: true })
+    expect(capturedBody.submission?.id).toBeTruthy()
+
+    const { anon: officeClient } = clients()
+    const adminToken = await tokenFor(officeClient, 'office.admin@staging.buroaks.invalid', 'BUR_OAKS_STAGING_ADMIN_PASSWORD')
+    const due = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10)
+    const readingDate = new Date().toISOString().slice(0, 10)
+    const bundle = await officeClient.rpc('create_invoice_bundle_atomic', {
+      p_operation_key: meterOperationKey,
+      p_invoice: {
+        camper_id: camperId,
+        invoice_number: meterInvoiceNumber,
+        invoice_type: 'Electric',
+        subtotal: 7.2,
+        late_fee: 0,
+        total_due: 7.2,
+        due_date: due,
+      },
+      p_items: [{ description: 'STAGING WRITE 10 kWh electric usage', quantity: 10, unit_price: 0.72, total: 7.2 }],
+      p_readings: [{ reading_date: readingDate, previous_reading: meterReading - 10, current_reading: meterReading, kwh_used: 10, rate_per_kwh: 0.72, amount_due: 7.2 }],
+      p_pump_out_ids: [],
+      p_site_service_ids: [],
+      p_new_credit: null,
+      p_applied_by: 'office.admin@staging.buroaks.invalid',
+    })
+    expect(bundle.error).toBeNull()
+    expect(bundle.data?.invoice?.id).toBeTruthy()
+
+    const connected = await request.patch('/api/meter-readings', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { id: capturedBody.submission.id, status: 'used', invoiceId: bundle.data.invoice.id },
+    })
+    expect(connected.status()).toBe(200)
+
+    const invoice = await admin.from('invoices').select('invoice_number,total_due,status').eq('id', bundle.data.invoice.id).single()
+    expect(invoice.error).toBeNull()
+    expect(invoice.data).toMatchObject({ invoice_number: meterInvoiceNumber, total_due: 7.2, status: 'sent' })
+    const submission = await admin.from('meter_reading_submissions').select('status,invoice_id,photo_path').eq('id', capturedBody.submission.id).single()
+    expect(submission.error).toBeNull()
+    expect(submission.data).toMatchObject({ status: 'used', invoice_id: bundle.data.invoice.id })
+    expect(submission.data?.photo_path).toBeTruthy()
+  })
+
+  test('checkout fails closed without a test Stripe provider and leaves billing unchanged', async ({ request }) => {
+    const { anon, admin } = clients()
+    const before = await admin.from('invoices').select('id,status,total_due,payment_method,payment_reference').eq('id', '10000000-0000-4000-8000-000000000020').single()
+    expect(before.error).toBeNull()
+    const token = await tokenFor(anon, 'camper.one@staging.buroaks.invalid', 'BUR_OAKS_STAGING_CAMPER_PASSWORD')
+    const response = await request.post('/api/create-checkout-session', {
+      headers: { Authorization: `Bearer ${token}` },
+      data: { invoiceIds: [before.data?.id], paymentMethod: 'card' },
+    })
+    expect(response.status()).toBe(500)
+    expect(await response.json()).toMatchObject({ success: false, error: 'Unable to start secure checkout.' })
+
+    const after = await admin.from('invoices').select('status,total_due,payment_method,payment_reference').eq('id', before.data?.id).single()
+    expect(after.error).toBeNull()
+    expect(after.data).toEqual({
+      status: before.data?.status,
+      total_due: before.data?.total_due,
+      payment_method: before.data?.payment_method,
+      payment_reference: before.data?.payment_reference,
+    })
   })
 
   test('administrator creates and voids a fictional credit with an audit trail', async ({ request }) => {

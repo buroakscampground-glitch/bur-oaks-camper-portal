@@ -21,9 +21,9 @@ printer, webhook, and cron credentials removed proved all three roles can sign
 in and see their intended records; camper and maintenance accounts were denied
 the office workspace. The drill also caught missing base table grants in the
 first snapshot. The baseline was corrected with the exact read-only production
-grant catalog before all three journeys passed. A repeat clean rebuild and the
-remaining provider-backed write paths are still pending, so the end-to-end
-recovery drill is not yet closed.
+grant catalog before all three journeys passed. Two subsequent clean rebuilds
+completed in 4.82 and 4.84 seconds. Each returned all 59 RLS-protected tables,
+78 policies, and the expected fictional fixtures without touching production.
 
 The first reversible write layer now covers camper maintenance submission and
 rapid-duplicate protection, pump-out creation and replay protection, electronic
@@ -33,8 +33,15 @@ removed before and after every test; immutable staging audit evidence remains by
 design. That drill exposed eight Admin-only privileged functions with browser
 role execution grants. The permission-only correction was proven in staging:
 anonymous and camper RPC calls are denied while the role-checked Admin routes
-continue to work through `service_role`. Meter-photo billing, Stripe test-mode
-checkout, and the repeat clean rebuild remain open.
+continue to work through `service_role`. A clean rebuild then exposed that the
+baseline had granted PostgreSQL's default `PUBLIC` function privilege before
+its service-only grants. The baseline now explicitly revokes `PUBLIC`, `anon`,
+and `authenticated` access, and a permanent regression test covers all eight
+functions. The final ten-journey run passed, including meter-photo upload,
+electric invoice creation, invoice linkage, and reversible cleanup. With no
+Stripe test credential present, checkout was proven to fail closed and leave
+the invoice unchanged; an actual Stripe test-mode session and webhook remain a
+provider-integration follow-up rather than a recovery blocker.
 
 ## Non-negotiable safeguards
 

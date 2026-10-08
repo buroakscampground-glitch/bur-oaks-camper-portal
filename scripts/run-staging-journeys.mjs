@@ -1,4 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createClient } from '@supabase/supabase-js'
 
 const STAGING_REF = 'pgstmfovnzsgrkawzivc'
 const STAGING_URL = `https://${STAGING_REF}.supabase.co`
@@ -35,6 +36,20 @@ const keys = await response.json()
 const anonKey = keys.find((key) => key.name === 'anon' && key.type === 'legacy')?.api_key
 const serviceRoleKey = keys.find((key) => key.name === 'service_role' && key.type === 'legacy')?.api_key
 if (!anonKey || !serviceRoleKey) throw new Error('The isolated staging keys could not be resolved.')
+
+const stagingAdmin = createClient(STAGING_URL, serviceRoleKey, {
+  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+})
+const buckets = await stagingAdmin.storage.listBuckets()
+if (buckets.error) throw buckets.error
+if (!(buckets.data || []).some((bucket) => bucket.id === 'meter-reading-photos')) {
+  const created = await stagingAdmin.storage.createBucket('meter-reading-photos', {
+    public: false,
+    fileSizeLimit: 8 * 1024 * 1024,
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
+  })
+  if (created.error) throw created.error
+}
 
 const safeSystemNames = ['PATH', 'SHELL', 'TMPDIR', 'LANG', 'LC_ALL', 'TERM', 'CI', 'FORCE_COLOR', 'NO_COLOR']
 const environment = Object.fromEntries(safeSystemNames.flatMap((name) => process.env[name] ? [[name, process.env[name]]] : []))
