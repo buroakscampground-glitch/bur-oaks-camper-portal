@@ -9,6 +9,7 @@ const passwordReset = await readFile(new URL('../app/forgot-password/page.tsx', 
 const layout = await readFile(new URL('../app/layout.tsx', import.meta.url), 'utf8')
 const styles = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8')
 const connectionStatus = await readFile(new URL('../components/ConnectionStatus.tsx', import.meta.url), 'utf8')
+const loading = await readFile(new URL('../app/loading.tsx', import.meta.url), 'utf8')
 
 test('real page and API requests receive an opaque trace reference', () => {
   assert.match(proxy, /crypto\.randomUUID\(\)/)
@@ -57,4 +58,11 @@ test('every workspace warns safely when a connection is lost and restored', () =
   assert.match(connectionStatus, /before repeating a payment, message, or request/)
   assert.match(connectionStatus, /role="status"/)
   assert.match(connectionStatus, /aria-live="polite"/)
+})
+
+test('route changes announce their loading state without reading customer data', () => {
+  assert.match(loading, /role="status"/)
+  assert.match(loading, /aria-live="polite"/)
+  assert.match(loading, /aria-busy="true"/)
+  assert.match(loading, /Please wait while the next page opens/)
 })

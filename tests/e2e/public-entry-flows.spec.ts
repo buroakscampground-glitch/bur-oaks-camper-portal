@@ -510,6 +510,42 @@ test('connection loss and recovery give safe global guidance', async ({ page }, 
   await expect(lost).toContainText('before repeating a payment, message, or request')
 })
 
+test('public homepage stays accessible and action-ready at every release width', async ({ page, isMobile }) => {
+  const response = await page.goto('/')
+  expect(response?.ok()).toBeTruthy()
+
+  await expect(page.getByRole('heading', { level: 1, name: /Claim your summers/i })).toBeVisible()
+  await expect(page.locator('main h1')).toHaveCount(1)
+  expect(await page.locator('main h2').count()).toBeGreaterThan(0)
+  await expectNoHorizontalOverflow(page)
+
+  const accessibilityGaps = await page.evaluate(() => ({
+    imagesWithoutAlt: [...document.images].filter((image) => !image.hasAttribute('alt')).length,
+    unnamedControls: [...document.querySelectorAll('a[href],button')].filter((element) => {
+      return !((element.getAttribute('aria-label') || element.textContent || '').trim())
+    }).length,
+    unsafeNewTabs: [...document.querySelectorAll('a[target="_blank"]')].filter((link) => {
+      const rel = (link.getAttribute('rel') || '').split(/\s+/)
+      return !rel.includes('noreferrer')
+    }).length,
+  }))
+  expect(accessibilityGaps).toEqual({ imagesWithoutAlt: 0, unnamedControls: 0, unsafeNewTabs: 0 })
+
+  for (const action of await page.locator('.public-hero-actions a').all()) {
+    const box = await action.boundingBox()
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44)
+  }
+
+  if (isMobile) {
+    const spacing = await page.evaluate(() => {
+      const note = document.querySelector('.public-prospect-note')?.getBoundingClientRect()
+      const facts = document.querySelector('.public-home-facts')?.getBoundingClientRect()
+      return note && facts ? facts.top - note.bottom : -1
+    })
+    expect(spacing).toBeGreaterThanOrEqual(24)
+  }
+})
+
 test('sign-in stays visible, keyboard-ready, and contained at every release width', async ({ page, isMobile }) => {
   const response = await page.goto('/login')
   expect(response?.ok()).toBeTruthy()
