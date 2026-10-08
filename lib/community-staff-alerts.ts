@@ -2,7 +2,19 @@ import { canAdministerCommunity, effectivePortalRole } from './staff-roles.ts'
 
 export type CommunityActivityKind = 'post' | 'comment' | 'like' | 'report' | 'moderation' | 'member_access'
 
-export function communityStaffRecipients(campers: any[], actorId: unknown) {
+type CommunityStaffCandidate = {
+  id?: unknown
+  active?: unknown
+  role?: unknown
+  portal_role?: unknown
+  lot_number?: unknown
+  first_name?: unknown
+  last_name?: unknown
+  email?: unknown
+  secondary_email?: unknown
+}
+
+export function communityStaffRecipients<T extends CommunityStaffCandidate>(campers: T[], actorId: unknown): T[] {
   const seen = new Set<string>()
   return (campers || []).filter((camper) => {
     const id = String(camper?.id || '')

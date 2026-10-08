@@ -17,6 +17,23 @@ import {
 
 export const runtime = 'nodejs'
 
+type ActiveCamperSite = {
+  id?: unknown
+  lot_number?: unknown
+  active?: unknown
+  role?: unknown
+}
+
+type RentInvoiceRow = {
+  id: string
+  due_date?: string | null
+  total_due?: number | null
+}
+
+function requestObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {}
+}
+
 function cleanEmail(value: unknown) {
   return cleanWaitlistConversionValue(value, 160).toLowerCase()
 }
@@ -35,7 +52,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const body = requestObject(await request.json().catch(() => ({})))
   const waitlistId = cleanWaitlistConversionValue(body.waitlistId, 80)
   const requestedLotNumber = cleanWaitlistConversionValue(body.lotNumber, 40)
   const temporarySpot = body.temporarySpot === true
@@ -90,8 +107,9 @@ export async function POST(request: Request) {
   ])
   if (lotError || camperError) return NextResponse.json({ error: lotError?.message || camperError?.message }, { status: 500 })
 
-  const lotNumber = temporarySpot ? nextTemporaryPortalSite((activeCampers || []).map((camper: any) => camper.lot_number)) : requestedLotNumber
-  const occupied = !temporarySpot && (activeCampers || []).some((camper: any) =>
+  const activeCamperRows = (activeCampers || []) as ActiveCamperSite[]
+  const lotNumber = temporarySpot ? nextTemporaryPortalSite(activeCamperRows.map((camper) => camper.lot_number)) : requestedLotNumber
+  const occupied = !temporarySpot && activeCamperRows.some((camper) =>
     isOperationalCamper(camper) && siteKey(camper.lot_number) === siteKey(lotNumber)
   )
   if (occupied) {
@@ -182,8 +200,9 @@ export async function POST(request: Request) {
     await rollback()
     return NextResponse.json({ error: 'Nothing was converted because the two rent payments could not be scheduled.' }, { status: 500 })
   }
-  invoiceIds = invoices.map((invoice: any) => String(invoice.id))
-  const { error: itemError } = await context.admin.from('invoice_items').insert(invoices.map((invoice: any, index: number) => ({
+  const createdInvoices = invoices as RentInvoiceRow[]
+  invoiceIds = createdInvoices.map((invoice) => String(invoice.id))
+  const { error: itemError } = await context.admin.from('invoice_items').insert(createdInvoices.map((invoice, index) => ({
     invoice_id: invoice.id,
     description: `Annual lot rent — payment ${index + 1} of 2`,
     quantity: 1,
@@ -203,7 +222,7 @@ export async function POST(request: Request) {
 
   let firstPaymentRecorded = false
   if (recordFirstPayment) {
-    const firstInvoice = invoices.find((invoice: any) => invoice.due_date === rentSchedule[0].dueDate) || invoices[0]
+    const firstInvoice = createdInvoices.find((invoice) => invoice.due_date === rentSchedule[0].dueDate) || createdInvoices[0]
     const { error: paymentError } = await context.admin.rpc('record_manual_payment_atomic', {
       p_operation_key: `waitlist-conversion:${waitlistId}:first-rent`,
       p_selected_invoice_id: firstInvoice.id,
@@ -228,7 +247,7 @@ export async function POST(request: Request) {
       setupUrl = await generatePortalSetupUrl(context.admin, email, getSiteUrl())
       if (!portalInviteEmailConfigured()) throw new Error('The welcome email sender is not configured.')
       const emailResult = await sendPortalInviteEmail({ to: email, camperName: `${firstName} ${lastName}`, setupUrl, welcomeSite: lotNumber, temporaryWelcome: temporarySpot })
-      await context.admin.from('portal_invite_log').insert({ camper_id: camper.id, email, delivery_status: 'sent', delivery_provider: (emailResult as any)?.provider || 'email-service', sent_by: context.user.email })
+      await context.admin.from('portal_invite_log').insert({ camper_id: camper.id, email, delivery_status: 'sent', delivery_provider: emailResult.provider || 'email-service', sent_by: context.user.email })
       welcomeDelivery = 'sent'
       setupUrl = ''
     } catch (error) {

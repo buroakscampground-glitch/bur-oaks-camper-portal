@@ -46,10 +46,16 @@ const responseSchema = {
   required: ['reading_digits', 'visible_lot_label', 'confidence', 'explanation'],
 } as const
 
-function responseText(payload: any) {
+type VisionResponse = {
+  output_text?: unknown
+  output?: Array<{ content?: Array<{ type?: unknown; text?: unknown }> }>
+}
+
+function responseText(value: unknown) {
+  const payload = value && typeof value === 'object' ? value as VisionResponse : null
   if (typeof payload?.output_text === 'string') return payload.output_text
   for (const output of payload?.output || []) {
-    for (const content of output?.content || []) {
+    for (const content of output.content || []) {
       if (content?.type === 'output_text' && typeof content.text === 'string') return content.text
     }
   }

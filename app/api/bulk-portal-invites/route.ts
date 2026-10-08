@@ -16,6 +16,18 @@ type Recipient = {
   lotNumber: string
 }
 
+type AuthenticatedContext = NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>
+
+type InviteLog = {
+  email?: unknown
+  created_at?: unknown
+  delivery_status?: unknown
+}
+
+function requestObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {}
+}
+
 function cleanEmail(value: unknown) {
   return String(value || '').trim().toLowerCase()
 }
@@ -24,7 +36,7 @@ function isRealEmail(email: string) {
   return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') && !isPhonePortalLoginEmail(email)
 }
 
-async function generateSetupUrl(context: any, email: string, origin: string) {
+async function generateSetupUrl(context: AuthenticatedContext, email: string, origin: string) {
   let linkResult = await context.admin.auth.admin.generateLink({
     type: 'invite',
     email,
@@ -73,7 +85,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const body = await request.json().catch(() => ({}))
+    const body = requestObject(await request.json().catch(() => ({})))
     const batchSize = Math.min(Math.max(Number(body.batchSize) || 50, 1), 50)
     const resendPending = body.mode === 'resend_pending'
     const secondaryNew = body.mode === 'secondary_new'
@@ -109,18 +121,19 @@ export async function POST(request: Request) {
       if (completedSetup || establishedUser) acceptedEmails.add(cleanEmail(user.email))
     }
 
+    const inviteLogs = (logs || []) as InviteLog[]
     const recentlySentEmails = new Set(
-      (logs || [])
-        .filter((log: any) =>
+      inviteLogs
+        .filter((log) =>
           log.delivery_status === 'sent' &&
-          new Date(log.created_at).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000
+          new Date(String(log.created_at || '')).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000
         )
-        .map((log: any) => cleanEmail(log.email))
+        .map((log) => cleanEmail(log.email))
     )
     const previouslySentEmails = new Set(
-      (logs || [])
-        .filter((log: any) => log.delivery_status === 'sent')
-        .map((log: any) => cleanEmail(log.email))
+      inviteLogs
+        .filter((log) => log.delivery_status === 'sent')
+        .map((log) => cleanEmail(log.email))
     )
 
     const recipients: Recipient[] = []
@@ -166,7 +179,7 @@ export async function POST(request: Request) {
           camper_id: recipient.camperId,
           email: recipient.email,
           delivery_status: 'sent',
-          delivery_provider: (emailResult as any)?.provider || 'email-service',
+          delivery_provider: emailResult.provider || 'email-service',
           sent_by: context.user.email,
         })
 
@@ -175,16 +188,17 @@ export async function POST(request: Request) {
           camperName: recipient.camperName,
           lotNumber: recipient.lotNumber,
         })
-      } catch (error: any) {
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown email error'
         await context.admin.from('portal_invite_log').insert({
           camper_id: recipient.camperId,
           email: recipient.email,
           delivery_status: 'failed',
           delivery_provider: 'email-service',
-          error_message: error?.message || 'Unknown email error',
+          error_message: message,
           sent_by: context.user.email,
         })
-        failed.push({ email: recipient.email, error: error?.message || 'Unable to send setup link.' })
+        failed.push({ email: recipient.email, error: error instanceof Error ? error.message : 'Unable to send setup link.' })
       }
     }
 

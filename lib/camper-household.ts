@@ -2,15 +2,25 @@ export function camperProfileName(firstName: unknown, lastName: unknown, fallbac
   return `${String(firstName || '').trim()} ${String(lastName || '').trim()}`.trim() || fallback
 }
 
-export function primaryCamperName(camper: any, fallback = 'Primary camper') {
+export type CamperHouseholdProfile = {
+  first_name?: unknown
+  last_name?: unknown
+  second_profile_first_name?: unknown
+  second_profile_last_name?: unknown
+  phone?: unknown
+  second_profile_phone?: unknown
+  alternate_phone?: unknown
+} | null | undefined
+
+export function primaryCamperName(camper: CamperHouseholdProfile, fallback = 'Primary camper') {
   return camperProfileName(camper?.first_name, camper?.last_name, fallback)
 }
 
-export function secondaryCamperName(camper: any, fallback = 'Second camper') {
+export function secondaryCamperName(camper: CamperHouseholdProfile, fallback = 'Second camper') {
   return camperProfileName(camper?.second_profile_first_name, camper?.second_profile_last_name, fallback)
 }
 
-export function camperHouseholdName(camper: any, separator = ' & ') {
+export function camperHouseholdName(camper: CamperHouseholdProfile, separator = ' & ') {
   const names = [
     camperProfileName(camper?.first_name, camper?.last_name),
     camperProfileName(camper?.second_profile_first_name, camper?.second_profile_last_name),
@@ -22,7 +32,7 @@ function phoneKey(value: unknown) {
   return String(value || '').replace(/\D/g, '')
 }
 
-export function labeledCamperPhones(camper: any) {
+export function labeledCamperPhones(camper: CamperHouseholdProfile) {
   const primaryName = primaryCamperName(camper)
   const secondaryName = secondaryCamperName(camper)
   const candidates = [

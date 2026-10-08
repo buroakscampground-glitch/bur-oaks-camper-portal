@@ -1,18 +1,20 @@
 import { formatSmsPhone } from './twilio-sms.ts'
 
-export type SmsBroadcastCandidate = {
-  camper: any
+export type SmsBroadcastCamper = { id?: unknown }
+
+export type SmsBroadcastCandidate<TCamper extends SmsBroadcastCamper = SmsBroadcastCamper> = {
+  camper: TCamper
   phones: string[]
 }
 
-export type SmsBroadcastRecipient = {
-  camper: any
+export type SmsBroadcastRecipient<TCamper extends SmsBroadcastCamper = SmsBroadcastCamper> = {
+  camper: TCamper
   phone: string
   matchedCamperIds: string[]
 }
 
-export function uniqueSmsBroadcastRecipients(candidates: SmsBroadcastCandidate[]) {
-  const recipients = new Map<string, SmsBroadcastRecipient>()
+export function uniqueSmsBroadcastRecipients<TCandidate extends SmsBroadcastCandidate>(candidates: TCandidate[]) {
+  const recipients = new Map<string, SmsBroadcastRecipient<TCandidate['camper']>>()
   let candidateCount = 0
 
   for (const candidate of candidates) {
