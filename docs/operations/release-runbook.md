@@ -43,3 +43,9 @@ Three server-only Vercel environment variables can pause high-risk actions while
 - `BUR_OAKS_MANUAL_TEXTS_ENABLED` pauses manual text campaigns before a campaign or delivery record is created. Automated transactional notices are unchanged.
 
 After the incident, correct and verify the underlying problem before setting the control to `true` and redeploying. Never use a switch to conceal or rewrite a payment, decision, or message that already occurred.
+
+## Performance budgets and real-user signals
+
+When Google Analytics is configured, the browser reports the standard CLS, FCP, INP, LCP, and TTFB metrics as a `web_vital` event. Reports contain only the metric, rating, broad workspace group, navigation type, and whether the target budget was met. They never include the URL, record ID, account identity, email, phone, invoice, or form contents.
+
+The initial good-experience budgets are CLS ≤ 0.1, FCP ≤ 1.8 seconds, INP ≤ 200 milliseconds, LCP ≤ 2.5 seconds, and TTFB ≤ 800 milliseconds. Review trends by `route_group` (`public`, `camper`, `admin`, `maintenance_staff`, or `community`) rather than attempting to identify a camper. A release that materially worsens a core workspace should be corrected or rolled back even when the functional gate passes.

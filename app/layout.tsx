@@ -8,6 +8,7 @@ import AuthLinkRedirect from '../components/AuthLinkRedirect'
 import GoogleAnalytics from '../components/GoogleAnalytics'
 import PublicAnalyticsTracker from '../components/PublicAnalyticsTracker'
 import ConnectionStatus from '../components/ConnectionStatus'
+import WebVitalsReporter from '../components/WebVitalsReporter'
 
 const siteUrl = 'https://www.buroakscampground.com'
 
@@ -99,6 +100,7 @@ export default function RootLayout({
         <a className="global-skip-link" href="#main-content">Skip to main content</a>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(campgroundSchema) }} />
         <PublicAnalyticsTracker />
+        <WebVitalsReporter />
         <AuthLinkRedirect />
         <ConnectionStatus />
         <div id="main-content" className="global-main-content" tabIndex={-1}>
