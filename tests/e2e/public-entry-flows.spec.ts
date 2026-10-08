@@ -201,6 +201,23 @@ async function installSyntheticRoleRouter(page: Page) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
       return
     }
+    if (url.pathname === '/rest/v1/campers') {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { 'content-range': '0-0/1' },
+        body: JSON.stringify([{
+          id: `role-check-${role}`,
+          lot_number: role === 'camper' ? 'TEST' : '',
+          first_name: 'Role',
+          last_name: 'Check',
+          email: user.email,
+          role,
+          active: true,
+        }]),
+      })
+      return
+    }
     await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic role-route read boundary' }) })
   })
 
@@ -333,7 +350,10 @@ test('authenticated roles are routed only to their assigned workspace', async ({
     await page.goto('/portal').catch((error) => {
       if (!String(error).includes('ERR_ABORTED')) throw error
     })
-    await page.waitForURL((url) => url.pathname === item.destination)
+    // The role router can replace /portal while Playwright is still observing the
+    // original navigation. Poll the settled URL instead of attaching a second
+    // load waiter, which can itself be aborted by that intentional replacement.
+    await expect.poll(() => new URL(page.url()).pathname).toBe(item.destination)
     expect(new URL(page.url()).pathname).toBe(item.destination)
   }
 })
