@@ -46,6 +46,10 @@ async function installSyntheticCamperSession(page: Page) {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
       return
     }
+    if (url.pathname === '/auth/v1/logout') {
+      await route.fulfill({ status: 204, body: '' })
+      return
+    }
     if (url.pathname === '/rest/v1/campers') {
       await route.fulfill({
         status: 200,
@@ -209,6 +213,10 @@ async function installSyntheticRoleRouter(page: Page) {
     const url = new URL(route.request().url())
     if (url.pathname === '/auth/v1/user') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
+      return
+    }
+    if (url.pathname === '/auth/v1/logout') {
+      await route.fulfill({ status: 204, body: '' })
       return
     }
     if (url.pathname === '/rest/v1/campers') {
@@ -650,6 +658,12 @@ test('the wrong signed-in account is explained without exposing the admin worksp
     await expect(page.locator('.admin-sidebar')).toHaveCount(0)
     expect(new URL(page.url()).pathname).toBe('/admin')
   }
+
+  await page.getByRole('button', { name: 'Sign out and use an administrator account' }).click()
+  await page.waitForURL((url) => url.pathname === '/login' && url.searchParams.get('reason') === 'wrong-account')
+  await expect(page.getByRole('heading', { name: 'Administrator sign-in required' })).toBeVisible()
+  await expect(page.getByText('The previous account was signed out.')).toBeVisible()
+  expect(new URL(page.url()).searchParams.get('returnTo')).toBe('/admin')
 
   router.use('admin', '/admin')
   await page.goto('/admin')

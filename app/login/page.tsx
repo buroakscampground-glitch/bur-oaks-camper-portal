@@ -1,16 +1,23 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowRight, CalendarDays, CloudSun, FileText, LockKeyhole, Mail, MessageCircle, ReceiptText, ShieldCheck, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { safeLoginReturnPath } from '../../lib/login-return-path'
 import { portalLoginEmail } from '../../lib/phone-portal-login'
+import { loginAccountSwitchPrompt, type LoginAccountSwitchPrompt } from '../../lib/login-account-switch'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [accountSwitchPrompt, setAccountSwitchPrompt] = useState<LoginAccountSwitchPrompt | null>(null)
+
+  useEffect(() => {
+    const search = new URLSearchParams(window.location.search)
+    setAccountSwitchPrompt(loginAccountSwitchPrompt(search.get('reason'), search.get('returnTo')))
+  }, [])
 
   async function handleLogin() {
     setError('')
@@ -103,13 +110,19 @@ export default function LoginPage() {
         >
           <div className="signin-card-badge">
             <Sparkles size={17} />
-            <span>Camper command center</span>
+            <span>{accountSwitchPrompt ? 'Secure account switch' : 'Camper command center'}</span>
           </div>
-          <span className="signin-form-kicker">BUR OAKS CAMPER PORTAL</span>
-          <h2>Sign in to continue</h2>
-          <p>Use the email or mobile number and password connected to your camper account.</p>
+          <span className="signin-form-kicker">{accountSwitchPrompt?.kicker || 'BUR OAKS CAMPER PORTAL'}</span>
+          <h2>{accountSwitchPrompt?.heading || 'Sign in to continue'}</h2>
+          <p>{accountSwitchPrompt?.message || 'Use the email or mobile number and password connected to your camper account.'}</p>
+          {accountSwitchPrompt && (
+            <div className="signin-account-switch-note" role="status">
+              <ShieldCheck size={18} />
+              <span><strong>The previous account was signed out.</strong><small>Your requested page will open only if this login has the required role.</small></span>
+            </div>
+          )}
           <p className="signin-maintenance-note">
-            Staff: sign in with your assigned email to open your maintenance or community workspace.
+            {accountSwitchPrompt?.staffHint || 'Staff: sign in with your assigned email to open Admin, maintenance, or community tools.'}
           </p>
 
           <label htmlFor="signin-email">Email address or mobile number</label>
