@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AlertTriangle, Bell, Check, CheckCheck, Clock3, Inbox, Megaphone, MessageCircle, Send, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, Bell, Check, CheckCheck, Clock3, Inbox, Loader2, Megaphone, MessageCircle, Send, ShieldCheck } from 'lucide-react'
 import { isAnnouncementExpired } from '../../lib/announcement-expiration'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 
@@ -27,6 +27,7 @@ export default function CamperUpdatesPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [notice, setNotice] = useState('')
+  const [loadError, setLoadError] = useState('')
   const messageRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
@@ -40,51 +41,67 @@ export default function CamperUpdatesPage() {
   }, [draft])
 
   async function authHeaders(): Promise<Record<string, string>> {
-    const { data: { session } } = await supabase.auth.getSession()
-    return session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}
+    const { data: { session }, error } = await supabase.auth.getSession()
+    if (error || !session?.access_token) throw error || new Error('Your secure session could not be confirmed.')
+    return { Authorization: `Bearer ${session.access_token}` }
   }
 
   async function loadCenter() {
-    const camperData = await getCurrentCamper()
-    if (!camperData) {
-      const returnTo = `${window.location.pathname}${window.location.search}`
-      window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`
-      return
-    }
+    setLoading(true)
+    setLoadError('')
+    setNotice('')
 
-    setCamper(camperData)
-    const storageKey = `bur-oaks-read-updates-${camperData.id}`
     try {
-      setReadIds(JSON.parse(window.localStorage.getItem(storageKey) || '[]') || [])
-    } catch {
-      setReadIds([])
-    }
+      const { error: camperAvailabilityError } = await supabase.from('campers').select('id').limit(1)
+      if (camperAvailabilityError) throw camperAvailabilityError
 
-    const headers = await authHeaders()
-    const linkedAlertId = new URLSearchParams(window.location.search).get('alert')
-    const [announcementResult, messageResponse, linkedAlertResponse] = await Promise.all([
-      supabase
-        .from('announcements')
-        .select('*')
-        .eq('is_active', true)
-        .order('is_urgent', { ascending: false })
-        .order('created_at', { ascending: false }),
-      fetch('/api/messages', { headers }),
-      linkedAlertId
-        ? fetch(`/api/text-alerts?broadcastId=${encodeURIComponent(linkedAlertId)}`, { headers }).catch(() => null)
-        : Promise.resolve(null),
-    ])
+      const camperData = await getCurrentCamper()
+      if (!camperData) {
+        const returnTo = `${window.location.pathname}${window.location.search}`
+        window.location.href = `/login?returnTo=${encodeURIComponent(returnTo)}`
+        return
+      }
 
-    const messageResult = await messageResponse.json().catch(() => ({}))
-    if (announcementResult.error) setNotice(announcementResult.error.message)
-    else setAnnouncements((announcementResult.data || []).filter((item) => !isAnnouncementExpired(item)))
-    if (messageResponse.ok) setMessages((messageResult.messages || []).slice(-3))
-    if (linkedAlertResponse) {
-      const linkedAlertResult = await linkedAlertResponse.json().catch(() => ({}))
-      if (linkedAlertResponse.ok) setLinkedAlert(linkedAlertResult.alert || null)
-      else setLinkedAlertError(linkedAlertResult.error || 'This alert could not be opened.')
+      setCamper(camperData)
+      const storageKey = `bur-oaks-read-updates-${camperData.id}`
+      try {
+        setReadIds(JSON.parse(window.localStorage.getItem(storageKey) || '[]') || [])
+      } catch {
+        setReadIds([])
+      }
+
+      const headers = await authHeaders()
+      const linkedAlertId = new URLSearchParams(window.location.search).get('alert')
+      const [announcementResult, messageResponse, linkedAlertResponse] = await Promise.all([
+        supabase
+          .from('announcements')
+          .select('*')
+          .eq('is_active', true)
+          .order('is_urgent', { ascending: false })
+          .order('created_at', { ascending: false }),
+        fetch('/api/messages', { headers }),
+        linkedAlertId
+          ? fetch(`/api/text-alerts?broadcastId=${encodeURIComponent(linkedAlertId)}`, { headers }).catch(() => null)
+          : Promise.resolve(null),
+      ])
+
+      const messageResult = await messageResponse.json().catch(() => ({}))
+      if (announcementResult.error) throw announcementResult.error
+      if (!messageResponse.ok) throw new Error(messageResult.error || 'Private messages could not be loaded.')
+      setAnnouncements((announcementResult.data || []).filter((item) => !isAnnouncementExpired(item)))
+      setMessages((messageResult.messages || []).slice(-3))
+      if (linkedAlertResponse) {
+        const linkedAlertResult = await linkedAlertResponse.json().catch(() => ({}))
+        if (linkedAlertResponse.ok) setLinkedAlert(linkedAlertResult.alert || null)
+        else setLinkedAlertError(linkedAlertResult.error || 'This alert could not be opened.')
+      }
+    } catch (error: any) {
+      setAnnouncements([])
+      setMessages([])
+      setLoadError(error?.message || 'The communication center could not be loaded.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   function saveReadIds(nextIds: string[]) {
@@ -108,26 +125,34 @@ export default function CamperUpdatesPage() {
     setSending(true)
     setNotice('')
 
-    const response = await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-      body: JSON.stringify({ message: text }),
-    })
-    const result = await response.json().catch(() => ({}))
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+        body: JSON.stringify({ message: text }),
+      })
+      const result = await response.json().catch(() => ({}))
 
-    if (!response.ok) setNotice(result.error || 'Unable to send your message.')
-    else {
-      setDraft('')
-      setMessages((current) => [...current, result.message].slice(-3))
-      setNotice('Your private message was sent to the office.')
+      if (!response.ok) setNotice(result.error || 'Unable to send your message.')
+      else {
+        setDraft('')
+        setMessages((current) => [...current, result.message].slice(-3))
+        setNotice('Your private message was sent to the office.')
+      }
+    } catch {
+      setNotice('The send result could not be confirmed. Check your recent private messages before sending it again.')
+    } finally {
+      setSending(false)
     }
-    setSending(false)
   }
 
   const unreadCount = useMemo(
     () => announcements.filter((item) => !readIds.includes(String(item.id))).length,
     [announcements, readIds]
   )
+
+  if (loading) return <main className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Opening campground updates…</h1><p>Announcements and private office messages are being checked.</p></main>
+  if (loadError) return <main className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>Updates are temporarily unavailable</h1><p>Announcements, unread totals, and private messages are hidden until every source can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadCenter}>Try again</button></main>
 
   return (
     <main className="updates-center-page">
@@ -167,9 +192,7 @@ export default function CamperUpdatesPage() {
           )}
           {linkedAlertError && <p className="updates-linked-alert-error">{linkedAlertError}</p>}
 
-          {loading ? (
-            <p className="updates-empty">Opening the campground board…</p>
-          ) : announcements.length === 0 ? (
+          {announcements.length === 0 ? (
             <div className="updates-empty"><Megaphone size={28} /><p>{linkedAlert ? 'No other active announcements right now.' : 'No active announcements right now.'}</p></div>
           ) : (
             <div className="updates-board-list">

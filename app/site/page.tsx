@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollarSign, FileText, Gauge, Home, MapPin, Phone, ShieldCheck, UserRound, Wrench } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarDays, Car, CheckCircle2, CircleDollarSign, FileText, Gauge, Home, Loader2, MapPin, Phone, ShieldCheck, UserRound, Wrench } from 'lucide-react'
 import CampgroundMap from '../../components/CampgroundMap'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { isInvoiceDueNow, totalInvoiceBalance } from '../../lib/invoice-balance'
@@ -28,6 +28,9 @@ export default function MySitePage() {
   const [maintenance, setMaintenance] = useState<any[]>([])
   const [electric, setElectric] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [refreshNotice, setRefreshNotice] = useState('')
+  const hasHealthyLoad = useRef(false)
 
   useEffect(() => {
     loadSite()
@@ -47,41 +50,59 @@ export default function MySitePage() {
   }, [])
 
   async function loadSite() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    const initialLoad = !hasHealthyLoad.current
+    if (initialLoad) setLoading(true)
+    setLoadError('')
+    setRefreshNotice('')
 
-    if (!user) {
-      window.location.href = '/login'
-      return
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser()
+
+      if (authError) throw authError
+
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
+
+      const { error: camperAvailabilityError } = await supabase.from('campers').select('id').limit(1)
+      if (camperAvailabilityError) throw camperAvailabilityError
+
+      const camperData = await getCurrentCamper()
+      if (!camperData) throw new Error('Your campsite account could not be found.')
+
+      const [invoiceResult, documentResult, maintenanceResult, electricResult] = await Promise.all([
+        supabase.from('invoices').select('*').eq('camper_id', camperData.id),
+        supabase.from('documents').select('*').eq('camper_id', camperData.id),
+        supabase.from('maintenance_tickets').select('*').eq('lot_number', camperData.lot_number).order('created_at', { ascending: false }).limit(5),
+        supabase.from('electric_readings').select('*').eq('camper_id', camperData.id).order('reading_date', { ascending: false }).limit(6),
+      ])
+
+      const failedResult = [invoiceResult, documentResult, maintenanceResult, electricResult].find((result) => result.error)
+      if (failedResult?.error) throw failedResult.error
+
+      setCamper(camperData)
+      setInvoices(invoiceResult.data || [])
+      setDocuments(documentResult.data || [])
+      setMaintenance(maintenanceResult.data || [])
+      setElectric(electricResult.data || [])
+      hasHealthyLoad.current = true
+    } catch (error: any) {
+      if (hasHealthyLoad.current) setRefreshNotice('Your site could not refresh. The last successfully loaded information is still shown.')
+      else setLoadError(error?.message || 'Your campsite information could not be loaded.')
+    } finally {
+      if (initialLoad) setLoading(false)
     }
-
-    const camperData = await getCurrentCamper()
-
-    if (!camperData) {
-      setLoading(false)
-      return
-    }
-
-    setCamper(camperData)
-
-    const [invoiceResult, documentResult, maintenanceResult, electricResult] = await Promise.all([
-      supabase.from('invoices').select('*').eq('camper_id', camperData.id),
-      supabase.from('documents').select('*').eq('camper_id', camperData.id),
-      supabase.from('maintenance_tickets').select('*').eq('lot_number', camperData.lot_number).order('created_at', { ascending: false }).limit(5),
-      supabase.from('electric_readings').select('*').eq('camper_id', camperData.id).order('reading_date', { ascending: false }).limit(6),
-    ])
-
-    setInvoices(invoiceResult.data || [])
-    setDocuments(documentResult.data || [])
-    setMaintenance(maintenanceResult.data || [])
-    setElectric(electricResult.data || [])
-    setLoading(false)
   }
 
   if (loading) {
-    return <main className="my-site-page"><div className="portal-loading"><Home size={34} /><p>Opening your site profile…</p></div></main>
+    return <main className="my-site-page"><div className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Opening your site profile…</h1></div></main>
   }
+
+  if (loadError) return <main className="my-site-page"><div className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>My Site is temporarily unavailable</h1><p>Balances, documents, maintenance, and electric summaries are hidden until every source can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadSite}>Try again</button></div></main>
 
   const dueNowInvoices = invoices.filter((invoice) => isInvoiceDueNow(invoice))
   const openBalance = totalInvoiceBalance(dueNowInvoices)
@@ -108,6 +129,7 @@ export default function MySitePage() {
         <h1>Lot {camper?.lot_number || '—'}</h1>
         <p>Your Bur Oaks home base: documents, payments, insurance, maintenance, and electric history in one place.</p>
       </section>
+      {refreshNotice && <p className="portal-refresh-notice" role="status">{refreshNotice}</p>}
 
       <section className="my-site-status-grid">
         <a href="/invoices" className={dueNowInvoices.length ? 'attention' : 'complete'}><CircleDollarSign /><small>Amount due</small><strong>${openBalance.toFixed(2)}</strong><span>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? '' : 's'} due now</span><em>{dueNowInvoices.length ? 'Payment ready' : 'Ready'}</em></a>

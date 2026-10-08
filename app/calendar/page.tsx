@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CalendarDays, CheckCircle2, Download, MapPin, PartyPopper, UsersRound } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, Download, Loader2, MapPin, PartyPopper, UsersRound } from 'lucide-react'
 import { getCurrentCamper, supabase } from '../../lib/supabase'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
 
@@ -28,6 +28,9 @@ export default function CalendarPage() {
   const [camper, setCamper] = useState<any>(null)
   const [rsvps, setRsvps] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [savingEventId, setSavingEventId] = useState('')
+  const [message, setMessage] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -35,50 +38,73 @@ export default function CalendarPage() {
   }, [])
 
   async function loadCalendar() {
-    const { data: { user } } = await supabase.auth.getUser()
+    setLoading(true)
+    setLoadError('')
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError) throw authError
 
-    if (!user) {
-      window.location.href = '/login'
-      return
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
+
+      const { error: camperAvailabilityError } = await supabase.from('campers').select('id').limit(1)
+      if (camperAvailabilityError) throw camperAvailabilityError
+      const camperData = await getCurrentCamper()
+      if (!camperData) throw new Error('Your camper account could not be found.')
+
+      const [eventResult, rsvpResult] = await Promise.all([
+        supabase.from('events').select('*').order('event_date', { ascending: true }),
+        supabase.from('event_rsvps').select('*'),
+      ])
+
+      if (eventResult.error || rsvpResult.error) throw eventResult.error || rsvpResult.error
+      setCamper(camperData)
+      setEvents(eventResult.data || [])
+      setRsvps(Array.from(new Map((rsvpResult.data || []).map((item) => [`${item.event_id}:${item.camper_id}`, item])).values()))
+    } catch (error: any) {
+      setEvents([])
+      setRsvps([])
+      setLoadError(error?.message || 'The event calendar could not be loaded.')
+    } finally {
+      setLoading(false)
     }
-
-    const camperData = await getCurrentCamper()
-
-    setCamper(camperData)
-
-    const { data: eventData } = await supabase
-      .from('events')
-      .select('*')
-      .order('event_date', { ascending: true })
-
-    const { data: rsvpData } = await supabase
-      .from('event_rsvps')
-      .select('*')
-
-    setEvents(eventData || [])
-    setRsvps(rsvpData || [])
-    setLoading(false)
   }
 
   async function saveRsvp(eventId: string, response: string) {
-    if (!camper) return
+    if (!camper || savingEventId) return
+    setSavingEventId(eventId)
+    setMessage('Saving your event response…')
+    try {
+      const { data: existing, error: existingError } = await supabase
+        .from('event_rsvps')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('camper_id', camper.id)
+        .limit(1)
+        .maybeSingle()
+      if (existingError) throw existingError
 
-    await supabase
-      .from('event_rsvps')
-      .delete()
-      .eq('event_id', eventId)
-      .eq('camper_id', camper.id)
+      const result = existing?.id
+        ? await supabase.from('event_rsvps').update({ response }).eq('id', existing.id)
+        : await supabase.from('event_rsvps').insert({ event_id: eventId, camper_id: camper.id, response })
+      if (result.error) throw result.error
 
-    await supabase.from('event_rsvps').insert({
-      event_id: eventId,
-      camper_id: camper.id,
-      response,
-    })
-
-    loadCalendar()
+      setRsvps((current) => [
+        ...current.filter((item) => !(item.event_id === eventId && item.camper_id === camper.id)),
+        { ...(existing || {}), event_id: eventId, camper_id: camper.id, response },
+      ])
+      setMessage(`Saved — ${response}.`)
+    } catch {
+      setMessage('The RSVP result could not be confirmed. Check this event before choosing again.')
+    } finally {
+      setSavingEventId('')
+    }
   }
 
-  if (loading) return <p style={{ padding: '40px' }}>Loading events...</p>
+  if (loading) return <main className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading campground events…</h1></main>
+  if (loadError) return <main className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>Calendar is temporarily unavailable</h1><p>Events, RSVP totals, and response controls are hidden until the complete calendar can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadCalendar}>Try again</button></main>
 
   const upcomingEvents = events.filter((event) => {
     const today = new Date().toISOString().split('T')[0]
@@ -104,6 +130,7 @@ export default function CalendarPage() {
 
       <div className="camper-events-shell">
         <EventFlyerShowcase context="portal" limit={6} />
+        {message && <p className="portal-refresh-notice" role="status">{message}</p>}
 
         <section className="camper-event-rsvp-guide" aria-label="How event RSVPs work">
           <CheckCircle2 size={22} />
@@ -164,9 +191,9 @@ export default function CalendarPage() {
                   )}
 
                   <div className="camper-event-actions">
-                    <button className={myRsvp?.response === 'Going' ? 'active' : ''} onClick={() => saveRsvp(event.id, 'Going')}>Going</button>
-                    <button className={myRsvp?.response === 'Maybe' ? 'active' : ''} onClick={() => saveRsvp(event.id, 'Maybe')}>Maybe</button>
-                    <button className={myRsvp?.response === 'Not Going' ? 'active muted' : ''} onClick={() => saveRsvp(event.id, 'Not Going')}>Not Going</button>
+                    <button disabled={Boolean(savingEventId)} className={myRsvp?.response === 'Going' ? 'active' : ''} onClick={() => saveRsvp(event.id, 'Going')}>Going</button>
+                    <button disabled={Boolean(savingEventId)} className={myRsvp?.response === 'Maybe' ? 'active' : ''} onClick={() => saveRsvp(event.id, 'Maybe')}>Maybe</button>
+                    <button disabled={Boolean(savingEventId)} className={myRsvp?.response === 'Not Going' ? 'active muted' : ''} onClick={() => saveRsvp(event.id, 'Not Going')}>Not Going</button>
                     <a className="camper-event-calendar-link" href={googleCalendarUrl(event)} rel="noreferrer" target="_blank">
                       <Download size={15} /> Add to calendar
                     </a>

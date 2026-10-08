@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowLeft, CalendarDays, CheckCircle2, ChefHat, Minus, Plus, Send, UsersRound, UtensilsCrossed } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ChefHat, Loader2, Minus, Plus, Send, UsersRound, UtensilsCrossed } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import {
   thanksgivingDinnerDate,
@@ -29,35 +29,42 @@ export default function ThanksgivingSignupPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const [loadError, setLoadError] = useState('')
   const savingRef = useRef(false)
 
   async function loadSignup() {
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-    if (!token) {
-      window.location.href = '/login'
-      return
-    }
+    setLoading(true)
+    setLoadError('')
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
+      const token = data.session?.access_token
+      if (!token) {
+        window.location.href = '/login'
+        return
+      }
 
-    const response = await fetch('/api/saturday-dinner', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setMessage(result.error || 'Unable to open the Thanksgiving signup.')
+      const response = await fetch('/api/saturday-dinner', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Unable to open the Thanksgiving signup.')
+
+      const mine = (result.signups || []).find((signup: Signup) => signup.dinner_date === thanksgivingDinnerDate) || null
+      setMySignup(mine)
+      setPublicSignups((result.publicSignups || []).filter((signup: Signup) => signup.dinner_date === thanksgivingDinnerDate))
+      if (mine) {
+        setStatus(mine.attending_status || 'Going')
+        setGuestCount(Number(mine.guest_count || 1))
+        setBringing(thanksgivingFoodOption(mine.bringing)?.label || mine.bringing || '')
+      }
+    } catch (error: any) {
+      setMySignup(null)
+      setPublicSignups([])
+      setLoadError(error?.message || 'The Thanksgiving signup could not be loaded.')
+    } finally {
       setLoading(false)
-      return
     }
-
-    const mine = (result.signups || []).find((signup: Signup) => signup.dinner_date === thanksgivingDinnerDate) || null
-    setMySignup(mine)
-    setPublicSignups((result.publicSignups || []).filter((signup: Signup) => signup.dinner_date === thanksgivingDinnerDate))
-    if (mine) {
-      setStatus(mine.attending_status || 'Going')
-      setGuestCount(Number(mine.guest_count || 1))
-      setBringing(thanksgivingFoodOption(mine.bringing)?.label || mine.bringing || '')
-    }
-    setLoading(false)
   }
 
   useEffect(() => {
@@ -104,36 +111,40 @@ export default function ThanksgivingSignupPage() {
     savingRef.current = true
     setSaving(true)
     setMessage('Saving your Thanksgiving response…')
-    const response = await fetch('/api/saturday-dinner', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        dinnerDate: thanksgivingDinnerDate,
-        status,
-        guestCount,
-        bringing: status === 'Not Going' ? '' : bringing,
-      }),
-    })
-    const result = await response.json().catch(() => ({}))
+    try {
+      const response = await fetch('/api/saturday-dinner', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dinnerDate: thanksgivingDinnerDate,
+          status,
+          guestCount,
+          bringing: status === 'Not Going' ? '' : bringing,
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Unable to save your Thanksgiving response.')
 
-    if (!response.ok) {
-      setMessage(result.error || 'Unable to save your Thanksgiving response.')
-    } else {
       setMessage(status === 'Not Going'
         ? 'Saved — the office knows your campsite will not be attending.'
         : `Saved — ${guestCount} ${guestCount === 1 ? 'person' : 'people'} attending and bringing ${bringing}.`)
       await loadSignup()
+    } catch {
+      setMessage('The Thanksgiving response result could not be confirmed. Check your saved response before submitting again.')
+    } finally {
+      savingRef.current = false
+      setSaving(false)
     }
-    savingRef.current = false
-    setSaving(false)
   }
 
   if (loading) {
-    return <main className="thanksgiving-page"><p className="thanksgiving-loading">Opening the Thanksgiving signup…</p></main>
+    return <main className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Opening the Thanksgiving signup…</h1></main>
   }
+
+  if (loadError) return <main className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>Thanksgiving signup is temporarily unavailable</h1><p>Attendance totals, food claims, and response controls are hidden until the complete signup can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadSignup}>Try again</button></main>
 
   return (
     <main className="thanksgiving-page">

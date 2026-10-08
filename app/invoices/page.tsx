@@ -171,7 +171,10 @@ export default function InvoicesPage() {
       try {
       const {
         data: { user },
+        error: authError,
       } = await supabase.auth.getUser()
+
+      if (authError) throw authError
 
       if (!user?.email) {
         window.location.href = '/login'
@@ -187,12 +190,13 @@ export default function InvoicesPage() {
       setCamper(camperData)
       setSmsOptIn(Boolean(camperData.sms_opt_in))
 
-      const { data: sessionData } = await supabase.auth.getSession()
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
       const token = sessionData.session?.access_token
+      if (!token) throw new Error('Your secure billing session could not be confirmed.')
 
       const [invoiceAccount, paymentFeeSettings, familyBillingResponse] = await Promise.all([
-        token
-          ? fetch('/api/camper-invoices', {
+        fetch('/api/camper-invoices', {
               headers: { Authorization: `Bearer ${token}` },
             })
               .then(async (response) => {
@@ -216,14 +220,11 @@ export default function InvoicesPage() {
                     general: (creditFallback.data || []).filter((credit) => credit.applies_to !== 'lot_rent').reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
                   },
                 }
-              })
-          : Promise.resolve({ invoices: [], accountCredit: 0 }),
+              }),
         loadPaymentFeeSettings(supabase),
-        token
-          ? fetch('/api/authorized-billing', {
+        fetch('/api/authorized-billing', {
               headers: { Authorization: `Bearer ${token}` },
-            }).catch(() => null)
-          : Promise.resolve(null),
+            }),
       ])
 
       setInvoices(invoiceAccount.invoices || [])
@@ -233,10 +234,9 @@ export default function InvoicesPage() {
         lotRent: Number(invoiceAccount.accountCreditDetails?.lotRent || 0),
         general: Number(invoiceAccount.accountCreditDetails?.general || 0),
       })
-      if (familyBillingResponse?.ok) {
-        const familyBilling = await familyBillingResponse.json()
-        setFamilyBillingAccounts(familyBilling.accounts || [])
-      }
+      const familyBilling = await familyBillingResponse.json().catch(() => ({}))
+      if (!familyBillingResponse.ok) throw new Error(familyBilling.error || 'Authorized billing accounts could not be loaded.')
+      setFamilyBillingAccounts(familyBilling.accounts || [])
       await refreshAutoPayStatus()
 
       if (new URLSearchParams(window.location.search).get('autopay') === 'success') {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { CheckCircle2, LoaderCircle, MessageSquareText, Send, ShieldCheck, UsersRound } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, LoaderCircle, MessageSquareText, Send, ShieldCheck, UsersRound } from 'lucide-react'
 import { camperTextWithLink, portalPathForTextAlert } from '../../../lib/portal-sms-links'
 import { supabase } from '../../../lib/supabase'
 
@@ -31,6 +31,8 @@ export default function CommunityTextsPage() {
   const [sending, setSending] = useState(false)
   const [twilioConfigured, setTwilioConfigured] = useState(false)
   const [recentBroadcasts, setRecentBroadcasts] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const requestIdRef = useRef('')
   const sendingRef = useRef(false)
 
@@ -63,23 +65,30 @@ export default function CommunityTextsPage() {
   }
 
   async function loadData() {
-    const response = await textServiceFetch()
-    if (!response) {
-      window.location.replace('/community-login?returnTo=%2Fcommunity%2Ftexts')
-      return
+    setLoading(true)
+    setLoadError('')
+    try {
+      const response = await textServiceFetch()
+      if (!response) {
+        window.location.replace('/community-login?returnTo=%2Fcommunity%2Ftexts')
+        return
+      }
+      if (response.status === 401) {
+        await supabase.auth.signOut()
+        window.location.replace('/community-login?returnTo=%2Fcommunity%2Ftexts')
+        return
+      }
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(result.error || 'Unable to load Event Texts.')
+      setTwilioConfigured(Boolean(result.twilioConfigured))
+      setRecentBroadcasts(result.recentBroadcasts || [])
+    } catch (error: any) {
+      setTwilioConfigured(false)
+      setRecentBroadcasts([])
+      setLoadError(error?.message || 'Event Texts could not be loaded.')
+    } finally {
+      setLoading(false)
     }
-    if (response.status === 401) {
-      await supabase.auth.signOut()
-      window.location.replace('/community-login?returnTo=%2Fcommunity%2Ftexts')
-      return
-    }
-    const result = await response.json().catch(() => ({}))
-    if (!response.ok) {
-      setStatus(result.error || 'Unable to load Event Texts.')
-      return
-    }
-    setTwilioConfigured(Boolean(result.twilioConfigured))
-    setRecentBroadcasts(result.recentBroadcasts || [])
   }
 
   useEffect(() => {
@@ -131,8 +140,8 @@ export default function CommunityTextsPage() {
         : `Twilio accepted ${result.sentCount || 0} phone${Number(result.sentCount || 0) === 1 ? '' : 's'}${result.failedCount ? `; ${result.failedCount} failed.` : '.'}`)
       requestIdRef.current = ''
       await loadData()
-    } catch (error: any) {
-      setStatus(error?.message || 'Unable to send this event text.')
+    } catch {
+      setStatus('The send result could not be confirmed. Check recent campaigns before sending this text again.')
     } finally {
       sendingRef.current = false
       setSending(false)
@@ -144,6 +153,9 @@ export default function CommunityTextsPage() {
     path: portalPathForTextAlert(reminderType, message),
     compact: true,
   })
+
+  if (loading) return <main className="portal-loading" role="alert"><LoaderCircle className="portal-loading-spinner" aria-hidden="true" /><h1>Loading Event Texts…</h1></main>
+  if (loadError) return <main className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>Event Texts are temporarily unavailable</h1><p>Service status, campaign history, and sending controls are hidden until the full record can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadData}>Try again</button></main>
 
   return (
     <main className="admin-texts-page community-event-texts">

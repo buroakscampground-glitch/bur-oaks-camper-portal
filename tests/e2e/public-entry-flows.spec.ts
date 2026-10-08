@@ -179,6 +179,82 @@ async function installSyntheticAdminSession(page: Page) {
   }
 }
 
+async function installSyntheticRoleRouter(page: Page) {
+  let role = 'camper'
+  let destination = '/portal'
+  const now = Math.floor(Date.now() / 1000)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'role-check-user', email: 'role-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.role-check`
+  const user = { id: 'role-check-user', aud: 'authenticated', role: 'authenticated', email: 'role-check@example.invalid', user_metadata: {}, app_metadata: {}, created_at: new Date(0).toISOString() }
+
+  await page.addInitScript(({ session }) => {
+    const originalGetItem = Storage.prototype.getItem
+    Storage.prototype.getItem = function getItem(key: string) {
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) return JSON.stringify(session)
+      return originalGetItem.call(this, key)
+    }
+  }, { session: { access_token: accessToken, refresh_token: 'role-check-refresh', token_type: 'bearer', expires_in: 3600, expires_at: now + 3600, user } })
+
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/.*/, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/auth/v1/user') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
+      return
+    }
+    await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic role-route read boundary' }) })
+  })
+
+  await page.route('**/api/**', async (route) => {
+    if (new URL(route.request().url()).pathname === '/api/login-destination') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ role, destination }) })
+      return
+    }
+    await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Synthetic role-route boundary' }) })
+  })
+
+  return {
+    use(nextRole: string, nextDestination: string) {
+      role = nextRole
+      destination = nextDestination
+    },
+  }
+}
+
+async function installSyntheticDeepLinkLogin(page: Page) {
+  const now = Math.floor(Date.now() / 1000)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'deep-link-user', email: 'deep-link@example.invalid', role: 'authenticated', exp: now + 3600 })}.deep-link`
+  const user = { id: 'deep-link-user', aud: 'authenticated', role: 'authenticated', email: 'deep-link@example.invalid', user_metadata: {}, app_metadata: {}, created_at: new Date(0).toISOString() }
+
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/.*/, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/auth/v1/token') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ access_token: accessToken, refresh_token: 'deep-link-refresh', token_type: 'bearer', expires_in: 3600, expires_at: now + 3600, user }) })
+      return
+    }
+    if (url.pathname === '/auth/v1/user') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
+      return
+    }
+    if (url.pathname === '/rest/v1/campers') {
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '0-0/1' }, body: JSON.stringify([{ id: 'deep-link-camper', first_name: 'Deep', last_name: 'Link', email: user.email, lot_number: 'TEST', role: 'camper', active: true }]) })
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '*/0' }, body: '[]' })
+  })
+
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    const payloads: Record<string, object> = {
+      '/api/login-destination': { role: 'camper', destination: '/portal' },
+      '/api/camper-invoices': { invoices: [], accountCredit: 0, accountCreditDetails: { lotRent: 0, general: 0 } },
+      '/api/authorized-billing': { accounts: [] },
+      '/api/autopay': { enabled: false },
+    }
+    await route.fulfill({ status: payloads[pathname] ? 200 : 503, contentType: 'application/json', body: JSON.stringify(payloads[pathname] || { error: 'Synthetic deep-link boundary' }) })
+  })
+}
+
 test('health endpoint identifies the release without caching or customer data', async ({ request }) => {
   const response = await request.get('/api/health')
   expect(response.ok()).toBeTruthy()
@@ -242,6 +318,37 @@ test('password recovery stays readable and ready without sending a request', asy
   expect(submitBox?.height ?? 0).toBeGreaterThanOrEqual(44)
 })
 
+test('authenticated roles are routed only to their assigned workspace', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the four authenticated role destinations.')
+  const router = await installSyntheticRoleRouter(page)
+  const cases = [
+    { role: 'camper', destination: '/portal' },
+    { role: 'admin', destination: '/admin' },
+    { role: 'maintenance', destination: '/maintenance/dashboard' },
+    { role: 'event_coordinator', destination: '/community' },
+  ]
+
+  for (const item of cases) {
+    router.use(item.role, item.destination)
+    await page.goto('/portal').catch((error) => {
+      if (!String(error).includes('ERR_ABORTED')) throw error
+    })
+    await page.waitForURL((url) => url.pathname === item.destination)
+    expect(new URL(page.url()).pathname).toBe(item.destination)
+  }
+})
+
+test('camper sign-in preserves an authorized billing deep link', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the complete synthetic sign-in handoff.')
+  await installSyntheticDeepLinkLogin(page)
+  await page.goto('/login?returnTo=%2Finvoices%3Fview%3Ddue-7')
+  await page.getByLabel('Email address or mobile number').fill('deep-link@example.invalid')
+  await page.getByLabel('Password').fill('synthetic-password')
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await page.waitForURL((url) => url.pathname === '/invoices' && url.searchParams.get('view') === 'due-7')
+  await expect(page.getByRole('heading', { name: 'Your account, all in one place.' })).toBeVisible()
+})
+
 test('signed-out visitors are returned to login with their private destination preserved', async ({ page }, testInfo) => {
   test.skip(!['phone-360', 'desktop'].includes(testInfo.project.name), 'One phone width and desktop cover the auth boundary.')
 
@@ -278,6 +385,11 @@ test('weak-connection recovery is actionable and contained on priority camper sc
     { path: '/electric', message: 'Electric history is temporarily unavailable' },
     { path: '/directory', message: 'Camper directory is temporarily unavailable' },
     { path: '/maintenance/history', message: 'Maintenance history is temporarily unavailable' },
+    { path: '/site', message: 'My Site is temporarily unavailable' },
+    { path: '/updates', message: 'Updates are temporarily unavailable' },
+    { path: '/calendar', message: 'Calendar is temporarily unavailable' },
+    { path: '/dinners', message: 'Saturday dinners are temporarily unavailable' },
+    { path: '/thanksgiving', message: 'Thanksgiving signup is temporarily unavailable' },
   ]
 
   for (const recovery of recoveryChecks) {
@@ -355,6 +467,7 @@ test('office money and operations screens fail closed on a synthetic outage', as
     { path: '/admin/documents/templates/release-check-template', heading: 'Library document is temporarily unavailable' },
     { path: '/admin/launch', heading: 'Launch checklist is temporarily unavailable' },
     { path: '/admin/community-feed', heading: 'Campground Messenger is temporarily unavailable' },
+    { path: '/community/texts', heading: 'Event Texts are temporarily unavailable' },
   ]
 
   for (const recovery of recoveryChecks) {

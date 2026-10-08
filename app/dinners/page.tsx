@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { CalendarDays, CheckCircle2, Clock, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
+import { AlertTriangle, CalendarDays, CheckCircle2, Clock, Loader2, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
 import { saturdayDinnerMetrics } from '../../lib/saturday-dinner-metrics'
 import { dinnerBringSuggestions, saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
@@ -21,6 +21,8 @@ export default function SaturdayDinnersPage() {
   const [guestCount, setGuestCount] = useState(1)
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const savingRef = useRef(false)
   const signupCardRef = useRef<HTMLElement | null>(null)
 
@@ -29,20 +31,30 @@ export default function SaturdayDinnersPage() {
   }, [])
 
   async function loadSignups() {
-    const { data } = await supabase.auth.getSession()
-    const token = data.session?.access_token
-    if (!token) {
-      window.location.href = '/login'
-      return
-    }
+    setLoading(true)
+    setLoadError('')
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession()
+      if (sessionError) throw sessionError
+      const token = data.session?.access_token
+      if (!token) {
+        window.location.href = '/login'
+        return
+      }
 
-    const response = await fetch('/api/saturday-dinner', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const result = await response.json().catch(() => null)
-    if (response.ok) {
+      const response = await fetch('/api/saturday-dinner', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(result?.error || 'Dinner responses could not be loaded.')
       setSignups(result?.signups || [])
       setPublicSignups(result?.publicSignups || [])
+    } catch (error: any) {
+      setSignups([])
+      setPublicSignups([])
+      setLoadError(error?.message || 'Saturday dinner responses could not be loaded.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -131,38 +143,32 @@ export default function SaturdayDinnersPage() {
     setSaving(true)
     setMessage('Saving your dinner response…')
     const bringing = bringChoice === 'Other' ? customBringing.trim() : bringChoice.trim()
-    const response = await fetch('/api/saturday-dinner', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        dinnerDate: selectedDinner.date,
-        status,
-        bringing,
-        guestCount,
-      }),
-    })
-    const result = await response.json().catch(() => null)
+    try {
+      const response = await fetch('/api/saturday-dinner', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dinnerDate: selectedDinner.date, status, bringing, guestCount }),
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(result?.error || 'Unable to save your dinner response.')
 
-    if (!response.ok) {
-      setMessage(result?.error || 'Unable to save your dinner response.')
+      let emailNote = ''
+      if (result?.notificationStatus === 'unchanged') emailNote = ' This RSVP was already saved, so no duplicate office alert was sent.'
+      else if (result?.emailStatus === 'failed') emailNote = ` Admin email alert failed: ${result.emailMessage || 'unknown error'}.`
+      else if (result?.emailStatus === 'skipped') emailNote = ` Admin email alert skipped: ${result.emailMessage || 'not configured'}.`
+
+      const peopleNote = status === 'Not Going' ? '' : ` · Head count: ${guestCount}`
+      setMessage(`Saved — ${status}${peopleNote} · ${selectedDinner.month} ${selectedDinner.day}.${emailNote}`)
+      await loadSignups()
+    } catch {
+      setMessage('The dinner response result could not be confirmed. Check your saved response before submitting again.')
+    } finally {
       savingRef.current = false
       setSaving(false)
-      return
     }
-
-    let emailNote = ''
-    if (result?.notificationStatus === 'unchanged') emailNote = ' This RSVP was already saved, so no duplicate office alert was sent.'
-    else if (result?.emailStatus === 'failed') emailNote = ` Admin email alert failed: ${result.emailMessage || 'unknown error'}.`
-    else if (result?.emailStatus === 'skipped') emailNote = ` Admin email alert skipped: ${result.emailMessage || 'not configured'}.`
-
-    const peopleNote = status === 'Not Going' ? '' : ` · Head count: ${guestCount}`
-    setMessage(`Saved — ${status}${peopleNote} · ${selectedDinner.month} ${selectedDinner.day}.${emailNote}`)
-    savingRef.current = false
-    setSaving(false)
-    loadSignups()
   }
 
   function openDinner(dinnerDate: string) {
@@ -181,6 +187,9 @@ export default function SaturdayDinnersPage() {
     const safeCount = Math.max(1, Math.min(99, Math.round(value || 1)))
     setGuestCount(safeCount)
   }
+
+  if (loading) return <main className="portal-loading" role="alert"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading Saturday dinners…</h1></main>
+  if (loadError) return <main className="portal-loading portal-loading-error" role="alert"><AlertTriangle aria-hidden="true" /><h1>Saturday dinners are temporarily unavailable</h1><p>Saved responses, headcounts, and food claims are hidden until the complete dinner plan can be confirmed.</p><button className="portal-loading-retry" type="button" onClick={loadSignups}>Try again</button></main>
 
   return (
     <main className="saturday-dinners-page">

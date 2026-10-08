@@ -15,12 +15,14 @@ async function findOrCreateEvent(context: NonNullable<Awaited<ReturnType<typeof 
     return { flyer: null, event: null }
   }
 
-  const { data: existingEvents } = await context.admin
+  const { data: existingEvents, error: existingEventError } = await context.admin
     .from('events')
     .select('*')
     .eq('title', flyer.title)
     .eq('event_date', flyer.date)
     .limit(1)
+
+  if (existingEventError) throw existingEventError
 
   const existingEvent = existingEvents?.[0]
 
@@ -52,12 +54,14 @@ async function getEventStatus(context: NonNullable<Awaited<ReturnType<typeof get
     return null
   }
 
-  const { data: rsvps } = await context.admin
+  const { data: rsvps, error: rsvpError } = await context.admin
     .from('event_rsvps')
     .select('*')
     .eq('event_id', event.id)
 
-  const safeRsvps = rsvps || []
+  if (rsvpError) throw rsvpError
+
+  const safeRsvps = Array.from(new Map((rsvps || []).map((item) => [String(item.camper_id), item])).values())
   const myRsvp = safeRsvps.find((rsvp) => rsvp.camper_id === context.camper.id)
   const goingCamperIds = Array.from(
     new Set(
@@ -69,11 +73,13 @@ async function getEventStatus(context: NonNullable<Awaited<ReturnType<typeof get
   let goingCampers: Array<{ name: string; lotNumber: string | null }> = []
 
   if (goingCamperIds.length) {
-    const { data: optedInCampers } = await context.admin
+    const { data: optedInCampers, error: camperError } = await context.admin
       .from('campers')
       .select('id,first_name,last_name,lot_number,directory_opt_in')
       .in('id', goingCamperIds)
       .eq('directory_opt_in', true)
+
+    if (camperError) throw camperError
 
     goingCampers = (optedInCampers || []).map((camper) => ({
       name: `${camper.first_name || ''} ${camper.last_name || ''}`.trim() || 'Camper',
@@ -148,21 +154,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
-    await context.admin
+    const { data: existingRsvps, error: existingRsvpError } = await context.admin
       .from('event_rsvps')
-      .delete()
+      .select('id')
       .eq('event_id', event.id)
       .eq('camper_id', context.camper.id)
 
-    const { error } = await context.admin
-      .from('event_rsvps')
-      .insert({
-        event_id: event.id,
-        camper_id: context.camper.id,
-        response,
-      })
-      .select('*')
-      .single()
+    if (existingRsvpError) throw existingRsvpError
+
+    const { error } = existingRsvps?.length
+      ? await context.admin.from('event_rsvps').update({ response }).eq('event_id', event.id).eq('camper_id', context.camper.id)
+      : await context.admin
+          .from('event_rsvps')
+          .insert({ event_id: event.id, camper_id: context.camper.id, response })
 
     if (error) {
       throw error
