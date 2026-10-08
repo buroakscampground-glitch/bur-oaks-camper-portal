@@ -135,7 +135,8 @@ export default function SystemHealthPage() {
       <main className="operations-health-page">
         <div className="operations-health-loading" role="alert">
           <AlertTriangle size={34} />
-          <strong>{loadError}</strong>
+          <h2>System Health is temporarily unavailable</h2>
+          <p>{loadError}</p>
           <button type="button" className="portal-loading-retry" onClick={load}>Try again</button>
         </div>
       </main>

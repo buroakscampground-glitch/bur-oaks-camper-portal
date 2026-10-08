@@ -101,6 +101,84 @@ async function installSyntheticCamperSession(page: Page) {
   }
 }
 
+async function installSyntheticAdminSession(page: Page) {
+  let simulateReadFailure = true
+  const now = Math.floor(Date.now() / 1000)
+  const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+  const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'release-check-admin', email: 'admin-release-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.release-check`
+  const user = {
+    id: 'release-check-admin',
+    aud: 'authenticated',
+    role: 'authenticated',
+    email: 'admin-release-check@example.invalid',
+    user_metadata: {},
+    app_metadata: {},
+    created_at: new Date(0).toISOString(),
+  }
+
+  await page.addInitScript(({ session }) => {
+    const originalGetItem = Storage.prototype.getItem
+    Storage.prototype.getItem = function getItem(key: string) {
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) return JSON.stringify(session)
+      return originalGetItem.call(this, key)
+    }
+  }, {
+    session: {
+      access_token: accessToken,
+      refresh_token: 'release-check-admin-refresh-token',
+      token_type: 'bearer',
+      expires_in: 3600,
+      expires_at: now + 3600,
+      user,
+    },
+  })
+
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/.*/, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/auth/v1/user') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) })
+      return
+    }
+    if (simulateReadFailure) {
+      await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'Synthetic office release-check read failure' }) })
+      return
+    }
+    await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '*/0' }, body: '[]' })
+  })
+
+  await page.route('**/api/**', async (route) => {
+    const pathname = new URL(route.request().url()).pathname
+    if (pathname === '/api/login-destination') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ role: 'admin', destination: '/admin' }) })
+      return
+    }
+    if (simulateReadFailure) {
+      await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Synthetic office release-check outage' }) })
+      return
+    }
+    const payloads: Record<string, object> = {
+      '/api/admin-documents': { documents: [] },
+      '/api/admin-stripe-payouts': { payouts: [], health: null },
+      '/api/meter-readings': { submissions: [], entries: [], counts: {}, monthStart: '2026-10-01' },
+      '/api/admin-sidebar-attention': { counts: {}, appBadgeCount: 0 },
+      '/api/admin-birthdays': { counts: {}, birthdays: [] },
+      '/api/community-feed': { unreadCount: 0, directCount: 0 },
+      '/api/admin-renewals': { success: true },
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(payloads[pathname] || {}),
+    })
+  })
+
+  return {
+    recoverReads() {
+      simulateReadFailure = false
+    },
+  }
+}
+
 test('health endpoint identifies the release without caching or customer data', async ({ request }) => {
   const response = await request.get('/api/health')
   expect(response.ok()).toBeTruthy()
@@ -213,4 +291,47 @@ test('weak-connection recovery is actionable and contained on priority camper sc
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByText('No messages yet. Send the first note to the office.')).toBeVisible()
   await expect(page.getByRole('alert').filter({ hasText: 'We could not open your conversation' })).toHaveCount(0)
+})
+
+test('office money and operations screens fail closed on a synthetic outage', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One required phone width covers the isolated office outage without contacting production.')
+  test.setTimeout(90_000)
+  const synthetic = await installSyntheticAdminSession(page)
+
+  const recoveryChecks = [
+    { path: '/admin/invoices', heading: 'Billing is temporarily unavailable' },
+    { path: '/admin/system-health', heading: 'System Health is temporarily unavailable' },
+    { path: '/admin/open-balance', heading: 'Open balances are temporarily unavailable' },
+    { path: '/admin/maintenance', heading: 'Maintenance is temporarily unavailable' },
+    { path: '/admin/campers', heading: 'Camper management is temporarily unavailable' },
+    { path: '/admin/documents', heading: 'Documents are temporarily unavailable' },
+    { path: '/admin/credits', heading: 'Account credits are temporarily unavailable' },
+    { path: '/admin/reports', heading: 'Reports are temporarily unavailable' },
+    { path: '/admin/renewals', heading: 'Renewals are temporarily unavailable' },
+    { path: '/admin/pump-outs', heading: 'Pump-outs are temporarily unavailable' },
+    { path: '/admin/site-services', heading: 'Site service charges are temporarily unavailable' },
+    { path: '/admin/stripe-deposits', heading: 'Stripe deposits are temporarily unavailable' },
+    { path: '/admin/income-projection', heading: 'Income projection is temporarily unavailable' },
+    { path: '/admin/individual-invoices', heading: 'Bulk invoicing is temporarily unavailable' },
+    { path: '/admin/electric/monthly-report', heading: 'Monthly electric report is temporarily unavailable' },
+    { path: '/admin/electric/meter-readings', heading: 'Meter review is temporarily unavailable' },
+    { path: '/admin/site-availability', heading: 'Site availability is temporarily unavailable' },
+    { path: '/admin/electric', heading: 'Electric billing is temporarily unavailable' },
+  ]
+
+  for (const recovery of recoveryChecks) {
+    await page.goto(recovery.path)
+    await expect(page.getByRole('alert').getByRole('heading', { name: recovery.heading })).toBeVisible()
+    const retry = page.getByRole('button', { name: 'Try again' })
+    await expect(retry).toBeVisible()
+    expect((await retry.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(42)
+    await expectNoHorizontalOverflow(page)
+  }
+
+  await page.goto('/admin/open-balance')
+  await expect(page.getByRole('heading', { name: 'Open balances are temporarily unavailable' })).toBeVisible()
+  synthetic.recoverReads()
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('heading', { name: 'Amount Due This Month' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Open balances are temporarily unavailable' })).toHaveCount(0)
 })
