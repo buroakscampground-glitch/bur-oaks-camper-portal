@@ -9,6 +9,7 @@ import { alertStripePayoutProblem } from '../../../lib/stripe-payout-alerts'
 import { priorPaymentReview } from '../../../lib/stripe-payment-review'
 import { achExpectedFromStripeEvent } from '../../../lib/ach-expected-date'
 import { reportOperationalFailure, supportReferenceMessage } from '../../../lib/operational-errors'
+import { alertStripeWebhookFailure } from '../../../lib/cron-failure-alert'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -92,6 +93,7 @@ export async function POST(request: Request) {
       operation: 'stripe-webhook-ledger',
       identifiers: { stripeEventId: event.id, stripeEventType: event.type },
     }, ledgerError)
+    await alertStripeWebhookFailure('stripe-webhook-ledger', request)
     return NextResponse.json({ error: supportReferenceMessage('Webhook processing is temporarily unavailable.', requestId), requestId }, { status: 500 })
   }
 
@@ -585,6 +587,7 @@ export async function POST(request: Request) {
         .eq('event_id', event.id)
     }
 
+    await alertStripeWebhookFailure('stripe-webhook-processing', request)
     return NextResponse.json({ error: supportReferenceMessage('Webhook processing failed.', requestId), requestId }, { status: 500 })
   }
 }

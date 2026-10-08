@@ -12,18 +12,18 @@ function safeJobName(value: string) {
     .slice(0, 80) || 'scheduled-operation'
 }
 
-async function alertCronFailure(jobName: string, request: Request, status: number) {
+async function alertExternalFailure(kind: 'scheduled operation' | 'Stripe webhook', jobName: string, request: Request, status: number) {
   if (process.env.CRON_FAILURE_ALERTS_ENABLED === 'false') return
 
   const job = safeJobName(jobName)
   const requestId = String(request.headers.get('x-request-id') || '').replace(/[^a-zA-Z0-9-]/g, '').slice(0, 80)
   const actionUrl = `${getSiteUrl()}/admin/system-health#delivery`
-  const message = `The ${job} scheduled operation returned a server error. Open System Health before repeating any related office work.`
+  const message = `The ${job} ${kind} returned a server error. Open System Health before repeating any related office work.`
 
   const results = await Promise.allSettled([
     sendAdminAlertEmail({
-      subject: `Bur Oaks scheduled operation failed — ${job}`,
-      heading: 'A scheduled operation needs attention',
+      subject: `Bur Oaks ${kind} failed — ${job}`,
+      heading: `A ${kind} needs attention`,
       message,
       details: [
         { label: 'Operation', value: job },
@@ -50,11 +50,15 @@ export function withCronFailureAlert(jobName: string, handler: CronHandler): Cro
   return async (request: Request) => {
     try {
       const response = await handler(request)
-      if (response.status >= 500) await alertCronFailure(jobName, request, response.status)
+      if (response.status >= 500) await alertExternalFailure('scheduled operation', jobName, request, response.status)
       return response
     } catch (error) {
-      await alertCronFailure(jobName, request, 500)
+      await alertExternalFailure('scheduled operation', jobName, request, 500)
       throw error
     }
   }
+}
+
+export async function alertStripeWebhookFailure(operation: string, request: Request, status = 500) {
+  await alertExternalFailure('Stripe webhook', operation, request, status)
 }

@@ -7,9 +7,9 @@ const cronRoot = new URL('../app/api/cron/', import.meta.url)
 const guardSource = readFileSync(new URL('../lib/cron-failure-alert.ts', import.meta.url), 'utf8')
 
 test('the cron failure guard alerts only on server failures and preserves the response', () => {
-  assert.match(guardSource, /if \(response\.status >= 500\) await alertCronFailure/)
+  assert.match(guardSource, /if \(response\.status >= 500\) await alertExternalFailure\('scheduled operation'/)
   assert.match(guardSource, /return response/)
-  assert.match(guardSource, /catch \(error\) \{\s*await alertCronFailure\(jobName, request, 500\)\s*throw error/)
+  assert.match(guardSource, /catch \(error\) \{\s*await alertExternalFailure\('scheduled operation', jobName, request, 500\)\s*throw error/)
 })
 
 test('every scheduled route is guarded directly or delegates to a guarded route', () => {
@@ -31,4 +31,14 @@ test('external failure alerts contain no response body or camper data', () => {
   assert.match(guardSource, /Request reference/)
   assert.match(guardSource, /system_failure/)
   assert.match(guardSource, /admin\/system-health#delivery/)
+})
+
+test('Stripe alerts only after cryptographic verification reaches a server failure', () => {
+  const webhook = readFileSync(new URL('../app/api/stripe-webhook/route.ts', import.meta.url), 'utf8')
+  const postAt = webhook.indexOf('export async function POST')
+  const verifiedAt = webhook.indexOf('stripe.webhooks.constructEvent(payload, signature, webhookSecret)')
+  const ledgerAlertAt = webhook.indexOf("alertStripeWebhookFailure('stripe-webhook-ledger'")
+  const processingAlertAt = webhook.indexOf("alertStripeWebhookFailure('stripe-webhook-processing'")
+  assert.ok(postAt >= 0 && verifiedAt > postAt && ledgerAlertAt > verifiedAt && processingAlertAt > verifiedAt)
+  assert.doesNotMatch(webhook.slice(postAt, verifiedAt), /alertStripeWebhookFailure/)
 })
