@@ -115,3 +115,17 @@ test('event email, SMS, community email, and staff push deliveries use typed bou
   assert.match(files[2], /const users: User\[\]/)
   for (const source of files) assert.doesNotMatch(source, /\bany\b/)
 })
+
+test('Twilio consent propagation and camper celebrations use typed database boundaries', async () => {
+  const files = await Promise.all([
+    read('lib/twilio-sms.ts'),
+    read('lib/camper-celebrations.ts'),
+  ])
+
+  for (const source of files) {
+    assert.match(source, /SupabaseClient/)
+    assert.doesNotMatch(source, /\bany\b/)
+  }
+  assert.match(files[0], /type TwilioResponse =/)
+  assert.match(files[1], /camper: AuthCamperRecord/)
+})

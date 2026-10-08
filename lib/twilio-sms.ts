@@ -1,12 +1,20 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 type SmsResult =
   | { sent: true; providerMessageId: string }
   | { sent: false; error: string; errorCode?: number; consentUpdated?: boolean }
 
-type SmsDatabaseClient = {
-  from: (table: string) => any
+type SmsCamperRow = {
+  id: string
+  phone?: string | null
+  alternate_phone?: string | null
+  second_profile_phone?: string | null
 }
 
-function camperPhones(camper: any) {
+type SmsConsentRow = { phone_number?: string | null; opted_in?: boolean | null }
+type TwilioResponse = { sid?: string; code?: number | string; message?: string }
+
+function camperPhones(camper: SmsCamperRow | null | undefined) {
   return Array.from(new Set([
     camper?.phone,
     camper?.alternate_phone,
@@ -18,7 +26,7 @@ export function isTwilioUnsubscribeError(errorCode: unknown, message: unknown) {
   return Number(errorCode) === 21610 || /(?:has\s+)?unsubscribed|opted\s+out/i.test(String(message || ''))
 }
 
-async function syncProviderUnsubscribe(client: SmsDatabaseClient, camperId: string, phone: string) {
+async function syncProviderUnsubscribe(client: SupabaseClient, camperId: string, phone: string) {
   const cleanPhone = formatSmsPhone(phone)
   if (!cleanPhone || !camperId) return false
 
@@ -29,11 +37,12 @@ async function syncProviderUnsubscribe(client: SmsDatabaseClient, camperId: stri
     .from('campers')
     .select('id,phone,alternate_phone,second_profile_phone,sms_opt_in_at,event_reminders_opt_in_at')
   if (camperError) return false
-  const matchingCampers = (campers || []).filter((camper: any) => camperPhones(camper).includes(cleanPhone))
-  if (!matchingCampers.some((camper: any) => String(camper.id) === String(camperId))) return false
+  const camperRows = (campers || []) as SmsCamperRow[]
+  const matchingCampers = camperRows.filter((camper) => camperPhones(camper).includes(cleanPhone))
+  if (!matchingCampers.some((camper) => String(camper.id) === String(camperId))) return false
 
   const now = new Date().toISOString()
-  const { error: consentError } = await client.from('sms_phone_consents').upsert(matchingCampers.map((camper: any) => ({
+  const { error: consentError } = await client.from('sms_phone_consents').upsert(matchingCampers.map((camper) => ({
     camper_id: camper.id,
     phone_number: cleanPhone,
     opted_in: false,
@@ -53,7 +62,7 @@ async function syncProviderUnsubscribe(client: SmsDatabaseClient, camperId: stri
       .in('phone_number', savedPhones)
     if (remainingError) return false
 
-    const householdEnabled = (consentRows || []).some((row: any) => row.opted_in === true)
+    const householdEnabled = ((consentRows || []) as SmsConsentRow[]).some((row) => row.opted_in === true)
     const { error: camperUpdateError } = await client.from('campers').update({
       sms_opt_in: householdEnabled,
       event_reminders_opt_in: householdEnabled,
@@ -103,7 +112,7 @@ export async function sendTwilioSms({
 }: {
   to: string
   body: string
-  client?: SmsDatabaseClient
+  client?: SupabaseClient
   camperId?: string
 }): Promise<SmsResult> {
   const accountSid = process.env.TWILIO_ACCOUNT_SID
@@ -135,7 +144,7 @@ export async function sendTwilioSms({
     }
   )
 
-  const result = await response.json().catch(() => null)
+  const result = await response.json().catch(() => null) as TwilioResponse | null
 
   if (!response.ok) {
     const error = result?.message || `Twilio rejected the text message (${response.status}).`

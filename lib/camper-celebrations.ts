@@ -1,17 +1,15 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { escapeHtml } from './portal-invite-email'
 import { formatSmsPhone, isTwilioConfigured, sendTwilioSms } from './twilio-sms'
 import { portalSmsUrl } from './portal-sms-links'
 import { singleSegmentSms } from './sms-segments'
+import type { AuthCamperRecord } from './auth-account-match'
+import type { CentralDate } from './celebration-dates'
+
+export { anniversaryYears, birthdayIsToday, centralDate } from './celebration-dates'
 
 export type CelebrationProfile = 'primary' | 'secondary' | 'household'
 export type CelebrationType = 'birthday' | 'anniversary'
-
-type CentralDate = {
-  year: number
-  month: number
-  day: number
-  iso: string
-}
 
 type CelebrationEvent = {
   type: CelebrationType
@@ -21,10 +19,17 @@ type CelebrationEvent = {
 }
 
 type SendCelebrationOptions = {
-  client: any
-  camper: any
+  client: SupabaseClient
+  camper: AuthCamperRecord
   event: CelebrationEvent
   today: CentralDate
+}
+
+type CelebrationDeliveryResult = {
+  sent: boolean
+  provider?: 'sendgrid' | 'resend' | 'twilio' | 'portal' | null
+  providerMessageId?: string | null
+  error?: string
 }
 
 type EmailPayload = {
@@ -101,37 +106,6 @@ function celebrationEmailStatus() {
   return { provider: null, configured: false, from, replyTo }
 }
 
-export function centralDate(now = new Date()): CentralDate {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Chicago',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(now)
-  const value = (type: string) => Number(parts.find((part) => part.type === type)?.value || 0)
-  const year = value('year')
-  const month = value('month')
-  const day = value('day')
-  return { year, month, day, iso: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}` }
-}
-
-function parseDate(value: unknown) {
-  const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (!match) return null
-  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) }
-}
-
-export function birthdayIsToday(value: unknown, today: CentralDate) {
-  const date = parseDate(value)
-  return Boolean(date && date.month === today.month && date.day === today.day)
-}
-
-export function anniversaryYears(value: unknown, today: CentralDate) {
-  const date = parseDate(value)
-  if (!date || date.month !== today.month || date.day !== today.day) return 0
-  return Math.max(0, today.year - date.year)
-}
-
 function firstName(value: unknown, fallback = 'there') {
   return String(value || '').trim().split(/\s+/)[0] || fallback
 }
@@ -166,13 +140,13 @@ function messageCopy(event: CelebrationEvent) {
   }
 }
 
-function emailRecipients(camper: any, profile: CelebrationProfile) {
+function emailRecipients(camper: AuthCamperRecord, profile: CelebrationProfile) {
   if (profile === 'primary') return uniqueEmails([camper.email])
   if (profile === 'secondary') return uniqueEmails([camper.secondary_email || camper.email])
   return uniqueEmails([camper.email, camper.secondary_email])
 }
 
-function smsRecipient(camper: any, profile: CelebrationProfile) {
+function smsRecipient(camper: AuthCamperRecord, profile: CelebrationProfile) {
   if (profile === 'secondary') {
     return formatSmsPhone(camper.second_profile_phone || camper.alternate_phone || camper.phone)
   }
@@ -224,12 +198,12 @@ async function sendEmail(payload: EmailPayload) {
     headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ from: payload.from, to: payload.to, reply_to: payload.replyTo, subject: payload.subject, html: payload.html, text: payload.text }),
   })
-  const result = await response.json().catch(() => ({}))
+  const result = await response.json().catch(() => ({})) as { id?: string; message?: string }
   if (!response.ok) return { sent: false, provider: status.provider, error: result?.message || 'Resend rejected the email.' }
   return { sent: true, provider: status.provider, providerMessageId: result?.id || null }
 }
 
-async function reserveDelivery(client: any, camperId: string, event: CelebrationEvent, year: number, channel: 'email' | 'sms' | 'portal', recipient: string, subject: string | null, message: string) {
+async function reserveDelivery(client: SupabaseClient, camperId: string, event: CelebrationEvent, year: number, channel: 'email' | 'sms' | 'portal', recipient: string, subject: string | null, message: string) {
   const key = {
     camper_id: camperId,
     celebration_type: event.type,
@@ -272,7 +246,7 @@ async function reserveDelivery(client: any, camperId: string, event: Celebration
   return error ? { reserved: false, error: error.message } : { reserved: true, id: data.id }
 }
 
-async function finalizeDelivery(client: any, id: string, result: { sent: boolean; provider?: string | null; providerMessageId?: string | null; error?: string }) {
+async function finalizeDelivery(client: SupabaseClient, id: string, result: CelebrationDeliveryResult) {
   await client.from('camper_celebration_deliveries').update({
     status: result.sent ? 'sent' : 'failed',
     provider: result.provider || null,
@@ -323,7 +297,7 @@ export async function sendCamperCelebration({ client, camper, event, today }: Se
     const reservation = await reserveDelivery(client, camper.id, event, today.year, 'sms', phone, null, copy.sms)
     if (reservation.reserved && reservation.id) {
       const result = await sendTwilioSms({ to: phone, body: copy.sms, client, camperId: camper.id })
-      const deliveryResult = result.sent
+      const deliveryResult: CelebrationDeliveryResult = result.sent
         ? { sent: true, provider: 'twilio', providerMessageId: result.providerMessageId }
         : { sent: false, provider: 'twilio', error: result.error }
       await finalizeDelivery(client, reservation.id, deliveryResult)
