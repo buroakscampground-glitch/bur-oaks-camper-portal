@@ -53,3 +53,24 @@ test('document center blocks false empty states after any required read fails', 
   assert.match(page, /Documents are temporarily unavailable/)
   assert.match(page, /finally \{\s*setLoading\(false\)/)
 })
+
+test('account credits never present a failed read as a zero credit balance', () => {
+  const page = read('app/admin/credits/page.tsx')
+  assert.match(page, /if \(creditResult\.error\) throw creditResult\.error/)
+  assert.match(page, /The credit balance and history are hidden/)
+  assert.match(page, /Account credits are temporarily unavailable/)
+})
+
+test('reports block printing and exports unless all six source reads succeed', () => {
+  const page = read('app/admin/reports/page.tsx')
+  assert.match(page, /yearPumpOutResult\]\s*\.find\(\(result\) => result\.error\)/)
+  assert.match(page, /printing, and exports are blocked/)
+  assert.match(page, /Reports are temporarily unavailable/)
+})
+
+test('renewal forecast does not show a failed read as an empty action list', () => {
+  const page = read('app/admin/renewals/page.tsx')
+  assert.match(page, /Renewal records could not be loaded completely/)
+  assert.match(page, /Renewals are temporarily unavailable/)
+  assert.match(page, /onClick=\{loadPage\}>Try again/)
+})

@@ -273,6 +273,7 @@ export default function AdminRenewalsPage() {
   const [view, setView] = useState<View>('Action')
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [saving, setSaving] = useState('')
   const [feedback, setFeedback] = useState('')
   const [selectedSiteId, setSelectedSiteId] = useState('')
@@ -332,6 +333,7 @@ export default function AdminRenewalsPage() {
 
   async function loadPage() {
     setLoading(true)
+    setLoadError('')
     const session = await supabase.auth.getSession()
     const token = session.data.session?.access_token
     if (token) {
@@ -350,7 +352,7 @@ export default function AdminRenewalsPage() {
     ])
 
     if (camperResult.error || renewalResult.error || documentResult.error || lotResult.error || rentInvoiceResult.error) {
-      setFeedback(camperResult.error?.message || renewalResult.error?.message || documentResult.error?.message || lotResult.error?.message || rentInvoiceResult.error?.message || 'Unable to load renewal records.')
+      setLoadError('Renewal records could not be loaded completely. Forecast counts and action lists are hidden until the office can reconnect.')
       setLoading(false)
       return
     }
@@ -768,6 +770,10 @@ export default function AdminRenewalsPage() {
     })
     return Object.entries(events).filter(([month]) => month >= currentMonth).sort(([a], [b]) => a.localeCompare(b)).slice(0, 12)
   }, [rows])
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Renewals are temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadPage}>Try again</button></main>
+  }
 
   return (
     <main className="renewal-page">

@@ -124,6 +124,7 @@ export default function AdminMonthlyReportsPage() {
   const [pumpOuts, setPumpOuts] = useState<any[]>([])
   const [yearPumpOuts, setYearPumpOuts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [message, setMessage] = useState('')
   const [search, setSearch] = useState('')
   const [openKpi, setOpenKpi] = useState<'received' | 'paid' | 'average' | 'past-due' | 'owed' | null>(null)
@@ -147,6 +148,7 @@ export default function AdminMonthlyReportsPage() {
 
   async function loadReport() {
     setLoading(true)
+    setLoadError('')
     setMessage('')
 
     const invoiceSelect = `
@@ -161,7 +163,8 @@ export default function AdminMonthlyReportsPage() {
       invoice_items (*)
     `
 
-    const [invoiceResult, yearInvoiceResult, outstandingResult, dueInvoiceResult, pumpOutResult, yearPumpOutResult] = await Promise.all([
+    try {
+      const [invoiceResult, yearInvoiceResult, outstandingResult, dueInvoiceResult, pumpOutResult, yearPumpOutResult] = await Promise.all([
       supabase
         .from('invoices')
         .select(invoiceSelect)
@@ -200,18 +203,30 @@ export default function AdminMonthlyReportsPage() {
         .eq('status', 'completed')
         .gte('completed_at', annualRange.start.toISOString())
         .lt('completed_at', annualRange.end.toISOString()),
-    ])
+      ])
 
-    const errors = [invoiceResult.error, yearInvoiceResult.error, outstandingResult.error, dueInvoiceResult.error, pumpOutResult.error, yearPumpOutResult.error].filter(Boolean)
-    setMessage(errors.map((error) => error?.message).join(' '))
-    setInvoices(invoiceResult.data || [])
-    setYearInvoices(yearInvoiceResult.data || [])
-    setOutstandingInvoices(outstandingResult.data || [])
-    setDueInvoices(dueInvoiceResult.data || [])
-    setPumpOuts(pumpOutResult.data || [])
-    setYearPumpOuts(yearPumpOutResult.data || [])
+      const failedResult = [invoiceResult, yearInvoiceResult, outstandingResult, dueInvoiceResult, pumpOutResult, yearPumpOutResult]
+        .find((result) => result.error)
+      if (failedResult?.error) throw failedResult.error
 
-    setLoading(false)
+      setInvoices(invoiceResult.data || [])
+      setYearInvoices(yearInvoiceResult.data || [])
+      setOutstandingInvoices(outstandingResult.data || [])
+      setDueInvoices(dueInvoiceResult.data || [])
+      setPumpOuts(pumpOutResult.data || [])
+      setYearPumpOuts(yearPumpOutResult.data || [])
+    } catch (error) {
+      console.error(error)
+      setInvoices([])
+      setYearInvoices([])
+      setOutstandingInvoices([])
+      setDueInvoices([])
+      setPumpOuts([])
+      setYearPumpOuts([])
+      setLoadError('Financial reports could not be loaded completely. Totals, printing, and exports are blocked until every required record is available.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const reportInvoices = reportScope === 'month' ? invoices : yearInvoices
@@ -468,6 +483,10 @@ export default function AdminMonthlyReportsPage() {
   function showMonthlyDetail(detail: string) {
     setMonthlyDetail(detail)
     window.setTimeout(() => document.getElementById('admin-report-month-detail')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Reports are temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadReport}>Try again</button></main>
   }
 
   return (

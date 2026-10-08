@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, CircleDollarSign, Search, Undo2, WalletCards, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, CircleDollarSign, Loader2, Search, Undo2, WalletCards, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { formatCreditMoney } from '../../../lib/account-credits'
@@ -42,27 +42,39 @@ export default function AdminCreditsPage() {
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [savingId, setSavingId] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadData()
   }, [])
 
   async function loadData() {
-    const [camperResult, creditResult, applicationResult] = await Promise.all([
-      supabase.from('campers').select('id,first_name,last_name,lot_number,email,active,role').eq('active', true).order('lot_number'),
-      supabase.from('account_credits').select('*').order('created_at', { ascending: false }),
-      supabase.from('account_credit_applications').select('*, invoices(id,invoice_number,invoice_type,due_date,status,total_due)').order('applied_at', { ascending: false }).limit(500),
-    ])
+    setLoading(true)
+    setLoadError('')
+    try {
+      const [camperResult, creditResult, applicationResult] = await Promise.all([
+        supabase.from('campers').select('id,first_name,last_name,lot_number,email,active,role').eq('active', true).order('lot_number'),
+        supabase.from('account_credits').select('*').order('created_at', { ascending: false }),
+        supabase.from('account_credit_applications').select('*, invoices(id,invoice_number,invoice_type,due_date,status,total_due)').order('applied_at', { ascending: false }).limit(500),
+      ])
 
-    if (camperResult.error) setMessage(camperResult.error.message)
-    if (creditResult.error) setMessage(creditResult.error.message)
-    if (applicationResult.error && !['42P01', 'PGRST205'].includes(applicationResult.error.code || '')) {
-      setMessage(applicationResult.error.message)
+      if (camperResult.error) throw camperResult.error
+      if (creditResult.error) throw creditResult.error
+      if (applicationResult.error && !['42P01', 'PGRST205'].includes(applicationResult.error.code || '')) throw applicationResult.error
+
+      setCampers((camperResult.data || []).filter(isOperationalCamper))
+      setCredits(creditResult.data || [])
+      setApplications(applicationResult.data || [])
+    } catch (error) {
+      console.error(error)
+      setCampers([])
+      setCredits([])
+      setApplications([])
+      setLoadError('Account credits could not be loaded. The credit balance and history are hidden until the office can reconnect.')
+    } finally {
+      setLoading(false)
     }
-
-    setCampers((camperResult.data || []).filter(isOperationalCamper))
-    setCredits(creditResult.data || [])
-    setApplications(applicationResult.data || [])
   }
 
   async function addCredit() {
@@ -189,6 +201,14 @@ export default function AdminCreditsPage() {
   }, [credits, filter, search])
 
   const selectedCamper = campers.find((camper) => camper.id === camperId)
+
+  if (loading) {
+    return <main className="portal-loading"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading account credits…</h1><p>Checking current balances and applications.</p></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Account credits are temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadData}>Try again</button></main>
+  }
 
   return (
     <main className="admin-credits-page">
