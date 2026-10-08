@@ -6,6 +6,7 @@ import CamperChrome from '../components/CamperChrome'
 import AuthLinkRedirect from '../components/AuthLinkRedirect'
 import GoogleAnalytics from '../components/GoogleAnalytics'
 import PublicAnalyticsTracker from '../components/PublicAnalyticsTracker'
+import ConnectionStatus from '../components/ConnectionStatus'
 
 const siteUrl = 'https://www.buroakscampground.com'
 
@@ -98,6 +99,7 @@ export default function RootLayout({
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(campgroundSchema) }} />
         <PublicAnalyticsTracker />
         <AuthLinkRedirect />
+        <ConnectionStatus />
         <div id="main-content" className="global-main-content" tabIndex={-1}>
           <CamperChrome>{children}</CamperChrome>
         </div>

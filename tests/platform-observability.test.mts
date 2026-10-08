@@ -8,6 +8,7 @@ const login = await readFile(new URL('../app/login/page.tsx', import.meta.url), 
 const passwordReset = await readFile(new URL('../app/forgot-password/page.tsx', import.meta.url), 'utf8')
 const layout = await readFile(new URL('../app/layout.tsx', import.meta.url), 'utf8')
 const styles = await readFile(new URL('../app/globals.css', import.meta.url), 'utf8')
+const connectionStatus = await readFile(new URL('../components/ConnectionStatus.tsx', import.meta.url), 'utf8')
 
 test('real page and API requests receive an opaque trace reference', () => {
   assert.match(proxy, /crypto\.randomUUID\(\)/)
@@ -46,4 +47,14 @@ test('every workspace has a keyboard skip path and visible focus fallback', () =
   assert.match(styles, /\.global-skip-link:focus\{transform:translateY\(0\)/)
   assert.match(styles, /:where\(a,button,input,select,textarea,summary,\[tabindex\]\):focus-visible/)
   assert.match(styles, /@media\(forced-colors:active\)/)
+})
+
+test('every workspace warns safely when a connection is lost and restored', () => {
+  assert.match(layout, /<ConnectionStatus \/>/)
+  assert.match(connectionStatus, /window\.addEventListener\('offline'/)
+  assert.match(connectionStatus, /window\.addEventListener\('online'/)
+  assert.match(connectionStatus, /Unsaved changes may not have reached Bur Oaks/)
+  assert.match(connectionStatus, /before repeating a payment, message, or request/)
+  assert.match(connectionStatus, /role="status"/)
+  assert.match(connectionStatus, /aria-live="polite"/)
 })

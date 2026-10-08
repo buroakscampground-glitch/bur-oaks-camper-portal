@@ -494,6 +494,22 @@ test('keyboard users can skip repeated navigation at every release width', async
   await expectNoHorizontalOverflow(page)
 })
 
+test('connection loss and recovery give safe global guidance', async ({ page }, testInfo) => {
+  test.skip(!['phone-360', 'desktop'].includes(testInfo.project.name), 'Phone and desktop prove both status-banner positions.')
+  await page.goto('/login')
+
+  await page.evaluate(() => window.dispatchEvent(new Event('offline')))
+  const lost = page.locator('.global-connection-status')
+  await expect(lost).toHaveAttribute('role', 'status')
+  await expect(lost).toContainText('Connection lost')
+  await expect(lost).toContainText('Unsaved changes may not have reached Bur Oaks')
+  await expectNoHorizontalOverflow(page)
+
+  await page.evaluate(() => window.dispatchEvent(new Event('online')))
+  await expect(lost).toContainText('Connection restored')
+  await expect(lost).toContainText('before repeating a payment, message, or request')
+})
+
 test('sign-in stays visible, keyboard-ready, and contained at every release width', async ({ page, isMobile }) => {
   const response = await page.goto('/login')
   expect(response?.ok()).toBeTruthy()
