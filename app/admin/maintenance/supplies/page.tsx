@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CheckCircle2, Clock3, PackageCheck, Search, ShoppingBasket, Truck } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock3, Loader2, PackageCheck, Search, ShoppingBasket, Truck } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { markAdminAlertsSeen } from '../../../../lib/admin-alert-actions'
 
@@ -10,19 +10,24 @@ export default function AdminMaintenanceSuppliesPage() {
   const [view, setView] = useState('Active')
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadRequests()
   }, [])
 
   async function loadRequests() {
+    setLoading(true)
+    setLoadError('')
     const { data, error } = await supabase
       .from('maintenance_supply_requests')
       .select('*')
       .order('requested_at', { ascending: false })
 
-    setMessage(error ? error.message : '')
-    setRequests(data || [])
+    if (error) setLoadError('Supply requests could not be loaded. Queue totals and update controls are blocked.')
+    else setRequests(data || [])
+    setLoading(false)
   }
 
   async function updateRequest(request: any, status: 'Requested' | 'Ordered' | 'Received' | 'Cancelled') {
@@ -53,6 +58,9 @@ export default function AdminMaintenanceSuppliesPage() {
     const term = search.trim().toLowerCase()
     return !term || `${request.item_name} ${request.requested_by} ${request.notes || ''}`.toLowerCase().includes(term)
   })
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading supply requests…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Supply requests are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadRequests}>Try again</button></main>
 
   return (
     <main className="admin-supplies-page">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { BookOpen, CheckCheck, Search, UserX } from 'lucide-react'
+import { AlertTriangle, BookOpen, CheckCheck, Loader2, Search, UserX } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 function isWaitlistRemoval(notification: any) {
@@ -15,10 +15,14 @@ export default function WaitlistRemovalsPage() {
   const [notifications, setNotifications] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => { loadRemovals() }, [])
 
   async function loadRemovals() {
+    setLoading(true)
+    setLoadError('')
     const { data, error } = await supabase
       .from('admin_notifications')
       .select('*')
@@ -26,8 +30,9 @@ export default function WaitlistRemovalsPage() {
       .order('created_at', { ascending: false })
       .limit(500)
 
-    if (error) setMessage(error.message)
-    setNotifications((data || []).filter(isWaitlistRemoval))
+    if (error) setLoadError('Waitlist opt-outs could not be loaded. Review controls are blocked so no response is hidden accidentally.')
+    else setNotifications((data || []).filter(isWaitlistRemoval))
+    setLoading(false)
   }
 
   async function markReviewed(id?: string) {
@@ -56,6 +61,9 @@ export default function WaitlistRemovalsPage() {
     return notifications.filter((item) => !term || `${item.title || ''} ${item.message || ''}`.toLowerCase().includes(term))
   }, [notifications, search])
   const unreadCount = notifications.filter((item) => !item.read_at).length
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading waitlist opt-outs…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Waitlist opt-outs are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadRemovals}>Try again</button></main>
 
   return (
     <main className="admin-notifications-page waitlist-removals-page">

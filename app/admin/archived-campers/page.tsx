@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isUnbilledPumpOutWork } from '../../../lib/pump-out-status'
 import { isInvoiceOutstanding } from '../../../lib/invoice-balance'
@@ -11,6 +12,7 @@ export default function ArchivedCampersPage() {
   const [billingStatus, setBillingStatus] = useState<Record<string, { openInvoices: number; balance: number; unbilledPumpOuts: number }>>({})
   const [message, setMessage] = useState('')
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const router = useRouter()
 
   useEffect(() => {
@@ -18,39 +20,43 @@ export default function ArchivedCampersPage() {
   }, [])
 
   async function checkAdmin() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
+    setLoadError('')
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      if (authError) throw authError
 
-    if (!user) {
-      window.location.href = '/login'
-      return
+      if (!user) {
+        window.location.href = '/login'
+        return
+      }
+
+      const { data: camper, error: roleError } = await supabase
+        .from('campers')
+        .select('role')
+        .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
+        .single()
+      if (roleError) throw roleError
+
+      if (!camper || camper.role?.toLowerCase() !== 'admin') {
+        window.location.href = '/portal'
+        return
+      }
+
+      await loadCampers()
+    } catch {
+      setLoadError('The camper archive or its billing status could not be loaded. Restore controls are blocked.')
+    } finally {
+      setCheckingAuth(false)
     }
-
-    const { data: camper } = await supabase
-      .from('campers')
-      .select('role')
-      .or(`email.ilike.${user.email?.trim().toLowerCase()},secondary_email.ilike.${user.email?.trim().toLowerCase()}`)
-      .single()
-
-    if (
-      !camper ||
-      camper.role?.toLowerCase() !== 'admin'
-    ) {
-      window.location.href = '/portal'
-      return
-    }
-
-    await loadCampers()
-    setCheckingAuth(false)
   }
 
   async function loadCampers() {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('campers')
       .select('*')
       .eq('active', false)
       .order('lot_number', { ascending: true })
+    if (error) throw error
 
     const archivedCampers = data || []
     setCampers(archivedCampers)
@@ -65,6 +71,7 @@ export default function ArchivedCampersPage() {
       supabase.from('invoices').select('camper_id,status,total_due').in('camper_id', camperIds),
       supabase.from('sewer_pump_out_requests').select('camper_id,status,billed_at').in('camper_id', camperIds),
     ])
+    if (invoiceResult.error || pumpOutResult.error) throw invoiceResult.error || pumpOutResult.error
 
     const nextStatus: Record<string, { openInvoices: number; balance: number; unbilledPumpOuts: number }> = {}
     for (const camper of archivedCampers) {
@@ -100,11 +107,11 @@ export default function ArchivedCampersPage() {
 
   if (checkingAuth) {
     return (
-      <main style={{ padding: '40px' }}>
-        <h2>Checking permissions...</h2>
-      </main>
+      <main className="portal-loading"><Loader2 className="spin" /><h1>Loading camper archive…</h1></main>
     )
   }
+
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Camper archive is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={() => { setCheckingAuth(true); checkAdmin() }}>Try again</button></main>
 
   return (
     <main style={{ padding: '40px' }}>

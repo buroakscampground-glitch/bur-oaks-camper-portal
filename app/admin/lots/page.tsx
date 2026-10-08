@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import {
+  AlertTriangle,
   CircleDollarSign,
   Gauge,
   MapPin,
+  Loader2,
   Plus,
   Search,
   TentTree,
@@ -28,19 +30,28 @@ export default function LotsPage() {
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
   const [syncing, setSyncing] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadData()
   }, [])
 
   async function loadData() {
+    setLoading(true)
+    setLoadError('')
     const [lotResult, camperResult] = await Promise.all([
       supabase.from('lots').select('*').order('lot_number', { ascending: true }),
       supabase.from('campers').select('*').eq('active', true).order('lot_number', { ascending: true }),
     ])
 
-    setLots(lotResult.data || [])
-    setCampers((camperResult.data || []).filter((camper) => !isSystemPortalAccount(camper)))
+    if (lotResult.error || camperResult.error) {
+      setLoadError('Lots and camper assignments could not be loaded. Site changes are blocked until the full roster is available.')
+    } else {
+      setLots(lotResult.data || [])
+      setCampers((camperResult.data || []).filter((camper) => !isSystemPortalAccount(camper)))
+    }
+    setLoading(false)
   }
 
   const sites = useMemo(() => {
@@ -199,6 +210,9 @@ export default function LotsPage() {
     setMessage(`Site ${site.lot_number} record deleted.`)
     loadData()
   }
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading lots and sites…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Lots and sites are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadData}>Try again</button></main>
 
   return (
     <main className="admin-lot-center">

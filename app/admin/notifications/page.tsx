@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { BellRing, CalendarClock, CheckCheck, CircleDollarSign, ClipboardCheck, MessageCircle, MessageSquareWarning, PartyPopper, Search, UsersRound, Wrench } from 'lucide-react'
+import { AlertTriangle, BellRing, CalendarClock, CheckCheck, CircleDollarSign, ClipboardCheck, Loader2, MessageCircle, MessageSquareWarning, PartyPopper, Search, UsersRound, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import AdminQuickText from '../../../components/AdminQuickText'
 import { informationalAdminNotificationTypes } from '../../../lib/admin-notification-types'
@@ -28,12 +28,16 @@ export default function AdminNotificationsPage() {
   const [filter, setFilter] = useState('unread')
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadNotifications()
   }, [])
 
   async function loadNotifications() {
+    setLoading(true)
+    setLoadError('')
     const { data, error } = await supabase
       .from('admin_notifications')
       .select('*')
@@ -41,8 +45,9 @@ export default function AdminNotificationsPage() {
       .order('created_at', { ascending: false })
       .limit(200)
 
-    if (error) setMessage(error.message)
-    setNotifications(data || [])
+    if (error) setLoadError('Notifications could not be loaded. Handling controls are blocked so nothing is cleared accidentally.')
+    else setNotifications(data || [])
+    setLoading(false)
   }
 
   async function markSeen(id?: string) {
@@ -76,6 +81,9 @@ export default function AdminNotificationsPage() {
   })
 
   const unreadCount = notifications.filter((notification) => !notification.read_at && notification.type !== 'event_rsvp').length
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading notifications…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Notifications are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadNotifications}>Try again</button></main>
 
   return (
     <main className="admin-notifications-page">

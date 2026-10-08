@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, CreditCard, Droplets, Gauge, Mail, MessageSquareText, Save, ShieldCheck, SprayCan } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CreditCard, Droplets, Gauge, Loader2, Mail, MessageSquareText, Save, ShieldCheck, SprayCan } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { calculateCardProcessingFee, cardProcessingFeeSettings, loadPaymentFeeSettings } from '../../../lib/payment-fees'
 import {
@@ -25,6 +25,7 @@ export default function AdminSettingsPage() {
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [electricRate, setElectricRate] = useState(String(defaultCampgroundBillingSettings.electricDefaultRate))
   const [waterTrashFees, setWaterTrashFees] = useState(defaultCampgroundBillingSettings.waterTrashFees.join(', '))
   const [sewerPumpOutFee, setSewerPumpOutFee] = useState(String(defaultCampgroundBillingSettings.sewerPumpOutFee))
@@ -32,8 +33,12 @@ export default function AdminSettingsPage() {
     Object.fromEntries(defaultCampgroundBillingSettings.siteServices.map((service) => [service.type, String(service.amount)]))
   )
 
-  useEffect(() => {
-    async function loadSettings() {
+  async function loadSettings() {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const availability = await supabase.from('app_settings').select('key').limit(1)
+      if (availability.error) throw availability.error
       const [paymentSettings, billingSettings] = await Promise.all([
         loadPaymentFeeSettings(supabase),
         loadCampgroundBillingSettings(supabase),
@@ -44,9 +49,14 @@ export default function AdminSettingsPage() {
       setWaterTrashFees(billingSettings.waterTrashFees.join(', '))
       setSewerPumpOutFee(String(billingSettings.sewerPumpOutFee))
       setSiteServiceAmounts(Object.fromEntries(billingSettings.siteServices.map((service) => [service.type, String(service.amount)])))
+    } catch {
+      setLoadError('Campground settings could not be loaded. Saving is blocked so fallback values cannot overwrite live settings.')
+    } finally {
       setLoading(false)
     }
+  }
 
+  useEffect(() => {
     loadSettings()
   }, [])
 
@@ -198,6 +208,9 @@ export default function AdminSettingsPage() {
   function updateServiceAmount(type: string, value: string) {
     setSiteServiceAmounts((current) => ({ ...current, [type]: value }))
   }
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading campground settings…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Campground settings are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadSettings}>Try again</button></main>
 
   return (
     <main className="admin-settings-page">

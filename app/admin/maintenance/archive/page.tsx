@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Archive, CheckCircle2, Search, Wrench } from 'lucide-react'
+import { AlertTriangle, Archive, CheckCircle2, Search, Wrench } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 import { MaintenanceBadge } from '../../../../components/MaintenanceBadge'
 import { completedTicketStatusFilter, isCompletedTicketStatus } from '../../../../lib/maintenance-status'
@@ -22,6 +22,7 @@ export default function MaintenanceArchivePage() {
 
   async function loadTickets() {
     setLoading(true)
+    setError('')
 
     const { data, error: loadError } = await supabase
       .from('maintenance_tickets')
@@ -29,8 +30,8 @@ export default function MaintenanceArchivePage() {
       .or(completedTicketStatusFilter)
       .order('completed_at', { ascending: false, nullsFirst: false })
 
-    setTickets((data || []).filter((ticket) => isCompletedTicketStatus(ticket.status)))
-    setError(loadError?.message || '')
+    if (loadError) setError('The completed maintenance history could not be loaded. No totals are being shown as zero.')
+    else setTickets((data || []).filter((ticket) => isCompletedTicketStatus(ticket.status)))
     setLoading(false)
   }
 
@@ -50,6 +51,8 @@ export default function MaintenanceArchivePage() {
       return matchesSearch && matchesPriority
     })
   }, [priority, search, tickets])
+
+  if (!loading && error) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Maintenance archive is temporarily unavailable</h1><p>{error}</p><button className="portal-loading-retry" type="button" onClick={loadTickets}>Try again</button></main>
 
   return (
     <main className="admin-maintenance-page">

@@ -317,6 +317,17 @@ test('office money and operations screens fail closed on a synthetic outage', as
     { path: '/admin/electric/meter-readings', heading: 'Meter review is temporarily unavailable' },
     { path: '/admin/site-availability', heading: 'Site availability is temporarily unavailable' },
     { path: '/admin/electric', heading: 'Electric billing is temporarily unavailable' },
+    { path: '/admin/settings', heading: 'Campground settings are temporarily unavailable' },
+    { path: '/admin/lots', heading: 'Lots and sites are temporarily unavailable' },
+    { path: '/admin/waitlist', heading: 'Waitlist is temporarily unavailable' },
+    { path: '/admin/site-care', heading: 'Site care is temporarily unavailable' },
+    { path: '/admin/notifications', heading: 'Notifications are temporarily unavailable' },
+    { path: '/admin/archived-campers', heading: 'Camper archive is temporarily unavailable' },
+    { path: '/admin/directory', heading: 'Camper directory is temporarily unavailable' },
+    { path: '/admin/waitlist-removals', heading: 'Waitlist opt-outs are temporarily unavailable' },
+    { path: '/admin/maintenance/archive', heading: 'Maintenance archive is temporarily unavailable' },
+    { path: '/admin/maintenance/inventory', heading: 'Maintenance inventory is temporarily unavailable' },
+    { path: '/admin/maintenance/supplies', heading: 'Supply requests are temporarily unavailable' },
   ]
 
   for (const recovery of recoveryChecks) {

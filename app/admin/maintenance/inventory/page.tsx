@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, Archive, PackagePlus, Save, Search, Warehouse } from 'lucide-react'
+import { AlertTriangle, Archive, Loader2, PackagePlus, Save, Search, Warehouse } from 'lucide-react'
 import { supabase } from '../../../../lib/supabase'
 
 const EMPTY_FORM = {
@@ -23,6 +23,8 @@ export default function AdminMaintenanceInventoryPage() {
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadItems()
@@ -40,13 +42,17 @@ export default function AdminMaintenanceInventoryPage() {
   }, [])
 
   async function loadItems() {
-    const { data } = await supabase
+    setLoading(true)
+    setLoadError('')
+    const { data, error } = await supabase
       .from('maintenance_inventory_items')
       .select('*')
       .eq('active', true)
       .order('item_name', { ascending: true })
 
-    setItems(data || [])
+    if (error) setLoadError('Maintenance inventory could not be loaded. Stock totals and editing controls are blocked.')
+    else setItems(data || [])
+    setLoading(false)
   }
 
   function updateField(field: string, value: string) {
@@ -146,6 +152,9 @@ export default function AdminMaintenanceInventoryPage() {
     (sum, item) => sum + Number(item.stock_quantity || 0) * Number(item.unit_cost || 0),
     0
   )
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading maintenance inventory…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Maintenance inventory is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadItems}>Try again</button></main>
 
   return (
     <main className="admin-maintenance-inventory-page">

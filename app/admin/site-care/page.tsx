@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, ClipboardCheck, Eye, Leaf, Search, Send, Sparkles, Wrench } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardCheck, Eye, Leaf, Loader2, Search, Send, Sparkles, Wrench } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { enforceableSiteCareTemplates, isAutomaticSiteCareTemplate, storedSiteCareChargeAmount } from '../../../lib/site-care-enforcement'
@@ -44,22 +44,28 @@ export default function AdminSiteCarePage() {
   const [feedback, setFeedback] = useState('')
   const [saving, setSaving] = useState(false)
   const [updating, setUpdating] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => { loadPage() }, [])
 
   async function loadPage() {
+    setLoading(true)
+    setLoadError('')
     const [camperResult, noticeResult] = await Promise.all([
       supabase.from('campers').select('id,first_name,last_name,lot_number,role').eq('active', true).order('lot_number', { ascending: true }),
       supabase.from('site_care_notices').select('*').order('created_at', { ascending: false }),
     ])
 
     if (camperResult.error || noticeResult.error) {
-      setFeedback(camperResult.error?.message || noticeResult.error?.message || 'Unable to load site care.')
+      setLoadError('The camper roster or site-care queue could not be loaded. Sending and updating notices is blocked.')
+      setLoading(false)
       return
     }
 
     setCampers((camperResult.data || []).filter(isOperationalCamper))
     setNotices(noticeResult.data || [])
+    setLoading(false)
   }
 
   function chooseTemplate(template: typeof templates[number]) {
@@ -142,6 +148,9 @@ export default function AdminSiteCarePage() {
     const haystack = `${notice.lot_number || ''} ${notice.title} ${notice.message} ${camper ? camperName(camper) : ''}`.toLowerCase()
     return !search.trim() || haystack.includes(search.trim().toLowerCase())
   }), [campers, notices, search, view])
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading site care…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Site care is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadPage}>Try again</button></main>
 
   return (
     <main className="admin-site-care-page">

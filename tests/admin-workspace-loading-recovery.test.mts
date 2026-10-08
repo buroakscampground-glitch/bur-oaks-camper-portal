@@ -134,3 +134,33 @@ test('electric billing requires all money and operational sources before enablin
   assert.match(page, /Electric billing is temporarily unavailable/)
   assert.match(page, /finally \{\s*setInitialLoading\(false\)/)
 })
+
+test('remaining office rosters and action queues fail closed instead of looking empty', () => {
+  const checks = [
+    ['app/admin/settings/page.tsx', /app_settings.*select\('key'\)/s, /Campground settings are temporarily unavailable/],
+    ['app/admin/lots/page.tsx', /lotResult\.error \|\| camperResult\.error/, /Lots and sites are temporarily unavailable/],
+    ['app/admin/waitlist/page.tsx', /waitlistResult\.error \|\| lotResult\.error \|\| camperResult\.error/, /Waitlist is temporarily unavailable/],
+    ['app/admin/site-care/page.tsx', /camperResult\.error \|\| noticeResult\.error/, /Site care is temporarily unavailable/],
+    ['app/admin/notifications/page.tsx', /Handling controls are blocked/, /Notifications are temporarily unavailable/],
+    ['app/admin/directory/page.tsx', /No roster is being shown as empty/, /Camper directory is temporarily unavailable/],
+    ['app/admin/waitlist-removals/page.tsx', /Review controls are blocked/, /Waitlist opt-outs are temporarily unavailable/],
+    ['app/admin/archived-campers/page.tsx', /invoiceResult\.error \|\| pumpOutResult\.error/, /Camper archive is temporarily unavailable/],
+    ['app/admin/maintenance/archive/page.tsx', /No totals are being shown as zero/, /Maintenance archive is temporarily unavailable/],
+    ['app/admin/maintenance/inventory/page.tsx', /Stock totals and editing controls are blocked/, /Maintenance inventory is temporarily unavailable/],
+    ['app/admin/maintenance/supplies/page.tsx', /Queue totals and update controls are blocked/, /Supply requests are temporarily unavailable/],
+  ] as const
+
+  for (const [path, readGuard, recoveryHeading] of checks) {
+    const page = read(path)
+    assert.match(page, readGuard, path)
+    assert.match(page, recoveryHeading, path)
+    assert.match(page, /role="alert"/, path)
+    assert.match(page, /portal-loading-retry/, path)
+  }
+})
+
+test('waitlist conversion does not invite a duplicate retry after an unknown network result', () => {
+  const page = read('app/admin/waitlist/page.tsx')
+  assert.match(page, /The result could not be confirmed\. Check the camper list and waitlist before trying again\./)
+  assert.doesNotMatch(page, /Nothing was sent—please try again/)
+})

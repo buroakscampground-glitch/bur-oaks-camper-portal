@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight, CheckCircle2, LoaderCircle, Mail, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, LoaderCircle, Mail, Sparkles, TentTree, UserPlus, X } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { canConvertWaitlistStatus, NEW_CAMPER_ANNUAL_RENT, NEW_CAMPER_ASSOCIATION_FEE, NEW_CAMPER_INSTALLMENT, TEMPORARY_SITE_OPTION, waitlistWelcomeCopy } from '../../../lib/waitlist-conversion'
@@ -31,17 +31,26 @@ export default function WaitlistPage() {
   const [converting, setConverting] = useState(false)
   const [conversionError, setConversionError] = useState('')
   const [conversionResult, setConversionResult] = useState<any | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const router = useRouter()
 
   useEffect(() => { loadWaitlist() }, [])
 
   async function loadWaitlist() {
+    setLoading(true)
+    setLoadError('')
     const [waitlistResult, lotResult, camperResult] = await Promise.all([
       supabase.from('waitlist').select('*').order('created_at', { ascending: false }),
       supabase.from('lots').select('lot_number').order('lot_number', { ascending: true }),
       supabase.from('campers').select('lot_number,role,active').eq('active', true),
     ])
 
+    if (waitlistResult.error || lotResult.error || camperResult.error) {
+      setLoadError('The waitlist, site roster, or camper roster could not be loaded. Changes are blocked until all three are available.')
+      setLoading(false)
+      return
+    }
     setPeople(waitlistResult.data || [])
     const occupied = new Set((camperResult.data || [])
       .filter(isOperationalCamper)
@@ -50,6 +59,7 @@ export default function WaitlistPage() {
     setVacantSites((lotResult.data || [])
       .map((lot) => String(lot.lot_number || '').trim())
       .filter((lotNumber) => lotNumber && !occupied.has(siteKey(lotNumber))))
+    setLoading(false)
   }
 
   async function addPerson() {
@@ -160,7 +170,7 @@ export default function WaitlistPage() {
       setMessage(result.temporarySpot ? `${result.camperName} now has temporary portal access while a permanent site is pending.` : `${result.camperName} is now assigned to Site ${result.lotNumber}.`)
       await loadWaitlist()
     } catch {
-      setConversionError('The conversion could not be completed. Nothing was sent—please try again.')
+      setConversionError('The result could not be confirmed. Check the camper list and waitlist before trying again.')
     } finally {
       setConverting(false)
     }
@@ -182,6 +192,9 @@ export default function WaitlistPage() {
   })
   const temporaryConversion = conversionForm.lotNumber === TEMPORARY_SITE_OPTION
   const welcomePreview = waitlistWelcomeCopy(conversionForm.firstName, conversionForm.lotNumber, temporaryConversion)
+
+  if (loading) return <main className="portal-loading"><LoaderCircle className="spin" /><h1>Loading waitlist…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Waitlist is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadWaitlist}>Try again</button></main>
 
   return (
     <main className="admin-waitlist-page">

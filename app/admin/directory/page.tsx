@@ -2,27 +2,37 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '../../../lib/supabase'
+import { AlertTriangle, Loader2 } from 'lucide-react'
 
 export default function DirectoryPage() {
   const [campers, setCampers] = useState<any[]>([])
   const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     loadCampers()
   }, [])
 
   async function loadCampers() {
-    const { data } = await supabase
+    setLoading(true)
+    setLoadError('')
+    const { data, error } = await supabase
       .from('campers')
       .select('*')
 
-    setCampers(data || [])
+    if (error) setLoadError('The camper roster could not be loaded. No roster is being shown as empty.')
+    else setCampers(data || [])
+    setLoading(false)
   }
 
   const filteredCampers = campers.filter((camper) => {
     const text = `${camper.first_name} ${camper.last_name} ${camper.email} ${camper.phone} ${camper.lot_number}`.toLowerCase()
     return text.includes(search.toLowerCase())
   })
+
+  if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading camper directory…</h1></main>
+  if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Camper directory is temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadCampers}>Try again</button></main>
 
   return (
     <main className="page">
