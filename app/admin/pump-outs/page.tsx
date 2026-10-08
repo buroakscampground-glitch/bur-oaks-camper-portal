@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Droplets, Plus, Printer, Search, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Droplets, Loader2, Plus, Printer, Search, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
@@ -33,12 +33,20 @@ export default function AdminPumpOutsPage() {
   const [manualNotes, setManualNotes] = useState('')
   const [manualSaving, setManualSaving] = useState(false)
   const [defaultPumpOutFee, setDefaultPumpOutFee] = useState(defaultCampgroundBillingSettings.sewerPumpOutFee)
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
-    loadRequests()
-    loadManualEntryOptions()
-    markPumpOutAlertsViewed()
+    loadPage()
   }, [])
+
+  async function loadPage() {
+    setLoading(true)
+    setLoadError('')
+    const [requestsLoaded, optionsLoaded] = await Promise.all([loadRequests(), loadManualEntryOptions()])
+    if (requestsLoaded && optionsLoaded) await markPumpOutAlertsViewed()
+    setLoading(false)
+  }
 
   async function markPumpOutAlertsViewed() {
     const { error } = await supabase
@@ -59,9 +67,15 @@ export default function AdminPumpOutsPage() {
       loadCampgroundBillingSettings(supabase),
     ])
 
-    if (error) setMessage(error.message)
+    if (error) {
+      console.error(error)
+      setCampers([])
+      setLoadError('The pump-out queue could not load all required camper records. Counts and actions are hidden until the office can reconnect.')
+      return false
+    }
     setCampers((data || []).filter(isOperationalCamper))
     setDefaultPumpOutFee(settings.sewerPumpOutFee)
+    return true
   }
 
   async function loadRequests() {
@@ -70,9 +84,15 @@ export default function AdminPumpOutsPage() {
       .select('*')
       .order('requested_at', { ascending: false })
 
-    if (error) setMessage(error.message)
+    if (error) {
+      console.error(error)
+      setRequests([])
+      setLoadError('The pump-out queue could not be loaded. Counts and actions are hidden until the office can reconnect.')
+      return false
+    }
     // Keep portal test accounts out of the live pump-out queue and history.
     setRequests((data || []).filter((request) => !isSystemPortalAccount(request)))
+    return true
   }
 
   async function updateStatus(id: string, status: 'completed' | 'cancelled' | 'requested') {
@@ -196,6 +216,14 @@ export default function AdminPumpOutsPage() {
     setSearch('')
     setFilter('completed_unbilled')
     window.requestAnimationFrame(() => document.getElementById('pump-out-list')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
+  if (loading) {
+    return <main className="portal-loading"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading pump-outs…</h1><p>Checking the service and billing queue.</p></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Pump-outs are temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadPage}>Try again</button></main>
   }
 
   return (

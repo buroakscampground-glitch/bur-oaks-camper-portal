@@ -74,3 +74,17 @@ test('renewal forecast does not show a failed read as an empty action list', () 
   assert.match(page, /Renewals are temporarily unavailable/)
   assert.match(page, /onClick=\{loadPage\}>Try again/)
 })
+
+test('pump-out attention is acknowledged only after the full queue loads', () => {
+  const page = read('app/admin/pump-outs/page.tsx')
+  assert.match(page, /if \(requestsLoaded && optionsLoaded\) await markPumpOutAlertsViewed\(\)/)
+  assert.match(page, /Pump-outs are temporarily unavailable/)
+  assert.match(page, /Counts and actions are hidden/)
+})
+
+test('site service totals and charge actions require both core reads', () => {
+  const page = read('app/admin/site-services/page.tsx')
+  assert.match(page, /Promise\.all\(\[loadCampers\(\), loadCharges\(\), loadSettings\(\)\]\)/)
+  assert.match(page, /Site service charges are temporarily unavailable/)
+  assert.match(page, /Totals and charge actions are hidden/)
+})

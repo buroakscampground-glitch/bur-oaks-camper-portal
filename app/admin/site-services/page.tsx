@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { CheckCircle2, Search, Sparkles, SprayCan, Waves, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Loader2, Search, Sparkles, SprayCan, Waves, XCircle } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { isOperationalCamper } from '../../../lib/camper-records'
@@ -27,15 +27,22 @@ export default function AdminSiteServicesPage() {
   const [saving, setSaving] = useState(false)
   const [savingId, setSavingId] = useState('')
   const [serviceOptions, setServiceOptions] = useState([...defaultCampgroundBillingSettings.siteServices, miscServiceOption])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
 
   useEffect(() => {
     const today = new Date()
     const localToday = new Date(today.getTime() - today.getTimezoneOffset() * 60 * 1000)
     setPerformedAt(localToday.toISOString().slice(0, 10))
-    loadCampers()
-    loadCharges()
-    loadSettings()
+    loadPage()
   }, [])
+
+  async function loadPage() {
+    setLoading(true)
+    setLoadError('')
+    await Promise.all([loadCampers(), loadCharges(), loadSettings()])
+    setLoading(false)
+  }
 
   async function loadSettings() {
     const settings = await loadCampgroundBillingSettings(supabase)
@@ -49,8 +56,14 @@ export default function AdminSiteServicesPage() {
       .eq('active', true)
       .order('lot_number', { ascending: true })
 
-    if (error) setMessage(error.message)
+    if (error) {
+      console.error(error)
+      setCampers([])
+      setLoadError('Site service charges could not load the active camper list. Totals and charge actions are hidden until the office can reconnect.')
+      return false
+    }
     setCampers((data || []).filter(isOperationalCamper))
+    return true
   }
 
   async function loadCharges() {
@@ -59,8 +72,14 @@ export default function AdminSiteServicesPage() {
       .select('*')
       .order('performed_at', { ascending: false })
 
-    if (error) setMessage(error.message)
+    if (error) {
+      console.error(error)
+      setCharges([])
+      setLoadError('Site service charges could not be loaded. Totals and charge actions are hidden until the office can reconnect.')
+      return false
+    }
     setCharges(data || [])
+    return true
   }
 
   async function addCharge() {
@@ -167,6 +186,14 @@ export default function AdminSiteServicesPage() {
       return matchesFilter && matchesSearch
     })
   }, [charges, filter, search])
+
+  if (loading) {
+    return <main className="portal-loading"><Loader2 className="portal-loading-spinner" aria-hidden="true" /><h1>Loading site service charges…</h1><p>Checking completed work waiting for billing.</p></main>
+  }
+
+  if (loadError) {
+    return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Site service charges are temporarily unavailable</h1><p>{loadError}</p><button type="button" className="portal-loading-retry" onClick={loadPage}>Try again</button></main>
+  }
 
   return (
     <main className="admin-site-services-page">
