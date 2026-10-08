@@ -5,7 +5,19 @@ export function formatInvoiceMoney(value: unknown) {
   })
 }
 
-export function invoiceLineDetails(item: any) {
+export type DisplayInvoiceItem = {
+  description?: string | null
+  quantity?: number | string | null
+  unit_price?: number | string | null
+  total?: number | string | null
+}
+
+export type DisplayInvoice = {
+  invoice_type?: string | null
+  total_due?: number | string | null
+}
+
+export function invoiceLineDetails(item: DisplayInvoiceItem | null | undefined) {
   const rawDescription = String(item?.description || 'Campground charge').trim()
   const description = rawDescription || 'Campground charge'
   const lower = description.toLowerCase()
@@ -103,7 +115,7 @@ export function invoiceLineDetails(item: any) {
   }
 }
 
-export function fallbackInvoiceLine(invoice: any) {
+export function fallbackInvoiceLine(invoice: DisplayInvoice | null | undefined) {
   return {
     title: invoice?.invoice_type || 'Campground charge',
     explanation: 'This older invoice was created before detailed line items were saved.',

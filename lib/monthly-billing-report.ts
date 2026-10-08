@@ -1,3 +1,11 @@
+export type ReportInvoiceItem = {
+  id?: string
+  description?: string | null
+  quantity?: number | string | null
+  unit_price?: number | string | null
+  total?: number | string | null
+}
+
 export type ReportInvoice = {
   id?: string
   invoice_number?: string | null
@@ -16,13 +24,7 @@ export type ReportInvoice = {
     lot_number?: string | null
     email?: string | null
   } | null
-  invoice_items?: Array<{
-    id?: string
-    description?: string | null
-    quantity?: number | string | null
-    unit_price?: number | string | null
-    total?: number | string | null
-  }> | null
+  invoice_items?: ReportInvoiceItem[] | null
 }
 
 export const billingCategoryOrder = [
@@ -54,7 +56,7 @@ function categoryFromText(rawText: unknown, amount: number) {
   return ''
 }
 
-export function billingCategory(item: any, invoice: any) {
+export function billingCategory(item: ReportInvoiceItem | null | undefined, invoice: Pick<ReportInvoice, 'invoice_type'> | null | undefined) {
   const amount = Number(item?.total || 0)
   return categoryFromText(item?.description, amount) || categoryFromText(invoice?.invoice_type, amount) || 'Other Charges'
 }

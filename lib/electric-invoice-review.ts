@@ -1,4 +1,12 @@
-export function electricChargeRowsSignature(rows: any[]) {
+export type ElectricChargeReviewRow = {
+  id?: string | null
+  charge_amount?: number | string | null
+  remaining_amount?: number | string | null
+  service_label?: string | null
+  reason?: string | null
+}
+
+export function electricChargeRowsSignature(rows: ElectricChargeReviewRow[] = []) {
   return [...(rows || [])]
     .map((row) => [
       String(row?.id || ''),

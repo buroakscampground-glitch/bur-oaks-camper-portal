@@ -1,4 +1,6 @@
-export async function generatePortalSetupUrl(admin: any, email: string, origin: string) {
+import type { SupabaseClient } from '@supabase/supabase-js'
+
+export async function generatePortalSetupUrl(admin: SupabaseClient, email: string, origin: string) {
   let linkResult = await admin.auth.admin.generateLink({
     type: 'invite',
     email,

@@ -1,8 +1,9 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { sendOwnerTextAlert } from './owner-alert-sms'
 import { requiresAdminAttention } from './admin-notification-types'
 import { sendStaffWebPush } from './staff-web-push'
 
-type NotificationInput = {
+export type NotificationInput = {
   type: 'maintenance_request' | 'payment_received' | 'payment_problem' | 'event_rsvp' | 'saturday_dinner' | 'sewer_pump_out' | 'direct_message' | 'website_waitlist' | 'waitlist_removal' | 'site_care'
   title: string
   message: string
@@ -12,7 +13,7 @@ type NotificationInput = {
   source_id?: string | null
 }
 
-export async function createAdminNotification(admin: any, input: NotificationInput) {
+export async function createAdminNotification(admin: SupabaseClient, input: NotificationInput) {
   const shouldStoreForAttention = requiresAdminAttention(input.type)
 
   if (shouldStoreForAttention) {
@@ -42,9 +43,9 @@ export async function createAdminNotification(admin: any, input: NotificationInp
         message: input.message,
         lotNumber: input.lot_number,
         camperId: input.camper_id,
-      }).catch((textError) => {
+      }).catch((textError: unknown) => {
         console.error('Owner text alert failed:', textError)
-        return { skipped: true, reason: textError?.message || 'Owner text alert failed.' }
+        return { skipped: true, reason: textError instanceof Error ? textError.message : 'Owner text alert failed.' }
       })
     : { skipped: true, reason: 'Routine activity is included in the daily office summary.' }
 
@@ -68,7 +69,7 @@ export async function createAdminNotification(admin: any, input: NotificationInp
         urlByRole: { admin: destination, event_coordinator: '/community' },
         tag: `admin-${input.type}`,
         roles: ['admin'],
-      }).catch((pushError) => {
+      }).catch((pushError: unknown) => {
         console.error('Staff app alert failed:', pushError)
         return { sent: 0, skipped: true }
       })

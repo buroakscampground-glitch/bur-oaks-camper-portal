@@ -1,5 +1,7 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 export async function markAdminAlertsSeen(
-  supabase: any,
+  supabase: SupabaseClient,
   type: 'maintenance_request' | 'payment_received' | 'event_rsvp',
   sourceId?: string | null
 ) {

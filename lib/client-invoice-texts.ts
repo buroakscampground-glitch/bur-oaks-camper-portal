@@ -1,5 +1,21 @@
 import { supabase } from './supabase'
 
+export type InvoiceDeliveryOutcome = {
+  status?: 'sent' | 'failed' | 'skipped' | string
+  error?: string | null
+  reason?: string | null
+}
+
+export type InvoiceDeliveryResult = InvoiceDeliveryOutcome & {
+  text?: InvoiceDeliveryOutcome | null
+  email?: InvoiceDeliveryOutcome | null
+}
+
+type InvoiceTextApiResponse = {
+  error?: string
+  result?: InvoiceDeliveryResult
+}
+
 export async function notifyInvoiceCreated(invoiceId: string) {
   const {
     data: { session },
@@ -18,7 +34,7 @@ export async function notifyInvoiceCreated(invoiceId: string) {
     body: JSON.stringify({ invoiceId }),
   })
 
-  const data = await response.json().catch(() => ({}))
+  const data = await response.json().catch(() => ({})) as InvoiceTextApiResponse
   if (!response.ok) {
     return { status: 'failed', error: data?.error || 'Invoice text could not be sent.' }
   }
@@ -26,7 +42,7 @@ export async function notifyInvoiceCreated(invoiceId: string) {
   return data.result || { status: 'skipped', reason: 'No text result returned.' }
 }
 
-export function invoiceTextSummary(result: any) {
+export function invoiceTextSummary(result: InvoiceDeliveryResult | null | undefined) {
   const textResult = result?.text || result
   const emailResult = result?.email
   let summary = ''
@@ -42,7 +58,7 @@ export function invoiceTextSummary(result: any) {
   return summary
 }
 
-export function legacyInvoiceTextSummary(result: any) {
+export function legacyInvoiceTextSummary(result: InvoiceDeliveryOutcome | null | undefined) {
   if (!result) return ''
   if (result.status === 'sent') return ' Text alert sent.'
   if (result.status === 'failed') return ` Text alert failed: ${result.error || 'unknown error'}.`

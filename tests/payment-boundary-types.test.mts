@@ -143,3 +143,39 @@ test('System Health uses typed rows and normalizes joined camper relationships',
   assert.match(electricAudit, /type ElectricAuditDraft =/)
   for (const file of [source, page, electricAudit]) assert.doesNotMatch(file, /\bany\b/)
 })
+
+test('invoice display, payment review, ACH, electric, and monthly report helpers use typed money boundaries', async () => {
+  const files = await Promise.all([
+    read('lib/ach-expected-date.ts'),
+    read('lib/stripe-payment-review.ts'),
+    read('lib/electric-payment-cycles.ts'),
+    read('lib/electric-invoice-review.ts'),
+    read('lib/monthly-billing-report.ts'),
+    read('lib/invoice-display.ts'),
+  ])
+
+  assert.match(files[0], /type AchProcessingInvoice =/)
+  assert.match(files[1], /type PriorPaymentInvoice =/)
+  assert.match(files[2], /type ElectricCycleInvoice =/)
+  assert.match(files[3], /type ElectricChargeReviewRow =/)
+  assert.match(files[4], /type ReportInvoiceItem =/)
+  assert.match(files[5], /type DisplayInvoiceItem =/)
+  for (const source of files) assert.doesNotMatch(source, /\bany\b/)
+})
+
+test('shared billing settings, admin alerts, delivery summaries, and setup links use typed clients and results', async () => {
+  const files = await Promise.all([
+    read('lib/campground-settings.ts'),
+    read('lib/admin-notifications.ts'),
+    read('lib/admin-alert-actions.ts'),
+    read('lib/client-invoice-texts.ts'),
+    read('lib/portal-setup-link.ts'),
+  ])
+
+  assert.match(files[0], /client: SupabaseClient/)
+  assert.match(files[1], /admin: SupabaseClient/)
+  assert.match(files[2], /supabase: SupabaseClient/)
+  assert.match(files[3], /type InvoiceDeliveryResult =/)
+  assert.match(files[4], /admin: SupabaseClient/)
+  for (const source of files) assert.doesNotMatch(source, /\bany\b/)
+})

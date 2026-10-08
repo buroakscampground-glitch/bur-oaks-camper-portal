@@ -19,6 +19,21 @@ export type ActiveElectricCollection = {
   months: string[]
 }
 
+export type ElectricCycleInvoice = {
+  id?: string | null
+  invoice_type?: string | null
+  status?: string | null
+  total_due?: number | string | null
+  subtotal?: number | string | null
+  late_fee?: number | string | null
+  created_at?: string | null
+}
+
+export type ElectricCycleReading = {
+  invoice_id?: string | null
+  reading_date?: string | null
+}
+
 function previousMonth(monthKey: string) {
   const [year, month] = monthKey.split('-').map(Number)
   const date = new Date(Date.UTC(year, month - 2, 1, 12))
@@ -34,12 +49,12 @@ function money(value: number) {
   return Number(value.toFixed(2))
 }
 
-function electricInvoiceOriginalTotal(invoice: any) {
+function electricInvoiceOriginalTotal(invoice: ElectricCycleInvoice) {
   const currentTotal = Number(invoice.total_due || 0)
   return Math.max(currentTotal, Number(invoice.subtotal || 0) + Number(invoice.late_fee || 0))
 }
 
-function electricBillingMonthByInvoice(readings: any[]) {
+function electricBillingMonthByInvoice(readings: ElectricCycleReading[]) {
   const result = new Map<string, string>()
 
   for (const reading of readings) {
@@ -57,8 +72,8 @@ export function activeElectricCollection({
   invoices = [],
   readings = [],
 }: {
-  invoices?: any[]
-  readings?: any[]
+  invoices?: ElectricCycleInvoice[]
+  readings?: ElectricCycleReading[]
 }): ActiveElectricCollection {
   const billingMonthByInvoice = electricBillingMonthByInvoice(readings)
   const issuedStatuses = new Set(['open', 'sent', 'overdue', 'processing', 'paid'])
@@ -103,8 +118,8 @@ export function rollingElectricPaymentCycles({
   readings = [],
   currentMonth,
 }: {
-  invoices?: any[]
-  readings?: any[]
+  invoices?: ElectricCycleInvoice[]
+  readings?: ElectricCycleReading[]
   currentMonth: string
 }): ElectricPaymentCycle[] {
   const months = [previousMonth(currentMonth), currentMonth]

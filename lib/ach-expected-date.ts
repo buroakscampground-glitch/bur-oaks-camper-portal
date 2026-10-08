@@ -1,5 +1,11 @@
 const ONE_DAY_MS = 24 * 60 * 60 * 1000
 
+export type AchProcessingInvoice = {
+  status?: string | null
+  payment_method?: string | null
+  ach_expected_date?: string | null
+}
+
 export function addAchBusinessDays(value: Date | string | number, businessDays: number) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return null
@@ -24,7 +30,7 @@ export function achExpectedFromStripeEvent(eventCreatedSeconds: number, fromChec
   return addAchBusinessDays(eventCreatedSeconds * 1000, fromCheckout ? 6 : 5)
 }
 
-export function achExpectedLabel(invoice: any, style: 'short' | 'long' = 'short') {
+export function achExpectedLabel(invoice: AchProcessingInvoice | null | undefined, style: 'short' | 'long' = 'short') {
   if (String(invoice?.status || '').toLowerCase() !== 'processing') return ''
   if (!String(invoice?.payment_method || '').toLowerCase().includes('ach')) return ''
   if (!invoice?.ach_expected_date) return 'ACH processing'

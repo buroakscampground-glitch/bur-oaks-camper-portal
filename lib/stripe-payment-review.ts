@@ -1,4 +1,9 @@
-export function priorPaymentReview(invoices: any[], newPaymentReference: unknown) {
+export type PriorPaymentInvoice = {
+  status?: string | null
+  payment_reference?: string | null
+}
+
+export function priorPaymentReview(invoices: PriorPaymentInvoice[] = [], newPaymentReference: unknown) {
   const incoming = String(newPaymentReference || '').trim()
   const paidInvoices = (invoices || []).filter((invoice) => String(invoice?.status || '').toLowerCase() === 'paid')
   const existingReferences = Array.from(new Set(

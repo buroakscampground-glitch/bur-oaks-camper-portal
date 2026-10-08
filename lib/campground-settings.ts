@@ -1,3 +1,5 @@
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 export type SiteServiceSetting = {
   type: string
   label: string
@@ -82,7 +84,7 @@ export function normalizeCampgroundBillingSettings(rows?: Array<{ key: string; v
   }
 }
 
-export async function loadCampgroundBillingSettings(client: any): Promise<CampgroundBillingSettings> {
+export async function loadCampgroundBillingSettings(client: SupabaseClient | null | undefined): Promise<CampgroundBillingSettings> {
   if (!client?.from) return defaultCampgroundBillingSettings
 
   const keys = Object.values(campgroundSettingKeys)
