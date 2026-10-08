@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowLeft, CheckCircle2, ClipboardCheck, Printer, RefreshCw, TriangleAlert } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, ClipboardCheck, LockKeyhole, Printer, RefreshCw, TriangleAlert } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
-import type { CloseoutCamper, CloseoutHistoryDay, DailyCloseoutSummary } from '../../../lib/daily-closeout'
+import type { CloseoutCamper, CloseoutHistoryDay, DailyCloseoutApproval, DailyCloseoutSummary } from '../../../lib/daily-closeout'
 import type { MoneyException } from '../../../lib/money-exceptions'
 
 type DailyCloseoutResponse = DailyCloseoutSummary & {
@@ -11,6 +11,7 @@ type DailyCloseoutResponse = DailyCloseoutSummary & {
   generatedAt: string
   history: CloseoutHistoryDay[]
   moneyExceptions: MoneyException[]
+  approvals?: DailyCloseoutApproval[]
 }
 
 function campgroundToday() {
@@ -51,6 +52,10 @@ export default function DailyCloseoutPage() {
   const [closeout, setCloseout] = useState<DailyCloseoutResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [approvalArmed, setApprovalArmed] = useState(false)
+  const [approvalNote, setApprovalNote] = useState('')
+  const [approving, setApproving] = useState(false)
+  const [approvalError, setApprovalError] = useState('')
 
   async function refresh() {
     setLoading(true)
@@ -65,7 +70,34 @@ export default function DailyCloseoutPage() {
     }
   }
 
-  useEffect(() => { void refresh() }, [date])
+  async function approveCloseout() {
+    setApproving(true)
+    setApprovalError('')
+    try {
+      const { data } = await supabase.auth.getSession()
+      const response = await fetch('/api/admin-daily-closeout', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${data.session?.access_token || ''}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, note: approvalNote.trim() || undefined }),
+      })
+      const result = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(result?.error || 'The closeout receipt could not be approved.')
+      setApprovalArmed(false)
+      setApprovalNote('')
+      await refresh()
+    } catch (error: unknown) {
+      setApprovalError(error instanceof Error ? error.message : 'The closeout receipt could not be approved.')
+    } finally {
+      setApproving(false)
+    }
+  }
+
+  useEffect(() => {
+    setApprovalArmed(false)
+    setApprovalNote('')
+    setApprovalError('')
+    void refresh()
+  }, [date])
 
   if (!loading && loadError) return (
     <main className="portal-loading" role="alert">
@@ -78,6 +110,7 @@ export default function DailyCloseoutPage() {
 
   const totals = closeout?.totals
   const counts = closeout?.counts
+  const latestApproval = closeout?.approvals?.[0]
   return (
     <main className="daily-closeout-page" data-print-daily-closeout>
       <div className="daily-closeout-shell">
@@ -111,6 +144,37 @@ export default function DailyCloseoutPage() {
             </div>
           </section>
 
+          <section className={`daily-closeout-approval ${latestApproval?.currentSnapshotMatches ? 'approved' : latestApproval ? 'changed' : ''}`} aria-label="Immutable daily closeout approval">
+            <header>
+              <LockKeyhole aria-hidden="true" />
+              <div>
+                <small>IMMUTABLE CLOSEOUT RECEIPT</small>
+                <h2>{latestApproval?.currentSnapshotMatches ? `Approved · revision ${latestApproval.revision}` : latestApproval ? 'Ledger changed since approval' : 'Approve and lock today’s proof'}</h2>
+                <p>{latestApproval?.currentSnapshotMatches
+                  ? `Approved by ${latestApproval.approvedBy} on ${verifiedAt(latestApproval.approvedAt)} CT. Receipt ${latestApproval.snapshotSha256.slice(0, 12)}… cannot be edited or deleted.`
+                  : latestApproval
+                    ? `Revision ${latestApproval.revision} remains preserved, but today’s live sources no longer match it. Verify the change, then record a corrected revision.`
+                    : 'This stores the verified totals, checklist, source records, approver, time, and SHA-256 fingerprint. It never edits the underlying ledger.'}</p>
+              </div>
+            </header>
+            {!latestApproval?.currentSnapshotMatches && <div className="daily-closeout-approval-action">
+              {approvalArmed ? <>
+                {latestApproval && <label><span>Required correction note</span><textarea value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} maxLength={1000} placeholder="What changed after the prior approval?" /></label>}
+                <button type="button" onClick={approveCloseout} disabled={approving || !closeout.readyToClose || Boolean(latestApproval && approvalNote.trim().length < 5)}>
+                  <LockKeyhole size={16} /> {approving ? 'Locking receipt…' : `Approve & lock revision ${Number(latestApproval?.revision || 0) + 1}`}
+                </button>
+                <button className="secondary" type="button" onClick={() => { setApprovalArmed(false); setApprovalError('') }} disabled={approving}>Cancel</button>
+              </> : <button type="button" onClick={() => setApprovalArmed(true)} disabled={!closeout.readyToClose}>
+                <ClipboardCheck size={16} /> {closeout.readyToClose ? (latestApproval ? 'Review corrected approval' : 'Review approval') : 'Clear checklist before approval'}
+              </button>}
+              {approvalError && <p role="alert">{approvalError}</p>}
+            </div>}
+            {closeout.approvals && closeout.approvals.length > 0 && <details><summary>Receipt history ({closeout.approvals.length})</summary><div>{closeout.approvals.map((approval) => <article key={approval.id}>
+              <span><strong>Revision {approval.revision} · {approval.approvedBy}</strong><small>{verifiedAt(approval.approvedAt)} CT{approval.approvalNote ? ` · ${approval.approvalNote}` : ''}</small></span>
+              <code>{approval.snapshotSha256.slice(0, 16)}…</code>
+            </article>)}</div></details>}
+          </section>
+
           <section className="daily-closeout-history" aria-label="Seven-day closeout history">
             <header><div><small>RECONSTRUCTED HISTORY</small><h2>Last seven campground days</h2></div><p>Live read-only reconstruction · not a signed accounting lock.</p></header>
             <div>{closeout.history.map((day) => <button type="button" className={day.date === date ? 'selected' : ''} onClick={() => setDate(day.date)} key={day.date}>
@@ -133,7 +197,7 @@ export default function DailyCloseoutPage() {
           </section>
 
           <section className="daily-closeout-explainer">
-            <ClipboardCheck size={21} /><p><strong>Receipts and bank deposits are intentionally separate.</strong> Card and ACH payments can take days to reach the bank. This page proves the selected day’s payments were allocated correctly and separately reports deposits scheduled to arrive that day. History is reconstructed from the live ledger; an immutable signed close remains a separate future control.</p>
+            <ClipboardCheck size={21} /><p><strong>Receipts and bank deposits are intentionally separate.</strong> Card and ACH payments can take days to reach the bank. This page proves the selected day’s payments were allocated correctly and separately reports deposits scheduled to arrive that day. Approved closeout receipts preserve that proof without changing the ledger.</p>
           </section>
 
           {closeout.unclassifiedInvoices.length > 0 && <section className="daily-closeout-unclassified" role="alert"><TriangleAlert size={20} /><div><strong>Paid invoices need ledger review</strong><p>These invoices were marked paid today but are not tied to an online payment, account-credit application, or current office-payment allocation.</p>{closeout.unclassifiedInvoices.map((invoice) => <a key={invoice.id} href={`/admin/invoices/${invoice.id}`}>Invoice #{invoice.invoice_number} · Lot {invoice.campers?.lot_number || '—'} · {money(invoice.total_due || invoice.subtotal)}</a>)}</div></section>}

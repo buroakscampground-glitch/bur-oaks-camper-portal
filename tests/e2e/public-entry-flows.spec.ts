@@ -107,6 +107,7 @@ async function installSyntheticCamperSession(page: Page) {
 
 async function installSyntheticAdminSession(page: Page, closeoutOverride?: object) {
   let simulateReadFailure = true
+  let syntheticCloseoutApproval = false
   const now = Math.floor(Date.now() / 1000)
   const encode = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
   const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'release-check-admin', email: 'admin-release-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.release-check`
@@ -160,6 +161,11 @@ async function installSyntheticAdminSession(page: Page, closeoutOverride?: objec
       await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Synthetic office release-check outage' }) })
       return
     }
+    if (pathname === '/api/admin-daily-closeout' && route.request().method() === 'POST') {
+      syntheticCloseoutApproval = true
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, approval: { revision: 1 } }) })
+      return
+    }
     const payloads: Record<string, object> = {
       '/api/admin-documents': { documents: [] },
       '/api/admin-stripe-payouts': { payouts: [], health: null },
@@ -189,6 +195,14 @@ async function installSyntheticAdminSession(page: Page, closeoutOverride?: objec
       '/api/admin-birthdays': { counts: {}, birthdays: [] },
       '/api/community-feed': { unreadCount: 0, directCount: 0 },
       '/api/admin-renewals': { success: true },
+    }
+    if (pathname === '/api/admin-daily-closeout') {
+      const closeout = payloads[pathname] as Record<string, unknown>
+      if (!Array.isArray(closeout.approvals)) closeout.approvals = syntheticCloseoutApproval ? [{
+        id: 'approval-test', date: '2026-10-08', revision: 1, approvedAt: '2026-10-08T19:00:00Z',
+        approvedBy: 'admin-release-check@example.invalid', sourceVerifiedAt: '2026-10-08T18:45:30Z',
+        snapshotSha256: 'a'.repeat(64), approvalNote: null, supersedesId: null, currentSnapshotMatches: true,
+      }] : []
     }
     await route.fulfill({
       status: 200,
@@ -1223,7 +1237,21 @@ test('daily money closeout proves payment allocation without changing a ledger',
   await expect(totals.getByText('Saved as credit').locator('..')).toContainText('$75.00')
   await expect(totals.getByText('Arrived at bank').locator('..')).toContainText('$575.00')
   await expect(page.getByText('Receipts and bank deposits are intentionally separate.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Approve and lock today’s proof' })).toBeVisible()
   await expect(page.getByRole('link', { name: /Applied to Invoice #TEST-302/ })).toContainText('$100.00')
+  await expectNoHorizontalOverflow(page)
+})
+
+test('admin explicitly approves an immutable closeout receipt', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the immutable approval interaction.')
+  const synthetic = await installSyntheticAdminSession(page)
+  synthetic.recoverReads()
+  await page.goto('/admin/daily-closeout')
+  await page.getByRole('button', { name: 'Review approval' }).click()
+  await expect(page.getByRole('button', { name: 'Approve & lock revision 1' })).toBeVisible()
+  await page.getByRole('button', { name: 'Approve & lock revision 1' }).click()
+  await expect(page.getByRole('heading', { name: 'Approved · revision 1' })).toBeVisible()
+  await expect(page.getByText(/Receipt aaaaaaaaaaaa… cannot be edited or deleted/)).toBeVisible()
   await expectNoHorizontalOverflow(page)
 })
 

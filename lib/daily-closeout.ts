@@ -248,3 +248,84 @@ export function summarizeCloseoutHistory({
 }
 
 export type DailyCloseoutSummary = ReturnType<typeof summarizeDailyCloseout>
+
+export type DailyCloseoutSnapshot = {
+  version: 1
+  date: string
+  readyToClose: boolean
+  balanced: boolean
+  checks: DailyCloseoutSummary['checks']
+  totals: DailyCloseoutSummary['totals']
+  counts: DailyCloseoutSummary['counts']
+  sources: {
+    invoices: Array<{ id: string; amount: number; method: string; paidAt: string | null }>
+    manualPayments: Array<{ id: string; amount: number; method: string; receivedOn: string | null; createdAt: string | null }>
+    manualAllocations: Array<{ paymentId: string; invoiceId: string; amount: number }>
+    creditsCreated: Array<{ id: string; amount: number; remaining: number }>
+    creditsApplied: Array<{ id: string; creditId: string; invoiceId: string; amount: number }>
+    payouts: Array<{ id: string; amountCents: number; status: string; arrivalDate: string | null }>
+    unclassifiedInvoiceIds: string[]
+  }
+}
+
+export type DailyCloseoutApproval = {
+  id: string
+  date: string
+  revision: number
+  approvedAt: string
+  approvedBy: string
+  sourceVerifiedAt: string
+  snapshotSha256: string
+  approvalNote?: string | null
+  supersedesId?: string | null
+  currentSnapshotMatches: boolean
+}
+
+/** Build the deterministic, money-source-only payload preserved by an approval receipt. */
+export function buildDailyCloseoutSnapshot(date: string, summary: DailyCloseoutSummary): DailyCloseoutSnapshot {
+  return {
+    version: 1,
+    date,
+    readyToClose: summary.readyToClose,
+    balanced: summary.balanced,
+    checks: { ...summary.checks },
+    totals: { ...summary.totals },
+    counts: { ...summary.counts },
+    sources: {
+      invoices: summary.onlineInvoices.map((row) => ({
+        id: String(row.id), amount: invoiceRecordedTotal(row), method: String(row.payment_method || ''), paidAt: row.paid_at || null,
+      })),
+      manualPayments: summary.manualPayments.map((row) => ({
+        id: String(row.id), amount: amount(row.amount), method: String(row.payment_method || ''),
+        receivedOn: row.received_on || null, createdAt: row.created_at || null,
+      })),
+      manualAllocations: summary.manualAllocations.map((row) => ({
+        paymentId: String(row.payment_id || ''), invoiceId: String(row.invoice_id || ''), amount: amount(row.amount_applied),
+      })),
+      creditsCreated: summary.onlineExtraCredits.map((row) => ({
+        id: String(row.id || ''), amount: amount(row.original_amount), remaining: amount(row.remaining_amount),
+      })),
+      creditsApplied: summary.creditApplications.map((row) => ({
+        id: String(row.id || ''), creditId: String(row.credit_id || ''), invoiceId: String(row.invoice_id || ''), amount: amount(row.amount_applied),
+      })),
+      payouts: summary.payouts.map((row) => ({
+        id: String(row.id || ''), amountCents: Math.round(Number(row.amount || 0)), status: String(row.status || ''), arrivalDate: row.arrivalDate || null,
+      })),
+      unclassifiedInvoiceIds: summary.unclassifiedInvoices.map((row) => String(row.id)),
+    },
+  }
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+export function closeoutSnapshotsMatch(left: unknown, right: unknown) {
+  return canonicalJson(left) === canonicalJson(right)
+}
