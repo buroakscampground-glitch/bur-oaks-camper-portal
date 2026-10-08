@@ -21,9 +21,20 @@ printer, webhook, and cron credentials removed proved all three roles can sign
 in and see their intended records; camper and maintenance accounts were denied
 the office workspace. The drill also caught missing base table grants in the
 first snapshot. The baseline was corrected with the exact read-only production
-grant catalog before all three journeys passed. A repeat clean rebuild and
-write-path journeys remain pending, so the end-to-end recovery drill is not yet
-closed.
+grant catalog before all three journeys passed. A repeat clean rebuild and the
+remaining provider-backed write paths are still pending, so the end-to-end
+recovery drill is not yet closed.
+
+The first reversible write layer now covers camper maintenance submission and
+rapid-duplicate protection, pump-out creation and replay protection, electronic
+signature proof and replay rejection, and administrator credit creation,
+immutable audit history, and voiding. Matching fictional operational rows are
+removed before and after every test; immutable staging audit evidence remains by
+design. That drill exposed eight Admin-only privileged functions with browser
+role execution grants. The permission-only correction was proven in staging:
+anonymous and camper RPC calls are denied while the role-checked Admin routes
+continue to work through `service_role`. Meter-photo billing, Stripe test-mode
+checkout, and the repeat clean rebuild remain open.
 
 ## Non-negotiable safeguards
 

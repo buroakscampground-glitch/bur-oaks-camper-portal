@@ -5,6 +5,7 @@ import { analyzeSchemaBaseline } from '../scripts/audit-schema-baseline.mjs'
 
 const exporter = await readFile(new URL('../scripts/export-schema-baseline.mjs', import.meta.url), 'utf8')
 const stagingFixtures = await readFile(new URL('../database/staging/fixtures.sql', import.meta.url), 'utf8')
+const productionBaseline = await readFile(new URL('../database/baseline/000_public_schema.sql', import.meta.url), 'utf8')
 
 const safeSchema = `
 CREATE TABLE public.campers (id uuid PRIMARY KEY);
@@ -57,4 +58,21 @@ test('staging fixtures are guarded, fictional, and delivery inert', () => {
   assert.match(stagingFixtures, /TEST-01/g)
   assert.match(stagingFixtures, /ON CONFLICT \(id\) DO NOTHING/g)
   assert.match(stagingFixtures, /admin_approved, approved_at, approved_by/)
+})
+
+test('Admin-only financial RPCs are never granted to browser roles', () => {
+  for (const functionName of [
+    'create_account_credit_audited',
+    'void_account_credit_audited',
+    'delete_invoice_with_audit_atomic',
+    'record_manual_payment_audited',
+    'remove_invoice_late_fee_audited',
+    'set_camper_active_audited',
+    'update_camper_profile_audited',
+    'update_camper_rent_terms_audited',
+  ]) {
+    const browserGrant = new RegExp(`GRANT EXECUTE ON FUNCTION public\\."${functionName}"[^;]+ TO \\"(?:anon|authenticated)\\";`)
+    assert.doesNotMatch(productionBaseline, browserGrant, `${functionName} must remain server-only`)
+    assert.match(productionBaseline, new RegExp(`GRANT EXECUTE ON FUNCTION public\\."${functionName}"[^;]+ TO \\"service_role\\";`))
+  }
 })

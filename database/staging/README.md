@@ -20,3 +20,11 @@ Keychain under service `Bur Oaks Staging Test Accounts`. They must never be
 placed in source control, `.env` files, screenshots, traces, or task notes. The
 staging browser suite disables screenshots and traces and clears the password
 field before assertions so a failed journey cannot retain a credential.
+
+Run `npm run staging:verify` from the repository on the authorized Bur Oaks Mac.
+The guarded runner resolves only the fixed staging project, reads temporary API
+authority and random test passwords from the Mac login Keychain, explicitly
+empties every payment, email, SMS, printer, webhook, and cron credential, builds
+the app against staging, and runs the 360-pixel signed-in and reversible write
+journeys. Write tests clean matching fictional records before and after every
+case, including failures; they never copy or address production records.

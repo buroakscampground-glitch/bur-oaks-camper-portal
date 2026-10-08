@@ -9,6 +9,7 @@
     "verify:release": "npm audit && npm test && npm run lint && npm run migrations:audit && npm run test:e2e",
     "baseline:export": "node scripts/export-schema-baseline.mjs",
     "baseline:audit": "node scripts/audit-schema-baseline.mjs",
+    "staging:verify": "node scripts/run-staging-journeys.mjs",
     "storage:backup": "node scripts/backup-storage.mjs",
     "migrations:audit": "node scripts/audit-migrations.mjs",
     "migrations:baseline-check": "node scripts/audit-migrations.mjs --require-clean-baseline"

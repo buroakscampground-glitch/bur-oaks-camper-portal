@@ -32,6 +32,13 @@ enabled. The first authenticated staging run caught missing base table grants;
 the baseline now includes the exact production grants as well as RLS. Exact
 pre-fixture validation found zero application rows in staging.
 
+The first reversible write drill also found eight Admin-only financial/profile
+functions that were still executable through the Data API by browser roles.
+Migration `20261008212442_lock_down_admin_financial_rpcs.sql` removed `PUBLIC`,
+`anon`, and `authenticated` execution while preserving `service_role` for the
+role-checked server routes. The corrected baseline must keep those functions
+server-only.
+
 After export:
 
 1. Run `npm run baseline:audit`.
