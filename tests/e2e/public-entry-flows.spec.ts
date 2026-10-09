@@ -1065,6 +1065,21 @@ test('association fee register keeps owes, processing, and paid separate', async
   test.skip(testInfo.project.name !== 'phone-360', 'One required phone width proves the isolated association-fee register.')
   const synthetic = await installSyntheticAdminSession(page)
   synthetic.recoverReads()
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/rest\/v1\/campers.*/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'content-range': '0-5/6' },
+      body: JSON.stringify([
+        { id: 'camper-1', first_name: 'Open', last_name: 'Camper', lot_number: '1', active: true, role: 'camper' },
+        { id: 'camper-2', first_name: 'ACH', last_name: 'Camper', lot_number: '2', active: true, role: 'camper' },
+        { id: 'camper-3', first_name: 'Paid', last_name: 'Camper', lot_number: '3', active: true, role: 'camper' },
+        { id: 'camper-4', first_name: 'Missing', last_name: 'Record', lot_number: '4', active: true, role: 'camper' },
+        { id: 'camper-5', first_name: 'Anthony', last_name: 'Finley', lot_number: '5', active: true, role: 'camper' },
+        { id: 'camper-temp', first_name: 'Portal', last_name: 'Only', lot_number: 'TEMP PORTAL 1', active: true, role: 'camper' },
+      ]),
+    })
+  })
   await page.route(/https:\/\/[^/]+\.supabase\.co\/rest\/v1\/invoices.*/, async (route) => {
     await route.fulfill({
       status: 200,
@@ -1080,6 +1095,7 @@ test('association fee register keeps owes, processing, and paid separate', async
 
   await page.goto('/admin/association-fees')
   await expect(page.getByRole('heading', { name: 'Association Fees' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Campground sites 5/ })).toBeVisible()
   await expect(page.getByText('Open Camper')).toBeVisible()
   await expect(page.getByText('ACH Camper')).toHaveCount(0)
   await page.getByRole('button', { name: /ACH processing/ }).click()
@@ -1088,6 +1104,11 @@ test('association fee register keeps owes, processing, and paid separate', async
   await page.getByRole('button', { name: /^Paid/ }).click()
   await expect(page.getByText('Paid Camper')).toBeVisible()
   await expect(page.getByText('Check', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: /No fee record 1/ }).click()
+  await expect(page.getByText('Missing Record')).toBeVisible()
+  await page.getByRole('button', { name: /Exempt 1/ }).click()
+  await expect(page.getByText('Anthony Finley')).toBeVisible()
+  await expect(page.getByText('Portal Only')).toHaveCount(0)
   await expectNoHorizontalOverflow(page)
 })
 
