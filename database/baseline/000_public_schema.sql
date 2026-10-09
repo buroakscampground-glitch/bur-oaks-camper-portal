@@ -1581,7 +1581,6 @@ CREATE TABLE public."electric_readings" (
   "current_reading" numeric(10,2),
   "kwh_used" numeric(10,2),
   "rate_per_kwh" numeric(10,4),
-  "Rate" numeric(10,2),
   "reading_date" date NOT NULL,
   "created_at" timestamp without time zone DEFAULT now(),
   "amount_due" numeric,
@@ -1643,7 +1642,6 @@ CREATE TABLE public."invoice_items" (
 CREATE TABLE public."invoices" (
   "id" uuid DEFAULT gen_random_uuid() NOT NULL,
   "camper_id" uuid,
-  "21" uuid,
   "invoice_number" text NOT NULL,
   "invoice_type" text,
   "subtotal" numeric(10,2) DEFAULT 0,
@@ -2190,7 +2188,6 @@ ALTER TABLE ONLY public."electric_readings" ADD CONSTRAINT "electric_readings_lo
 ALTER TABLE ONLY public."event_reminder_deliveries" ADD CONSTRAINT "event_reminder_deliveries_camper_id_fkey" FOREIGN KEY (camper_id) REFERENCES campers(id) ON DELETE CASCADE;
 ALTER TABLE ONLY public."gate_cards" ADD CONSTRAINT "gate_cards_camper_id_fkey" FOREIGN KEY (camper_id) REFERENCES campers(id);
 ALTER TABLE ONLY public."invoice_items" ADD CONSTRAINT "invoice_items_invoice_id_fkey" FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE;
-ALTER TABLE ONLY public."invoices" ADD CONSTRAINT "invoices_21_fkey" FOREIGN KEY ("21") REFERENCES lots(id);
 ALTER TABLE ONLY public."invoices" ADD CONSTRAINT "invoices_camper_id_fkey" FOREIGN KEY (camper_id) REFERENCES campers(id);
 ALTER TABLE ONLY public."lots" ADD CONSTRAINT "lots_camper_id_fkey" FOREIGN KEY (camper_id) REFERENCES campers(id);
 ALTER TABLE ONLY public."maintenance_receipts" ADD CONSTRAINT "maintenance_receipts_ticket_id_fkey" FOREIGN KEY (ticket_id) REFERENCES maintenance_tickets(id) ON DELETE CASCADE;
