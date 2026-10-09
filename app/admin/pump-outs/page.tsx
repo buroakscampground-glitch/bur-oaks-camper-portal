@@ -8,6 +8,7 @@ import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge } from '../..
 import { isOperationalCamper, isSystemPortalAccount } from '../../../lib/camper-records'
 import { pumpOutServiceLotsForAccount } from '../../../lib/multi-site-pump-outs'
 import { pumpOutBillingLot, pumpOutDisplayNotes, pumpOutOrigin } from '../../../lib/pump-out-audit'
+import type { AccountPolicy } from '../../../lib/account-policies'
 import {
   isCompletedPumpOutWaitingForBilling,
   isPumpOutWaitingForService,
@@ -28,6 +29,7 @@ export default function AdminPumpOutsPage() {
   const [savingId, setSavingId] = useState('')
   const [sendingReport, setSendingReport] = useState(false)
   const [campers, setCampers] = useState<any[]>([])
+  const [policies, setPolicies] = useState<AccountPolicy[]>([])
   const [manualCamperId, setManualCamperId] = useState('')
   const [manualServiceLot, setManualServiceLot] = useState('')
   const [manualNotes, setManualNotes] = useState('')
@@ -65,21 +67,24 @@ export default function AdminPumpOutsPage() {
   }
 
   async function loadManualEntryOptions() {
-    const [{ data, error }, settings] = await Promise.all([
+    const [{ data, error }, policyResult, settings] = await Promise.all([
       supabase
         .from('campers')
         .select('id,first_name,last_name,email,lot_number,role,active')
         .order('lot_number', { ascending: true }),
+      supabase.from('camper_account_policies').select('*').eq('active', true),
       loadCampgroundBillingSettings(supabase),
     ])
 
-    if (error) {
-      console.error(error)
+    if (error || policyResult.error) {
+      console.error(error || policyResult.error)
       setCampers([])
+      setPolicies([])
       setLoadError('The pump-out queue could not load all required camper records. Counts and actions are hidden until the office can reconnect.')
       return false
     }
     setCampers((data || []).filter(isOperationalCamper))
+    setPolicies((policyResult.data || []) as AccountPolicy[])
     setDefaultPumpOutFee(settings.sewerPumpOutFee)
     return true
   }
@@ -213,7 +218,7 @@ export default function AdminPumpOutsPage() {
   )
   const selectedManualCamper = campers.find((camper) => camper.id === manualCamperId)
   const manualServiceLots = selectedManualCamper
-    ? pumpOutServiceLotsForAccount(selectedManualCamper.email, selectedManualCamper.lot_number)
+    ? pumpOutServiceLotsForAccount(selectedManualCamper.email, selectedManualCamper.lot_number, policies)
     : []
   const selectedManualServiceLot = manualServiceLot || manualServiceLots[0] || selectedManualCamper?.lot_number
   const selectedManualCharge = getSewerPumpOutFeeForLot(selectedManualServiceLot, defaultPumpOutFee)

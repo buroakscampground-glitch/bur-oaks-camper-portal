@@ -1,39 +1,27 @@
-const noBillingLotKeys = new Set(['48'])
-
-function normalizedName(value: unknown) {
-  return String(value || '').trim().toLowerCase().replace(/[^a-z]/g, '')
-}
+import { activeAccountPolicies, hasAccountPolicy, normalizePolicyLot, policiesForCamper, type AccountPolicy } from './account-policies.ts'
 
 export function normalizeBillingLot(value: unknown) {
-  return String(value || '').trim().replace(/^lot\s*/i, '').replace(/[^a-z0-9]/gi, '').toUpperCase()
+  return normalizePolicyLot(value)
 }
 
-export function isNoBillingLot(value: unknown) {
-  return noBillingLotKeys.has(normalizeBillingLot(value))
+export function isNoBillingLot(value: unknown, policies: AccountPolicy[]) {
+  return hasAccountPolicy(policies, 'billing_disabled', { lot_number: value })
 }
 
-export function noBillingReason(value: unknown) {
-  return isNoBillingLot(value) ? 'Lot 48 is an active camper site with billing disabled.' : ''
+export function noBillingReason(value: unknown, policies: AccountPolicy[]) {
+  return activeAccountPolicies(policies).find((policy) => policy.policy_type === 'billing_disabled' && normalizeBillingLot(policy.lot_number) === normalizeBillingLot(value))?.reason || ''
 }
 
 export function isLotRentExemptCamper(camper: {
+  id?: unknown
   lot_number?: unknown
-  first_name?: unknown
-  last_name?: unknown
-}) {
-  const firstName = normalizedName(camper?.first_name)
-  const lastName = normalizedName(camper?.last_name)
-  return normalizeBillingLot(camper?.lot_number) === '47'
-    && ['charlie', 'charles'].includes(firstName)
-    && ['kimbal', 'kimball'].includes(lastName)
+}, policies: AccountPolicy[]) {
+  return hasAccountPolicy(policies, 'lot_rent_exempt', camper)
 }
 
 export function lotRentExemptionReason(camper: {
+  id?: unknown
   lot_number?: unknown
-  first_name?: unknown
-  last_name?: unknown
-}) {
-  return isLotRentExemptCamper(camper)
-    ? 'Charlie Kimball is a staff camper and is exempt from lot rent. Other campsite charges remain enabled.'
-    : ''
+}, policies: AccountPolicy[]) {
+  return policiesForCamper(policies, camper).find((policy) => policy.policy_type === 'lot_rent_exempt')?.reason || ''
 }

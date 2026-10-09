@@ -6,6 +6,7 @@ import { isInvoiceOutstanding, type BalanceInvoice } from '../../../lib/invoice-
 import { daysUntilDate, todayInCentral } from '../../../lib/invoice-reminder-schedule'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { filterOptedInPhones } from '../../../lib/sms-recipient-filter'
+import { loadActiveAccountPolicies } from '../../../lib/account-policies'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -161,6 +162,7 @@ export async function GET(request: Request) {
   if (reminderResult.error) return NextResponse.json({ error: reminderResult.error.message }, { status: 500 })
 
   const campers = (camperResult.data || []) as AuthCamperRecord[]
+  const policies = await loadActiveAccountPolicies(context.admin)
   const consentsByCamper = new Map<string, SmsConsent[]>()
   for (const consent of (consentResult.data || []) as SmsConsent[]) {
     const key = String(consent.camper_id)
@@ -174,7 +176,7 @@ export async function GET(request: Request) {
     if (!owner?.active) continue
     const reminderType = expectedReminder(invoice, today)
     if (!reminderType) continue
-    const profiles = [owner, ...authorizedDelegateProfilesForLot(owner.lot_number, campers)]
+    const profiles = [owner, ...authorizedDelegateProfilesForLot(owner.lot_number, campers, policies)]
       .filter((profile, index, all) => profile && all.findIndex((candidate) => String(candidate.id) === String(profile.id)) === index)
     const recipients = Array.from(new Set(profiles.flatMap((profile) => {
       if (!profile.sms_opt_in) return []

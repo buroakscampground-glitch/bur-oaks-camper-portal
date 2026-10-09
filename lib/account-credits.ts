@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { isLotRentExemptCamper, isNoBillingLot } from './billing-exemptions'
+import { loadActiveAccountPolicies } from './account-policies'
 
 type CreditBalanceRow = { remaining_amount?: number | string | null; status?: string | null }
 type InvoiceDraft = Record<string, unknown> & {
@@ -100,17 +101,18 @@ export async function createInvoiceBundle({
   if (camperId) {
     const { data: camper, error: camperError } = await client
       .from('campers')
-      .select('lot_number,first_name,last_name')
+      .select('id,lot_number')
       .eq('id', camperId)
       .maybeSingle()
     if (camperError) throw camperError
+    const policies = await loadActiveAccountPolicies(client)
     const lotNumber = camper?.lot_number
-    if (isNoBillingLot(lotNumber)) {
+    if (isNoBillingLot(lotNumber, policies)) {
       throw new Error(`Lot ${lotNumber} is a no-billing camper site. No invoice was created or sent.`)
     }
     const invoiceType = String(invoice.invoice_type || '')
-    if (/rent/i.test(invoiceType) && !/association/i.test(invoiceType) && isLotRentExemptCamper(camper || {})) {
-      throw new Error('Charlie Kimball is a staff camper and is exempt from lot rent. No lot-rent invoice was created or sent.')
+    if (/rent/i.test(invoiceType) && !/association/i.test(invoiceType) && isLotRentExemptCamper(camper || {}, policies)) {
+      throw new Error('This camper has an active lot-rent exemption policy. No lot-rent invoice was created or sent.')
     }
   }
 

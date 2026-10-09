@@ -2801,4 +2801,89 @@ GRANT EXECUTE ON FUNCTION public."approve_daily_closeout_atomic"(date, timestamp
 COMMENT ON TABLE public."daily_closeout_approvals" IS 'Immutable signed daily closeout receipts. Corrections append a new revision and preserve prior receipts.';
 COMMENT ON FUNCTION public."approve_daily_closeout_atomic"(date, timestamp with time zone, jsonb, uuid, text, text) IS 'Server-only atomic append of a verified, database-hashed daily closeout receipt.';
 
+CREATE TABLE public."camper_account_policies" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+  "policy_key" text NOT NULL UNIQUE CHECK (char_length(policy_key) BETWEEN 3 AND 160),
+  "policy_type" text NOT NULL CHECK (policy_type IN ('billing_disabled','lot_rent_exempt','document_delivery_exempt','billing_delegate','pump_out_service_access')),
+  "camper_id" uuid REFERENCES public."campers"("id") ON DELETE RESTRICT,
+  "lot_number" text,
+  "subject_email" text,
+  "related_lot_number" text,
+  "reason" text NOT NULL CHECK (char_length(btrim(reason)) BETWEEN 5 AND 1000),
+  "effective_on" date NOT NULL,
+  "expires_on" date CHECK (expires_on IS NULL OR expires_on >= effective_on),
+  "active" boolean DEFAULT true NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "created_by" text NOT NULL,
+  "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+  "updated_by" text NOT NULL,
+  CHECK (camper_id IS NOT NULL OR NULLIF(btrim(COALESCE(lot_number,'')),'') IS NOT NULL OR NULLIF(btrim(COALESCE(subject_email,'')),'') IS NOT NULL),
+  CHECK (policy_type <> 'billing_delegate' OR (subject_email IS NOT NULL AND lot_number IS NOT NULL)),
+  CHECK (policy_type <> 'pump_out_service_access' OR (subject_email IS NOT NULL AND lot_number IS NOT NULL AND related_lot_number IS NOT NULL))
+);
+CREATE TABLE public."camper_account_policy_events" (
+  "id" uuid DEFAULT gen_random_uuid() NOT NULL PRIMARY KEY,
+  "policy_id" uuid NOT NULL REFERENCES public."camper_account_policies"("id") ON DELETE RESTRICT,
+  "action" text NOT NULL CHECK (action IN ('created','updated','activated','expired')),
+  "actor" text NOT NULL,
+  "reason" text NOT NULL CHECK (char_length(btrim(reason)) BETWEEN 5 AND 1000),
+  "before_state" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "after_state" jsonb DEFAULT '{}'::jsonb NOT NULL,
+  "created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE INDEX camper_account_policies_camper_idx ON public."camper_account_policies" (camper_id,active,effective_on,expires_on);
+CREATE INDEX camper_account_policies_lot_idx ON public."camper_account_policies" (upper(btrim(lot_number)),active,policy_type);
+CREATE INDEX camper_account_policies_email_idx ON public."camper_account_policies" (lower(btrim(subject_email)),active,policy_type);
+CREATE INDEX camper_account_policy_events_policy_idx ON public."camper_account_policy_events" (policy_id,created_at DESC);
+ALTER TABLE public."camper_account_policies" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."camper_account_policy_events" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "camper_account_policies_admin_select" ON public."camper_account_policies" FOR SELECT TO "authenticated" USING ((SELECT public."is_admin_user"()));
+CREATE POLICY "camper_account_policy_events_admin_select" ON public."camper_account_policy_events" FOR SELECT TO "authenticated" USING ((SELECT public."is_admin_user"()));
+CREATE OR REPLACE FUNCTION public."block_camper_account_policy_event_mutation"() RETURNS trigger
+  LANGUAGE plpgsql SET search_path TO 'public'
+AS $$
+BEGIN
+  RAISE EXCEPTION 'Camper account policy events are immutable and append-only.' USING ERRCODE = '42501';
+END;
+$$;
+CREATE TRIGGER camper_account_policy_events_immutable BEFORE UPDATE OR DELETE ON public."camper_account_policy_events" FOR EACH ROW EXECUTE FUNCTION public."block_camper_account_policy_event_mutation"();
+CREATE OR REPLACE FUNCTION public."set_camper_account_policy_atomic"(p_policy_id uuid, p_policy_type text, p_camper_id uuid, p_lot_number text, p_subject_email text, p_related_lot_number text, p_reason text, p_effective_on date, p_expires_on date, p_active boolean, p_actor text) RETURNS jsonb
+  LANGUAGE plpgsql SET search_path TO 'public'
+AS $$
+DECLARE
+  policy_row public.camper_account_policies%ROWTYPE;
+  before_row jsonb := '{}'::jsonb;
+  normalized_actor text := NULLIF(lower(btrim(COALESCE(p_actor,''))), '');
+  normalized_reason text := NULLIF(btrim(COALESCE(p_reason,'')), '');
+  action_name text;
+BEGIN
+  IF p_policy_type NOT IN ('billing_disabled','lot_rent_exempt','document_delivery_exempt','billing_delegate','pump_out_service_access') THEN RAISE EXCEPTION 'Unsupported account policy type.'; END IF;
+  IF normalized_actor IS NULL OR char_length(normalized_actor) > 320 THEN RAISE EXCEPTION 'A valid policy actor is required.'; END IF;
+  IF normalized_reason IS NULL OR char_length(normalized_reason) NOT BETWEEN 5 AND 1000 THEN RAISE EXCEPTION 'A meaningful policy reason is required.'; END IF;
+  IF p_effective_on IS NULL OR (p_expires_on IS NOT NULL AND p_expires_on < p_effective_on) THEN RAISE EXCEPTION 'Choose a valid policy date range.'; END IF;
+  IF p_policy_id IS NULL THEN
+    INSERT INTO public.camper_account_policies (policy_key,policy_type,camper_id,lot_number,subject_email,related_lot_number,reason,effective_on,expires_on,active,created_by,updated_by)
+    VALUES ('manual:'||gen_random_uuid()::text,p_policy_type,p_camper_id,NULLIF(upper(btrim(COALESCE(p_lot_number,''))),''),NULLIF(lower(btrim(COALESCE(p_subject_email,''))),''),NULLIF(upper(btrim(COALESCE(p_related_lot_number,''))),''),normalized_reason,p_effective_on,p_expires_on,COALESCE(p_active,true),normalized_actor,normalized_actor)
+    RETURNING * INTO policy_row;
+    action_name := 'created';
+  ELSE
+    SELECT * INTO policy_row FROM public.camper_account_policies WHERE id=p_policy_id FOR UPDATE;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Account policy not found.'; END IF;
+    before_row := to_jsonb(policy_row);
+    action_name := CASE WHEN policy_row.active IS DISTINCT FROM p_active AND p_active THEN 'activated' WHEN policy_row.active IS DISTINCT FROM p_active AND NOT p_active THEN 'expired' ELSE 'updated' END;
+    UPDATE public.camper_account_policies SET policy_type=p_policy_type,camper_id=p_camper_id,lot_number=NULLIF(upper(btrim(COALESCE(p_lot_number,''))),''),subject_email=NULLIF(lower(btrim(COALESCE(p_subject_email,''))),''),related_lot_number=NULLIF(upper(btrim(COALESCE(p_related_lot_number,''))),''),reason=normalized_reason,effective_on=p_effective_on,expires_on=p_expires_on,active=COALESCE(p_active,false),updated_at=now(),updated_by=normalized_actor WHERE id=p_policy_id RETURNING * INTO policy_row;
+  END IF;
+  INSERT INTO public.camper_account_policy_events (policy_id,action,actor,reason,before_state,after_state) VALUES (policy_row.id,action_name,normalized_actor,normalized_reason,before_row,to_jsonb(policy_row));
+  RETURN to_jsonb(policy_row);
+END;
+$$;
+REVOKE ALL ON TABLE public."camper_account_policies", public."camper_account_policy_events" FROM PUBLIC, "anon", "authenticated";
+GRANT SELECT ON TABLE public."camper_account_policies", public."camper_account_policy_events" TO "authenticated";
+GRANT ALL ON TABLE public."camper_account_policies", public."camper_account_policy_events" TO "service_role";
+REVOKE EXECUTE ON FUNCTION public."block_camper_account_policy_event_mutation"() FROM PUBLIC, "anon", "authenticated";
+REVOKE EXECUTE ON FUNCTION public."set_camper_account_policy_atomic"(uuid,text,uuid,text,text,text,text,date,date,boolean,text) FROM PUBLIC, "anon", "authenticated";
+GRANT EXECUTE ON FUNCTION public."set_camper_account_policy_atomic"(uuid,text,uuid,text,text,text,text,date,date,boolean,text) TO "service_role";
+COMMENT ON TABLE public."camper_account_policies" IS 'Dated, visible camper billing, document, delegation, and service-access policies formerly embedded in application code.';
+COMMENT ON TABLE public."camper_account_policy_events" IS 'Immutable history for camper account policy creation, edits, activation, and expiration.';
+
 COMMIT;

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AuthCamperRecord } from './auth-account-match'
+import { activeAccountPolicies, loadActiveAccountPolicies, type AccountPolicy } from './account-policies.ts'
 
 export type AuthorizedBillingLink = {
   delegateEmail: string
@@ -10,11 +11,11 @@ export type AuthorizedBillingLink = {
 // Authorized family-account access. These links grant access only to billing
 // and assigned campground documents. They never grant access to profiles,
 // messages, maintenance records, or other camper data.
-export const authorizedBillingLinks: AuthorizedBillingLink[] = [
-  { delegateEmail: 'dmonke69@yahoo.com', ownerLot: 'FF2' },
-  { delegateEmail: 'stacymcnish@yahoo.com', ownerLot: 'FF12' },
-  { delegateEmail: 'neter85@gmail.com', ownerLot: 'TEMP 1' },
-]
+export function authorizedBillingLinks(policies: AccountPolicy[]): AuthorizedBillingLink[] {
+  return activeAccountPolicies(policies)
+    .filter((policy) => policy.policy_type === 'billing_delegate' && policy.subject_email && policy.lot_number)
+    .map((policy) => ({ delegateEmail: normalizeBillingEmail(policy.subject_email), ownerLot: String(policy.lot_number) }))
+}
 
 export function normalizeBillingEmail(value: unknown) {
   return String(value || '').trim().toLowerCase()
@@ -24,18 +25,18 @@ export function normalizeBillingLot(value: unknown) {
   return String(value || '').trim().toUpperCase()
 }
 
-export function billingOwnerLotsForEmail(email: unknown) {
+export function billingOwnerLotsForEmail(email: unknown, policies: AccountPolicy[]) {
   const normalizedEmails = new Set(
     (Array.isArray(email) ? email : [email]).map(normalizeBillingEmail).filter(Boolean)
   )
-  return authorizedBillingLinks
+  return authorizedBillingLinks(policies)
     .filter((link) => normalizedEmails.has(link.delegateEmail))
     .map((link) => link.ownerLot)
 }
 
-export function billingDelegateEmailsForLot(lotNumber: unknown) {
+export function billingDelegateEmailsForLot(lotNumber: unknown, policies: AccountPolicy[]) {
   const normalizedLot = normalizeBillingLot(lotNumber)
-  return authorizedBillingLinks
+  return authorizedBillingLinks(policies)
     .filter((link) => normalizeBillingLot(link.ownerLot) === normalizedLot)
     .map((link) => link.delegateEmail)
 }
@@ -45,8 +46,8 @@ function realEmail(value: unknown) {
   return /^\S+@\S+\.\S+$/.test(email) && !email.endsWith('@no-email.buroaks.local') && !email.endsWith('@phone-login.buroakscampground.com') ? email : ''
 }
 
-export function authorizedDelegateProfilesForLot(lotNumber: unknown, campers: AuthCamperRecord[]) {
-  const allowedEmails = new Set(billingDelegateEmailsForLot(lotNumber).map(normalizeBillingEmail))
+export function authorizedDelegateProfilesForLot(lotNumber: unknown, campers: AuthCamperRecord[], policies: AccountPolicy[]) {
+  const allowedEmails = new Set(billingDelegateEmailsForLot(lotNumber, policies).map(normalizeBillingEmail))
   if (!allowedEmails.size) return []
 
   return (campers || []).filter((camper) => {
@@ -69,8 +70,9 @@ export function authorizedContactEmails(profiles: AuthCamperRecord[]) {
   ))
 }
 
-export async function loadAuthorizedContactProfiles(client: SupabaseClient, owner: AuthCamperRecord | null | undefined) {
-  const delegateEmails = billingDelegateEmailsForLot(owner?.lot_number)
+export async function loadAuthorizedContactProfiles(client: SupabaseClient, owner: AuthCamperRecord | null | undefined, suppliedPolicies?: AccountPolicy[]) {
+  const policies = suppliedPolicies || await loadActiveAccountPolicies(client)
+  const delegateEmails = billingDelegateEmailsForLot(owner?.lot_number, policies)
   if (!delegateEmails.length) return owner ? [owner] : []
 
   const { data, error } = await client
@@ -80,14 +82,14 @@ export async function loadAuthorizedContactProfiles(client: SupabaseClient, owne
 
   if (error) throw error
 
-  const delegates = authorizedDelegateProfilesForLot(owner?.lot_number, (data || []) as AuthCamperRecord[])
+  const delegates = authorizedDelegateProfilesForLot(owner?.lot_number, (data || []) as AuthCamperRecord[], policies)
   const profiles: AuthCamperRecord[] = owner ? [owner, ...delegates] : delegates
   return profiles
     .filter((profile, index, all) => all.findIndex((candidate) => String(candidate.id) === String(profile.id)) === index)
 }
 
 export async function loadAuthorizedBillingCampers(client: SupabaseClient, email: unknown): Promise<AuthCamperRecord[]> {
-  const lots = billingOwnerLotsForEmail(email)
+  const lots = billingOwnerLotsForEmail(email, await loadActiveAccountPolicies(client))
   if (!lots.length) return []
 
   const { data, error } = await client
@@ -108,7 +110,7 @@ export async function loadAuthorizedBillingCampers(client: SupabaseClient, email
 }
 
 export async function loadAuthorizedDocumentCamper(client: SupabaseClient, email: unknown, camperId: unknown): Promise<AuthCamperRecord | null> {
-  const lots = billingOwnerLotsForEmail(email).map(normalizeBillingLot)
+  const lots = billingOwnerLotsForEmail(email, await loadActiveAccountPolicies(client)).map(normalizeBillingLot)
   if (!lots.length || !camperId) return null
 
   const { data, error } = await client

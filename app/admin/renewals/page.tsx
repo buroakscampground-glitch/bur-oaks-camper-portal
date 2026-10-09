@@ -33,6 +33,7 @@ import { effectiveRenewalStatus } from '../../../lib/renewal-document-status'
 import { hasSecureRenewalSignature } from '../../../lib/renewal-signature'
 import { renewalOfficeReviewDate, renewalResponseCountdownLabel, renewalResponseDaysRemaining, renewalResponseDueDate, renewalSendDate } from '../../../lib/renewal-timeline'
 import { isDocumentDeliveryExcluded } from '../../../lib/document-delivery-exemptions'
+import type { AccountPolicy } from '../../../lib/account-policies'
 
 type Camper = {
   id: string
@@ -268,6 +269,7 @@ export default function AdminRenewalsPage() {
   const [campers, setCampers] = useState<Camper[]>([])
   const [renewals, setRenewals] = useState<Renewal[]>([])
   const [renewalDocuments, setRenewalDocuments] = useState<RenewalDocument[]>([])
+  const [policies, setPolicies] = useState<AccountPolicy[]>([])
   const [drafts, setDrafts] = useState<Record<string, Draft>>({})
   const [expanded, setExpanded] = useState('')
   const [view, setView] = useState<View>('Action')
@@ -343,15 +345,16 @@ export default function AdminRenewalsPage() {
         body: JSON.stringify({ action: 'reconcile' }),
       }).catch(() => null)
     }
-    const [camperResult, renewalResult, documentResult, lotResult, rentInvoiceResult] = await Promise.all([
+    const [camperResult, renewalResult, documentResult, lotResult, rentInvoiceResult, policyResult] = await Promise.all([
       supabase.from('campers').select('id,first_name,last_name,second_profile_first_name,second_profile_last_name,lot_number,role,rent_payment_plan').eq('active', true).order('lot_number', { ascending: true }),
       supabase.from('season_renewals').select('*').order('contract_end_date', { ascending: true, nullsFirst: false }),
       supabase.from('documents').select('id,camper_id,document_name,document_type,signature_status,signed_at,signed_name,second_signed_name,requires_two_signatures,signature_record_hash,second_signature_record_hash'),
       supabase.from('lots').select('lot_number,lot_rent_amount'),
       supabase.from('invoices').select('camper_id,subtotal,due_date,invoice_type').ilike('invoice_type', '%rent%').order('due_date', { ascending: false }),
+      supabase.from('camper_account_policies').select('*').eq('active', true),
     ])
 
-    if (camperResult.error || renewalResult.error || documentResult.error || lotResult.error || rentInvoiceResult.error) {
+    if (camperResult.error || renewalResult.error || documentResult.error || lotResult.error || rentInvoiceResult.error || policyResult.error) {
       setLoadError('Renewal records could not be loaded completely. Forecast counts and action lists are hidden until the office can reconnect.')
       setLoading(false)
       return
@@ -372,6 +375,7 @@ export default function AdminRenewalsPage() {
       return installment * (camper.rent_payment_plan === 'quarterly' ? 4 : 2)
     }
     setCampers(activeCampers)
+    setPolicies((policyResult.data || []) as AccountPolicy[])
     setRenewals(records)
     setRenewalDocuments((documentResult.data || []) as RenewalDocument[])
     setDrafts(Object.fromEntries(activeCampers.map((camper) => [camper.id, draftFrom(records.find((record) => record.camper_id === camper.id), inferredAnnualRent(camper))])))
@@ -854,7 +858,7 @@ export default function AdminRenewalsPage() {
         <div className="renewal-list">
           {visibleRows.map((row) => {
             const draft = drafts[row.camper.id] || draftFrom(row.renewal)
-            const signatureExempt = isDocumentDeliveryExcluded(row.camper)
+            const signatureExempt = isDocumentDeliveryExcluded(row.camper, policies)
             const renewalDocument = renewalDocuments.find((document) => document.id === row.renewal?.renewal_document_id)
             const signedRenewalOnFile = renewalDocuments.find((document) => document.camper_id === row.camper.id
               && hasSecureRenewalSignature(document)

@@ -22,6 +22,7 @@ import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { isLotRentExemptCamper } from '../../../lib/billing-exemptions'
 import { buildIncomeProjection, projectionMonths, type ProjectionSite } from '../../../lib/income-projection'
+import type { AccountPolicy } from '../../../lib/account-policies'
 
 const categoryColors = {
   lotRent: '#315f3d',
@@ -63,15 +64,16 @@ export default function AdminIncomeProjectionPage() {
     else setRefreshing(true)
     if (initialLoad) setLoadError('')
     try {
-      const [camperResult, lotResult, readingResult, invoiceResult, renewalResult] = await Promise.all([
+      const [camperResult, lotResult, readingResult, invoiceResult, renewalResult, policyResult] = await Promise.all([
         supabase.from('campers').select('id,lot_number,first_name,last_name,role,active').eq('active', true),
         supabase.from('lots').select('lot_number,lot_rent_amount'),
         supabase.from('electric_readings').select('camper_id,reading_date,kwh_used,amount_due'),
         supabase.from('invoices').select('camper_id,invoice_type,due_date,created_at,total_due,status,paid_at'),
         supabase.from('season_renewals').select('camper_id,lot_number,contract_end_date,status'),
+        supabase.from('camper_account_policies').select('*').eq('active', true),
       ])
 
-      const errors = [camperResult.error, lotResult.error, readingResult.error, invoiceResult.error, renewalResult.error].filter(Boolean)
+      const errors = [camperResult.error, lotResult.error, readingResult.error, invoiceResult.error, renewalResult.error, policyResult.error].filter(Boolean)
       if (errors.length) {
         const reason = errors.map((error) => error?.message).join(' ')
         if (initialLoad) setLoadError(reason || 'The income projection could not be loaded completely.')
@@ -94,7 +96,7 @@ export default function AdminIncomeProjectionPage() {
           lotRentExempt: false,
         }
         current.camperIds.push(String(camper.id))
-        current.lotRentExempt = current.lotRentExempt || isLotRentExemptCamper(camper)
+        current.lotRentExempt = current.lotRentExempt || isLotRentExemptCamper(camper, (policyResult.data || []) as AccountPolicy[])
         siteMap.set(key, current)
       }
 

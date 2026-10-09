@@ -38,6 +38,7 @@ import { rentPaymentBreakdown } from '../../../../lib/rent-payment-summary'
 import { contractPaymentSnapshot } from '../../../../lib/contract-payment-snapshot'
 import { camperHouseholdName, primaryCamperName, secondaryCamperName } from '../../../../lib/camper-household'
 import { setCamperActiveAudited, updateCamperProfileAudited, updateCamperRentTermsAudited } from '../../../../lib/admin-audited-actions'
+import { accountPolicyLabels, policiesForCamper, type AccountPolicy } from '../../../../lib/account-policies'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 type HistoryView = 'activity' | 'documents' | 'billing' | 'credits' | 'site' | 'messages' | 'electric'
@@ -131,6 +132,7 @@ export default function CamperDetailPage() {
   const [invoices, setInvoices] = useState<any[]>([])
   const [camperDocuments, setCamperDocuments] = useState<any[]>([])
   const [insuranceDocuments, setInsuranceDocuments] = useState<any[]>([])
+  const [accountPolicies, setAccountPolicies] = useState<AccountPolicy[]>([])
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null)
   const [uploadingInsurance, setUploadingInsurance] = useState(false)
   const [scannedDocumentFile, setScannedDocumentFile] = useState<File | null>(null)
@@ -171,14 +173,15 @@ export default function CamperDetailPage() {
     setLoadError('')
     setNotFound(false)
 
-    const [camperResult, invoiceResult, documentResult] = await Promise.all([
+    const [camperResult, invoiceResult, documentResult, policyResult] = await Promise.all([
       supabase.from('campers').select('*').eq('id', camperId).single(),
       supabase.from('invoices').select('*').eq('camper_id', camperId),
       supabase
         .from('documents')
         .select('*')
         .eq('camper_id', camperId)
-        .order('document_name', { ascending: true })
+        .order('document_name', { ascending: true }),
+      supabase.from('camper_account_policies').select('*').order('effective_on', { ascending: false }),
     ])
 
     if (camperResult.error || !camperResult.data) {
@@ -188,8 +191,8 @@ export default function CamperDetailPage() {
       return
     }
 
-    if (invoiceResult.error || documentResult.error) {
-      setLoadError('The camper profile, invoice ledger, or document record could not be loaded completely. Editing and account actions are blocked.')
+    if (invoiceResult.error || documentResult.error || policyResult.error) {
+      setLoadError('The camper profile, invoice ledger, or document record could not be loaded completely, including account policies. Editing and account actions are blocked.')
       setLoading(false)
       return
     }
@@ -199,6 +202,7 @@ export default function CamperDetailPage() {
     const documents = documentResult.data || []
     setCamperDocuments(documents)
     setInsuranceDocuments(documents.filter((document) => document.document_type === 'Golf Cart Insurance'))
+    setAccountPolicies(policiesForCamper((policyResult.data || []) as AccountPolicy[], camperResult.data))
 
     const currentLotNumber = String(camperResult.data.lot_number || '').trim()
     if (currentLotNumber) {
@@ -871,6 +875,33 @@ export default function CamperDetailPage() {
               </select>
             </label>
           </div>
+        </ProfileSection>
+
+        <ProfileSection icon={<ShieldCheck />} kicker="ACCOUNT SAFEGUARDS" title="Active exceptions & authorized access">
+          <p className="admin-camper-panel-note">
+            These dated rules control billing, renewal delivery, authorized bill payers, and extra pump-out access. They are audited separately from ordinary profile notes.
+          </p>
+          {accountPolicies.length ? (
+            <div className="admin-camper-history-list">
+              {accountPolicies.map((policy) => (
+                <article className="admin-history-row" key={policy.id}>
+                  <span className="admin-history-type">{accountPolicyLabels[policy.policy_type]}</span>
+                  <div>
+                    <strong>{policy.reason}</strong>
+                    <p>
+                      Effective {formatHistoryDate(policy.effective_on)}
+                      {policy.expires_on ? ` · Expires ${formatHistoryDate(policy.expires_on)}` : ' · No expiration'}
+                      {policy.subject_email ? ` · ${policy.subject_email}` : ''}
+                      {policy.related_lot_number ? ` · Related site ${policy.related_lot_number}` : ''}
+                    </p>
+                  </div>
+                  <time>{policy.active ? 'Active' : 'Inactive'}</time>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <div className="admin-camper-history-empty"><ShieldCheck size={27} /><strong>No special account policies are active.</strong></div>
+          )}
         </ProfileSection>
 
         <ProfileSection icon={<CircleDollarSign />} kicker="BILLING & RENT" title="Annual lot rent">

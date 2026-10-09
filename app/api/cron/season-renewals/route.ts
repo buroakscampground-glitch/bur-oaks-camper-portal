@@ -11,6 +11,7 @@ import { reconcileRenewalsWithDocuments } from '../../../../lib/renewal-document
 import { isDocumentDeliveryExcluded } from '../../../../lib/document-delivery-exemptions'
 import { renewalOfficeReviewDate, renewalResponseDueDate, renewalSendDate } from '../../../../lib/renewal-timeline'
 import { createPersonalizedRenewalPdf, renewalTermDates } from '../../../../lib/personalized-renewal-pdf'
+import { loadActiveAccountPolicies } from '../../../../lib/account-policies'
 
 export const dynamic = 'force-dynamic'
 
@@ -38,6 +39,7 @@ async function runCron(request: Request) {
   if (!admin) return NextResponse.json({ error: 'Supabase service key is not configured.' }, { status: 500 })
 
   const today = todayInCentral()
+  const policies = await loadActiveAccountPolicies(admin)
 
   // Keep the forecast aligned with the signed-document tracker, including
   // renewals completed before the instant signing automation was introduced.
@@ -199,7 +201,7 @@ async function runCron(request: Request) {
       continue
     }
 
-    if (isDocumentDeliveryExcluded(camper)) {
+    if (isDocumentDeliveryExcluded(camper, policies)) {
       await admin.from('season_renewals').update({
         auto_send_approved: false,
         last_automation_at: new Date().toISOString(),

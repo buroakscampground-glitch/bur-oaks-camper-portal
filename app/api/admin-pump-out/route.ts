@@ -4,6 +4,7 @@ import { loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { getSewerPumpOutFeeForLot, getSewerPumpOutGallonsForCharge } from '../../../lib/sewer-pump-fees'
 import { allowedPumpOutServiceLot } from '../../../lib/multi-site-pump-outs'
+import { loadActiveAccountPolicies } from '../../../lib/account-policies'
 
 export const runtime = 'nodejs'
 
@@ -33,10 +34,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'That camper site could not be found.' }, { status: 404 })
   }
 
+  const policies = await loadActiveAccountPolicies(context.admin)
   const serviceLot = allowedPumpOutServiceLot(
     targetCamper.email,
     targetCamper.lot_number,
-    requestedServiceLot || targetCamper.lot_number
+    requestedServiceLot || targetCamper.lot_number,
+    policies
   )
   if (!serviceLot) {
     return NextResponse.json({ error: 'That service site is not connected to this camper account.' }, { status: 400 })

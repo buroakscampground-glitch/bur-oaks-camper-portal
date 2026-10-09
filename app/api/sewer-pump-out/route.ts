@@ -11,6 +11,7 @@ import {
   pumpOutServiceAccountsForAccount,
   pumpOutServiceLotsForAccount,
 } from '../../../lib/multi-site-pump-outs'
+import { loadActiveAccountPolicies } from '../../../lib/account-policies'
 
 export const runtime = 'nodejs'
 
@@ -22,7 +23,8 @@ export async function GET(request: Request) {
   }
 
   const accountEmails = [context.user.email, context.camper.email, context.camper.secondary_email]
-  const serviceLots = pumpOutServiceLotsForAccount(accountEmails, context.camper.lot_number)
+  const policies = await loadActiveAccountPolicies(context.admin)
+  const serviceLots = pumpOutServiceLotsForAccount(accountEmails, context.camper.lot_number, policies)
   let requestQuery = context.admin
     .from('sewer_pump_out_requests')
     .select('*')
@@ -41,7 +43,7 @@ export async function GET(request: Request) {
     success: true,
     requests: data || [],
     serviceLots,
-    serviceAccounts: pumpOutServiceAccountsForAccount(accountEmails, context.camper.lot_number),
+    serviceAccounts: pumpOutServiceAccountsForAccount(accountEmails, context.camper.lot_number, policies),
     billingLot: context.camper.lot_number,
   })
 }
@@ -59,10 +61,12 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}))
   const notes = String(body.notes || '').trim().slice(0, 500)
   const accountEmails = [context.user.email, context.camper.email, context.camper.secondary_email]
+  const policies = await loadActiveAccountPolicies(context.admin)
   const requestedServiceLot = allowedPumpOutServiceLot(
     accountEmails,
     context.camper.lot_number,
-    body.serviceLot || context.camper.lot_number
+    body.serviceLot || context.camper.lot_number,
+    policies
   )
   if (!requestedServiceLot) {
     return NextResponse.json({ error: 'That campsite is not connected to your pump-out account.' }, { status: 403 })
@@ -71,7 +75,8 @@ export async function POST(request: Request) {
   const billingLot = pumpOutBillingLotForService(
     accountEmails,
     context.camper.lot_number,
-    requestedServiceLot
+    requestedServiceLot,
+    policies
   )
   if (!billingLot) {
     return NextResponse.json({ error: 'The billing account for that campsite could not be verified.' }, { status: 403 })

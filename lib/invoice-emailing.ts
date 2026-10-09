@@ -3,6 +3,7 @@ import { createFinalInvoiceToken } from './final-invoice-token'
 import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
 import { isNoBillingLot } from './billing-exemptions'
 import { authorizedContactEmails, loadAuthorizedContactProfiles } from './authorized-billing'
+import { loadActiveAccountPolicies } from './account-policies'
 
 type InvoiceEmailKind = InvoiceNoticeKind
 
@@ -408,7 +409,8 @@ export async function sendInvoiceEmail({
   if (!camper) {
     return { status: 'skipped', reason: 'Camper billing record was not found.' }
   }
-  if (isNoBillingLot(camper.lot_number)) {
+  const policies = await loadActiveAccountPolicies(client)
+  if (isNoBillingLot(camper.lot_number, policies)) {
     return { status: 'skipped', reason: `Lot ${camper.lot_number} has billing disabled.` }
   }
 
@@ -419,7 +421,7 @@ export async function sendInvoiceEmail({
 
   let contactProfiles: AuthCamperRecord[]
   try {
-    contactProfiles = await loadAuthorizedContactProfiles(client, camper)
+    contactProfiles = await loadAuthorizedContactProfiles(client, camper, policies)
   } catch (error: unknown) {
     return { status: 'failed', error: error instanceof Error ? error.message : 'Authorized billing contacts could not be loaded.' }
   }

@@ -9,6 +9,7 @@ import { singleSegmentSms } from './sms-segments'
 import { isDocumentDeliveryExcluded } from './document-delivery-exemptions'
 import { documentSigningUrl } from './document-signing-link'
 import { isRenewalDocument, renewalDocumentHasRequiredDetails } from './renewal-document-readiness'
+import { loadActiveAccountPolicies } from './account-policies'
 
 const REMINDER_TYPE = 'Document Signature Reminder'
 
@@ -181,7 +182,8 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
   camper: AuthCamperRecord
   today?: string
 }) {
-  if (isDocumentDeliveryExcluded(camper)) {
+  const policies = await loadActiveAccountPolicies(client)
+  if (isDocumentDeliveryExcluded(camper, policies)) {
     return { email: 'skipped', sms: 'skipped', emailSent: 0, smsSent: 0, errors: [] as string[], excluded: true }
   }
 
@@ -196,7 +198,7 @@ export async function sendDocumentSignatureReminder({ client, document, camper, 
 
   let contactProfiles: AuthCamperRecord[]
   try {
-    contactProfiles = await loadAuthorizedContactProfiles(client, camper)
+    contactProfiles = await loadAuthorizedContactProfiles(client, camper, policies)
   } catch (error: unknown) {
     return { email: 'failed', sms: 'failed', emailSent: 0, smsSent: 0, errors: [error instanceof Error ? error.message : 'Authorized document contacts could not be loaded.'] }
   }

@@ -4,6 +4,7 @@ import { isOperationalCamper } from './camper-records'
 import { todayInCentral } from './invoice-texting'
 import { isPumpOutWaitingForService } from './pump-out-status'
 import { oneRelationship } from './database-relations'
+import { loadActiveAccountPolicies } from './account-policies'
 
 type RelatedCamper = { first_name?: string | null; last_name?: string | null; lot_number?: string | null }
 type JoinedCamper = RelatedCamper | RelatedCamper[] | null
@@ -123,6 +124,7 @@ export async function loadOperationsSnapshot(client: SupabaseClient) {
   thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30)
   const recentCutoff = thirtyDaysAgo.toISOString()
   const currentMonthStart = monthStart(today)
+  const policiesPromise = loadActiveAccountPolicies(client)
 
   const [
     camperResult,
@@ -151,6 +153,7 @@ export async function loadOperationsSnapshot(client: SupabaseClient) {
     safeRows<SiteCareNotice>(client.from('site_care_notices').select('id,camper_id,lot_number,title,status,priority,due_date,created_at').order('created_at', { ascending: false }).limit(300)),
     safeRows<MeterSubmission>(client.from('meter_reading_submissions').select('id,camper_id,lot_number,status,captured_at,invoice_id').gte('captured_at', currentMonthStart).neq('status', 'cancelled').order('captured_at', { ascending: false }).limit(300)),
   ])
+  const policies = await policiesPromise
 
   const campers = camperResult.rows.filter((camper) => camper.active !== false && isOperationalCamper(camper))
   const invoices = invoiceResult.rows.map((invoice) => ({ ...invoice, campers: oneRelationship(invoice.campers) }))
@@ -231,7 +234,7 @@ export async function loadOperationsSnapshot(client: SupabaseClient) {
       kind: 'household',
     }))
 
-  for (const link of authorizedBillingLinks) {
+  for (const link of authorizedBillingLinks(policies)) {
     const owner = campers.find((camper) => normalizeBillingLot(camper.lot_number) === normalizeBillingLot(link.ownerLot))
     const delegate = campers.find((camper) =>
       [camper.email, camper.secondary_email].some((email) => normalizeBillingEmail(email) === normalizeBillingEmail(link.delegateEmail))

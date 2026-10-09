@@ -1,13 +1,8 @@
-function normalized(value: unknown) {
-  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9]/g, '')
-}
+import { hasAccountPolicy, type AccountPolicy } from './account-policies.ts'
 
 export function isDocumentDeliveryExcluded(camper: {
+  id?: unknown
   lot_number?: unknown
-  first_name?: unknown
-  last_name?: unknown
-}) {
-  return normalized(camper?.lot_number) === '48'
-    && normalized(camper?.first_name) === 'anthony'
-    && normalized(camper?.last_name) === 'finley'
+}, policies: AccountPolicy[]) {
+  return hasAccountPolicy(policies, 'document_delivery_exempt', camper)
 }

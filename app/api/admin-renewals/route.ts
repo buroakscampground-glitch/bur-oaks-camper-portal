@@ -8,6 +8,7 @@ import { continueSignedRenewalRentSchedule } from '../../../lib/renewal-rent-sch
 import { isDocumentDeliveryExcluded } from '../../../lib/document-delivery-exemptions'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { isLotRentInvoice, normalizeLotRentDueDate } from '../../../lib/renewal-rent-schedule'
+import { loadActiveAccountPolicies } from '../../../lib/account-policies'
 
 export const runtime = 'nodejs'
 
@@ -189,7 +190,8 @@ export async function POST(request: Request) {
     .maybeSingle()
 
   if (action === 'confirm-signature-exempt') {
-    if (!isDocumentDeliveryExcluded(camper)) {
+    const policies = await loadActiveAccountPolicies(context.admin)
+    if (!isDocumentDeliveryExcluded(camper, policies)) {
       return NextResponse.json({ error: 'This camper is not configured as signature-exempt.' }, { status: 409 })
     }
     if (!existing) {

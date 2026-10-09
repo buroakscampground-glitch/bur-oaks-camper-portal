@@ -6,6 +6,7 @@ import { daysUntilDate, todayInCentral } from './invoice-reminder-schedule'
 import type { InvoiceNoticeKind } from './invoice-reminder-schedule'
 import { isNoBillingLot } from './billing-exemptions'
 import { singleSegmentSms } from './sms-segments'
+import { loadActiveAccountPolicies } from './account-policies'
 
 type InvoiceTextKind = InvoiceNoticeKind
 
@@ -141,15 +142,16 @@ export async function sendInvoiceText({
   if (!camper?.active) {
     return { status: 'skipped', reason: 'Camper is not active.' }
   }
-  if (isNoBillingLot(camper.lot_number)) {
+  const policies = await loadActiveAccountPolicies(client)
+  if (isNoBillingLot(camper.lot_number, policies)) {
     return { status: 'skipped', reason: `Lot ${camper.lot_number} has billing disabled.` }
   }
 
   const recipients: Array<{ camperId: string; phone: string; automationKey: string }> = []
-  const delegateEmails = new Set(billingDelegateEmailsForLot(camper.lot_number).map(normalizeBillingEmail))
+  const delegateEmails = new Set(billingDelegateEmailsForLot(camper.lot_number, policies).map(normalizeBillingEmail))
   let contactProfiles: AuthCamperRecord[]
   try {
-    contactProfiles = await loadAuthorizedContactProfiles(client, camper)
+    contactProfiles = await loadAuthorizedContactProfiles(client, camper, policies)
   } catch (error: unknown) {
     return { status: 'failed', error: error instanceof Error ? error.message : 'Authorized billing contacts could not be loaded.' }
   }

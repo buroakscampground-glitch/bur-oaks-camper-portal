@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { AuthCamperRecord } from './auth-account-match'
 import { isLotRentExemptCamper, isNoBillingLot } from './billing-exemptions'
+import { loadActiveAccountPolicies } from './account-policies'
 import {
   buildRenewalRentSchedule,
   hasExistingLotRentForTargetMonth,
@@ -56,6 +57,7 @@ export async function continueSignedRenewalRentSchedule({
   if (renewalError) throw renewalError
   if (!renewal) return { status: 'not-renewal', created: 0, skipped: 0 }
   const renewalRow = renewal as SeasonRenewalRow
+  const policies = await loadActiveAccountPolicies(client)
   if (renewalRow.status === 'Campground Not Renewing') {
     return { status: 'campground-not-renewing', created: 0, skipped: 0 }
   }
@@ -68,9 +70,9 @@ export async function continueSignedRenewalRentSchedule({
   }).eq('id', renewalRow.id)
   if (renewalUpdateError) throw renewalUpdateError
 
-  if (!renewalRow.contract_end_date || isNoBillingLot(renewalRow.lot_number)) {
+  if (!renewalRow.contract_end_date || isNoBillingLot(renewalRow.lot_number, policies)) {
     return {
-      status: isNoBillingLot(renewalRow.lot_number) ? 'no-billing-site' : 'missing-contract-date',
+      status: isNoBillingLot(renewalRow.lot_number, policies) ? 'no-billing-site' : 'missing-contract-date',
       created: 0,
       skipped: 0,
     }
@@ -78,13 +80,13 @@ export async function continueSignedRenewalRentSchedule({
 
   const { data: camper, error: camperError } = await client
     .from('campers')
-    .select('rent_payment_plan,lot_number,first_name,last_name')
+    .select('id,rent_payment_plan,lot_number')
     .eq('id', camperId)
     .maybeSingle()
   if (camperError) throw camperError
   const camperRow = camper as AuthCamperRecord | null
 
-  if (isLotRentExemptCamper(camperRow || {})) {
+  if (isLotRentExemptCamper(camperRow || {}, policies)) {
     return { status: 'lot-rent-exempt', created: 0, skipped: 0 }
   }
 

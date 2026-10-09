@@ -7,6 +7,7 @@ import { createInvoiceBundle } from '../../../lib/account-credits'
 import { notifyInvoiceCreated } from '../../../lib/client-invoice-texts'
 import { isLotRentExemptCamper, isNoBillingLot } from '../../../lib/billing-exemptions'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import type { AccountPolicy } from '../../../lib/account-policies'
 
 export default function BulkInvoicesPage() {
   const [campers, setCampers] = useState<any[]>([])
@@ -16,6 +17,7 @@ export default function BulkInvoicesPage() {
   const [message, setMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [policies, setPolicies] = useState<AccountPolicy[]>([])
 
   useEffect(() => {
     loadCampers()
@@ -24,13 +26,18 @@ export default function BulkInvoicesPage() {
   async function loadCampers() {
     setLoading(true)
     setLoadError('')
-    const { data, error } = await supabase.from('campers').select('*').eq('active', true)
+    const [camperResult, policyResult] = await Promise.all([
+      supabase.from('campers').select('*').eq('active', true),
+      supabase.from('camper_account_policies').select('*').eq('active', true),
+    ])
 
-    if (error) {
+    if (camperResult.error || policyResult.error) {
       setCampers([])
+      setPolicies([])
       setLoadError('The active camper list could not be loaded. Bulk invoice creation is blocked so nobody is accidentally skipped.')
     } else {
-      setCampers((data || []).filter(isOperationalCamper))
+      setCampers((camperResult.data || []).filter(isOperationalCamper))
+      setPolicies((policyResult.data || []) as AccountPolicy[])
     }
     setLoading(false)
   }
@@ -58,8 +65,8 @@ export default function BulkInvoicesPage() {
     } = await supabase.auth.getUser()
 
     for (const camper of campers) {
-      if (isNoBillingLot(camper.lot_number)) continue
-      if (/rent/i.test(invoiceType) && !/association/i.test(invoiceType) && isLotRentExemptCamper(camper)) continue
+      if (isNoBillingLot(camper.lot_number, policies)) continue
+      if (/rent/i.test(invoiceType) && !/association/i.test(invoiceType) && isLotRentExemptCamper(camper, policies)) continue
       const operationKey = `bulk-invoice:${invoiceType.trim().toLowerCase()}:${dueDate}:${camper.id}`
       const invoiceNumber = `${invoiceType.replace(/\s+/g, '-').toUpperCase()}-${camper.lot_number}-${dueDate}`
 

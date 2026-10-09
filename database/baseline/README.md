@@ -26,9 +26,11 @@ binary is not on `PATH`.
 
 The October 8, 2026 baseline was generated through a project-scoped,
 read-only Supabase connection, audited in full, and loaded into the isolated
-Bur Oaks Staging project. It contains 59 tables, 36 Bur Oaks functions, 78
-policies, and 12 application triggers. All 59 tables have row-level security
-enabled. The first authenticated staging run caught missing base table grants;
+Bur Oaks Staging project, then advanced only with separately verified,
+schema-only definitions from the approved migrations. It now reflects 67
+production tables, 43 Bur Oaks functions, 86 policies, and 14 application
+triggers. All public application tables have row-level security enabled. The
+first authenticated staging run caught missing base table grants;
 the baseline now includes the exact production grants as well as RLS. Exact
 pre-fixture validation found zero application rows in staging.
 
