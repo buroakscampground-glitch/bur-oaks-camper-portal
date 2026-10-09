@@ -29,3 +29,19 @@ test('account policy storage is admin-readable, server-write-only, and append-on
   assert.doesNotMatch(migration, /UPDATE public\.(campers|invoices|payments|invoice_items)/i)
   assert.doesNotMatch(migration, /DELETE FROM public\.(campers|invoices|payments|invoice_items)/i)
 })
+
+test('the camper profile manages policies only through the protected atomic server route', async () => {
+  const [route, profile] = await Promise.all([
+    readFile(new URL('../app/api/admin-account-policies/route.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../app/admin/campers/[id]/page.tsx', import.meta.url), 'utf8'),
+  ])
+  assert.match(route, /getAuthenticatedContext\(request\)/)
+  assert.match(route, /role \|\| ''\)\.toLowerCase\(\) !== 'admin'/)
+  assert.match(route, /set_camper_account_policy_atomic/)
+  assert.match(route, /p_actor: context\.user\.email/)
+  assert.doesNotMatch(profile, /\.from\('camper_account_policies'\)\.insert/)
+  assert.doesNotMatch(profile, /\.from\('camper_account_policies'\)\.update/)
+  assert.match(profile, /Review & Add Policy/)
+  assert.match(profile, /Why is .* being ended\?/)
+  assert.match(profile, /window\.confirm\(`Add this account policy/)
+})

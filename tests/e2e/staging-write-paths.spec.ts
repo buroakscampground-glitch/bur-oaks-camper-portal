@@ -597,4 +597,26 @@ test.describe.serial('reversible staging write journeys', () => {
     expect(audit.error).toBeNull()
     expect(audit.data).toMatchObject({ action: 'account_credit_voided', reason: 'STAGING WRITE cleanup after proof' })
   })
+
+  test('account policy route rejects camper access and invalid admin drafts without writing', async ({ request }) => {
+    const { anon, admin } = clients()
+    const before = await admin.from('camper_account_policies').select('id', { count: 'exact', head: true })
+    expect(before.error).toBeNull()
+    const camperToken = await tokenFor(anon, 'camper.one@staging.buroaks.invalid', 'BUR_OAKS_STAGING_CAMPER_PASSWORD')
+    const denied = await request.post('/api/admin-account-policies', {
+      headers: { Authorization: `Bearer ${camperToken}` },
+      data: { policyType: 'lot_rent_exempt', camperId, reason: 'This must be denied.', effectiveOn: '2026-10-08' },
+    })
+    expect(denied.status()).toBe(403)
+
+    const adminToken = await tokenFor(anon, 'office.admin@staging.buroaks.invalid', 'BUR_OAKS_STAGING_ADMIN_PASSWORD')
+    const invalid = await request.post('/api/admin-account-policies', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { policyType: 'billing_delegate', lotNumber: 'TEST-01', reason: 'Missing required email.', effectiveOn: '2026-10-08' },
+    })
+    expect(invalid.status()).toBe(400)
+    const after = await admin.from('camper_account_policies').select('id', { count: 'exact', head: true })
+    expect(after.error).toBeNull()
+    expect(after.count).toBe(before.count)
+  })
 })

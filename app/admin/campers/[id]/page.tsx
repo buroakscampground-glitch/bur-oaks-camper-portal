@@ -38,7 +38,7 @@ import { rentPaymentBreakdown } from '../../../../lib/rent-payment-summary'
 import { contractPaymentSnapshot } from '../../../../lib/contract-payment-snapshot'
 import { camperHouseholdName, primaryCamperName, secondaryCamperName } from '../../../../lib/camper-household'
 import { setCamperActiveAudited, updateCamperProfileAudited, updateCamperRentTermsAudited } from '../../../../lib/admin-audited-actions'
-import { accountPolicyLabels, policiesForCamper, type AccountPolicy } from '../../../../lib/account-policies'
+import { accountPolicyLabels, campgroundDate, policiesForCamper, type AccountPolicy, type AccountPolicyType } from '../../../../lib/account-policies'
 
 const MAX_INSURANCE_SIZE = 20 * 1024 * 1024
 type HistoryView = 'activity' | 'documents' | 'billing' | 'credits' | 'site' | 'messages' | 'electric'
@@ -133,6 +133,8 @@ export default function CamperDetailPage() {
   const [camperDocuments, setCamperDocuments] = useState<any[]>([])
   const [insuranceDocuments, setInsuranceDocuments] = useState<any[]>([])
   const [accountPolicies, setAccountPolicies] = useState<AccountPolicy[]>([])
+  const [policyDraft, setPolicyDraft] = useState({ policyType: 'lot_rent_exempt' as AccountPolicyType, subjectEmail: '', relatedLotNumber: '', effectiveOn: campgroundDate(), expiresOn: '', reason: '' })
+  const [savingPolicy, setSavingPolicy] = useState(false)
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null)
   const [uploadingInsurance, setUploadingInsurance] = useState(false)
   const [scannedDocumentFile, setScannedDocumentFile] = useState<File | null>(null)
@@ -391,6 +393,80 @@ export default function CamperDetailPage() {
     } catch (error: any) {
       setMessage(error.message || 'Unable to save annual lot rent and payment plan.')
     } finally { setSavingAnnualRent(false) }
+  }
+
+  async function writeAccountPolicy(payload: Record<string, unknown>) {
+    const { data } = await supabase.auth.getSession()
+    const token = data.session?.access_token
+    if (!token) throw new Error('Your admin login has expired. Please sign in again.')
+    const response = await fetch('/api/admin-account-policies', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const result = await response.json().catch(() => null)
+    if (!response.ok) throw new Error(result?.error || 'The account policy could not be saved.')
+    return result
+  }
+
+  async function createAccountPolicy() {
+    if (policyDraft.reason.trim().length < 5) { setMessage('Enter a clear reason before adding an account policy.'); return }
+    const sitePolicy = ['billing_disabled', 'billing_delegate', 'pump_out_service_access'].includes(policyDraft.policyType)
+    const summary = [
+      accountPolicyLabels[policyDraft.policyType],
+      `Site ${camper.lot_number || 'unassigned'}`,
+      policyDraft.subjectEmail ? `Email ${policyDraft.subjectEmail}` : '',
+      policyDraft.relatedLotNumber ? `Related site ${policyDraft.relatedLotNumber}` : '',
+      `Effective ${policyDraft.effectiveOn}`,
+      policyDraft.expiresOn ? `Expires ${policyDraft.expiresOn}` : 'No expiration',
+      `Reason: ${policyDraft.reason.trim()}`,
+    ].filter(Boolean).join('\n')
+    if (!window.confirm(`Add this account policy?\n\n${summary}`)) return
+
+    setSavingPolicy(true)
+    try {
+      await writeAccountPolicy({
+        policyType: policyDraft.policyType,
+        camperId: sitePolicy ? null : camperId,
+        lotNumber: camper.lot_number,
+        subjectEmail: policyDraft.subjectEmail,
+        relatedLotNumber: policyDraft.relatedLotNumber,
+        reason: policyDraft.reason,
+        effectiveOn: policyDraft.effectiveOn,
+        expiresOn: policyDraft.expiresOn || null,
+        active: true,
+      })
+      setPolicyDraft({ policyType: 'lot_rent_exempt', subjectEmail: '', relatedLotNumber: '', effectiveOn: campgroundDate(), expiresOn: '', reason: '' })
+      await loadCamper()
+      setMessage('Account policy added with an immutable audit event.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The account policy could not be saved.')
+    } finally { setSavingPolicy(false) }
+  }
+
+  async function expireAccountPolicy(policy: AccountPolicy) {
+    const reason = window.prompt(`Why is “${accountPolicyLabels[policy.policy_type]}” being ended? This creates permanent policy history.`, '')?.trim() || ''
+    if (reason.length < 5) { setMessage('Enter a clear reason before ending the account policy.'); return }
+    if (!window.confirm(`End this policy today?\n\n${policy.reason}\n\nThe existing record and its history will remain available.`)) return
+    setSavingPolicy(true)
+    try {
+      await writeAccountPolicy({
+        policyId: policy.id,
+        policyType: policy.policy_type,
+        camperId: policy.camper_id,
+        lotNumber: policy.lot_number,
+        subjectEmail: policy.subject_email,
+        relatedLotNumber: policy.related_lot_number,
+        reason,
+        effectiveOn: policy.effective_on,
+        expiresOn: campgroundDate(),
+        active: false,
+      })
+      await loadCamper()
+      setMessage('Account policy ended. Its immutable history was preserved.')
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'The account policy could not be ended.')
+    } finally { setSavingPolicy(false) }
   }
 
   async function sendPhonePortalSetup() {
@@ -895,13 +971,33 @@ export default function CamperDetailPage() {
                       {policy.related_lot_number ? ` · Related site ${policy.related_lot_number}` : ''}
                     </p>
                   </div>
-                  <time>{policy.active ? 'Active' : 'Inactive'}</time>
+                  <button type="button" onClick={() => void expireAccountPolicy(policy)} disabled={savingPolicy}>End policy</button>
                 </article>
               ))}
             </div>
           ) : (
             <div className="admin-camper-history-empty"><ShieldCheck size={27} /><strong>No special account policies are active.</strong></div>
           )}
+          <div className="admin-camper-form-grid two">
+            <label className="admin-camper-field">
+              <span>New policy</span>
+              <select value={policyDraft.policyType} onChange={(event) => setPolicyDraft((current) => ({ ...current, policyType: event.target.value as AccountPolicyType }))}>
+                {Object.entries(accountPolicyLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <Field label="Effective date" type="date" value={policyDraft.effectiveOn} onChange={(value) => setPolicyDraft((current) => ({ ...current, effectiveOn: value }))} />
+            <Field label="Expiration date (optional)" type="date" value={policyDraft.expiresOn} onChange={(value) => setPolicyDraft((current) => ({ ...current, expiresOn: value }))} />
+            {['billing_delegate', 'pump_out_service_access'].includes(policyDraft.policyType) && <Field label="Authorized email" type="email" value={policyDraft.subjectEmail} onChange={(value) => setPolicyDraft((current) => ({ ...current, subjectEmail: value }))} />}
+            {policyDraft.policyType === 'pump_out_service_access' && <Field label="Additional service site" value={policyDraft.relatedLotNumber} onChange={(value) => setPolicyDraft((current) => ({ ...current, relatedLotNumber: value }))} />}
+            <label className="admin-camper-field">
+              <span>Required reason</span>
+              <textarea value={policyDraft.reason} onChange={(event) => setPolicyDraft((current) => ({ ...current, reason: event.target.value }))} rows={3} maxLength={1000} />
+            </label>
+          </div>
+          <button type="button" onClick={() => void createAccountPolicy()} disabled={savingPolicy || !camper.lot_number}>
+            {savingPolicy ? <LoaderCircle className="admin-spin" size={17} /> : <ShieldCheck size={17} />}
+            {savingPolicy ? 'Saving policy…' : 'Review & Add Policy'}
+          </button>
         </ProfileSection>
 
         <ProfileSection icon={<CircleDollarSign />} kicker="BILLING & RENT" title="Annual lot rent">
