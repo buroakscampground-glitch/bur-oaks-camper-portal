@@ -22,7 +22,11 @@ import type { OperationsSnapshot } from '../../../lib/operations-health'
 
 type View = 'health' | 'search' | 'delivery' | 'access' | 'activity'
 type OperationalControl = { key: string; label: string; enabled: boolean }
-type SystemHealthSnapshot = OperationsSnapshot & { operationalControls: OperationalControl[] }
+type AssuranceItem = { key: string; label: string; status: 'protected' | 'active' | 'review'; detail: string }
+type SystemHealthSnapshot = OperationsSnapshot & {
+  operationalControls: OperationalControl[]
+  platformAssurance: { monitoring: AssuranceItem[]; protection: AssuranceItem[] }
+}
 type ElectricAuditRecord = {
   invoiceId: string
   phone: string
@@ -234,6 +238,35 @@ export default function SystemHealthPage() {
                   <span>{control.enabled ? 'Available' : 'PAUSED'}</span>
                 </article>
               ))}
+            </div>
+          </section>
+          <section className="operations-assurance" aria-labelledby="platform-assurance-heading">
+            <header>
+              <span>PROTECTION & MONITORING</span>
+              <h3 id="platform-assurance-heading">What protects the campground platform</h3>
+              <p>Live configuration and dated recovery evidence, without exposing secrets or camper records.</p>
+            </header>
+            <div className="operations-assurance-columns">
+              <section aria-labelledby="monitoring-assurance-heading">
+                <h4 id="monitoring-assurance-heading">Monitoring coverage</h4>
+                {snapshot?.platformAssurance.monitoring.map((item) => (
+                  <article className={item.status} key={item.key}>
+                    <span>{item.status === 'review' ? <AlertTriangle size={17} /> : <CheckCircle2 size={17} />}</span>
+                    <div><strong>{item.label}</strong><small>{item.detail}</small></div>
+                    <em>{item.status === 'review' ? 'REVIEW' : 'ACTIVE'}</em>
+                  </article>
+                ))}
+              </section>
+              <section aria-labelledby="protection-assurance-heading">
+                <h4 id="protection-assurance-heading">Data protection</h4>
+                {snapshot?.platformAssurance.protection.map((item) => (
+                  <article className={item.status} key={item.key}>
+                    <span>{item.status === 'review' ? <AlertTriangle size={17} /> : <ShieldCheck size={17} />}</span>
+                    <div><strong>{item.label}</strong><small>{item.detail}</small></div>
+                    <em>{item.status === 'review' ? 'REVIEW' : 'PROTECTED'}</em>
+                  </article>
+                ))}
+              </section>
             </div>
           </section>
           {snapshot && snapshot.errors.length > 0 && <div className="operations-health-errors"><strong>Data checks needing technical review</strong>{snapshot.errors.map((error) => <p key={error}>{error}</p>)}</div>}
