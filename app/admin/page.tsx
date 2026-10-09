@@ -582,6 +582,7 @@ export default function AdminPage() {
       items: [
         { href: '/admin/invoices', title: 'Invoices', detail: `${stats.unpaidInvoices} open`, icon: ReceiptText },
         { href: '/admin/open-balance', title: 'Amounts due', detail: `$${stats.balance.toFixed(2)} this month + carryover`, icon: CircleDollarSign },
+        { href: '/admin/association-fees', title: 'Association fees', detail: 'Who owes, processing & paid', icon: Landmark },
         { href: '/admin/electric', title: 'Electric billing', detail: `${stats.electric} readings`, icon: Zap },
         { href: '/admin/daily-closeout', title: 'Daily money closeout', detail: 'Payments, allocations, credits & bank', icon: ClipboardCheck },
         { href: '/admin/money-exceptions', title: 'Money exceptions', detail: 'Failed, disputed, stuck & unmatched', icon: AlertTriangle },

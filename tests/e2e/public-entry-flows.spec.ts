@@ -990,6 +990,7 @@ test('office money and operations screens fail closed on a synthetic outage', as
     { path: '/admin/invoices', heading: 'Billing is temporarily unavailable' },
     { path: '/admin/system-health', heading: 'System Health is temporarily unavailable' },
     { path: '/admin/open-balance', heading: 'Open balances are temporarily unavailable' },
+    { path: '/admin/association-fees', heading: 'Association fees are temporarily unavailable' },
     { path: '/admin/daily-closeout', heading: 'Daily money closeout is temporarily unavailable' },
     { path: '/admin/maintenance', heading: 'Maintenance is temporarily unavailable' },
     { path: '/admin/campers', heading: 'Camper management is temporarily unavailable' },
@@ -1058,6 +1059,36 @@ test('office money and operations screens fail closed on a synthetic outage', as
   await page.getByRole('button', { name: 'Try again' }).click()
   await expect(page.getByRole('heading', { name: 'Amount Due This Month' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Open balances are temporarily unavailable' })).toHaveCount(0)
+})
+
+test('association fee register keeps owes, processing, and paid separate', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One required phone width proves the isolated association-fee register.')
+  const synthetic = await installSyntheticAdminSession(page)
+  synthetic.recoverReads()
+  await page.route(/https:\/\/[^/]+\.supabase\.co\/rest\/v1\/invoices.*/, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: { 'content-range': '0-2/3' },
+      body: JSON.stringify([
+        { id: 'fee-owes', camper_id: 'camper-1', invoice_number: 'AF-101', invoice_type: 'Association Fee', total_due: 250, subtotal: 250, late_fee: 0, due_date: '2026-10-01', status: 'sent', paid_at: null, payment_method: null, ach_expected_date: null, campers: { first_name: 'Open', last_name: 'Camper', lot_number: '1' } },
+        { id: 'fee-processing', camper_id: 'camper-2', invoice_number: 'AF-102', invoice_type: 'Association Fee', total_due: 250, subtotal: 250, late_fee: 0, due_date: '2026-10-02', status: 'processing', paid_at: null, payment_method: 'Online ACH processing', ach_expected_date: '2026-10-12', campers: { first_name: 'ACH', last_name: 'Camper', lot_number: '2' } },
+        { id: 'fee-paid', camper_id: 'camper-3', invoice_number: 'AF-103', invoice_type: 'Association Fee', total_due: 250, subtotal: 250, late_fee: 0, due_date: '2026-10-03', status: 'paid', paid_at: '2026-10-04T12:00:00Z', payment_method: 'Check', ach_expected_date: null, campers: { first_name: 'Paid', last_name: 'Camper', lot_number: '3' } },
+      ]),
+    })
+  })
+
+  await page.goto('/admin/association-fees')
+  await expect(page.getByRole('heading', { name: 'Association Fees' })).toBeVisible()
+  await expect(page.getByText('Open Camper')).toBeVisible()
+  await expect(page.getByText('ACH Camper')).toHaveCount(0)
+  await page.getByRole('button', { name: /ACH processing/ }).click()
+  await expect(page.getByText('ACH Camper')).toBeVisible()
+  await expect(page.getByText('Open Camper')).toHaveCount(0)
+  await page.getByRole('button', { name: /^Paid/ }).click()
+  await expect(page.getByText('Paid Camper')).toBeVisible()
+  await expect(page.getByText('Check', { exact: true })).toBeVisible()
+  await expectNoHorizontalOverflow(page)
 })
 
 test('office waitlist turns a synthetic website inquiry into a clear follow-up task', async ({ page }, testInfo) => {

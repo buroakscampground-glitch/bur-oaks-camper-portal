@@ -60,6 +60,7 @@ const pageNames: Record<string, string> = {
   'camper-standing': 'Camper Standing',
   invoices: 'Invoices & Billing',
   'open-balance': 'Open Balances',
+  'association-fees': 'Association Fees',
   electric: 'Electric Operations',
   maintenance: 'Maintenance Operations',
   lots: 'Lots & Sites',
@@ -116,6 +117,7 @@ const navGroups = [
     links: [
       { href: '/admin/invoices', label: 'Invoices', icon: ReceiptText },
       { href: '/admin/open-balance', label: 'Open Balances', icon: CircleDollarSign },
+      { href: '/admin/association-fees', label: 'Association Fees', icon: Landmark },
       { href: '/admin/electric', label: 'Electric Billing', icon: Zap },
       { href: '/admin/electric/meter-readings', label: 'Meter Reading Review', icon: ScanLine },
       { href: '/admin/credits', label: 'Credits', icon: WalletCards },
