@@ -7,6 +7,7 @@ import {
   thanksgivingDinnerDate,
   thanksgivingFoodOption,
   thanksgivingFoodOptions,
+  thanksgivingWriteInMaxLength,
 } from '../../lib/thanksgiving-dinner'
 
 type Signup = {
@@ -26,6 +27,8 @@ export default function ThanksgivingSignupPage() {
   const [status, setStatus] = useState('Going')
   const [guestCount, setGuestCount] = useState(1)
   const [bringing, setBringing] = useState('')
+  const [usingWriteIn, setUsingWriteIn] = useState(false)
+  const [writeInItem, setWriteInItem] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -56,7 +59,10 @@ export default function ThanksgivingSignupPage() {
       if (mine) {
         setStatus(mine.attending_status || 'Going')
         setGuestCount(Number(mine.guest_count || 1))
-        setBringing(thanksgivingFoodOption(mine.bringing)?.label || mine.bringing || '')
+        const savedOption = thanksgivingFoodOption(mine.bringing)
+        setBringing(savedOption?.label || '')
+        setUsingWriteIn(Boolean(mine.bringing && !savedOption))
+        setWriteInItem(savedOption ? '' : String(mine.bringing || ''))
       }
     } catch (error: any) {
       setMySignup(null)
@@ -85,6 +91,7 @@ export default function ThanksgivingSignupPage() {
   const maybeSignups = publicSignups.filter((signup) => signup.attending_status === 'Maybe')
   const expectedPeople = attendingSignups.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0)
   const groupedOptions = Array.from(new Set(thanksgivingFoodOptions.map((option) => option.group)))
+  const selectedFoodItem = usingWriteIn ? writeInItem.trim() : bringing
 
   function optionCount(label: string) {
     return claimCounts.get(label.toLowerCase()) || 0
@@ -96,8 +103,8 @@ export default function ThanksgivingSignupPage() {
 
   async function saveSignup() {
     if (savingRef.current) return
-    if (status !== 'Not Going' && !bringing) {
-      setMessage('Please choose one food item that is still needed before saving.')
+    if (status !== 'Not Going' && !selectedFoodItem) {
+      setMessage(usingWriteIn ? 'Please type the food item you plan to bring.' : 'Please choose a food item or use the write-in box before saving.')
       return
     }
 
@@ -122,7 +129,7 @@ export default function ThanksgivingSignupPage() {
           dinnerDate: thanksgivingDinnerDate,
           status,
           guestCount,
-          bringing: status === 'Not Going' ? '' : bringing,
+          bringing: status === 'Not Going' ? '' : selectedFoodItem,
         }),
       })
       const result = await response.json().catch(() => ({}))
@@ -130,7 +137,7 @@ export default function ThanksgivingSignupPage() {
 
       setMessage(status === 'Not Going'
         ? 'Saved — the office knows your campsite will not be attending.'
-        : `Saved — ${guestCount} ${guestCount === 1 ? 'person' : 'people'} attending and bringing ${bringing}.`)
+        : `Saved — ${guestCount} ${guestCount === 1 ? 'person' : 'people'} attending and bringing ${selectedFoodItem}.`)
       await loadSignup()
     } catch {
       setMessage('The Thanksgiving response result could not be confirmed. Check your saved response before submitting again.')
@@ -206,7 +213,10 @@ export default function ThanksgivingSignupPage() {
                     className={`${selected ? 'selected' : ''} ${full ? 'full' : ''}`}
                     disabled={status === 'Not Going' || full}
                     key={option.id}
-                    onClick={() => setBringing(option.label)}
+                    onClick={() => {
+                      setBringing(option.label)
+                      setUsingWriteIn(false)
+                    }}
                     type="button"
                   >
                     <span>{selected ? <CheckCircle2 size={19} /> : <UtensilsCrossed size={18} />}{full ? 'Fully covered' : `${claimed} of ${option.limit} claimed`}</span>
@@ -218,10 +228,40 @@ export default function ThanksgivingSignupPage() {
             </div>
           </div>
         ))}
+        <div className="thanksgiving-write-in">
+          <button
+            aria-pressed={usingWriteIn}
+            className={usingWriteIn ? 'selected' : ''}
+            disabled={status === 'Not Going'}
+            onClick={() => {
+              setUsingWriteIn(true)
+              setBringing('')
+            }}
+            type="button"
+          >
+            <span>{usingWriteIn ? <CheckCircle2 size={19} /> : <UtensilsCrossed size={18} />}WRITE IN A FOOD ITEM</span>
+            <strong>Bringing something else?</strong>
+            <small>Type the dish or dessert so everyone can see what you are bringing.</small>
+          </button>
+          {usingWriteIn && (
+            <label>
+              <span>Your food item</span>
+              <input
+                autoFocus
+                disabled={status === 'Not Going'}
+                maxLength={thanksgivingWriteInMaxLength}
+                onChange={(event) => setWriteInItem(event.target.value)}
+                placeholder="Example: Homemade apple crisp"
+                value={writeInItem}
+              />
+              <small>{writeInItem.length} of {thanksgivingWriteInMaxLength} characters</small>
+            </label>
+          )}
+        </div>
       </section>
 
       <section className="thanksgiving-save-panel">
-        <div><UsersRound size={25} /><p><strong>{status === 'Not Going' ? 'We will save that you cannot attend.' : bringing || 'Choose one food item above.'}</strong><span>{status === 'Not Going' ? 'You can change your response later.' : `${guestCount} ${guestCount === 1 ? 'person' : 'people'} · ${status}`}</span></p></div>
+        <div><UsersRound size={25} /><p><strong>{status === 'Not Going' ? 'We will save that you cannot attend.' : selectedFoodItem || 'Choose an item or write one in above.'}</strong><span>{status === 'Not Going' ? 'You can change your response later.' : `${guestCount} ${guestCount === 1 ? 'person' : 'people'} · ${status}`}</span></p></div>
         <button type="button" onClick={saveSignup} disabled={saving}><Send size={18} /> {saving ? 'Saving…' : mySignup ? 'Update my Thanksgiving response' : 'Save my Thanksgiving response'}</button>
         {message && <p className="thanksgiving-message" role="status">{message}</p>}
       </section>

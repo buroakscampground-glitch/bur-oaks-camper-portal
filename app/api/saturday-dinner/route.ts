@@ -9,6 +9,7 @@ import {
   thanksgivingClaimCounts,
   thanksgivingDinnerDate,
   thanksgivingFoodOption,
+  thanksgivingWriteInFoodItem,
 } from '../../../lib/thanksgiving-dinner'
 
 export const runtime = 'nodejs'
@@ -87,25 +88,29 @@ export async function POST(request: Request) {
     } else {
       const foodOption = thanksgivingFoodOption(bringing)
       if (!foodOption) {
-        return NextResponse.json({ error: 'Choose one available Thanksgiving food item before saving.' }, { status: 400 })
-      }
+        const writeIn = thanksgivingWriteInFoodItem(bringing)
+        if (!writeIn) {
+          return NextResponse.json({ error: 'Choose a Thanksgiving food item or type a write-in item before saving.' }, { status: 400 })
+        }
+        bringing = writeIn
+      } else {
+        const { data: thanksgivingSignups, error: thanksgivingError } = await context.admin
+          .from('saturday_dinner_signups')
+          .select('camper_id,attending_status,bringing')
+          .eq('dinner_date', thanksgivingDinnerDate)
 
-      const { data: thanksgivingSignups, error: thanksgivingError } = await context.admin
-        .from('saturday_dinner_signups')
-        .select('camper_id,attending_status,bringing')
-        .eq('dinner_date', thanksgivingDinnerDate)
+        if (thanksgivingError) {
+          return NextResponse.json({ error: thanksgivingError.message }, { status: 500 })
+        }
 
-      if (thanksgivingError) {
-        return NextResponse.json({ error: thanksgivingError.message }, { status: 500 })
+        const claims = thanksgivingClaimCounts(thanksgivingSignups || [], context.camper.id)
+        if ((claims.get(foodOption.id) || 0) >= foodOption.limit) {
+          return NextResponse.json({
+            error: `${foodOption.label} is already fully covered. Please choose another food item that is still needed.`,
+          }, { status: 409 })
+        }
+        bringing = foodOption.label
       }
-
-      const claims = thanksgivingClaimCounts(thanksgivingSignups || [], context.camper.id)
-      if ((claims.get(foodOption.id) || 0) >= foodOption.limit) {
-        return NextResponse.json({
-          error: `${foodOption.label} is already fully covered. Please choose another food item that is still needed.`,
-        }, { status: 409 })
-      }
-      bringing = foodOption.label
     }
   }
 

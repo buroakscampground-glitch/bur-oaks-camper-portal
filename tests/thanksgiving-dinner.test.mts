@@ -6,6 +6,8 @@ import {
   thanksgivingClaimCounts,
   thanksgivingDinnerDate,
   thanksgivingFoodOptions,
+  thanksgivingWriteInFoodItem,
+  thanksgivingWriteInMaxLength,
 } from '../lib/thanksgiving-dinner.ts'
 
 test('Thanksgiving is a special November dinner with food-only choices', () => {
@@ -42,6 +44,13 @@ test('food coverage ignores campers who are not attending and a camper updating 
   assert.equal(counts.get('mashed-potatoes'), 1)
 })
 
+test('Thanksgiving accepts a safe camper food write-in without treating fixed choices as write-ins', () => {
+  assert.equal(thanksgivingWriteInFoodItem('  Homemade   apple crisp  '), 'Homemade apple crisp')
+  assert.equal(thanksgivingWriteInFoodItem('Mashed potatoes'), '')
+  assert.equal(thanksgivingWriteInFoodItem(''), '')
+  assert.equal(thanksgivingWriteInFoodItem('x'.repeat(thanksgivingWriteInMaxLength + 1)), '')
+})
+
 test('the camper portal and office dinner page prominently open the dedicated planner', async () => {
   const [portal, dinners, signup, api] = await Promise.all([
     readFile(new URL('../app/portal/page.tsx', import.meta.url), 'utf8'),
@@ -55,5 +64,7 @@ test('the camper portal and office dinner page prominently open the dedicated pl
   assert.match(portal, /dinnerSignupHref/)
   assert.match(dinners, /Open the Bur Oaks Thanksgiving board/)
   assert.match(signup, /Claim one food item/)
+  assert.match(signup, /WRITE IN A FOOD ITEM/)
+  assert.match(api, /thanksgivingWriteInFoodItem/)
   assert.match(api, /already fully covered/)
 })

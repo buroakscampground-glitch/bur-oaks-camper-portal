@@ -34,6 +34,8 @@ export const thanksgivingFoodOptions: ThanksgivingFoodOption[] = [
 
 export const thanksgivingFoodLabels = thanksgivingFoodOptions.map((option) => option.label)
 
+export const thanksgivingWriteInMaxLength = 80
+
 export function thanksgivingFoodOption(value: unknown) {
   const normalized = String(value || '').trim().toLowerCase()
   const legacyOptionIds: Record<string, string> = {
@@ -43,6 +45,12 @@ export function thanksgivingFoodOption(value: unknown) {
   const legacyId = legacyOptionIds[normalized]
   if (legacyId) return thanksgivingFoodOptions.find((option) => option.id === legacyId)
   return thanksgivingFoodOptions.find((option) => option.label.toLowerCase() === normalized)
+}
+
+export function thanksgivingWriteInFoodItem(value: unknown) {
+  const item = String(value || '').replace(/\s+/g, ' ').trim()
+  if (!item || item.length > thanksgivingWriteInMaxLength || thanksgivingFoodOption(item)) return ''
+  return item
 }
 
 export function thanksgivingClaimCounts(signups: Array<{ bringing?: unknown; attending_status?: unknown; camper_id?: unknown }>, excludeCamperId = '') {

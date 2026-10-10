@@ -56,6 +56,7 @@ export default function ThanksgivingAdminPage() {
   const expectedPeople = going.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0)
   const possiblePeople = maybe.reduce((sum, signup) => sum + Number(signup.guest_count || 1), 0)
   const groupedOptions = Array.from(new Set(thanksgivingFoodOptions.map((option) => option.group)))
+  const writeInSignups = active.filter((signup) => signup.bringing && !thanksgivingFoodOption(signup.bringing))
   const filtered = useMemo(() => signups.filter((signup) =>
     `${signup.camper_name || ''} ${signup.lot_number || ''} ${signup.bringing || ''}`.toLowerCase().includes(search.toLowerCase())
   ), [search, signups])
@@ -112,6 +113,19 @@ export default function ThanksgivingAdminPage() {
             </div>
           </div>
         ))}
+        <div className="admin-thanksgiving-group admin-thanksgiving-write-ins">
+          <h3>Camper write-ins</h3>
+          <div>
+            {writeInSignups.map((signup) => (
+              <article className="covered" key={signup.id}>
+                <span>Camper choice</span>
+                <strong>{signup.bringing}</strong>
+                <small>{signup.camper_name || 'Camper'} · Lot {signup.lot_number || '—'}</small>
+              </article>
+            ))}
+            {!writeInSignups.length && <p>No write-in food items have been added yet.</p>}
+          </div>
+        </div>
       </section>
 
       <section className="admin-thanksgiving-roster">
