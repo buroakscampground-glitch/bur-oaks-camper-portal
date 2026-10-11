@@ -62,6 +62,44 @@ export const saturdayDinners2026: SaturdayDinner[] = [
   },
 ]
 
+export type DinnerBringSlot = {
+  label: string
+  limit: number
+}
+
+const dinnerBringSlotsByDate: Record<string, DinnerBringSlot[]> = {
+  '2026-10-17': [
+    { label: 'Garlic Bread', limit: 2 },
+    { label: 'Lettuce salad', limit: 4 },
+    { label: 'Dessert', limit: 6 },
+  ],
+}
+
+export function dinnerBringSlots(dinnerDate = '') {
+  return dinnerBringSlotsByDate[dinnerDate] || []
+}
+
+export function dinnerBringSlot(dinnerDate: string, value: unknown) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return dinnerBringSlots(dinnerDate).find((option) => option.label.toLowerCase() === normalized)
+}
+
+export function dinnerBringSlotCounts(
+  signups: Array<{ camper_id?: unknown; attending_status?: unknown; bringing?: unknown }>,
+  dinnerDate: string,
+  excludeCamperId = '',
+) {
+  const counts = new Map<string, number>()
+  signups.forEach((signup) => {
+    if (String(signup.camper_id || '') === excludeCamperId) return
+    if (String(signup.attending_status || '') === 'Not Going') return
+    const option = dinnerBringSlot(dinnerDate, signup.bringing)
+    if (!option) return
+    counts.set(option.label, (counts.get(option.label) || 0) + 1)
+  })
+  return counts
+}
+
 const commonDinnerSuggestions = [
   'Dessert',
   'Fruit tray',
@@ -92,7 +130,10 @@ const menuSuggestionMap: Array<{ match: RegExp; items: string[] }> = [
   { match: /jambalaya/i, items: ['Cornbread', 'Salad', 'Vegetable side', 'Dessert', 'Drinks', 'Paper bowls', 'Spoons'] },
 ]
 
-export function dinnerBringSuggestions(menu = '') {
+export function dinnerBringSuggestions(menu = '', dinnerDate = '') {
+  const limitedChoices = dinnerBringSlots(dinnerDate)
+  if (limitedChoices.length) return limitedChoices.map((option) => option.label)
+
   if (/bur oaks thanksgiving/i.test(menu)) {
     return thanksgivingFoodLabels
   }

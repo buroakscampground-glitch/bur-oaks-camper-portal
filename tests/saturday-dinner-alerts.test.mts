@@ -80,6 +80,28 @@ test('Soup Day asks for different soups and keeps only crackers and cheese as su
   assert.deepEqual(dinnerBringSuggestions(dinner?.menu), ['Crackers', 'Shredded cheese'])
 })
 
+test('the October 17 Pasta Bar has only the requested limited side slots', async () => {
+  const { dinnerBringSlot, dinnerBringSlotCounts, dinnerBringSlots, dinnerBringSuggestions } = await import('../lib/saturday-dinners.ts')
+  const date = '2026-10-17'
+
+  assert.deepEqual(dinnerBringSlots(date), [
+    { label: 'Garlic Bread', limit: 2 },
+    { label: 'Lettuce salad', limit: 4 },
+    { label: 'Dessert', limit: 6 },
+  ])
+  assert.deepEqual(dinnerBringSuggestions('Pasta Bar', date), ['Garlic Bread', 'Lettuce salad', 'Dessert'])
+  assert.equal(dinnerBringSlot(date, 'garlic bread')?.limit, 2)
+
+  const counts = dinnerBringSlotCounts([
+    { camper_id: 'one', attending_status: 'Going', bringing: 'Garlic Bread' },
+    { camper_id: 'two', attending_status: 'Maybe', bringing: 'garlic bread' },
+    { camper_id: 'three', attending_status: 'Not Going', bringing: 'Garlic Bread' },
+    { camper_id: 'four', attending_status: 'Going', bringing: 'Dessert' },
+  ], date, 'one')
+  assert.equal(counts.get('Garlic Bread'), 1)
+  assert.equal(counts.get('Dessert'), 1)
+})
+
 test('the September 19 dinner is only Cowboy Casserole', async () => {
   const { saturdayDinners2026 } = await import('../lib/saturday-dinners.ts')
   const { eventFlyers2026 } = await import('../lib/event-flyers.ts')

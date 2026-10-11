@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock, Loader2, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
 import { saturdayDinnerMetrics } from '../../lib/saturday-dinner-metrics'
-import { dinnerBringSuggestions, saturdayDinners2026 } from '../../lib/saturday-dinners'
+import { dinnerBringSlot, dinnerBringSlots, dinnerBringSuggestions, saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
 
@@ -73,19 +73,28 @@ export default function SaturdayDinnersPage() {
   const selectedDinnerSignups = publicSignups.filter((signup) => signup.dinner_date === selectedDinner?.date)
   const visibleDinnerSignups = selectedDinnerSignups.filter((signup) => signup.attending_status !== 'Not Going')
   const selectedDinnerMetrics = saturdayDinnerMetrics(selectedDinnerSignups)
-  const selectedDinnerSuggestions = dinnerBringSuggestions(selectedDinner?.menu || '')
+  const selectedDinnerSuggestions = dinnerBringSuggestions(selectedDinner?.menu || '', selectedDinner?.date || '')
+  const selectedDinnerSlots = dinnerBringSlots(selectedDinner?.date || '')
+  const hasLimitedBringSlots = selectedDinnerSlots.length > 0
   const normalizedCurrentBringing = String(
     bringChoice === 'Other' ? customBringing : bringChoice
   ).trim().toLowerCase()
-  const claimedBringItems = new Set(
-    visibleDinnerSignups
-      .map((signup) => String(signup.bringing || '').trim().toLowerCase())
-      .filter(Boolean)
-  )
+  const claimedBringCounts = visibleDinnerSignups.reduce((counts, signup) => {
+    const item = String(signup.bringing || '').trim().toLowerCase()
+    if (item) counts.set(item, (counts.get(item) || 0) + 1)
+    return counts
+  }, new Map<string, number>())
   const availableBringSuggestions = selectedDinnerSuggestions.filter((item) => {
     const normalized = item.toLowerCase()
-    return !claimedBringItems.has(normalized) || normalized === normalizedCurrentBringing
+    const slot = dinnerBringSlot(selectedDinner?.date || '', item)
+    const claimed = claimedBringCounts.get(normalized) || 0
+    return claimed < (slot?.limit || 1) || normalized === normalizedCurrentBringing
   })
+  const legacySavedChoice = hasLimitedBringSlots
+    && bringChoice
+    && !selectedDinnerSuggestions.some((item) => item.toLowerCase() === bringChoice.toLowerCase())
+    ? bringChoice
+    : ''
 
   useEffect(() => {
     const requestedDate = searchParams.get('date')
@@ -109,10 +118,13 @@ export default function SaturdayDinnersPage() {
 
   useEffect(() => {
     const existing = selectedDate ? signupByDate.get(selectedDate) : null
-    const suggestions = dinnerBringSuggestions(selectedDinner?.menu || '')
+    const suggestions = dinnerBringSuggestions(selectedDinner?.menu || '', selectedDinner?.date || '')
     if (existing) {
       setStatus(existing.attending_status || 'Going')
       if (existing.bringing && suggestions.includes(existing.bringing)) {
+        setBringChoice(existing.bringing)
+        setCustomBringing('')
+      } else if (existing.bringing && dinnerBringSlots(selectedDinner?.date || '').length) {
         setBringChoice(existing.bringing)
         setCustomBringing('')
       } else if (existing.bringing) {
@@ -130,7 +142,7 @@ export default function SaturdayDinnersPage() {
       setGuestCount(1)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, selectedDinner?.menu, signups.length])
+  }, [selectedDate, selectedDinner?.date, selectedDinner?.menu, signups.length])
 
   async function saveDinnerSignup() {
     if (savingRef.current) return
@@ -294,10 +306,11 @@ export default function SaturdayDinnersPage() {
               </span>
               <select aria-label={isSoupDay ? 'Soup, crackers, or cheese you are bringing' : 'Side, dessert, or supply you are bringing'} value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
                 <option value="">Nothing / not sure yet</option>
+                {legacySavedChoice && <option value={legacySavedChoice}>Previously saved — {legacySavedChoice}</option>}
                 {availableBringSuggestions.map((item) => (
-                  <option value={item} key={item}>{item}</option>
+                  <option value={item} key={item}>{item}{dinnerBringSlot(selectedDinner?.date || '', item) ? ` — ${claimedBringCounts.get(item.toLowerCase()) || 0} of ${dinnerBringSlot(selectedDinner?.date || '', item)?.limit} slots filled` : ''}</option>
                 ))}
-                <option value="Other">{isSoupDay ? 'Soup — I will type the kind' : 'Other — I will type it in'}</option>
+                {!hasLimitedBringSlots && <option value="Other">{isSoupDay ? 'Soup — I will type the kind' : 'Other — I will type it in'}</option>}
               </select>
             </label>}
           {status !== 'Not Going' && bringChoice === 'Other' && (

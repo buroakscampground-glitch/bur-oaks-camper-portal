@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createAdminNotification } from '../../../lib/admin-notifications'
 import { canonicalSaturdayDinnerSignups } from '../../../lib/saturday-dinner-metrics'
-import { saturdayDinners2026 } from '../../../lib/saturday-dinners'
+import { dinnerBringSlot, dinnerBringSlotCounts, dinnerBringSlots, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { isUnchangedDinnerSignup } from '../../../lib/saturday-dinner-signup-state'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 import { sendStaffWebPush } from '../../../lib/staff-web-push'
@@ -82,6 +82,17 @@ export async function POST(request: Request) {
 
   if (status === 'Not Going') bringing = ''
 
+  const { data: existingSignup, error: existingError } = await context.admin
+    .from('saturday_dinner_signups')
+    .select('*')
+    .eq('dinner_date', dinnerDate)
+    .eq('camper_id', context.camper.id)
+    .maybeSingle()
+
+  if (existingError) {
+    return NextResponse.json({ error: existingError.message }, { status: 500 })
+  }
+
   if (dinnerDate === thanksgivingDinnerDate) {
     if (status === 'Not Going') {
       bringing = ''
@@ -112,20 +123,35 @@ export async function POST(request: Request) {
         bringing = foodOption.label
       }
     }
+  } else if (dinnerBringSlots(dinnerDate).length && status !== 'Not Going' && bringing) {
+    const slot = dinnerBringSlot(dinnerDate, bringing)
+    const keepingPreviouslySavedChoice = !slot
+      && String(existingSignup?.bringing || '').trim().toLowerCase() === bringing.toLowerCase()
+    if (!slot && !keepingPreviouslySavedChoice) {
+      return NextResponse.json({ error: 'Choose one of the available side choices for this dinner.' }, { status: 400 })
+    }
+
+    if (slot) {
+      const { data: dinnerSignups, error: dinnerSignupsError } = await context.admin
+        .from('saturday_dinner_signups')
+        .select('camper_id,attending_status,bringing')
+        .eq('dinner_date', dinnerDate)
+
+      if (dinnerSignupsError) {
+        return NextResponse.json({ error: dinnerSignupsError.message }, { status: 500 })
+      }
+
+      const claims = dinnerBringSlotCounts(dinnerSignups || [], dinnerDate, context.camper.id)
+      if ((claims.get(slot.label) || 0) >= slot.limit) {
+        return NextResponse.json({
+          error: `${slot.label} is already fully covered. Please choose another available side.`,
+        }, { status: 409 })
+      }
+      bringing = slot.label
+    }
   }
 
   const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'Camper'
-
-  const { data: existingSignup, error: existingError } = await context.admin
-    .from('saturday_dinner_signups')
-    .select('*')
-    .eq('dinner_date', dinnerDate)
-    .eq('camper_id', context.camper.id)
-    .maybeSingle()
-
-  if (existingError) {
-    return NextResponse.json({ error: existingError.message }, { status: 500 })
-  }
 
   if (isUnchangedDinnerSignup(existingSignup, { status, bringing, guestCount })) {
     console.info('Duplicate Saturday dinner response suppressed:', {
