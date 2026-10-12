@@ -33,6 +33,7 @@ export type UnifiedCommunityRsvp = {
   lot_number: string
   camper_name: string
   source: 'event' | 'thanksgiving'
+  food_choice_pending?: boolean
 }
 
 export function unifiedCommunityRsvps(
@@ -85,8 +86,24 @@ export function unifiedCommunityRsvps(
       response: String(rsvp.response || ''),
     }))
 
+  const pendingThanksgivingRsvps: UnifiedCommunityRsvp[] = incompleteThanksgivingRsvps.map((rsvp) => ({
+    id: `thanksgiving-pending-${rsvp.id}`,
+    event_id: rsvp.event_id,
+    camper_id: rsvp.camper_id,
+    response: rsvp.response,
+    guest_count: 1,
+    bringing: '',
+    lot_number: '',
+    camper_name: '',
+    source: 'thanksgiving' as const,
+    food_choice_pending: rsvp.response !== 'Not Going',
+  }))
+
   return {
-    rsvps: [...regularRsvps, ...thanksgivingRsvps],
+    // Keep the meal signup authoritative when one exists, but do not hide a
+    // camper's attendance response while their Thanksgiving food choice is
+    // still pending. Rachel needs that response in the visible list and totals.
+    rsvps: [...regularRsvps, ...thanksgivingRsvps, ...pendingThanksgivingRsvps],
     incompleteThanksgivingRsvps,
   }
 }

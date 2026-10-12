@@ -8,10 +8,12 @@ type CommunityEvent = {
 
 type EventRsvp = {
   event_id?: unknown
+  camper_id?: unknown
   response?: unknown
 }
 
 type DinnerSignup = {
+  camper_id?: unknown
   attending_status?: unknown
   guest_count?: unknown
 }
@@ -46,11 +48,19 @@ export function communityEventCounts(
     }
 
     if (isThanksgivingCommunityEvent(event)) {
+      const signupCamperIds = new Set(
+        thanksgivingSignups.map((signup) => String(signup.camper_id || '')).filter(Boolean)
+      )
+      const attendanceOnlyRsvps = eventRsvps.filter((rsvp) => {
+        const camperId = String(rsvp.camper_id || '')
+        return !camperId || !signupCamperIds.has(camperId)
+      })
       counts[eventId] = {
-        rsvps: thanksgivingSignups.length,
+        rsvps: thanksgivingSignups.length + attendanceOnlyRsvps.length,
         going: thanksgivingSignups
           .filter((signup) => String(signup.attending_status || '') === 'Going')
-          .reduce((total, signup) => total + Math.max(1, Number(signup.guest_count || 1)), 0),
+          .reduce((total, signup) => total + Math.max(1, Number(signup.guest_count || 1)), 0)
+          + attendanceOnlyRsvps.filter((rsvp) => String(rsvp.response || '') === 'Going').length,
         goingUnit: 'people',
       }
     }

@@ -21,10 +21,10 @@ export async function GET(request: Request) {
     { data: thanksgivingSignups, error: thanksgivingError },
   ] = await Promise.all([
     context.admin.from('events').select('*').order('event_date', { ascending: true }),
-    context.admin.from('event_rsvps').select('event_id,response'),
+    context.admin.from('event_rsvps').select('event_id,camper_id,response'),
     context.admin
       .from('saturday_dinner_signups')
-      .select('attending_status,guest_count')
+      .select('camper_id,attending_status,guest_count')
       .eq('dinner_date', thanksgivingDinnerDate),
   ])
   if (eventError || rsvpError || thanksgivingError) {

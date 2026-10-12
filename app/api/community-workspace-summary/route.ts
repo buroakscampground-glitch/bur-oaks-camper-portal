@@ -33,7 +33,7 @@ async function loadTrackableItems(context: NonNullable<Awaited<ReturnType<typeof
     dinner && dinner.date !== thanksgivingDinnerDate
       ? context.admin.from('saturday_dinner_signups').select('id, updated_at').eq('dinner_date', dinner.date).neq('attending_status', 'Not Going')
       : Promise.resolve({ data: [], error: null }),
-    context.admin.from('saturday_dinner_signups').select('id, updated_at').eq('dinner_date', thanksgivingDinnerDate),
+    context.admin.from('saturday_dinner_signups').select('id, camper_id, updated_at').eq('dinner_date', thanksgivingDinnerDate),
   ])
   const queryError = announcements.error || upcomingEvents.error || dinnerResponses.error || thanksgivingResponses.error
   if (queryError) throw queryError
@@ -42,15 +42,23 @@ async function loadTrackableItems(context: NonNullable<Awaited<ReturnType<typeof
   const eventIds = events.map((event: { id: string | number }) => String(event.id))
   const thanksgivingEventIds = new Set(events.filter(isThanksgivingCommunityEvent).map((event) => String(event.id)))
   const rsvps = eventIds.length
-    ? await context.admin.from('event_rsvps').select('id,event_id').in('event_id', eventIds)
+    ? await context.admin.from('event_rsvps').select('id,event_id,camper_id').in('event_id', eventIds)
     : { data: [], error: null }
   if (rsvps.error) throw rsvps.error
 
   const regularRsvpItems = (rsvps.data || [])
     .filter((item: { event_id: string | number }) => !thanksgivingEventIds.has(String(item.event_id)))
     .map((item: { id: string | number }) => String(item.id))
+  const thanksgivingSignupCamperIds = new Set(
+    (thanksgivingResponses.data || []).map((item: { camper_id?: string | number | null }) => String(item.camper_id || '')).filter(Boolean)
+  )
   const thanksgivingRsvpItems = thanksgivingEventIds.size > 0
-    ? (thanksgivingResponses.data || []).map((item: { id: string | number; updated_at?: string | null }) => `thanksgiving-${item.id}:${item.updated_at || ''}`)
+    ? [
+        ...(thanksgivingResponses.data || []).map((item: { id: string | number; updated_at?: string | null }) => `thanksgiving-${item.id}:${item.updated_at || ''}`),
+        ...(rsvps.data || [])
+          .filter((item: { event_id: string | number; camper_id?: string | number | null }) => thanksgivingEventIds.has(String(item.event_id)) && !thanksgivingSignupCamperIds.has(String(item.camper_id || '')))
+          .map((item: { id: string | number }) => `thanksgiving-pending-${item.id}`),
+      ]
     : []
 
   return {

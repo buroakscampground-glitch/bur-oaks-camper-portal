@@ -21,6 +21,7 @@ type RsvpRecord = {
   lot_number?: string
   camper_name?: string
   source?: 'event' | 'thanksgiving'
+  food_choice_pending?: boolean
 }
 
 type IncompleteThanksgivingRsvp = {
@@ -168,12 +169,12 @@ export default function AdminRsvpsPage() {
               <div className="admin-rsvp-columns">
                 <div className="admin-rsvp-column going">
                   <h3><CheckCircle2 size={17} /> Going · {groups.going.length}</h3>
-                  {groups.going.map((rsvp) => <p key={rsvp.id}><span>{camperLabel(rsvp)}</span>{rsvp.source === 'thanksgiving' && <small>{rsvp.guest_count || 1} people{rsvp.bringing ? ` · Bringing ${rsvp.bringing}` : ''}</small>}</p>)}
+                  {groups.going.map((rsvp) => <p key={rsvp.id}><span>{camperLabel(rsvp)}</span>{rsvp.source === 'thanksgiving' && <small>{rsvp.guest_count || 1} people{rsvp.bringing ? ` · Bringing ${rsvp.bringing}` : rsvp.food_choice_pending ? ' · Food choice pending' : ''}</small>}</p>)}
                   {!groups.going.length && <p className="admin-rsvp-empty">No one yet.</p>}
                 </div>
                 <div className="admin-rsvp-column maybe">
                   <h3><HelpCircle size={17} /> Maybe · {groups.maybe.length}</h3>
-                  {groups.maybe.map((rsvp) => <p key={rsvp.id}><span>{camperLabel(rsvp)}</span>{rsvp.source === 'thanksgiving' && <small>{rsvp.guest_count || 1} possible people{rsvp.bringing ? ` · Bringing ${rsvp.bringing}` : ''}</small>}</p>)}
+                  {groups.maybe.map((rsvp) => <p key={rsvp.id}><span>{camperLabel(rsvp)}</span>{rsvp.source === 'thanksgiving' && <small>{rsvp.guest_count || 1} possible people{rsvp.bringing ? ` · Bringing ${rsvp.bringing}` : rsvp.food_choice_pending ? ' · Food choice pending' : ''}</small>}</p>)}
                   {!groups.maybe.length && <p className="admin-rsvp-empty">No one yet.</p>}
                 </div>
                 <div className="admin-rsvp-column not-going">
