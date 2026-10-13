@@ -50,6 +50,15 @@ export default function StripeEventStatusPage() {
   return <main className="portal-loading">
     <CheckCircle2 />
     <h1>Stripe verification complete</h1>
+    {result.paymentIntents?.map((intent) => intent && <section key={intent.id} style={{ maxWidth: 860, textAlign: 'left' }}>
+      <h2>{intent.id}</h2>
+      <p>Status: {intent.status}</p>
+      <p>Amount: {(intent.amount / 100).toLocaleString('en-US', { style: 'currency', currency: intent.currency.toUpperCase() })}</p>
+      <p>Created: {new Date(intent.created * 1000).toLocaleString()}</p>
+      <p>Payment methods: {intent.paymentMethodTypes.join(', ') || 'None recorded'}</p>
+      <p>Failure code: {intent.lastPaymentError?.code || 'None recorded'}</p>
+      <p>Failure message: {intent.lastPaymentError?.message || 'None recorded'}</p>
+    </section>)}
     <pre style={{ maxWidth: 860, overflowWrap: 'anywhere', whiteSpace: 'pre-wrap', textAlign: 'left' }}>{JSON.stringify(result, null, 2)}</pre>
   </main>
 }
