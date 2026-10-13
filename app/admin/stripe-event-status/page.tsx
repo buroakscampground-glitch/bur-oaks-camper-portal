@@ -5,7 +5,9 @@ import { CheckCircle2, TriangleAlert } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 
 type StripeEventStatus = {
-  event: { id: string; type: string; created: number }
+  event?: { id: string; type: string; created: number }
+  search?: { camperId: string | null; invoiceId: string | null }
+  paymentIntents?: StripeEventStatus['paymentIntent'][]
   paymentIntent: null | {
     id: string
     status: string
@@ -26,9 +28,9 @@ export default function StripeEventStatusPage() {
 
   useEffect(() => {
     async function load() {
-      const eventId = new URLSearchParams(window.location.search).get('eventId') || ''
+      const query = new URLSearchParams(window.location.search)
       const { data } = await supabase.auth.getSession()
-      const response = await fetch(`/api/admin-stripe-event-status?eventId=${encodeURIComponent(eventId)}`, {
+      const response = await fetch(`/api/admin-stripe-event-status?${query.toString()}`, {
         headers: { Authorization: `Bearer ${data.session?.access_token || ''}` },
         cache: 'no-store',
       })
