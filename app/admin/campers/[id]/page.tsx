@@ -33,7 +33,7 @@ import { supabase } from '../../../../lib/supabase'
 import AddressFinder from '../../../../components/AddressFinder'
 import { isInvoiceDueThroughCurrentMonth, isInvoiceOutstanding, totalInvoiceBalance } from '../../../../lib/invoice-balance'
 import { isPhonePortalLoginEmail } from '../../../../lib/phone-portal-login'
-import { effectivePortalRole, EVENT_COORDINATOR_ROLE } from '../../../../lib/staff-roles'
+import { effectivePortalRole, EVENT_COORDINATOR_ROLE, MAINTENANCE_STAFF_LOT } from '../../../../lib/staff-roles'
 import { rentPaymentBreakdown } from '../../../../lib/rent-payment-summary'
 import { contractPaymentSnapshot } from '../../../../lib/contract-payment-snapshot'
 import { camperHouseholdName, primaryCamperName, secondaryCamperName } from '../../../../lib/camper-household'
@@ -276,6 +276,11 @@ export default function CamperDetailPage() {
 
     if (!camper.email?.trim()) {
       setMessage('An email address is required for this camper record.')
+      return
+    }
+
+    if (camper.role === 'maintenance' && String(camper.lot_number || '').trim().toUpperCase() !== MAINTENANCE_STAFF_LOT) {
+      setMessage('Maintenance access is limited to the dedicated STAFF account. Campsite profiles must remain campers.')
       return
     }
 
@@ -940,8 +945,9 @@ export default function CamperDetailPage() {
                 <option value="camper">Camper</option>
                 <option value="admin">Administrator</option>
                 <option value="event_coordinator">Event Coordinator</option>
-                <option value="maintenance">Maintenance</option>
+                {String(camper.lot_number || '').trim().toUpperCase() === MAINTENANCE_STAFF_LOT && <option value="maintenance">Maintenance</option>}
               </select>
+              {String(camper.lot_number || '').trim().toUpperCase() !== MAINTENANCE_STAFF_LOT && <small>Maintenance uses a separate STAFF account and cannot be assigned to a campsite.</small>}
             </label>
             <label className="admin-camper-field">
               <span>Record status</span>

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { MAINTENANCE_STAFF_LOT } from '../../../lib/staff-roles'
 
 const profileFields = new Set([
   'lot_number','first_name','last_name','email','secondary_email','phone','alternate_phone',
@@ -38,6 +39,16 @@ export async function POST(request: Request) {
   const patch = Object.fromEntries(Object.entries(incoming).filter(([key]) => profileFields.has(key)))
   if (!Object.keys(patch).length || Object.keys(incoming).some((key) => !profileFields.has(key))) {
     return NextResponse.json({ error: 'The profile update is empty or contains a protected field.' }, { status: 400 })
+  }
+  if (String(patch.role || '').trim().toLowerCase() === 'maintenance') {
+    let lotNumber = String(patch.lot_number || '').trim().toUpperCase()
+    if (!lotNumber) {
+      const { data: target } = await context.admin.from('campers').select('lot_number').eq('id', camperId).maybeSingle()
+      lotNumber = String(target?.lot_number || '').trim().toUpperCase()
+    }
+    if (lotNumber !== MAINTENANCE_STAFF_LOT) {
+      return NextResponse.json({ error: 'Maintenance access is limited to the dedicated STAFF account. Campsite profiles must remain campers.' }, { status: 400 })
+    }
   }
   const { data, error } = await context.admin.rpc('update_camper_profile_audited', {
     p_camper_id: camperId, p_patch: patch, p_reason: reason.slice(0, 1000), p_actor_email: context.user.email || 'office',

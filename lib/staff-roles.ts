@@ -1,5 +1,6 @@
 export const EVENT_COORDINATOR_ROLE = 'event_coordinator'
 export const EVENT_COORDINATOR_LOT = 'STAFF-EVENTS'
+export const MAINTENANCE_STAFF_LOT = 'STAFF'
 
 export function normalizedPortalRole(role: unknown) {
   return String(role || 'camper').trim().toLowerCase()
@@ -10,10 +11,18 @@ export function normalizedPortalRole(role: unknown) {
 // role remains "camper" (so it receives no maintenance/admin RLS privileges),
 // while the application grants only the community tools.
 export function effectivePortalRole(record: { role?: unknown; lot_number?: unknown }) {
-  if (String(record?.lot_number || '').trim().toUpperCase() === EVENT_COORDINATOR_LOT) {
+  const lot = String(record?.lot_number || '').trim().toUpperCase()
+  if (lot === EVENT_COORDINATOR_LOT) {
     return EVENT_COORDINATOR_ROLE
   }
-  return normalizedPortalRole(record?.role)
+  const role = normalizedPortalRole(record?.role)
+
+  // Maintenance access belongs only to the dedicated STAFF identity. A
+  // campsite profile must never become a staff account because of an
+  // accidental role selection or legacy import.
+  if (role === 'maintenance' && lot !== MAINTENANCE_STAFF_LOT) return 'camper'
+
+  return role
 }
 
 export function isAdminRole(role: unknown) {

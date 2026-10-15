@@ -26,3 +26,10 @@ test('maintenance staff on a numbered lot remain excluded from camper renewals',
   assert.equal(isOperationalCamper({ role: 'maintenance', lot_number: '10' }), false)
   assert.equal(isOperationalCamper({ role: 'camper', lot_number: '10' }), true)
 })
+
+test('maintenance portal access is restricted to the dedicated staff identity', () => {
+  assert.equal(effectivePortalRole({ role: 'maintenance', lot_number: 'STAFF' }), 'maintenance')
+  assert.equal(effectivePortalRole({ role: 'maintenance', lot_number: '10' }), 'camper')
+  assert.equal(effectivePortalRole({ role: 'maintenance', lot_number: 'F2' }), 'camper')
+  assert.equal(effectivePortalRole({ role: 'maintenance', lot_number: null }), 'camper')
+})
