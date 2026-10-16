@@ -22,6 +22,17 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ error }, { status })
   }
+  const formRetryResponse = (
+    code: string,
+    tokenHash: string,
+    verificationType: 'invite' | 'recovery',
+  ) => {
+    const retryUrl = new URL('/set-password', request.url)
+    retryUrl.searchParams.set('token_hash', tokenHash)
+    retryUrl.searchParams.set('type', verificationType)
+    retryUrl.searchParams.set('error', code)
+    return NextResponse.redirect(retryUrl, 303)
+  }
 
   const rateLimit = await checkRateLimit(request, 'complete-portal-setup', 20, 60 * 60_000)
   if (!rateLimit.allowed) {
@@ -47,11 +58,14 @@ export async function POST(request: Request) {
   }
 
   if (password.length < 10 || password.length > 128) {
+    if (isFormSubmission && verificationType) {
+      return formRetryResponse('password-invalid', tokenHash, verificationType)
+    }
     return errorResponse('Use a password between 10 and 128 characters.', 400, 'password-invalid')
   }
 
   if (isFormSubmission && password !== confirmation) {
-    return errorResponse('The passwords do not match.', 400, 'password-mismatch')
+    return formRetryResponse('password-mismatch', tokenHash, verificationType)
   }
 
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY

@@ -23,5 +23,7 @@ test('password setup has a secure no-JavaScript form fallback for older phones',
   assert.match(formSource, /name="confirmation"/)
   assert.match(routeSource, /isFormSubmission/)
   assert.match(routeSource, /password !== confirmation/)
+  assert.match(routeSource, /retryUrl\.searchParams\.set\('token_hash', tokenHash\)/)
+  assert.match(routeSource, /formRetryResponse\('password-mismatch', tokenHash, verificationType\)/)
   assert.match(routeSource, /\/login\?passwordUpdated=1/)
 })
