@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     return errorResponse('Use a password between 10 and 128 characters.', 400, 'password-invalid')
   }
 
-  if (isFormSubmission && password !== confirmation) {
+  if (isFormSubmission && confirmation && password !== confirmation) {
     return formRetryResponse('password-mismatch', tokenHash, verificationType)
   }
 

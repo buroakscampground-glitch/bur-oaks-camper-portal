@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { CheckCircle2, LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
 const SETUP_TOKEN_STORAGE_KEY = 'bur-oaks-portal-setup-token'
@@ -48,11 +48,11 @@ export default function SetPasswordForm({
   initialMessage?: string
 }) {
   const [password, setPassword] = useState('')
-  const [confirmation, setConfirmation] = useState('')
   const [message, setMessage] = useState(initialMessage)
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(Boolean(initialToken))
   const [setupToken, setSetupToken] = useState<SetupToken | null>(initialToken)
+  const submitStarted = useRef(false)
 
   useEffect(() => {
     async function prepareSecureSession() {
@@ -117,11 +117,7 @@ export default function SetPasswordForm({
   async function savePassword() {
     if (password.length < 10) {
       setMessage('Use at least 10 characters for your password.')
-      return
-    }
-
-    if (password !== confirmation) {
-      setMessage('The passwords do not match.')
+      submitStarted.current = false
       return
     }
 
@@ -157,11 +153,11 @@ export default function SetPasswordForm({
           : errorMessage
       )
       setSaving(false)
+      submitStarted.current = false
       return
     }
 
     setPassword('')
-    setConfirmation('')
     cacheSetupToken(null)
     setSetupToken(null)
     setMessage('Password saved successfully. For your privacy, this setup session is closed. Redirecting to sign in…')
@@ -175,7 +171,23 @@ export default function SetPasswordForm({
         action="/api/complete-portal-setup"
         method="post"
         onSubmit={(event) => {
+          if (setupToken) {
+            if (submitStarted.current) {
+              event.preventDefault()
+              return
+            }
+            submitStarted.current = true
+            const submitButton = event.currentTarget.querySelector<HTMLButtonElement>('button[type="submit"]')
+            if (submitButton) {
+              submitButton.disabled = true
+              submitButton.textContent = 'Saving…'
+            }
+            return
+          }
+
           event.preventDefault()
+          if (submitStarted.current) return
+          submitStarted.current = true
           void savePassword()
         }}
       >
@@ -204,22 +216,6 @@ export default function SetPasswordForm({
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            autoComplete="new-password"
-            minLength={10}
-            maxLength={128}
-            required
-          />
-        </div>
-
-        <label htmlFor="confirm-password">Confirm password</label>
-        <div className="signin-input-wrap">
-          <CheckCircle2 size={18} />
-          <input
-            id="confirm-password"
-            name="confirmation"
-            type="password"
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
             autoComplete="new-password"
             minLength={10}
             maxLength={128}
