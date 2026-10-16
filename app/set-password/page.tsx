@@ -4,13 +4,49 @@ import { useEffect, useState } from 'react'
 import { CheckCircle2, LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
+const SETUP_TOKEN_STORAGE_KEY = 'bur-oaks-portal-setup-token'
+
+type SetupToken = {
+  tokenHash: string
+  type: 'invite' | 'recovery'
+}
+
+function cacheSetupToken(token: SetupToken | null) {
+  try {
+    if (token) {
+      window.sessionStorage.setItem(SETUP_TOKEN_STORAGE_KEY, JSON.stringify(token))
+    } else {
+      window.sessionStorage.removeItem(SETUP_TOKEN_STORAGE_KEY)
+    }
+  } catch {
+    // Some privacy modes block session storage. The in-memory token still works.
+  }
+}
+
+function readCachedSetupToken(): SetupToken | null {
+  try {
+    const cached = JSON.parse(window.sessionStorage.getItem(SETUP_TOKEN_STORAGE_KEY) || 'null')
+    if (
+      cached &&
+      typeof cached.tokenHash === 'string' &&
+      cached.tokenHash &&
+      (cached.type === 'invite' || cached.type === 'recovery')
+    ) {
+      return cached
+    }
+  } catch {
+    cacheSetupToken(null)
+  }
+  return null
+}
+
 export default function SetPasswordPage() {
   const [password, setPassword] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [message, setMessage] = useState('')
   const [saving, setSaving] = useState(false)
   const [ready, setReady] = useState(false)
-  const [setupToken, setSetupToken] = useState<{ tokenHash: string; type: 'invite' | 'recovery' } | null>(null)
+  const [setupToken, setSetupToken] = useState<SetupToken | null>(null)
 
   useEffect(() => {
     async function prepareSecureSession() {
@@ -22,8 +58,20 @@ export default function SetPasswordPage() {
         tokenHash &&
         (requestedType === 'invite' || requestedType === 'recovery')
       ) {
-        setSetupToken({ tokenHash, type: requestedType })
+        const token: SetupToken = { tokenHash, type: requestedType }
+        cacheSetupToken(token)
+        setSetupToken(token)
         window.history.replaceState({}, '', '/set-password')
+        setReady(true)
+        return
+      }
+
+      // iOS can reload a page opened from Mail while someone is entering a
+      // password. Recover the one-time token for this tab after the clean URL
+      // replaces the emailed URL, instead of leaving the button stuck.
+      const cachedToken = readCachedSetupToken()
+      if (cachedToken) {
+        setSetupToken(cachedToken)
         setReady(true)
         return
       }
@@ -89,6 +137,7 @@ export default function SetPasswordPage() {
     }
 
     if (errorMessage) {
+      if (setupToken) cacheSetupToken(null)
       setMessage(
         errorMessage.includes('session')
           ? 'This link is invalid or expired. Ask the Bur Oaks office for a fresh setup link.'
@@ -100,6 +149,7 @@ export default function SetPasswordPage() {
 
     setPassword('')
     setConfirmation('')
+    cacheSetupToken(null)
     setSetupToken(null)
     setMessage('Password saved successfully. For your privacy, this setup session is closed. Redirecting to sign in…')
     window.setTimeout(() => window.location.replace('/login'), 1400)
