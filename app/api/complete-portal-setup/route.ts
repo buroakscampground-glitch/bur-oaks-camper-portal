@@ -13,33 +13,51 @@ function cleanEmail(value: unknown) {
 }
 
 export async function POST(request: Request) {
-  const rateLimit = await checkRateLimit(request, 'complete-portal-setup', 20, 60 * 60_000)
-  if (!rateLimit.allowed) {
-    return NextResponse.json(
-      { error: 'Too many setup attempts. Please wait before trying again.' },
-      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfter) } }
-    )
+  const contentType = request.headers.get('content-type') || ''
+  const isFormSubmission = contentType.includes('application/x-www-form-urlencoded') ||
+    contentType.includes('multipart/form-data')
+  const errorResponse = (error: string, status: number, code = 'invalid') => {
+    if (isFormSubmission) {
+      return NextResponse.redirect(new URL(`/set-password?error=${encodeURIComponent(code)}`, request.url), 303)
+    }
+    return NextResponse.json({ error }, { status })
   }
 
-  const body = await request.json().catch(() => ({}))
+  const rateLimit = await checkRateLimit(request, 'complete-portal-setup', 20, 60 * 60_000)
+  if (!rateLimit.allowed) {
+    return errorResponse('Too many setup attempts. Please wait before trying again.', 429, 'too-many')
+  }
+
+  let body: Record<string, unknown> = {}
+  if (isFormSubmission) {
+    const formData = await request.formData().catch(() => null)
+    if (formData) body = Object.fromEntries(formData.entries())
+  } else {
+    body = await request.json().catch(() => ({}))
+  }
   const tokenHash = String(body.tokenHash || '').trim()
   const verificationType = body.type === 'invite' || body.type === 'recovery'
     ? body.type
     : ''
   const password = String(body.password || '')
+  const confirmation = String(body.confirmation || '')
 
   if (!tokenHash || !verificationType) {
-    return NextResponse.json({ error: 'This setup link is invalid or expired.' }, { status: 400 })
+    return errorResponse('This setup link is invalid or expired.', 400)
   }
 
   if (password.length < 10 || password.length > 128) {
-    return NextResponse.json({ error: 'Use a password between 10 and 128 characters.' }, { status: 400 })
+    return errorResponse('Use a password between 10 and 128 characters.', 400, 'password-invalid')
+  }
+
+  if (isFormSubmission && password !== confirmation) {
+    return errorResponse('The passwords do not match.', 400, 'password-mismatch')
   }
 
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!anonKey || !serviceRoleKey) {
-    return NextResponse.json({ error: 'Portal setup is temporarily unavailable.' }, { status: 503 })
+    return errorResponse('Portal setup is temporarily unavailable.', 503, 'temporary')
   }
 
   const verifier = createClient(supabaseUrl, anonKey, {
@@ -58,9 +76,9 @@ export async function POST(request: Request) {
   const verifiedUser = verification.data.user
   const verifiedEmail = cleanEmail(verifiedUser?.email)
   if (verification.error || !verifiedUser?.id || !verifiedEmail) {
-    return NextResponse.json(
-      { error: 'This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh link.' },
-      { status: 400 }
+    return errorResponse(
+      'This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh link.',
+      400,
     )
   }
 
@@ -85,9 +103,9 @@ export async function POST(request: Request) {
   )
 
   if (primaryMatch.error || secondaryMatch.error || camperMatches.length !== 1) {
-    return NextResponse.json(
-      { error: 'This email is not connected to one active camper account. Please contact the Bur Oaks office.' },
-      { status: 400 }
+    return errorResponse(
+      'This email is not connected to one active camper account. Please contact the Bur Oaks office.',
+      400,
     )
   }
 
@@ -100,7 +118,7 @@ export async function POST(request: Request) {
   })
 
   if (updateError) {
-    return NextResponse.json({ error: 'The password could not be saved. Please request a fresh setup link.' }, { status: 500 })
+    return errorResponse('The password could not be saved. Please request a fresh setup link.', 500)
   }
 
   const verifiedAccessToken = verification.data.session?.access_token
@@ -109,5 +127,8 @@ export async function POST(request: Request) {
     if (signOutError) console.error('Unable to revoke setup sessions:', signOutError)
   }
 
+  if (isFormSubmission) {
+    return NextResponse.redirect(new URL('/login?passwordUpdated=1', request.url), 303)
+  }
   return NextResponse.json({ success: true })
 }

@@ -1,205 +1,30 @@
-'use client'
+import SetPasswordForm from './password-form'
 
-import { useEffect, useState } from 'react'
-import { CheckCircle2, LockKeyhole, ShieldCheck, Sparkles } from 'lucide-react'
-import { supabase } from '../../lib/supabase'
+type SearchParams = Promise<Record<string, string | string[] | undefined>>
 
-const SETUP_TOKEN_STORAGE_KEY = 'bur-oaks-portal-setup-token'
-
-type SetupToken = {
-  tokenHash: string
-  type: 'invite' | 'recovery'
+function single(value: string | string[] | undefined) {
+  return typeof value === 'string' ? value : ''
 }
 
-function cacheSetupToken(token: SetupToken | null) {
-  try {
-    if (token) {
-      window.sessionStorage.setItem(SETUP_TOKEN_STORAGE_KEY, JSON.stringify(token))
-    } else {
-      window.sessionStorage.removeItem(SETUP_TOKEN_STORAGE_KEY)
-    }
-  } catch {
-    // Some privacy modes block session storage. The in-memory token still works.
-  }
-}
+export default async function SetPasswordPage({ searchParams }: { searchParams: SearchParams }) {
+  const params = await searchParams
+  const tokenHash = single(params.token_hash).trim()
+  const requestedType = single(params.type)
+  const type = requestedType === 'invite' || requestedType === 'recovery'
+    ? requestedType
+    : null
 
-function readCachedSetupToken(): SetupToken | null {
-  try {
-    const cached = JSON.parse(window.sessionStorage.getItem(SETUP_TOKEN_STORAGE_KEY) || 'null')
-    if (
-      cached &&
-      typeof cached.tokenHash === 'string' &&
-      cached.tokenHash &&
-      (cached.type === 'invite' || cached.type === 'recovery')
-    ) {
-      return cached
-    }
-  } catch {
-    cacheSetupToken(null)
-  }
-  return null
-}
-
-export default function SetPasswordPage() {
-  const [password, setPassword] = useState('')
-  const [confirmation, setConfirmation] = useState('')
-  const [message, setMessage] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [ready, setReady] = useState(false)
-  const [setupToken, setSetupToken] = useState<SetupToken | null>(null)
-
-  useEffect(() => {
-    async function prepareSecureSession() {
-      const params = new URLSearchParams(window.location.search)
-      const code = params.get('code')
-      const tokenHash = params.get('token_hash')
-      const requestedType = params.get('type')
-      if (
-        tokenHash &&
-        (requestedType === 'invite' || requestedType === 'recovery')
-      ) {
-        const token: SetupToken = { tokenHash, type: requestedType }
-        cacheSetupToken(token)
-        setSetupToken(token)
-        window.history.replaceState({}, '', '/set-password')
-        setReady(true)
-        return
-      }
-
-      // iOS can reload a page opened from Mail while someone is entering a
-      // password. Recover the one-time token for this tab after the clean URL
-      // replaces the emailed URL, instead of leaving the button stuck.
-      const cachedToken = readCachedSetupToken()
-      if (cachedToken) {
-        setSetupToken(cachedToken)
-        setReady(true)
-        return
-      }
-
-      let { data } = await supabase.auth.getSession()
-
-      if (code) {
-        if (data.session) await supabase.auth.signOut({ scope: 'local' })
-        const { error } = await supabase.auth.exchangeCodeForSession(code)
-        if (error) {
-          setMessage('This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh setup link.')
-          return
-        }
-        const sessionResult = await supabase.auth.getSession()
-        data = sessionResult.data
-        window.history.replaceState({}, '', '/set-password')
-      }
-
-      if (!data.session) {
-        setMessage('This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh setup link.')
-        return
-      }
-
-      setReady(true)
-    }
-
-    prepareSecureSession()
-  }, [])
-
-  async function savePassword() {
-    if (password.length < 10) {
-      setMessage('Use at least 10 characters for your password.')
-      return
-    }
-
-    if (password !== confirmation) {
-      setMessage('The passwords do not match.')
-      return
-    }
-
-    setSaving(true)
-    let errorMessage = ''
-
-    if (setupToken) {
-      const response = await fetch('/api/complete-portal-setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tokenHash: setupToken.tokenHash,
-          type: setupToken.type,
-          password,
-        }),
-      })
-      const result = await response.json().catch(() => ({}))
-      if (!response.ok) errorMessage = result.error || 'The password could not be saved.'
-    } else {
-      const { error } = await supabase.auth.updateUser({
-        password,
-        data: { portal_setup_complete: true },
-      })
-      if (error) errorMessage = error.message
-      if (!error) await supabase.auth.signOut({ scope: 'local' })
-    }
-
-    if (errorMessage) {
-      if (setupToken) cacheSetupToken(null)
-      setMessage(
-        errorMessage.includes('session')
-          ? 'This link is invalid or expired. Ask the Bur Oaks office for a fresh setup link.'
-          : errorMessage
-      )
-      setSaving(false)
-      return
-    }
-
-    setPassword('')
-    setConfirmation('')
-    cacheSetupToken(null)
-    setSetupToken(null)
-    setMessage('Password saved successfully. For your privacy, this setup session is closed. Redirecting to sign in…')
-    window.setTimeout(() => window.location.replace('/login'), 1400)
-  }
+  const error = single(params.error)
+  const initialMessage = error === 'password-mismatch'
+    ? 'The passwords did not match. Please reopen the newest email and try again.'
+    : error
+      ? 'This setup link is invalid or expired. Please ask the Bur Oaks office for a fresh setup link.'
+      : ''
 
   return (
-    <main className="account-recovery-page">
-      <section className="account-recovery-card">
-        <div className="account-recovery-brand">
-          <img src="/bur-oaks-logo.png" alt="Bur Oaks Campground" />
-          <span><strong>Bur Oaks</strong><small>Camper Portal</small></span>
-        </div>
-        <span><Sparkles size={15} /> SECURE YOUR ACCOUNT</span>
-        <h1>Create your portal password.</h1>
-        <p>Use at least 10 characters and avoid reusing a password from another site. Once saved, you’ll sign in to your Bur Oaks camper portal.</p>
-
-        <div className="account-recovery-trust">
-          <ShieldCheck size={18} />
-          <span>This secure setup link is private to your camper account.</span>
-        </div>
-
-        <label htmlFor="new-password">New password</label>
-        <div className="signin-input-wrap">
-          <LockKeyhole size={18} />
-          <input
-            id="new-password"
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            autoComplete="new-password"
-          />
-        </div>
-
-        <label htmlFor="confirm-password">Confirm password</label>
-        <div className="signin-input-wrap">
-          <CheckCircle2 size={18} />
-          <input
-            id="confirm-password"
-            type="password"
-            value={confirmation}
-            onChange={(event) => setConfirmation(event.target.value)}
-            autoComplete="new-password"
-          />
-        </div>
-
-        <button onClick={savePassword} disabled={saving || !ready}>
-          {!ready ? 'Verifying invitation…' : saving ? 'Saving…' : 'Save password'}
-        </button>
-        {message && <p className="account-recovery-message">{message}</p>}
-      </section>
-    </main>
+    <SetPasswordForm
+      initialToken={tokenHash && type ? { tokenHash, type } : null}
+      initialMessage={initialMessage}
+    />
   )
 }
