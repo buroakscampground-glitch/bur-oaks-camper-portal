@@ -438,8 +438,27 @@ export default function AdminRenewalsPage() {
   async function saveThroughAdminApi(camper: Camper, action: 'save' | 'approve' | 'decline' | 'clear' | 'mark-sent' | 'send-nonrenewal' | 'signed-previous-system' | 'confirm-signature-exempt', documentId = '') {
     const existing = renewals.find((record) => record.camper_id === camper.id)
     const draft = drafts[camper.id] || draftFrom(existing)
-    const reason = window.prompt(`Why is this renewal record being changed? This reason becomes permanent history for Lot ${camper.lot_number || '—'}.`, '')?.trim() || ''
-    if (reason.length < 5) throw new Error('Enter a clear reason before changing this renewal record.')
+    const existingDecision = existing?.status === 'Campground Not Renewing'
+      || existing?.status === 'Camper Leaving'
+      || existing?.status === 'Renewing'
+      || Boolean(existing?.auto_send_approved)
+    const firstDecisionReason = action === 'approve' && !existingDecision
+      ? 'Renewal approved during annual renewal review.'
+      : action === 'decline' && !existingDecision
+        ? 'Campground decision recorded during annual renewal review: renewal not offered.'
+        : ''
+    const promptByAction: Partial<Record<typeof action, string>> = {
+      approve: 'Why are you changing this site’s renewal decision to Approve?',
+      decline: 'Why are you changing this site’s renewal decision to Do Not Renew?',
+      clear: 'Why are you undoing this renewal decision?',
+      save: 'Add a short note explaining this renewal update.',
+      'mark-sent': 'Add a short note explaining why this renewal is being marked sent.',
+      'send-nonrenewal': 'Add a short note for sending this non-renewal notice.',
+      'signed-previous-system': 'Add a short note confirming the previous-system signature.',
+      'confirm-signature-exempt': 'Add a short note explaining why no signature is required.',
+    }
+    const reason = firstDecisionReason || window.prompt(`${promptByAction[action]} This note becomes permanent history for Lot ${camper.lot_number || '—'}.`, '')?.trim() || ''
+    if (reason.length < 5) throw new Error('Enter a clear note before saving this renewal action.')
     const sessionResult = await Promise.race([
       supabase.auth.getSession(),
       new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error('Your login check timed out. Please refresh and try again.')), 7000)),
