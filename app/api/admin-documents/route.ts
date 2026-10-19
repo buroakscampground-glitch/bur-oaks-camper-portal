@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
+import { renewalResponseDueDate } from '../../../lib/renewal-timeline'
 
 export const runtime = 'nodejs'
 
@@ -10,15 +11,28 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
   }
 
-  const { data, error } = await context.admin
-    .from('documents')
-    .select('*')
+  const [{ data, error }, { data: renewals, error: renewalError }] = await Promise.all([
+    context.admin.from('documents').select('*'),
+    context.admin
+      .from('season_renewals')
+      .select('renewal_document_id,contract_end_date')
+      .not('renewal_document_id', 'is', null),
+  ])
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error || renewalError) {
+    return NextResponse.json({ error: error?.message || renewalError?.message }, { status: 500 })
   }
 
-  const documents = [...(data || [])].sort((a, b) => {
+  const renewalDueDateByDocumentId = new Map(
+    (renewals || []).map((renewal) => [
+      String(renewal.renewal_document_id),
+      renewal.contract_end_date ? renewalResponseDueDate(String(renewal.contract_end_date)) : null,
+    ])
+  )
+  const documents = (data || []).map((document) => ({
+    ...document,
+    response_due_date: renewalDueDateByDocumentId.get(String(document.id)) || null,
+  })).sort((a, b) => {
     const signedAtA = a.signed_at ? new Date(a.signed_at).getTime() : 0
     const signedAtB = b.signed_at ? new Date(b.signed_at).getTime() : 0
     if (signedAtA !== signedAtB) return signedAtB - signedAtA

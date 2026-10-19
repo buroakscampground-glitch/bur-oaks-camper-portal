@@ -442,6 +442,14 @@ export default function AdminDocumentsPage() {
     if (String(document.signature_status || '').toLowerCase() === 'pending_second_signature') return 'Waiting for second signer'
     return document.requires_two_signatures ? 'Waiting for first signer' : 'Waiting'
   }
+  const signatureDateLabel = (value: unknown) => {
+    const date = String(value || '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return ''
+    const [year, month, day] = date.split('-').map(Number)
+    return new Date(Date.UTC(year, month - 1, day, 12)).toLocaleDateString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
+    })
+  }
   const normalized = (value: unknown) => String(value || '').trim().toLowerCase()
   const camperFullName = (camper: any) =>
     `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
@@ -513,7 +521,7 @@ export default function AdminDocumentsPage() {
           <div>
             <small>SIGNATURE TRACKER</small>
             <h2>Who still needs to sign?</h2>
-            <p>Track assigned documents by camper, lot, status, and signed date.</p>
+            <p>Track assigned documents by camper, lot, signature deadline, and signed date.</p>
           </div>
           <div className="signature-tracker-actions">
             <label>
@@ -549,6 +557,7 @@ export default function AdminDocumentsPage() {
             const signedDate = document.signed_at
               ? new Date(document.signed_at).toLocaleDateString()
               : null
+            const responseDueDate = signatureDateLabel(document.response_due_date)
 
             return (
               <article className={isSignedDocument(document) ? 'signed' : 'waiting'} key={document.id}>
@@ -559,7 +568,7 @@ export default function AdminDocumentsPage() {
                   <p>{document.document_name || 'Untitled document'}</p>
                 </div>
                 <div className="signature-tracker-row-actions">
-                <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : signatureStatusLabel(document)}</em>
+                <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : `${signatureStatusLabel(document)}${responseDueDate ? ` · Due ${responseDueDate}` : ''}`}</em>
                   <a href={`/documents/view/${document.id}`} target="_blank" rel="noreferrer" aria-label={`Open ${document.document_name || 'document'}`}>
                     <ArrowUpRight size={14} /> Open
                   </a>
