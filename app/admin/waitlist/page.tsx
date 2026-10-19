@@ -7,6 +7,7 @@ import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { canConvertWaitlistStatus, NEW_CAMPER_ANNUAL_RENT, NEW_CAMPER_ASSOCIATION_FEE, NEW_CAMPER_INSTALLMENT, TEMPORARY_SITE_OPTION, waitlistWelcomeCopy } from '../../../lib/waitlist-conversion'
 import { summarizeProspectPipeline, summarizeWaitlistFollowUp } from '../../../lib/waitlist-follow-up'
+import { sortWaitlistLongestFirst } from '../../../lib/waitlist-order'
 
 type WaitlistPerson = {
   id: string
@@ -95,7 +96,7 @@ export default function WaitlistPage() {
     setLoading(true)
     setLoadError('')
     const [waitlistResult, activityResult, lotResult, camperResult] = await Promise.all([
-      supabase.from('waitlist').select('*').order('created_at', { ascending: false }),
+      supabase.from('waitlist').select('*').order('created_at', { ascending: true }),
       supabase.from('waitlist_activities').select('id,waitlist_id,activity_type,detail,occurred_at,follow_up_on,recorded_by').order('occurred_at', { ascending: false }).limit(1000),
       supabase.from('lots').select('lot_number').order('lot_number', { ascending: true }),
       supabase.from('campers').select('lot_number,role,active').eq('active', true),
@@ -276,7 +277,7 @@ export default function WaitlistPage() {
     'Converted · 30d': pipeline.converted30Days,
   }
 
-  const visiblePeople = people
+  const visiblePeople = sortWaitlistLongestFirst(people)
     .map((person) => ({ person, followUp: summarizeWaitlistFollowUp(person) }))
     .filter(({ person, followUp }) => {
       const term = search.trim().toLowerCase()
@@ -284,7 +285,6 @@ export default function WaitlistPage() {
       const matchesStatus = statusFilter === 'All' || (statusFilter === 'Needs follow-up' ? followUp.needsFollowUp : person.status === statusFilter)
       return matchesSearch && matchesStatus
     })
-    .sort((left, right) => left.followUp.priority - right.followUp.priority || String(right.person.created_at || '').localeCompare(String(left.person.created_at || '')))
   const temporaryConversion = conversionForm.lotNumber === TEMPORARY_SITE_OPTION
   const welcomePreview = waitlistWelcomeCopy(conversionForm.firstName, conversionForm.lotNumber, temporaryConversion)
 
@@ -317,7 +317,7 @@ export default function WaitlistPage() {
         </aside>
 
         <section className="admin-waitlist-directory">
-          <header><div><small>APPLICANTS</small><h2>Follow-up queue</h2></div><div><input aria-label="Search waitlist" placeholder="Search name, phone, email, camper…" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Filter waitlist" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option><option>Needs follow-up</option><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Converted</option><option>Declined</option><option>Removed</option></select></div></header>
+          <header><div><small>APPLICANTS · LONGEST WAIT FIRST</small><h2>Waitlist order</h2></div><div><input aria-label="Search waitlist" placeholder="Search name, phone, email, camper…" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Filter waitlist" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option>All</option><option>Needs follow-up</option><option>Waiting</option><option>Contacted</option><option>Accepted</option><option>Converted</option><option>Declined</option><option>Removed</option></select></div></header>
 
           {visiblePeople.length === 0 ? <p className="admin-waitlist-empty">No matching waitlist entries.</p> : (
             <div className="admin-waitlist-list">
