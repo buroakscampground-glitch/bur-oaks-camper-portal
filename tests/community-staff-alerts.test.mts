@@ -131,3 +131,13 @@ test('Community post reads are tracked separately for each signed-in household m
   assert.match(migration, /FROM public\.community_reads AS reads/)
   assert.match(migration, /JOIN auth\.users AS users/)
 })
+
+test('Community viewer totals page through every database row instead of silently stopping at 1,000', () => {
+  const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
+
+  assert.match(route, /const COMMUNITY_READ_PAGE_SIZE = 1000/)
+  assert.match(route, /for \(let from = 0; ; from \+= COMMUNITY_READ_PAGE_SIZE\)/)
+  assert.match(route, /\.range\(from, from \+ COMMUNITY_READ_PAGE_SIZE - 1\)/)
+  assert.match(route, /read_count: allReadsResult\.counts\.get\(String\(post\.id\)\) \|\| 0/)
+  assert.doesNotMatch(route, /read_count: \(allReadsResult\.data \|\| \[\]\)/)
+})

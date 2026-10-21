@@ -46,6 +46,36 @@ function pinUntil(value: unknown) {
   return optionalDate(value) || new Date(Date.now() + 7 * 24 * 60 * 60_000).toISOString()
 }
 
+const COMMUNITY_READ_PAGE_SIZE = 1000
+
+async function communityReadCounts(admin: any, postIds: string[]) {
+  const counts = new Map<string, number>()
+  if (!postIds.length) return { counts, error: null }
+
+  // Supabase projects commonly cap one Data API response at 1,000 rows. A
+  // single raw read query can therefore omit newer posts once the feed has
+  // enough history, incorrectly displaying "0 viewed". Page through every
+  // matching row in a deterministic order before calculating the totals.
+  for (let from = 0; ; from += COMMUNITY_READ_PAGE_SIZE) {
+    const { data, error } = await admin
+      .from('community_login_reads')
+      .select('post_id,camper_id,reader_id')
+      .in('post_id', postIds)
+      .order('post_id', { ascending: true })
+      .order('camper_id', { ascending: true })
+      .order('reader_id', { ascending: true })
+      .range(from, from + COMMUNITY_READ_PAGE_SIZE - 1)
+    if (error) return { counts, error }
+    for (const row of data || []) {
+      const postId = String(row.post_id)
+      counts.set(postId, (counts.get(postId) || 0) + 1)
+    }
+    if ((data || []).length < COMMUNITY_READ_PAGE_SIZE) break
+  }
+
+  return { counts, error: null }
+}
+
 async function authenticated(request: Request) {
   const context = await getAuthenticatedContext(request)
   return context && String(context.camper.role || '').toLowerCase() !== 'maintenance' ? context : null
@@ -222,8 +252,8 @@ export async function GET(request: Request) {
       : Promise.resolve({ data: [], error: null }),
     context.admin.from('community_notification_preferences').select('*').eq('camper_id', camperId).maybeSingle(),
     isManager && postIds.length
-      ? context.admin.from('community_login_reads').select('post_id').in('post_id', postIds)
-      : Promise.resolve({ data: [], error: null }),
+      ? communityReadCounts(context.admin, postIds)
+      : Promise.resolve({ counts: new Map<string, number>(), error: null }),
     isManager && postIds.length
       ? context.admin.from('sms_broadcasts').select('idempotency_key,status,recipient_count,sent_count,failed_count,created_at').in('idempotency_key', postIds)
       : Promise.resolve({ data: [], error: null }),
@@ -264,7 +294,7 @@ export async function GET(request: Request) {
     reaction_count: (reactions || []).filter((reaction: any) => String(reaction.post_id) === String(post.id)).length,
     liked_by_me: (reactions || []).some((reaction: any) => String(reaction.post_id) === String(post.id) && String(reaction.camper_id) === camperId),
     read_by_me: readIds.has(String(post.id)),
-    read_count: (allReadsResult.data || []).filter((row: any) => String(row.post_id) === String(post.id)).length,
+    read_count: allReadsResult.counts.get(String(post.id)) || 0,
     sms_delivery: (deliveryResult.data || []).find((row: any) => String(row.idempotency_key) === String(post.id)) || null,
   })))
 
