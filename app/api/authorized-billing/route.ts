@@ -44,8 +44,17 @@ export async function GET(request: Request) {
 
     if (invoiceId) invoiceQuery = invoiceQuery.eq('id', invoiceId)
 
-    const { data: invoices, error } = await invoiceQuery
+    const [{ data: invoices, error }, { data: credits, error: creditsError }] = await Promise.all([
+      invoiceQuery,
+      context.admin
+        .from('account_credits')
+        .select('camper_id,remaining_amount,status,applies_to')
+        .in('camper_id', accountIds)
+        .eq('status', 'active')
+        .gt('remaining_amount', 0),
+    ])
     if (error) throw error
+    if (creditsError) throw creditsError
 
     const invoiceRows = (invoices || []) as AuthorizedInvoiceRow[]
     if (invoiceId) {
@@ -59,13 +68,25 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      accounts: accounts.map((account) => ({
-        ...account,
-        invoices: invoiceRows.filter((invoice) =>
-          String(invoice.camper_id) === String(account.id) && !isInvoiceClosed(invoice)
-        ),
-      })),
-    })
+      accounts: accounts.map((account) => {
+        const accountCredits = (credits || []).filter((credit) => String(credit.camper_id) === String(account.id))
+        return {
+          ...account,
+          invoices: invoiceRows.filter((invoice) =>
+            String(invoice.camper_id) === String(account.id) && !isInvoiceClosed(invoice)
+          ),
+          accountCredit: accountCredits.reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+          accountCreditDetails: {
+            lotRent: accountCredits
+              .filter((credit) => credit.applies_to === 'lot_rent')
+              .reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+            general: accountCredits
+              .filter((credit) => credit.applies_to !== 'lot_rent')
+              .reduce((sum, credit) => sum + Number(credit.remaining_amount || 0), 0),
+          },
+        }
+      }),
+    }, { headers: { 'Cache-Control': 'no-store' } })
   } catch (error: unknown) {
     const requestId = reportOperationalFailure(request, {
       operation: 'authorized-family-billing-load',

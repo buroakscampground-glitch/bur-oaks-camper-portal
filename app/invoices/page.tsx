@@ -87,6 +87,33 @@ function formatDate(value?: string) {
   })
 }
 
+function formatPaymentDate(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toLocaleDateString('en-US', {
+    timeZone: 'America/Chicago',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+function invoiceAdjustmentTotal(invoice: any, phrase: string) {
+  return (Array.isArray(invoice?.invoice_items) ? invoice.invoice_items : []).reduce(
+    (sum: number, item: any) => String(item?.description || '').toLowerCase().includes(phrase)
+      ? sum + Math.abs(Number(item?.total ?? item?.amount ?? 0))
+      : sum,
+    0,
+  )
+}
+
+function nextOpenInvoice(invoiceList: any[]) {
+  return invoiceList
+    .filter(isInvoiceOutstanding)
+    .sort((left, right) => String(left.due_date || '9999-99-99').localeCompare(String(right.due_date || '9999-99-99')))[0]
+}
+
 function planLabel(preference?: AutoPayPreference | null) {
   if (preference === 'electric') return 'Electric bills'
   if (preference === 'rent') return 'Quarterly lot rent'
@@ -319,13 +346,30 @@ export default function InvoicesPage() {
   }
 
   const payableInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice) && invoice.status !== 'processing')
-  const paidInvoices = invoices.filter(isInvoicePaid)
-  const openInvoices = invoices.filter((invoice) => isInvoiceOutstanding(invoice))
-  const dueNowInvoices = invoices.filter((invoice) => invoice.status !== 'processing' && isInvoiceDueNow(invoice))
-  const upcomingInvoices = invoices.filter((invoice) => invoice.status !== 'processing' && isInvoiceUpcoming(invoice))
-  const totalOpenBalance = totalInvoiceBalance(openInvoices)
-  const amountDueNow = totalInvoiceBalance(dueNowInvoices)
-  const upcomingTotal = totalInvoiceBalance(upcomingInvoices)
+  const billingSiteAccounts = [
+    {
+      id: camper?.id,
+      lot_number: camper?.lot_number,
+      first_name: camper?.first_name,
+      last_name: camper?.last_name,
+      invoices,
+      accountCredit: creditBalance,
+      primary: true,
+    },
+    ...familyBillingAccounts.map((account) => ({ ...account, primary: false })),
+  ].filter((account) => account.id)
+  const allBillingInvoices = billingSiteAccounts.flatMap((account) =>
+    (Array.isArray(account.invoices) ? account.invoices : []).map((invoice: any) => ({ ...invoice, billingLot: account.lot_number }))
+  )
+  const allOpenInvoices = allBillingInvoices.filter(isInvoiceOutstanding)
+  const allDueNowInvoices = allOpenInvoices.filter((invoice) => isInvoiceDueNow(invoice))
+  const allUpcomingInvoices = allOpenInvoices.filter((invoice) => isInvoiceUpcoming(invoice))
+  const allOpenBalance = totalInvoiceBalance(allOpenInvoices)
+  const allAmountDueNow = totalInvoiceBalance(allDueNowInvoices)
+  const allUpcomingTotal = totalInvoiceBalance(allUpcomingInvoices)
+  const allUnusedCredit = billingSiteAccounts.reduce((sum, account) => sum + Number(account.accountCredit || 0), 0)
+  const allPaidInvoiceCount = allBillingInvoices.filter(isInvoicePaid).length
+  const billingLotLabel = billingSiteAccounts.map((account) => account.lot_number).filter(Boolean).join(' & ')
   const selectedTotal = payableInvoices
     .filter((invoice) => selectedInvoices.includes(invoice.id))
     .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
@@ -475,45 +519,94 @@ export default function InvoicesPage() {
               <span className="account-eyebrow"><Leaf size={15} /> Billing & payments</span>
               <h1>Your account, all in one place.</h1>
               <p>
-                Review charges, make secure payments, and manage AutoPay for Lot{' '}
-                {camper?.lot_number || '—'}.
+                Review charges, credits, payments, and due dates for{' '}
+                {billingSiteAccounts.length > 1 ? `Lots ${billingLotLabel}` : `Lot ${camper?.lot_number || '—'}`}.
               </p>
             </div>
             <div className="account-balance-card">
               <span>Amount due now</span>
-              <strong>{formatMoney(amountDueNow)}</strong>
+              <strong>{formatMoney(allAmountDueNow)}</strong>
               <small>
-                {dueNowInvoices.length > 0
-                  ? `${dueNowInvoices.length} invoice${dueNowInvoices.length === 1 ? '' : 's'} due now${upcomingInvoices.length ? ` · ${formatMoney(upcomingTotal)} upcoming` : ''}`
-                  : upcomingInvoices.length > 0
-                    ? `${formatMoney(upcomingTotal)} in future invoices—not due yet`
-                    : openInvoices.length > 0
-                      ? `${formatMoney(totalOpenBalance)} scheduled on ${openInvoices.length} future invoice${openInvoices.length === 1 ? '' : 's'}`
+                {allDueNowInvoices.length > 0
+                  ? `${allDueNowInvoices.length} invoice${allDueNowInvoices.length === 1 ? '' : 's'} due now${allUpcomingInvoices.length ? ` · ${formatMoney(allUpcomingTotal)} upcoming` : ''}`
+                  : allUpcomingInvoices.length > 0
+                    ? `${formatMoney(allUpcomingTotal)} in future invoices—not due yet`
+                    : allOpenInvoices.length > 0
+                      ? `${formatMoney(allOpenBalance)} scheduled on ${allOpenInvoices.length} future invoice${allOpenInvoices.length === 1 ? '' : 's'}`
                       : 'You are all caught up'}
               </small>
             </div>
           </div>
         </header>
 
-        {dueNowInvoices.length > 0 && (
+        {allDueNowInvoices.length > 0 && (
           <section className="account-payment-required-banner" aria-label="Payment required">
             <span><AlertTriangle size={27} /></span>
             <div>
               <small>PAYMENT REQUIRED</small>
-              <h2>{formatMoney(amountDueNow)} is due now.</h2>
-              <p>{dueNowInvoices.length} invoice{dueNowInvoices.length === 1 ? ' is' : 's are'} ready for payment. Select the invoice{dueNowInvoices.length === 1 ? '' : 's'} below and tap the green payment button.</p>
+              <h2>{formatMoney(allAmountDueNow)} is due now.</h2>
+              <p>{allDueNowInvoices.length} invoice{allDueNowInvoices.length === 1 ? ' is' : 's are'} ready for payment. Open the matching site below to review it before paying.</p>
             </div>
-            <a href="#invoices-due-now" onClick={() => chooseFilter(groupedInvoices.late.length ? 'late' : 'due-now')}>View and pay</a>
+            <a href={familyBillingAccounts.length ? '#billing-sites-title' : '#invoices-due-now'} onClick={() => chooseFilter(groupedInvoices.late.length ? 'late' : 'due-now')}>View and pay</a>
           </section>
         )}
 
         <section className="account-summary" aria-label="Account summary">
-          <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>Open balance</small><strong>{formatMoney(totalOpenBalance)}</strong></span></div>
-          <div><span className="account-summary-icon green"><WalletCards size={21} /></span><span><small>Account credit</small><strong>{formatMoney(creditBalance)}</strong>{creditBalance > 0 && <em>{creditDetails.lotRent > 0 ? `${formatMoney(creditDetails.lotRent)} lot rent only` : ''}{creditDetails.lotRent > 0 && creditDetails.general > 0 ? ' · ' : ''}{creditDetails.general > 0 ? `${formatMoney(creditDetails.general)} any bill` : ''}</em>}</span></div>
-          <div><span className="account-summary-icon green"><CheckCircle2 size={21} /></span><span><small>Paid invoices</small><strong>{paidInvoices.length}</strong></span></div>
-          <div><span className="account-summary-icon blue"><FileText size={21} /></span><span><small>Total history</small><strong>{invoices.length}</strong></span></div>
-          <div><span className="account-summary-icon plum"><CreditCard size={21} /></span><span><small>AutoPay</small><strong>{autoPayStatus.enabled ? 'Active' : 'Not enrolled'}</strong></span></div>
+          <div><span className="account-summary-icon gold"><CircleDollarSign size={21} /></span><span><small>All sites open balance</small><strong>{formatMoney(allOpenBalance)}</strong></span></div>
+          <div><span className="account-summary-icon green"><WalletCards size={21} /></span><span><small>All sites unused credit</small><strong>{formatMoney(allUnusedCredit)}</strong>{creditBalance > 0 && <em>{creditDetails.lotRent > 0 ? `${formatMoney(creditDetails.lotRent)} lot rent only` : ''}{creditDetails.lotRent > 0 && creditDetails.general > 0 ? ' · ' : ''}{creditDetails.general > 0 ? `${formatMoney(creditDetails.general)} any bill` : ''}</em>}</span></div>
+          <div><span className="account-summary-icon green"><CheckCircle2 size={21} /></span><span><small>All sites paid invoices</small><strong>{allPaidInvoiceCount}</strong></span></div>
+          <div><span className="account-summary-icon blue"><FileText size={21} /></span><span><small>All sites history</small><strong>{allBillingInvoices.length}</strong></span></div>
+          <div><span className="account-summary-icon plum"><CreditCard size={21} /></span><span><small>Lot {camper?.lot_number || '—'} AutoPay</small><strong>{autoPayStatus.enabled ? 'Active' : 'Not enrolled'}</strong></span></div>
         </section>
+
+        {billingSiteAccounts.length > 1 && (
+          <section className="billing-sites-overview" aria-labelledby="billing-sites-title">
+            <div className="family-billing-heading">
+              <span><UsersRound size={22} /></span>
+              <div>
+                <small>ALL BILLING ON THIS LOGIN</small>
+                <h2 id="billing-sites-title">Lots {billingLotLabel}, together</h2>
+                <p>Each site stays separate in the campground records, but every balance, credit, payment, and due date you are authorized to manage is summarized here.</p>
+              </div>
+            </div>
+            <div className="billing-site-summary-grid">
+              {billingSiteAccounts.map((account) => {
+                const accountInvoices = Array.isArray(account.invoices) ? account.invoices : []
+                const open = accountInvoices.filter(isInvoiceOutstanding)
+                const next = nextOpenInvoice(accountInvoices)
+                const appliedCredit = accountInvoices.reduce((sum: number, invoice: any) => sum + invoiceAdjustmentTotal(invoice, 'account credit applied'), 0)
+                const officePayments = accountInvoices.reduce((sum: number, invoice: any) => sum + invoiceAdjustmentTotal(invoice, 'office payment received'), 0)
+                const latestOfficePayment = accountInvoices
+                  .filter((invoice: any) => invoiceAdjustmentTotal(invoice, 'office payment received') > 0)
+                  .sort((left: any, right: any) => String(right.paid_at || '').localeCompare(String(left.paid_at || '')))[0]
+
+                return (
+                  <article className="billing-site-summary" key={account.id}>
+                    <header>
+                      <span>LOT {account.lot_number}</span>
+                      <strong>{account.first_name} {account.last_name}</strong>
+                    </header>
+                    <div className="billing-site-balance">
+                      <small>Open balance</small>
+                      <strong>{formatMoney(totalInvoiceBalance(open))}</strong>
+                    </div>
+                    <dl>
+                      <div><dt>Next due</dt><dd>{next ? `${formatMoney(next.total_due)} · ${formatDate(next.due_date)}` : 'Nothing due'}</dd></div>
+                      {next && <div><dt>For</dt><dd>{next.invoice_type || 'Campground charge'}</dd></div>}
+                      <div><dt>Credits applied</dt><dd>{formatMoney(appliedCredit)}</dd></div>
+                      <div><dt>Office payments</dt><dd>{formatMoney(officePayments)}</dd></div>
+                      {latestOfficePayment?.payment_reference && (
+                        <div><dt>Latest payment</dt><dd>{latestOfficePayment.payment_method || 'Office'} #{latestOfficePayment.payment_reference}{latestOfficePayment.paid_at ? ` · ${formatPaymentDate(latestOfficePayment.paid_at)}` : ''}</dd></div>
+                      )}
+                      {Number(account.accountCredit || 0) > 0 && <div><dt>Unused credit</dt><dd>{formatMoney(account.accountCredit)}</dd></div>}
+                    </dl>
+                    <a href={account.primary ? '#invoices-due-now' : `#billing-site-${account.id}`}>See this site’s invoices <ArrowRight size={14} /></a>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         <InvoiceSmsOptInAlert
           optedIn={smsOptIn}
@@ -546,8 +639,8 @@ export default function InvoicesPage() {
               <span><UsersRound size={22} /></span>
               <div>
                 <small>AUTHORIZED ACCOUNTS</small>
-                <h2 id="family-billing-title">Additional accounts you can view and pay</h2>
-                <p>Your login has billing-only access. Their profile, messages, documents, and other private portal information remain separate.</p>
+                <h2 id="family-billing-title">Other sites included on this login</h2>
+                <p>These invoices are part of the combined summary above. Profile, messages, documents, and other private portal information remain separate.</p>
               </div>
             </div>
 
@@ -562,7 +655,7 @@ export default function InvoicesPage() {
                 )
 
                 return (
-                  <article className="family-billing-card" key={account.id}>
+                  <article className="family-billing-card" id={`billing-site-${account.id}`} key={account.id}>
                     <header>
                       <div>
                         <small>YOU ARE AUTHORIZED TO PAY</small>
@@ -581,8 +674,10 @@ export default function InvoicesPage() {
                           return (
                             <div key={invoice.id}>
                               <span>
-                                <small>Invoice #{invoice.invoice_number} · {formatDate(invoice.due_date)}</small>
+                                <small>Invoice #{invoice.invoice_number} · Due {formatDate(invoice.due_date)}</small>
                                 <strong>{invoice.invoice_type || 'Campground charge'}</strong>
+                                {invoiceAdjustmentTotal(invoice, 'account credit applied') > 0 && <em>Credit applied: {formatMoney(invoiceAdjustmentTotal(invoice, 'account credit applied'))}</em>}
+                                {invoiceAdjustmentTotal(invoice, 'office payment received') > 0 && <em>Office payment: {formatMoney(invoiceAdjustmentTotal(invoice, 'office payment received'))}</em>}
                               </span>
                               <strong>{formatMoney(invoice.total_due)}</strong>
                               <div>
