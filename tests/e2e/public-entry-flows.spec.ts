@@ -1132,7 +1132,7 @@ test('office waitlist turns a synthetic website inquiry into a clear follow-up t
   })
 
   await page.goto('/admin/waitlist')
-  await expect(page.getByRole('heading', { name: 'Follow-up queue' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Waitlist order' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Future Camper' })).toBeVisible()
   await expect(page.getByText('Contact applicant')).toBeVisible()
   await expect(page.getByText(/Website inquiry.*Tour requested/)).toBeVisible()
