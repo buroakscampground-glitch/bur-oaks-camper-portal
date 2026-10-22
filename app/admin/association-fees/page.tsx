@@ -51,7 +51,14 @@ export default function AssociationFeesPage() {
     }
   }
 
-  useEffect(() => { void loadAssociationFees() }, [])
+  useEffect(() => {
+    const requestedSearch = new URLSearchParams(window.location.search).get('search')?.trim() || ''
+    if (requestedSearch) {
+      setSearch(requestedSearch)
+      setView('all')
+    }
+    void loadAssociationFees()
+  }, [])
 
   const roster = useMemo(() => campers.map((camper) => {
     const feeInvoices = invoices.filter((invoice) => String(invoice.camper_id) === String(camper.id))

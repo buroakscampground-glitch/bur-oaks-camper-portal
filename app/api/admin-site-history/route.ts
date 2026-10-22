@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       .maybeSingle(),
     context.admin
       .from('invoices')
-      .select('id,invoice_number,invoice_type,subtotal,total_due,late_fee,due_date,status,paid_at,payment_method,created_at,invoice_items(id,description,quantity,unit_price,total)')
+      .select('id,invoice_number,invoice_type,subtotal,total_due,late_fee,due_date,status,paid_at,payment_method,payment_reference,created_at,invoice_items(id,description,quantity,unit_price,total)')
       .eq('camper_id', camperId)
       .order('created_at', { ascending: false })
       .limit(1000),

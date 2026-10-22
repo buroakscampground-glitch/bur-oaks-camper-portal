@@ -54,6 +54,7 @@ import { supabase } from '../lib/supabase'
 import SeasonalThemeCard from './SeasonalThemeCard'
 import CommunityUnreadBadge from './CommunityUnreadBadge'
 import AppBadgePermission from './AppBadgePermission'
+import AdminCamperFinder from './AdminCamperFinder'
 
 const pageNames: Record<string, string> = {
   campers: 'Camper Management',
@@ -373,6 +374,8 @@ export default function AdminChrome({ children }: { children: React.ReactNode })
             </span>
             {Number(attentionCounts['/admin/notifications'] || 0) > 0 && <b className="admin-attention-badge">{attentionCounts['/admin/notifications'] > 99 ? '99+' : attentionCounts['/admin/notifications']}</b>}
           </a>
+
+          <AdminCamperFinder />
 
           <SeasonalThemeCard theme={theme} />
 

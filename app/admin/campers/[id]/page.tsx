@@ -877,7 +877,7 @@ export default function CamperDetailPage() {
             {historyView === 'billing' && <HistoryList empty="No invoices are saved for this camper yet.">
               {(history.invoices || []).map((invoice: any) => <article className="admin-history-invoice" key={invoice.id}>
                 <div className="admin-history-invoice-top"><div><small>{invoice.invoice_type || 'INVOICE'}</small><strong>{invoice.invoice_number || 'Invoice'}</strong></div><span className={String(invoice.status || '').toLowerCase()}>{invoice.status || 'Open'}</span><b>${Number(invoice.total_due || 0).toFixed(2)}</b></div>
-                <p>Due {formatHistoryDate(invoice.due_date)}{invoice.paid_at ? ` · Paid ${formatHistoryDate(invoice.paid_at)}` : ''}{invoice.payment_method ? ` · ${invoice.payment_method}` : ''}{invoice.is_late ? ' · Late/past due' : ''}</p>
+                <p>Due {formatHistoryDate(invoice.due_date)}{invoice.paid_at ? ` · Paid ${formatHistoryDate(invoice.paid_at)}` : ''}{invoice.payment_method ? ` · ${invoice.payment_method}` : ''}{invoice.payment_reference ? ` #${invoice.payment_reference}` : ''}{invoice.is_late ? ' · Late/past due' : ''}</p>
                 {!!invoice.invoice_items?.length && <ul>{invoice.invoice_items.map((item: any) => <li key={item.id}><span>{item.description || 'Charge'}</span><strong>${Number(item.total ?? item.unit_price ?? 0).toFixed(2)}</strong></li>)}</ul>}
                 <button type="button" onClick={() => router.push(`/admin/invoices/${invoice.id}`)}>Open invoice</button>
               </article>)}
