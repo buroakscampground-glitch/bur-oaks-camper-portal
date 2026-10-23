@@ -70,6 +70,18 @@ test('the admin Campground Messenger separates conversation, review work, and me
   assert.match(feed, /!adminMode \|\| adminSection === 'feed'/)
 })
 
+test('reported Messenger items show the post, reporter, lot, time, reason, and a working post link', () => {
+  const feed = readFileSync(new URL('../components/CommunityFeed.tsx', import.meta.url), 'utf8')
+
+  assert.match(feed, /post\?\.body \|\| 'The reported post is no longer available/)
+  assert.match(feed, /Reported by \{reporter\?\.name/)
+  assert.match(feed, /reporter\?\.lotNumber/)
+  assert.match(feed, /formatDate\(report\.created_at\)/)
+  assert.match(feed, /Reason: \{report\.reason/)
+  assert.match(feed, />View post</)
+  assert.match(feed, /\?post=\$\{encodeURIComponent\(item\.post_id\)\}/)
+})
+
 test('only an admin or Event Coordinator post starts a camper text campaign', () => {
   const route = readFileSync(new URL('../app/api/community-feed/route.ts', import.meta.url), 'utf8')
   const createPost = route.match(/if \(action === 'create_post'\) \{[\s\S]*?if \(action === 'create_comment'\)/)?.[0] || ''

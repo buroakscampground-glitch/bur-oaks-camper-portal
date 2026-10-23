@@ -358,6 +358,14 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
     setWorking('')
   }
 
+  function openReportedPost(postId: string) {
+    linkedPostHandled.current = false
+    setLinkedPostId(String(postId))
+    setTab('all')
+    setCategory('all')
+    setAdminSection('feed')
+  }
+
   async function deleteContent(contentType: 'post' | 'comment', id: string) {
     const label = contentType === 'post' ? 'post and all of its comments' : 'comment'
     if (!window.confirm(`Permanently delete this ${label}? This cannot be undone.`)) return
@@ -438,9 +446,27 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
       {adminMode && adminSection === 'activity' && reports.length > 0 && (
         <section className="campground-community-review">
           <header><div><small>NEEDS REVIEW</small><h2>{reports.length} reported item{reports.length === 1 ? '' : 's'}</h2></div></header>
-          {reports.map((report) => (
-            <article key={report.id}><span>{report.reason}</span><div><button type="button" onClick={() => moderate(report.comment_id ? 'comment' : 'post', report.comment_id || report.post_id, 'hidden', report.id)}>Hide item</button><button type="button" onClick={() => moderate(report.comment_id ? 'comment' : 'post', report.comment_id || report.post_id, 'published', report.id)}>Leave visible</button></div></article>
-          ))}
+          {reports.map((report) => {
+            const post = posts.find((item) => String(item.id) === String(report.post_id))
+            const reporter = members.find((item) => String(item.id) === String(report.reporter_camper_id))
+            return (
+              <article key={report.id}>
+                <div className="campground-community-review-copy">
+                  <strong>{post?.is_official ? 'Official Bur Oaks post' : 'Camper post'}{post?.author_name ? ` by ${post.author_name}` : ''}</strong>
+                  <p>{post?.body || 'The reported post is no longer available in the current feed.'}</p>
+                  <small>
+                    Reported by {reporter?.name || 'a camper'}{reporter?.lotNumber ? ` · Lot ${reporter.lotNumber}` : ''} · {formatDate(report.created_at)}
+                  </small>
+                  <span>Reason: {report.reason || 'No reason was provided.'}</span>
+                </div>
+                <div className="campground-community-review-actions">
+                  {report.post_id && post && <button type="button" onClick={() => openReportedPost(report.post_id)}>View post</button>}
+                  <button type="button" onClick={() => moderate(report.comment_id ? 'comment' : 'post', report.comment_id || report.post_id, 'hidden', report.id)}>Hide item</button>
+                  <button type="button" onClick={() => moderate(report.comment_id ? 'comment' : 'post', report.comment_id || report.post_id, 'published', report.id)}>Leave visible</button>
+                </div>
+              </article>
+            )
+          })}
         </section>
       )}
 
@@ -448,7 +474,7 @@ export default function CommunityFeed({ adminMode = false }: FeedProps) {
         <section className="campground-community-staff-activity">
           <header><Bell size={19} /><div><small>STAFF ALERTS</small><h2>Recent Messenger activity</h2><p>Rachel and administrator accounts see activity here, with routine items collected into the daily email.</p></div></header>
           <div>{activityNotifications.slice(0, 10).map((item) => (
-            <a href={item.post_id ? `#community-post-${item.post_id}` : undefined} key={item.id}>
+            <a href={item.post_id ? `?post=${encodeURIComponent(item.post_id)}` : undefined} key={item.id}>
               <span>{item.message}</span>
               <small>{formatDate(item.created_at)} · {item.email_status === 'sent' ? 'Email sent' : item.email_status === 'failed' ? 'Email needs attention' : 'Portal alert saved'}</small>
             </a>
