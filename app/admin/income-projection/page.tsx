@@ -51,7 +51,7 @@ export default function AdminIncomeProjectionPage() {
   const [renewals, setRenewals] = useState<any[]>([])
   const [projectionYear, setProjectionYear] = useState(new Date().getFullYear())
   const [associationFee, setAssociationFee] = useState(250)
-  const [lotRentTiming, setLotRentTiming] = useState<'contract' | 'spread' | 'history'>('contract')
+  const [lotRentTiming, setLotRentTiming] = useState<'scheduled' | 'contract' | 'spread' | 'history'>('scheduled')
   const [associationMonth, setAssociationMonth] = useState(1)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -232,7 +232,7 @@ export default function AdminIncomeProjectionPage() {
           </div>
           <label><span>Projection year</span><input type="number" min="2026" max="2100" value={projectionYear} onChange={(event) => setProjectionYear(Number(event.target.value || new Date().getFullYear()))} /></label>
           <label><span>Association fee per site</span><div><i>$</i><input type="number" min="0" step="1" value={associationFee} onChange={(event) => setAssociationFee(Number(event.target.value || 0))} /></div></label>
-          <label><span>Lot-rent projection</span><select value={lotRentTiming} onChange={(event) => setLotRentTiming(event.target.value as 'contract' | 'spread' | 'history')}><option value="contract">Actual contract date · quarterly</option><option value="spread">Spread evenly all year</option><option value="history">Use invoice timing</option></select></label>
+          <label><span>Lot-rent projection</span><select value={lotRentTiming} onChange={(event) => setLotRentTiming(event.target.value as 'scheduled' | 'contract' | 'spread' | 'history')}><option value="scheduled">Actual invoice due dates</option><option value="contract">Planning estimate · contract quarter</option><option value="spread">Planning estimate · spread evenly</option><option value="history">Planning estimate · prior invoice month</option></select></label>
           <label><span>One-time annual association fee month</span><select value={associationMonth} onChange={(event) => setAssociationMonth(Number(event.target.value))}>{projectionMonths.map((month, index) => <option value={index} key={month}>{month}</option>)}</select></label>
         </section>
 
@@ -315,7 +315,7 @@ export default function AdminIncomeProjectionPage() {
           <header><div><small>FORECAST CONFIDENCE</small><h2>What the projection is based on</h2></div></header>
           <div>
             <article><Landmark size={20} /><span><strong>{projection.configuredRentSites} of {sites.length}</strong><small>{projection.savedRentSites} use saved annual rent; {projection.inferredRentSites} use the latest lot-rent invoice</small></span></article>
-            <article><CalendarRange size={20} /><span><strong>{lotRentTiming === 'contract' ? `${projection.contractDateMatches} actual contract dates` : lotRentTiming === 'spread' ? 'Even monthly planning' : `${projection.rentHistoryMatches} invoice-timed sites`}</strong><small>{lotRentTiming === 'contract' ? 'Annual rent is divided into four payments beginning in the actual 12-month contract month, then every three months; the nine-month renewal notice date is never used' : lotRentTiming === 'spread' ? `${projection.configuredRentSites} saved annual rent amounts are divided across all 12 months` : 'saved invoice history determines timing; unmatched rent is spread evenly'}</small></span></article>
+            <article><CalendarRange size={20} /><span><strong>{lotRentTiming === 'scheduled' ? `${projection.scheduledRentInvoices} scheduled rent invoices` : lotRentTiming === 'contract' ? `${projection.contractDateMatches} contract dates modeled` : lotRentTiming === 'spread' ? 'Even monthly planning' : `${projection.rentHistoryMatches} prior invoice months modeled`}</strong><small>{lotRentTiming === 'scheduled' ? `${projection.scheduledRentSites} sites are shown only in the months their real invoices are due; unsigned renewals are not guessed` : lotRentTiming === 'contract' ? 'Planning-only view: annual rent is divided into four modeled payments beginning in the contract month' : lotRentTiming === 'spread' ? `${projection.configuredRentSites} saved annual rent amounts are divided across all 12 months` : 'Planning-only view: the latest saved invoice month is used as a timing estimate'}</small></span></article>
             <article><Gauge size={20} /><span><strong>{electricCoverage}% exact seasonal coverage</strong><small>{projection.readingYears} year{projection.readingYears === 1 ? '' : 's'} of electric usage found{projection.latestElectricYear ? `; ${projection.latestElectricYear} is weighted most heavily` : ''}; missing months use the campground seasonal average</small></span></article>
           </div>
           {projection.missingRentSites > 0 && <p><strong>{projection.missingRentSites} active campsite{projection.missingRentSites === 1 ? '' : 's'} need an annual lot-rent amount.</strong> Their rent is not guessed or included until it is entered in Camper Management or Lots.</p>}

@@ -60,7 +60,7 @@ type ProjectionOptions = {
   associationFee: number
   fallbackAssociationMonth: number
   projectionYear?: number
-  lotRentTiming?: 'contract' | 'spread' | 'history'
+  lotRentTiming?: 'scheduled' | 'contract' | 'spread' | 'history'
   asOfDate?: string | Date
 }
 
@@ -124,7 +124,7 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     associationFee,
     fallbackAssociationMonth,
     projectionYear = new Date().getFullYear(),
-    lotRentTiming = 'contract',
+    lotRentTiming = 'scheduled',
     asOfDate = new Date(),
   } = options
 
@@ -265,6 +265,31 @@ export function buildIncomeProjection(options: ProjectionOptions) {
   let savedRentSites = 0
   let inferredRentSites = 0
   let contractDateMatches = 0
+  let scheduledRentInvoices = 0
+  const scheduledRentSiteIds = new Set<string>()
+
+  if (lotRentTiming === 'scheduled') {
+    for (const invoice of invoices) {
+      const camperId = String(invoice.camper_id || '')
+      const month = recordMonth(invoice.due_date)
+      const year = Number(String(invoice.due_date || '').slice(0, 4))
+      const amount = Number(invoice.total_due || 0)
+      const status = String(invoice.status || '').toLowerCase()
+      if (
+        !siteByCamper.has(camperId)
+        || invoiceCategory(invoice.invoice_type) !== 'lotRent'
+        || year !== projectionYear
+        || month === null
+        || !Number.isFinite(amount)
+        || amount < 0
+        || ['cancelled', 'canceled', 'void', 'refunded'].includes(status)
+      ) continue
+
+      months[month].lotRent += amount
+      scheduledRentInvoices += 1
+      scheduledRentSiteIds.add(siteByCamper.get(camperId) || camperId)
+    }
+  }
 
   const renewalByCamper = new Map<string, ProjectionRenewal>()
   const renewalByLot = new Map<string, ProjectionRenewal>()
@@ -299,7 +324,11 @@ export function buildIncomeProjection(options: ProjectionOptions) {
         ? recordMonth(historicRentInvoice.due_date || historicRentInvoice.created_at)
         : null
       if (historicRentMonth !== null) rentHistoryMatches += 1
-      if (lotRentTiming === 'contract' && contractMonth !== null) {
+      if (lotRentTiming === 'scheduled') {
+        // The ledger is authoritative: only real rent invoices due in the
+        // selected year belong in the month-by-month cash plan. Unsigned
+        // renewals remain unscheduled instead of being guessed.
+      } else if (lotRentTiming === 'contract' && contractMonth !== null) {
         const quarterlyRent = projectedAnnualRent / 4
         for (let quarter = 0; quarter < 4; quarter += 1) {
           months[(contractMonth + quarter * 3) % 12].lotRent += quarterlyRent
@@ -382,6 +411,8 @@ export function buildIncomeProjection(options: ProjectionOptions) {
     inferredRentSites,
     missingRentSites: Math.max(0, sites.filter((site) => !site.lotRentExempt).length - configuredRentSites),
     contractDateMatches,
+    scheduledRentInvoices,
+    scheduledRentSites: scheduledRentSiteIds.size,
     rentHistoryMatches,
     associationHistoryMatches,
     exactElectricSiteMonths,

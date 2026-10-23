@@ -92,13 +92,14 @@ test('actual monthly income only counts successfully paid invoices on the paid d
   assert.equal(result.processingIncome, 95)
 })
 
-test('default planning mode spreads annual lot rent instead of creating an artificial April spike', () => {
+test('spread planning mode spreads annual lot rent instead of creating an artificial April spike', () => {
   const result = buildIncomeProjection({
     sites: [{ lotNumber: '20', camperIds: ['camper-20'], annualLotRent: 2_400 }],
     readings: [],
     invoices: [{ camper_id: 'camper-20', invoice_type: 'Lot Rent', due_date: '2026-04-01', total_due: 2_400 }],
     associationFee: 0,
     fallbackAssociationMonth: 2,
+    lotRentTiming: 'spread',
   })
 
   assert.deepEqual(result.months.map((month) => month.lotRent), Array(12).fill(200))
@@ -116,6 +117,7 @@ test('actual contract anniversary starts four quarterly payments and never uses 
     ],
     associationFee: 250,
     fallbackAssociationMonth: 1,
+    lotRentTiming: 'contract',
   })
 
   assert.equal(result.months[1].lotRent, 375)
@@ -125,6 +127,32 @@ test('actual contract anniversary starts four quarterly payments and never uses 
   assert.equal(result.months[1].association, 250)
   assert.equal(result.months[4].association, 0)
   assert.equal(result.contractDateMatches, 1)
+})
+
+test('default lot-rent projection uses real invoice due dates and ignores voided bills', () => {
+  const result = buildIncomeProjection({
+    sites: [
+      { lotNumber: '11', camperIds: ['camper-11'], annualLotRent: 1_600 },
+      { lotNumber: '12', camperIds: ['camper-12'], annualLotRent: 1_500 },
+    ],
+    readings: [],
+    invoices: [
+      { camper_id: 'camper-11', invoice_type: 'Quarterly Lot Rent', due_date: '2026-11-01', total_due: 400, status: 'sent' },
+      { camper_id: 'camper-12', invoice_type: 'Lot Rent', due_date: '2026-12-01', total_due: 375, status: 'paid' },
+      { camper_id: 'camper-12', invoice_type: 'Lot Rent', due_date: '2026-11-01', total_due: 375, status: 'void' },
+      { camper_id: 'camper-12', invoice_type: 'Association Fee', due_date: '2026-11-01', total_due: 250, status: 'sent' },
+    ],
+    associationFee: 0,
+    fallbackAssociationMonth: 1,
+    projectionYear: 2026,
+  })
+
+  assert.equal(result.months[10].grossLotRent, 400)
+  assert.equal(result.months[11].grossLotRent, 375)
+  assert.equal(result.months[0].grossLotRent, 0)
+  assert.equal(result.annualLotRent, 775)
+  assert.equal(result.scheduledRentInvoices, 2)
+  assert.equal(result.scheduledRentSites, 2)
 })
 
 test('newest electric season receives more weight as current readings are entered', () => {
