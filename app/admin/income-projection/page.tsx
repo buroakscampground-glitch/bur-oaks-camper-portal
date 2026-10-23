@@ -337,7 +337,7 @@ export default function AdminIncomeProjectionPage() {
           </div>
         </section>
 
-        <p className="income-projection-note">The adaptive forecast is explainable: recent electric seasons carry more weight, mature payment outcomes adjust expected collection only after enough history exists, and pending ACH remains separate until it clears. Quarterly rent uses the actual 12-month contract anniversary; the Association Fee is counted once per site in the selected month.</p>
+        <p className="income-projection-note">The adaptive forecast is explainable: lot rent uses real invoice due dates by default, unsigned renewals remain unscheduled, recent electric seasons carry more weight, and pending ACH remains separate until it clears. Planning-only rent models remain available in the selector; the Association Fee is counted once per site in the selected month.</p>
       </div>
     </main>
   )
