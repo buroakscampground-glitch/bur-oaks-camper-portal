@@ -50,7 +50,15 @@ export const saturdayDinners2026: SaturdayDinner[] = [
   { id: '2026-10-10', date: '2026-10-10', month: 'October', day: 10, menu: 'Pulled Pork', theme: 'Hog Roast' },
   { id: '2026-10-17', date: '2026-10-17', month: 'October', day: 17, menu: 'Pasta Bar' },
   { id: '2026-10-24', date: '2026-10-24', month: 'October', day: 24, menu: 'Nacho Bar', theme: 'Buroakstober' },
-  { id: '2026-10-31', date: '2026-10-31', month: 'October', day: 31, menu: 'Chili', theme: 'Halloween' },
+  {
+    id: '2026-10-31',
+    date: '2026-10-31',
+    month: 'October',
+    day: 31,
+    menu: 'Chili',
+    theme: 'Halloween',
+    note: 'Anyone can bring a pot of chili. Choose “Bringing chili” below—there is no signup limit.',
+  },
   {
     id: '2026-11-07',
     date: '2026-11-07',
@@ -75,6 +83,10 @@ const dinnerBringSlotsByDate: Record<string, DinnerBringSlot[]> = {
   ],
 }
 
+const unlimitedDinnerBringOptionsByDate: Record<string, string[]> = {
+  '2026-10-31': ['Bringing chili'],
+}
+
 export function dinnerBringSlots(dinnerDate = '') {
   return dinnerBringSlotsByDate[dinnerDate] || []
 }
@@ -82,6 +94,12 @@ export function dinnerBringSlots(dinnerDate = '') {
 export function dinnerBringSlot(dinnerDate: string, value: unknown) {
   const normalized = String(value || '').trim().toLowerCase()
   return dinnerBringSlots(dinnerDate).find((option) => option.label.toLowerCase() === normalized)
+}
+
+export function isUnlimitedDinnerBringOption(dinnerDate: string, value: unknown) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return (unlimitedDinnerBringOptionsByDate[dinnerDate] || [])
+    .some((option) => option.toLowerCase() === normalized)
 }
 
 export function dinnerBringSlotCounts(
@@ -143,7 +161,11 @@ export function dinnerBringSuggestions(menu = '', dinnerDate = '') {
   }
 
   const matched = menuSuggestionMap.find((item) => item.match.test(menu))
-  const combined = [...(matched?.items || []), ...commonDinnerSuggestions]
+  const combined = [
+    ...(unlimitedDinnerBringOptionsByDate[dinnerDate] || []),
+    ...(matched?.items || []),
+    ...commonDinnerSuggestions,
+  ]
   const nonFoodItems = new Set(['drinks', 'ice', 'paper plates', 'napkins', 'plastic silverware', 'cups', 'paper bowls', 'spoons'])
   return Array.from(new Set(combined)).filter((item) => !nonFoodItems.has(item.toLowerCase()))
 }

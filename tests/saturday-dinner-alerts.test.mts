@@ -102,6 +102,28 @@ test('the October 17 Pasta Bar has only the requested limited side slots', async
   assert.equal(counts.get('Dessert'), 1)
 })
 
+test('the October 31 Chili dinner offers an unlimited chili signup', async () => {
+  const { dinnerBringSuggestions, isUnlimitedDinnerBringOption, saturdayDinners2026 } = await import('../lib/saturday-dinners.ts')
+  const date = '2026-10-31'
+  const dinner = saturdayDinners2026.find((item) => item.date === date)
+
+  assert.equal(dinner?.menu, 'Chili')
+  assert.match(dinner?.note || '', /no signup limit/i)
+  assert.equal(dinnerBringSuggestions(dinner?.menu, date)[0], 'Bringing chili')
+  assert.equal(isUnlimitedDinnerBringOption(date, 'bringing chili'), true)
+  assert.equal(isUnlimitedDinnerBringOption(date, 'Dessert'), false)
+})
+
+test('the camper dinner dropdown keeps unlimited chili available for every campsite', async () => {
+  const source = await readFile(new URL('../app/dinners/page.tsx', import.meta.url), 'utf8')
+  const adminSource = await readFile(new URL('../app/admin/dinners/page.tsx', import.meta.url), 'utf8')
+
+  assert.match(source, /isUnlimitedDinnerBringOption/)
+  assert.match(source, /unlimited spots/)
+  assert.match(adminSource, /isUnlimitedDinnerBringOption/)
+  assert.match(adminSource, /Unlimited spots/)
+})
+
 test('the September 19 dinner is only Cowboy Casserole', async () => {
   const { saturdayDinners2026 } = await import('../lib/saturday-dinners.ts')
   const { eventFlyers2026 } = await import('../lib/event-flyers.ts')

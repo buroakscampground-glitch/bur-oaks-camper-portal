@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock, Loader2, Send, Soup, Sparkles, UsersRound } from 'lucide-react'
 import { saturdayDinnerMetrics } from '../../lib/saturday-dinner-metrics'
-import { dinnerBringSlot, dinnerBringSlots, dinnerBringSuggestions, saturdayDinners2026 } from '../../lib/saturday-dinners'
+import { dinnerBringSlot, dinnerBringSlots, dinnerBringSuggestions, isUnlimitedDinnerBringOption, saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { supabase } from '../../lib/supabase'
 import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
 
@@ -86,6 +86,7 @@ export default function SaturdayDinnersPage() {
   }, new Map<string, number>())
   const availableBringSuggestions = selectedDinnerSuggestions.filter((item) => {
     const normalized = item.toLowerCase()
+    if (isUnlimitedDinnerBringOption(selectedDinner?.date || '', item)) return true
     const slot = dinnerBringSlot(selectedDinner?.date || '', item)
     const claimed = claimedBringCounts.get(normalized) || 0
     return claimed < (slot?.limit || 1) || normalized === normalizedCurrentBringing
@@ -307,9 +308,15 @@ export default function SaturdayDinnersPage() {
               <select aria-label={isSoupDay ? 'Soup, crackers, or cheese you are bringing' : 'Side, dessert, or supply you are bringing'} value={bringChoice} onChange={(event) => setBringChoice(event.target.value)}>
                 <option value="">Nothing / not sure yet</option>
                 {legacySavedChoice && <option value={legacySavedChoice}>Previously saved — {legacySavedChoice}</option>}
-                {availableBringSuggestions.map((item) => (
-                  <option value={item} key={item}>{item}{dinnerBringSlot(selectedDinner?.date || '', item) ? ` — ${claimedBringCounts.get(item.toLowerCase()) || 0} of ${dinnerBringSlot(selectedDinner?.date || '', item)?.limit} slots filled` : ''}</option>
-                ))}
+                {availableBringSuggestions.map((item) => {
+                  const dinnerDate = selectedDinner?.date || ''
+                  const slot = dinnerBringSlot(dinnerDate, item)
+                  const unlimited = isUnlimitedDinnerBringOption(dinnerDate, item)
+                  const availability = slot
+                    ? ` — ${claimedBringCounts.get(item.toLowerCase()) || 0} of ${slot.limit} slots filled`
+                    : unlimited ? ' — unlimited spots' : ''
+                  return <option value={item} key={item}>{item}{availability}</option>
+                })}
                 {!hasLimitedBringSlots && <option value="Other">{isSoupDay ? 'Soup — I will type the kind' : 'Other — I will type it in'}</option>}
               </select>
             </label>}

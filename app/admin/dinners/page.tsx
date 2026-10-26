@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { AlertTriangle, CalendarDays, CheckCircle2, CircleHelp, Loader2, Search, Soup, UsersRound, UtensilsCrossed, XCircle } from 'lucide-react'
 import { saturdayDinnerEngagementStartDate, saturdayDinnerMetrics } from '../../../lib/saturday-dinner-metrics'
-import { dinnerBringSlot, dinnerBringSlots, dinnerBringSuggestions, saturdayDinners2026 } from '../../../lib/saturday-dinners'
+import { dinnerBringSlot, dinnerBringSlots, dinnerBringSuggestions, isUnlimitedDinnerBringOption, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { supabase } from '../../../lib/supabase'
 import { thanksgivingDinnerDate } from '../../../lib/thanksgiving-dinner'
 
@@ -76,11 +76,16 @@ export default function AdminDinnersPage() {
   const suggestedBringItems = dinnerBringSuggestions(selectedDinner?.menu || '', selectedDinner?.date || '')
   const hasLimitedBringSlots = dinnerBringSlots(selectedDinner?.date || '').length > 0
   const bringOptions = [
-    ...suggestedBringItems.map((label) => ({ label, custom: false, limit: dinnerBringSlot(selectedDinner?.date || '', label)?.limit })),
+    ...suggestedBringItems.map((label) => ({
+      label,
+      custom: false,
+      limit: dinnerBringSlot(selectedDinner?.date || '', label)?.limit,
+      unlimited: isUnlimitedDinnerBringOption(selectedDinner?.date || '', label),
+    })),
     ...Array.from(new Set(activeSignups
       .map((signup) => String(signup.bringing || '').trim())
       .filter((item) => item && !suggestedBringItems.some((suggestion) => suggestion.toLowerCase() === item.toLowerCase()))))
-      .map((label) => ({ label, custom: true, limit: undefined })),
+      .map((label) => ({ label, custom: true, limit: undefined, unlimited: false })),
   ]
   const trackedDinnerDates = useMemo(() => {
     const throughDate = nextDinner?.date || selectedDinner?.date || ''
@@ -198,7 +203,9 @@ export default function AdminDinnersPage() {
                   <p>{selectedBy.length
                     ? selectedBy.map((signup) => `${signup.camper_name} · Lot ${signup.lot_number || 'N/A'} (${signup.attending_status})`).join(', ')
                     : 'No one has selected this yet.'}</p>
-                  {option.limit
+                  {option.unlimited
+                    ? <em>Unlimited spots · {selectedBy.length} signed up</em>
+                    : option.limit
                     ? <em>{selectedBy.length} of {option.limit} slots filled</em>
                     : selectedBy.length > 0 && <em>{selectedBy.length} promised dish{selectedBy.length === 1 ? '' : 'es'}</em>}
                 </article>
