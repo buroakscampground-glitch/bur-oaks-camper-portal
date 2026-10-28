@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { AlertTriangle, ArrowLeft, ChefHat, Loader2, RefreshCw, Search, UsersRound, UtensilsCrossed } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { thanksgivingDinnerDate, thanksgivingFoodOption, thanksgivingFoodOptions } from '../../../lib/thanksgiving-dinner'
@@ -16,6 +17,8 @@ type Signup = {
 }
 
 export default function ThanksgivingAdminPage() {
+  const pathname = usePathname()
+  const dinnersPath = pathname.startsWith('/community') ? '/community/dinners' : '/admin/dinners'
   const [signups, setSignups] = useState<Signup[]>([])
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('Loading the Thanksgiving planner…')
@@ -77,7 +80,7 @@ export default function ThanksgivingAdminPage() {
           <h1>Bur Oaks Thanksgiving planner</h1>
           <p>One live view of attendance and the food needed for 110–120 people. Anthony is providing all turkeys.</p>
         </div>
-        <a href="/admin/dinners"><ArrowLeft size={16} /> All dinners</a>
+        <a href={dinnersPath}><ArrowLeft size={16} /> All dinners</a>
       </section>
 
       <section className="admin-thanksgiving-stats">

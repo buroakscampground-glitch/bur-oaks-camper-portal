@@ -10,6 +10,8 @@ import { thanksgivingDinnerDate } from '../../../lib/thanksgiving-dinner'
 
 export default function AdminDinnersPage() {
   const pathname = usePathname()
+  const isCommunityWorkspace = pathname.startsWith('/community')
+  const thanksgivingPlannerPath = isCommunityWorkspace ? '/community/thanksgiving' : '/admin/thanksgiving'
   const [signups, setSignups] = useState<any[]>([])
   const [campers, setCampers] = useState<any[]>([])
   const [selectedDate, setSelectedDate] = useState('')
@@ -126,7 +128,7 @@ export default function AdminDinnersPage() {
 
   function selectDinner(dinnerDate: string) {
     if (dinnerDate === thanksgivingDinnerDate) {
-      window.location.href = '/admin/thanksgiving'
+      window.location.href = thanksgivingPlannerPath
       return
     }
     setSelectedDate(dinnerDate)
@@ -146,7 +148,7 @@ export default function AdminDinnersPage() {
         <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search camper, lot, or dish" /></label>
       </section>
 
-      <a className="admin-thanksgiving-launch" href="/admin/thanksgiving">
+      <a className="admin-thanksgiving-launch" href={thanksgivingPlannerPath}>
         <UtensilsCrossed size={22} />
         <span><small>SPECIAL DINNER PLANNER</small><strong>Open the Bur Oaks Thanksgiving board</strong><em>Track the 110–120 person headcount and every food category in one place.</em></span>
       </a>
