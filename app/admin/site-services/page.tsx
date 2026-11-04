@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Loader2, Search, Sparkles, SprayCan, Waves
 import { supabase } from '../../../lib/supabase'
 import { defaultCampgroundBillingSettings, loadCampgroundBillingSettings } from '../../../lib/campground-settings'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import { buildSiteServiceHistory, validateSiteServiceEntry } from '../../../lib/site-service-entry'
 
 const miscServiceOption = { type: 'misc_service', label: 'Misc custom charge', amount: 0 }
 
@@ -20,7 +21,9 @@ export default function AdminSiteServicesPage() {
   const [customLabel, setCustomLabel] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [performedAt, setPerformedAt] = useState('')
-  const [notes, setNotes] = useState('')
+  const [reportedBy, setReportedBy] = useState('')
+  const [reason, setReason] = useState('')
+  const [confirmedSite, setConfirmedSite] = useState('')
   const [filter, setFilter] = useState('active')
   const [search, setSearch] = useState('')
   const [message, setMessage] = useState('')
@@ -111,6 +114,17 @@ export default function AdminSiteServicesPage() {
       return
     }
 
+    const entryError = validateSiteServiceEntry({
+      reportedBy,
+      reason,
+      confirmedSite,
+      expectedSite: selectedCamper.lot_number,
+    })
+    if (entryError) {
+      setMessage(entryError)
+      return
+    }
+
     setSaving(true)
 
     const {
@@ -124,7 +138,7 @@ export default function AdminSiteServicesPage() {
       service_type: selectedService.type === 'trash_pickup' ? 'misc_service' : selectedService.type,
       service_label: finalServiceLabel,
       charge_amount: finalServiceAmount,
-      notes: notes.trim() || null,
+      notes: buildSiteServiceHistory({ reportedBy, reason, expectedSite: selectedCamper.lot_number }),
       performed_at: `${performedAt}T12:00:00`,
       created_by: user?.email || null,
     })
@@ -139,7 +153,9 @@ export default function AdminSiteServicesPage() {
     setMessage(`${finalServiceLabel} added for Lot ${selectedCamper.lot_number || '—'}. It will attach to the next electric bill.`)
     setCustomLabel('')
     setCustomAmount('')
-    setNotes('')
+    setReportedBy('')
+    setReason('')
+    setConfirmedSite('')
     loadCharges()
   }
 
@@ -167,6 +183,7 @@ export default function AdminSiteServicesPage() {
     if (!error) loadCharges()
   }
 
+  const selectedCamper = campers.find((camper) => camper.id === camperId)
   const selectedService = serviceOptions.find((service) => service.type === serviceType) || serviceOptions[0]
   const isCustomService = selectedService.type === 'misc_service'
   const buttonLabel = isCustomService
@@ -217,69 +234,87 @@ export default function AdminSiteServicesPage() {
       </section>
 
       <section className="admin-site-service-form">
-        <div>
+        <div className="admin-site-service-intro">
           <span><SprayCan size={16} /> Add service</span>
           <h2>What was done?</h2>
-          <p>Pick the camper, choose the work performed, and it waits for the next electric bill.</p>
+          <p>Every entry requires who reported it, why it was needed, and a matching site confirmation before it can reach billing.</p>
         </div>
 
-        <label>
-          <span>Camper / lot</span>
-          <select value={camperId} onChange={(event) => setCamperId(event.target.value)}>
-            <option value="">Select camper</option>
-            {campers.map((camper) => (
-              <option key={camper.id} value={camper.id}>
-                Lot {camper.lot_number || '—'} · {camperName(camper)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="admin-site-service-fields">
+          <label>
+            <span>Camper / lot</span>
+            <select value={camperId} onChange={(event) => { setCamperId(event.target.value); setConfirmedSite('') }}>
+              <option value="">Select camper</option>
+              {campers.map((camper) => (
+                <option key={camper.id} value={camper.id}>
+                  Lot {camper.lot_number || '—'} · {camperName(camper)}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label>
-          <span>Service</span>
-          <select value={serviceType} onChange={(event) => setServiceType(event.target.value)}>
-            {serviceOptions.map((service) => (
-              <option key={service.type} value={service.type}>
-                {service.amount > 0 ? `${service.label} — $${service.amount}` : service.label}
-              </option>
-            ))}
-          </select>
-        </label>
+          <label>
+            <span>Service</span>
+            <select value={serviceType} onChange={(event) => setServiceType(event.target.value)}>
+              {serviceOptions.map((service) => (
+                <option key={service.type} value={service.type}>
+                  {service.amount > 0 ? `${service.label} — $${service.amount}` : service.label}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        {isCustomService && (
-          <>
-            <label>
-              <span>Misc description</span>
-              <input value={customLabel} onChange={(event) => setCustomLabel(event.target.value)} placeholder="Example: Extra cleanup, gravel, special repair" />
-            </label>
+          <label>
+            <span>Date done</span>
+            <input type="date" value={performedAt} onChange={(event) => setPerformedAt(event.target.value)} />
+          </label>
 
-            <label>
-              <span>Misc amount</span>
-              <input
-                min="0"
-                step="0.01"
-                type="number"
-                value={customAmount}
-                onChange={(event) => setCustomAmount(event.target.value)}
-                placeholder="0.00"
-              />
-            </label>
-          </>
-        )}
+          {isCustomService && (
+            <>
+              <label className="admin-site-service-wide-field">
+                <span>Misc description</span>
+                <input value={customLabel} onChange={(event) => setCustomLabel(event.target.value)} placeholder="Example: Extra cleanup, gravel, special repair" />
+              </label>
 
-        <label>
-          <span>Date done</span>
-          <input type="date" value={performedAt} onChange={(event) => setPerformedAt(event.target.value)} />
-        </label>
+              <label>
+                <span>Misc amount</span>
+                <input
+                  min="0"
+                  step="0.01"
+                  type="number"
+                  value={customAmount}
+                  onChange={(event) => setCustomAmount(event.target.value)}
+                  placeholder="0.00"
+                />
+              </label>
+            </>
+          )}
 
-        <label className="admin-site-service-notes">
-          <span>Notes</span>
-          <input value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional note, area, or detail" />
-        </label>
+          <label>
+            <span>Reported or requested by</span>
+            <input value={reportedBy} onChange={(event) => setReportedBy(event.target.value)} placeholder="Enter the person's name" />
+          </label>
 
-        <button type="button" onClick={addCharge} disabled={saving}>
-          <CheckCircle2 size={16} /> {saving ? 'Adding…' : buttonLabel}
-        </button>
+          <label className="admin-site-service-reason">
+            <span>Why was this needed?</span>
+            <input value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Required reason or work details" />
+          </label>
+
+          <label>
+            <span>Confirm site number</span>
+            <input
+              value={confirmedSite}
+              onChange={(event) => setConfirmedSite(event.target.value)}
+              placeholder={selectedCamper?.lot_number ? `Type ${selectedCamper.lot_number}` : 'Select a camper first'}
+              inputMode="text"
+            />
+            <small>{selectedCamper?.lot_number ? `Must match Lot ${selectedCamper.lot_number}.` : 'A matching site is required.'}</small>
+          </label>
+
+          <button type="button" onClick={addCharge} disabled={saving}>
+            <CheckCircle2 size={16} /> {saving ? 'Adding…' : buttonLabel}
+          </button>
+        </div>
       </section>
 
       <section className="admin-site-service-toolbar">
