@@ -120,7 +120,10 @@ export default function PumpOutWorkerPage() {
       setStops((queue) => queue.filter((stop) => stop.id !== current.id))
       setCompleted((count) => Math.min(count + 1, routeTotal))
       setConfirming(false)
-      setNotice(`Lot ${current.lot_number || ''} complete. ${stops.length > 1 ? 'Next stop is ready.' : 'Route complete.'}`)
+      const camperAlert = result?.notification?.smsStatus === 'sent'
+        ? 'Camper portal alert and text sent.'
+        : 'Camper portal alert saved.'
+      setNotice(`Lot ${current.lot_number || ''} complete. ${camperAlert} ${stops.length > 1 ? 'Next stop is ready.' : 'Route complete.'}`)
     } catch (completeError) {
       setError(completeError instanceof Error ? completeError.message : 'Could not mark this pump-out complete.')
     } finally {
@@ -198,7 +201,7 @@ export default function PumpOutWorkerPage() {
           <section className="pump-worker-confirm" role="alertdialog" aria-labelledby="complete-heading">
             <CheckCircle2 size={65} />
             <h2 id="complete-heading">Finished Lot {current.lot_number || ''}?</h2>
-            <p>This records the pump-out as complete and moves to the next stop.</p>
+            <p>This records the pump-out as complete, alerts the camper, and moves to the next stop.</p>
             <button className="yes" type="button" disabled={saving} onClick={completeCurrent}>
               {saving ? <LoaderCircle className="pump-worker-spinner" size={34} /> : <Check size={38} />}
               {saving ? 'SAVING…' : 'YES, MARK COMPLETE'}

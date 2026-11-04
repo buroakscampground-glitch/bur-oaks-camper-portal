@@ -108,12 +108,36 @@ export default function AdminPumpOutsPage() {
 
   async function updateStatus(id: string, status: 'completed' | 'cancelled' | 'requested') {
     setSavingId(id)
+
+    if (status === 'completed') {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        if (!session?.access_token) throw new Error('Your session expired. Sign in again before completing this pump-out.')
+        const response = await fetch('/api/maintenance-pump-outs', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ requestId: id }),
+        })
+        const result = await response.json().catch(() => null)
+        if (!response.ok || !result?.success) throw new Error(result?.error || 'The pump-out could not be completed.')
+        setMessage(result.message || 'Marked pumped. Camper portal alert saved.')
+        await loadRequests()
+      } catch (completionError) {
+        setMessage(completionError instanceof Error ? completionError.message : 'The pump-out could not be completed.')
+      } finally {
+        setSavingId('')
+      }
+      return
+    }
+
     const payload: any = {
       status,
       updated_at: new Date().toISOString(),
     }
 
-    if (status === 'completed') payload.completed_at = new Date().toISOString()
     if (status === 'requested') payload.completed_at = null
 
     const { error } = await supabase
@@ -131,9 +155,7 @@ export default function AdminPumpOutsPage() {
     }
 
     setSavingId('')
-    setMessage(error ? error.message : status === 'completed'
-      ? 'Marked pumped. The charge remains queued for the next electric bill.'
-      : 'Pump-out request updated.')
+    setMessage(error ? error.message : 'Pump-out request updated.')
     if (!error) loadRequests()
   }
 

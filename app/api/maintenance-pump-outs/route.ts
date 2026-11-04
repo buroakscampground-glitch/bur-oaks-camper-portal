@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { isSystemPortalAccount } from '../../../lib/camper-records'
 import { orderPumpOutWorkerStops, type PumpOutWorkerStop } from '../../../lib/pump-out-worker'
+import { sendPumpOutCompletionText } from '../../../lib/pump-out-completion-alert'
 import { getAuthenticatedContext } from '../../../lib/server-auth'
 
 export const runtime = 'nodejs'
@@ -48,31 +49,38 @@ export async function POST(request: Request) {
   if (!requestId) return response({ success: false, error: 'Pump-out request is required.' }, 400)
 
   const now = new Date().toISOString()
-  const { data, error } = await context.admin
-    .from('sewer_pump_out_requests')
-    .update({ status: 'completed', completed_at: now, updated_at: now })
-    .eq('id', requestId)
-    .eq('status', 'requested')
-    .is('billed_at', null)
-    .select(stopFields)
-    .maybeSingle()
+  const { data: completionData, error } = await context.admin.rpc('complete_sewer_pump_out_with_notification', {
+    p_request_id: requestId,
+    p_actor_email: context.user.email || 'Bur Oaks Staff',
+  })
 
-  if (error) return response({ success: false, error: error.message }, 500)
-
-  if (!data) {
-    const { data: existing, error: lookupError } = await context.admin
-      .from('sewer_pump_out_requests')
-      .select(stopFields)
-      .eq('id', requestId)
-      .maybeSingle()
-
-    if (lookupError) return response({ success: false, error: lookupError.message }, 500)
-    if (!existing) return response({ success: false, error: 'Pump-out request not found.' }, 404)
-    if (existing.status === 'completed') {
-      return response({ success: true, duplicate: true, stop: existing, message: 'This pump-out was already completed.' })
-    }
-    return response({ success: false, error: 'This pump-out is no longer pending.' }, 409)
+  if (error) {
+    if (error.code === 'P0002') return response({ success: false, error: 'Pump-out request not found.' }, 404)
+    if (error.code === '22023') return response({ success: false, error: 'This pump-out is no longer pending.' }, 409)
+    return response({ success: false, error: 'The pump-out could not be completed safely.' }, 500)
   }
+
+  const completion = Array.isArray(completionData) ? completionData[0] : completionData
+  const stop = completion?.request_row
+  if (!stop?.id) return response({ success: false, error: 'The saved completion could not be verified.' }, 500)
+
+  if (completion?.duplicate) {
+    return response({ success: true, duplicate: true, stop, message: 'This pump-out was already completed. No duplicate camper alert was sent.' })
+  }
+
+  const textSummary = await sendPumpOutCompletionText({
+    client: context.admin,
+    camperId: String(stop.camper_id || ''),
+    requestId: String(stop.id),
+    lotNumber: stop.lot_number,
+    sentBy: context.user.email || 'Bur Oaks Staff',
+  }).catch(() => ({
+    status: 'failed' as const,
+    sentCount: 0,
+    failedCount: 1,
+    skippedCount: 0,
+    detail: 'The portal alert was saved, but the text delivery check failed.',
+  }))
 
   await context.admin
     .from('admin_notifications')
@@ -83,7 +91,15 @@ export async function POST(request: Request) {
 
   return response({
     success: true,
-    stop: data,
-    message: 'Pump-out completed. Its charge remains queued for the next electric bill.',
+    stop,
+    notification: {
+      portalStatus: completion?.message_row?.id ? 'sent' : 'failed',
+      messageId: completion?.message_row?.id || null,
+      smsStatus: textSummary.status,
+      smsSentCount: textSummary.sentCount,
+      smsFailedCount: textSummary.failedCount,
+      smsSkippedCount: textSummary.skippedCount,
+    },
+    message: `Pump-out completed. Camper portal alert saved. ${textSummary.detail} The charge remains queued for the next electric bill.`,
   })
 }
