@@ -1112,6 +1112,55 @@ test('association fee register keeps owes, processing, and paid separate', async
   await expectNoHorizontalOverflow(page)
 })
 
+test('office records an invoice payment directly from camper search', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the protected quick-payment workflow.')
+  const synthetic = await installSyntheticAdminSession(page)
+  synthetic.recoverReads()
+  let submittedPayment: Record<string, unknown> | null = null
+
+  const account = {
+    id: 'quick-pay-camper', active: true, lotNumber: 'QP-7', name: 'Quick', secondName: null,
+    email: 'quick-pay@example.invalid', phone: null, openBalance: 195, openInvoices: 2,
+    nextDue: '2026-11-15', nextDueAmount: 70, nextDueFor: 'Electric', unusedCredit: 0,
+    lastPayment: null, lookupTerms: 'QP-7 Quick Pay electric lot rent',
+    invoiceOptions: [
+      { id: 'invoice-electric', invoice_number: 'TEST-ELECTRIC', invoice_type: 'Electric', total_due: 70, due_date: '2026-11-15', created_at: '2026-11-01T12:00:00Z', status: 'sent' },
+      { id: 'invoice-rent', invoice_number: 'TEST-RENT', invoice_type: 'Lot rent', total_due: 125, due_date: '2027-03-01', created_at: '2026-11-02T12:00:00Z', status: 'sent' },
+    ],
+  }
+
+  await page.route('**/api/admin-camper-lookup', async (route) => {
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ accounts: [account] }) })
+  })
+  await page.route('**/api/admin-manual-payments', async (route) => {
+    submittedPayment = route.request().postDataJSON()
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ appliedTotal: 125, creditAmount: 0, allocations: [{ invoiceId: 'invoice-rent', amount: 125 }] }),
+    })
+  })
+
+  await page.goto('/admin/onboarding')
+  await page.getByLabel('Quickly find any camper account').fill('QP-7')
+  await expect(page.getByText('Quick', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Enter payment' }).click()
+  await page.getByLabel('Invoice to pay').selectOption('invoice-rent')
+  await expect(page.getByLabel('Amount received')).toHaveValue('125.00')
+  await page.getByLabel('Check/reference optional').fill('Check 7788')
+  await page.getByLabel('Reason / office note').fill('Check received at office')
+  await expect(page.locator('.admin-camper-finder-allocation em').filter({ hasText: '#TEST-RENT · Lot rent' })).toBeVisible()
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByRole('button', { name: 'Record $125.00' }).click()
+
+  await expect(page.getByText('Payment recorded. $125.00 applied.')).toBeVisible()
+  expect(submittedPayment).toMatchObject({
+    invoiceId: 'invoice-rent', amount: 125, method: 'Check', reference: 'Check 7788', reason: 'Check received at office',
+  })
+  expect(String(submittedPayment?.operationKey || '')).not.toBe('')
+  await expectNoHorizontalOverflow(page)
+})
+
 test('office waitlist turns a synthetic website inquiry into a clear follow-up task', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated follow-up queue without reading production.')
   const synthetic = await installSyntheticAdminSession(page)
