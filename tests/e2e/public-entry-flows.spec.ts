@@ -1116,7 +1116,7 @@ test('office records an invoice payment directly from camper search', async ({ p
   test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the protected quick-payment workflow.')
   const synthetic = await installSyntheticAdminSession(page)
   synthetic.recoverReads()
-  let submittedPayment: Record<string, unknown> | null = null
+  const submittedPayments: Record<string, unknown>[] = []
 
   const account = {
     id: 'quick-pay-camper', active: true, lotNumber: 'QP-7', name: 'Quick', secondName: null,
@@ -1133,7 +1133,7 @@ test('office records an invoice payment directly from camper search', async ({ p
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ accounts: [account] }) })
   })
   await page.route('**/api/admin-manual-payments', async (route) => {
-    submittedPayment = route.request().postDataJSON()
+    submittedPayments.push(route.request().postDataJSON())
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -1154,10 +1154,11 @@ test('office records an invoice payment directly from camper search', async ({ p
   await page.getByRole('button', { name: 'Record $125.00' }).click()
 
   await expect(page.getByText('Payment recorded. $125.00 applied.')).toBeVisible()
-  expect(submittedPayment).toMatchObject({
+  expect(submittedPayments).toHaveLength(1)
+  expect(submittedPayments[0]).toMatchObject({
     invoiceId: 'invoice-rent', amount: 125, method: 'Check', reference: 'Check 7788', reason: 'Check received at office',
   })
-  expect(String(submittedPayment?.operationKey || '')).not.toBe('')
+  expect(String(submittedPayments[0]?.operationKey || '')).not.toBe('')
   await expectNoHorizontalOverflow(page)
 })
 
