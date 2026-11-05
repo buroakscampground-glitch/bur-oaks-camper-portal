@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, CalendarClock, FileText, Landmark, Loader2, MessageCircle, ReceiptText, Search, UserRound, WalletCards, Wrench, X, Zap } from 'lucide-react'
+import { ArrowRight, CalendarClock, CheckCircle2, CircleDollarSign, FileText, Landmark, Loader2, MessageCircle, ReceiptText, Search, UserRound, WalletCards, Wrench, X, Zap } from 'lucide-react'
+import { todayInCentral } from '../lib/invoice-balance'
+import { buildPaymentAllocationPreview, submitManualPayment, type PaymentInvoice } from '../lib/manual-payment'
 import { supabase } from '../lib/supabase'
 
 type LookupAccount = {
@@ -14,12 +16,23 @@ type LookupAccount = {
   phone?: string | null
   openBalance: number
   openInvoices: number
+  invoiceOptions: PaymentInvoice[]
   nextDue?: string | null
   nextDueAmount: number
   nextDueFor?: string | null
   unusedCredit: number
   lastPayment?: { amount?: number; method?: string | null; reference?: string | null; date?: string | null } | null
   lookupTerms: string
+}
+
+type PaymentDraft = {
+  camperId: string
+  invoiceId: string
+  amount: string
+  method: string
+  receivedOn: string
+  reference: string
+  reason: string
 }
 
 function money(value: unknown) {
@@ -48,6 +61,9 @@ export default function AdminCamperFinder() {
   const [loaded, setLoaded] = useState(false)
   const [error, setError] = useState('')
   const [focused, setFocused] = useState(false)
+  const [paymentDraft, setPaymentDraft] = useState<PaymentDraft | null>(null)
+  const [paymentBusy, setPaymentBusy] = useState(false)
+  const [paymentNotices, setPaymentNotices] = useState<Record<string, string>>({})
   const inputRef = useRef<HTMLInputElement>(null)
   const shellRef = useRef<HTMLDivElement>(null)
 
@@ -116,6 +132,80 @@ export default function AdminCamperFinder() {
 
   const showPanel = focused && (loading || Boolean(error) || Boolean(normalized))
 
+  function startPayment(account: LookupAccount) {
+    const invoice = account.invoiceOptions?.[0]
+    if (!invoice) return
+    setPaymentDraft({
+      camperId: account.id,
+      invoiceId: invoice.id,
+      amount: Number(invoice.total_due || 0).toFixed(2),
+      method: 'Check',
+      receivedOn: todayInCentral(),
+      reference: '',
+      reason: '',
+    })
+    setPaymentNotices((current) => ({ ...current, [account.id]: '' }))
+  }
+
+  function updatePaymentDraft(values: Partial<PaymentDraft>) {
+    setPaymentDraft((current) => current ? { ...current, ...values } : current)
+  }
+
+  async function recordPayment(account: LookupAccount) {
+    if (!paymentDraft || paymentDraft.camperId !== account.id) return
+    const invoice = account.invoiceOptions.find((item) => item.id === paymentDraft.invoiceId)
+    if (!invoice) {
+      setPaymentNotices((current) => ({ ...current, [account.id]: 'Choose an open invoice before recording payment.' }))
+      return
+    }
+    const amount = Number(paymentDraft.amount)
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setPaymentNotices((current) => ({ ...current, [account.id]: 'Enter a valid payment amount.' }))
+      return
+    }
+    if (!paymentDraft.receivedOn) {
+      setPaymentNotices((current) => ({ ...current, [account.id]: 'Choose the date this payment was received.' }))
+      return
+    }
+    if (paymentDraft.reason.trim().length < 5) {
+      setPaymentNotices((current) => ({ ...current, [account.id]: 'Enter a clear office note for this payment.' }))
+      return
+    }
+
+    const preview = buildPaymentAllocationPreview(account.invoiceOptions, invoice.id, amount)
+    const creditLine = preview.creditAmount > 0 ? ` ${money(preview.creditAmount)} will remain as account credit.` : ''
+    if (!window.confirm(`Record ${money(amount)} by ${paymentDraft.method.toLowerCase()} for ${account.name}? It will apply to ${preview.allocations.length} invoice${preview.allocations.length === 1 ? '' : 's'}.${creditLine}`)) return
+
+    setPaymentBusy(true)
+    setPaymentNotices((current) => ({ ...current, [account.id]: 'Recording payment…' }))
+    try {
+      const result = await submitManualPayment({
+        client: supabase,
+        invoiceId: invoice.id,
+        amount,
+        method: paymentDraft.method,
+        receivedOn: paymentDraft.receivedOn,
+        reference: paymentDraft.reference,
+        reason: paymentDraft.reason,
+      })
+      const applied = Number(result.appliedTotal || 0)
+      const credit = Number(result.creditAmount || 0)
+      setPaymentDraft(null)
+      setPaymentNotices((current) => ({
+        ...current,
+        [account.id]: `Payment recorded. ${money(applied)} applied${credit > 0 ? ` and ${money(credit)} saved as account credit` : ''}.`,
+      }))
+      await loadAccounts(true)
+    } catch (paymentError) {
+      setPaymentNotices((current) => ({
+        ...current,
+        [account.id]: paymentError instanceof Error ? paymentError.message : 'The payment could not be recorded.',
+      }))
+    } finally {
+      setPaymentBusy(false)
+    }
+  }
+
   return (
     <div className="admin-camper-finder" ref={shellRef}>
       <label>
@@ -140,6 +230,13 @@ export default function AdminCamperFinder() {
           {!loading && !error && results.map((account) => {
             const accountUrl = `/admin/campers/${account.id}`
             const lotSearch = encodeURIComponent(String(account.lotNumber || account.name))
+            const isRecordingPayment = paymentDraft?.camperId === account.id
+            const selectedInvoice = isRecordingPayment
+              ? account.invoiceOptions.find((invoice) => invoice.id === paymentDraft.invoiceId)
+              : null
+            const paymentPreview = isRecordingPayment
+              ? buildPaymentAllocationPreview(account.invoiceOptions, paymentDraft.invoiceId, paymentDraft.amount)
+              : null
             return (
               <article key={account.id}>
                 <header>
@@ -152,6 +249,39 @@ export default function AdminCamperFinder() {
                   <span><small>Last payment</small><strong>{account.lastPayment ? `${money(account.lastPayment.amount)} · ${date(account.lastPayment.date)}` : 'None recorded'}</strong>{account.lastPayment && <em>{account.lastPayment.method || 'Payment'}{account.lastPayment.reference ? ` #${account.lastPayment.reference}` : ''}</em>}</span>
                   <span><small>Unused credit</small><strong>{money(account.unusedCredit)}</strong></span>
                 </div>
+                <div className="admin-camper-finder-quick-payment">
+                  <div><CircleDollarSign size={17} /><span><strong>Record a payment</strong><small>{account.invoiceOptions.length ? `${account.invoiceOptions.length} open invoice${account.invoiceOptions.length === 1 ? '' : 's'} available` : 'No recordable open invoice'}</small></span></div>
+                  {account.invoiceOptions.length > 0 ? (
+                    <button type="button" onClick={() => isRecordingPayment ? setPaymentDraft(null) : startPayment(account)} disabled={paymentBusy}>
+                      {isRecordingPayment ? 'Close' : 'Enter payment'}
+                    </button>
+                  ) : <em>Nothing due</em>}
+                </div>
+                {isRecordingPayment && paymentDraft && selectedInvoice && (
+                  <div className="admin-camper-finder-payment-form">
+                    <label className="wide"><span>Invoice to pay</span><select value={paymentDraft.invoiceId} onChange={(event) => {
+                      const invoice = account.invoiceOptions.find((item) => item.id === event.target.value)
+                      updatePaymentDraft({ invoiceId: event.target.value, amount: Number(invoice?.total_due || 0).toFixed(2) })
+                    }}>
+                      {account.invoiceOptions.map((invoice) => <option key={invoice.id} value={invoice.id}>#{invoice.invoice_number || invoice.id} · {invoice.invoice_type || 'Campground invoice'} · {money(invoice.total_due)}</option>)}
+                    </select></label>
+                    <label><span>Amount received</span><input type="number" min="0.01" step="0.01" inputMode="decimal" value={paymentDraft.amount} onChange={(event) => updatePaymentDraft({ amount: event.target.value })} /></label>
+                    <label><span>Payment method</span><select value={paymentDraft.method} onChange={(event) => updatePaymentDraft({ method: event.target.value })}><option>Check</option><option>Cash</option><option>Credit/debit card</option><option>Other</option></select></label>
+                    <label><span>Date received</span><input type="date" value={paymentDraft.receivedOn} onChange={(event) => updatePaymentDraft({ receivedOn: event.target.value })} /></label>
+                    <label><span>Check/reference <em>optional</em></span><input value={paymentDraft.reference} onChange={(event) => updatePaymentDraft({ reference: event.target.value })} placeholder="Example: Check 1942" /></label>
+                    <label className="wide"><span>Reason / office note</span><input value={paymentDraft.reason} onChange={(event) => updatePaymentDraft({ reason: event.target.value })} maxLength={1000} placeholder="Example: Check received at office" /></label>
+                    <div className="admin-camper-finder-allocation wide">
+                      <strong>Where this payment will go</strong>
+                      {paymentPreview?.allocations.map((allocation) => <span key={allocation.invoiceId}><em>#{allocation.invoiceNumber} · {allocation.invoiceType}</em><b>{money(allocation.amount)}</b></span>)}
+                      {paymentPreview && paymentPreview.creditAmount > 0 && <span className="credit"><em>Remaining account credit</em><b>{money(paymentPreview.creditAmount)}</b></span>}
+                    </div>
+                    <div className="admin-camper-finder-payment-actions wide">
+                      <button type="button" onClick={() => setPaymentDraft(null)} disabled={paymentBusy}>Cancel</button>
+                      <button type="button" onClick={() => void recordPayment(account)} disabled={paymentBusy}><CheckCircle2 size={14} /> {paymentBusy ? 'Recording…' : `Record ${money(paymentDraft.amount)}`}</button>
+                    </div>
+                  </div>
+                )}
+                {paymentNotices[account.id] && <p className="admin-camper-finder-payment-notice" role="status">{paymentNotices[account.id]}</p>}
                 <nav aria-label={`${account.name} account sections`}>
                   <a className="primary" href={`${accountUrl}?history=billing#camper-history`}><ReceiptText size={14} /> Payments</a>
                   <a href={`/admin/invoices?search=${lotSearch}`}><ReceiptText size={14} /> Invoices</a>

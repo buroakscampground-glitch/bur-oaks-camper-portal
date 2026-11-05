@@ -55,6 +55,21 @@ export async function GET(request: Request) {
       .map((camper) => {
         const camperInvoices = invoices.filter((invoice) => String(invoice.camper_id) === String(camper.id))
         const openInvoices = camperInvoices.filter(isInvoiceOutstanding)
+        const invoiceOptions = openInvoices
+          .filter((invoice) => String(invoice.status || '').toLowerCase() !== 'processing' && Number(invoice.total_due || 0) > 0)
+          .sort((left, right) =>
+            String(left.due_date || '9999-99-99').localeCompare(String(right.due_date || '9999-99-99'))
+            || String(left.created_at || '').localeCompare(String(right.created_at || ''))
+          )
+          .map((invoice) => ({
+            id: invoice.id,
+            invoice_number: invoice.invoice_number,
+            invoice_type: invoice.invoice_type,
+            total_due: Number(invoice.total_due || 0),
+            due_date: invoice.due_date,
+            created_at: invoice.created_at,
+            status: invoice.status,
+          }))
         const nextInvoice = [...openInvoices]
           .sort((left, right) => String(left.due_date || '9999-99-99').localeCompare(String(right.due_date || '9999-99-99')))[0]
         const camperManualPayments = manualPayments.filter((payment) => String(payment.camper_id) === String(camper.id))
@@ -106,6 +121,7 @@ export async function GET(request: Request) {
           phone: camper.phone,
           openBalance: Number(openInvoices.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0).toFixed(2)),
           openInvoices: openInvoices.length,
+          invoiceOptions,
           nextDue: nextInvoice?.due_date || null,
           nextDueAmount: nextInvoice ? Number(nextInvoice.total_due || 0) : 0,
           nextDueFor: nextInvoice?.invoice_type || null,

@@ -31,6 +31,17 @@ test('camper finder searches financial references and jumps to separate account 
   assert.match(endpoint, /source_reference/)
   assert.match(endpoint, /lastPayment/)
   assert.match(endpoint, /nextDue/)
+  assert.match(endpoint, /invoiceOptions/)
+  assert.match(endpoint, /String\(invoice\.status \|\| ''\)\.toLowerCase\(\) !== 'processing'/)
+  assert.match(finder, /submitManualPayment/)
+  assert.match(finder, /buildPaymentAllocationPreview/)
+  assert.match(finder, /Record a payment/)
+  assert.match(finder, /Invoice to pay/)
+  assert.match(finder, /Check\/reference/)
+  assert.match(finder, /Reason \/ office note/)
+  assert.match(finder, /window\.confirm/)
+  assert.match(finder, /Payment recorded/)
+  assert.doesNotMatch(finder, /\.from\(['"]invoices['"]\)\.update/)
   for (const section of ['Payments', 'Invoices', 'Credits', 'Documents', 'Messages', 'Site', 'Electric', 'Association', 'Renewal', 'Profile']) {
     assert.match(finder, new RegExp(`${section}</a>`))
   }
