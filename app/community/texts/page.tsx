@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, CheckCircle2, LoaderCircle, MessageSquareText, Send, ShieldCheck, UsersRound } from 'lucide-react'
 import { camperTextWithLink, portalPathForTextAlert } from '../../../lib/portal-sms-links'
 import { supabase } from '../../../lib/supabase'
+import { thanksgivingDinnerShortTime } from '../../../lib/thanksgiving-dinner'
 
 const coordinatorTypes = [
   'Event Reminder',
@@ -15,7 +16,7 @@ const coordinatorTypes = [
 const suggestedMessages: Record<string, string> = {
   'Event Reminder': 'A new Bur Oaks event is coming up. Open the calendar for details and RSVP.',
   'Saturday Dinner Reminder': 'Saturday dinner is coming up. Please RSVP and tell us what you are bringing.',
-  'Thanksgiving Signup': 'Bur Oaks Thanksgiving is Nov 7 at 6 PM. Please RSVP and claim one food item.',
+  'Thanksgiving Signup': `Bur Oaks Thanksgiving is Nov 7 at ${thanksgivingDinnerShortTime}. Please RSVP and claim one food item.`,
   'Community Update': 'There is a new Bur Oaks Community update. Tap below to read it.',
 }
 

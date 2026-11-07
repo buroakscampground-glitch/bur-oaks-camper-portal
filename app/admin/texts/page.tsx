@@ -6,6 +6,7 @@ import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
 import { camperTextWithLink, portalPathForTextAlert } from '../../../lib/portal-sms-links'
 import { maskSmsPhone } from '../../../lib/sms-broadcast'
+import { thanksgivingDinnerShortTime } from '../../../lib/thanksgiving-dinner'
 
 type TargetMode = 'all_opted_in' | 'open_balance' | 'one'
 
@@ -190,7 +191,7 @@ export default function AdminTextsPage() {
     requestIdRef.current = ''
     setReminderType(value)
     if (value === 'Thanksgiving Signup' && !message.trim()) {
-      setMessage('Bur Oaks Thanksgiving is Nov 7 at 6 PM. Please RSVP and claim one food item.')
+      setMessage(`Bur Oaks Thanksgiving is Nov 7 at ${thanksgivingDinnerShortTime}. Please RSVP and claim one food item.`)
     }
   }
 

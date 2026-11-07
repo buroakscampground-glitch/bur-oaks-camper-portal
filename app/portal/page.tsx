@@ -43,7 +43,7 @@ import { getCurrentCamper, supabase } from '../../lib/supabase'
 import { saveSmsConsentPreference } from '../../lib/sms-consent'
 import PortalWeather, { PortalWeatherDockButton, PortalWeatherMini } from '../../components/PortalWeather'
 import EventFlyerShowcase from '../../components/EventFlyerShowcase'
-import { saturdayDinners2026 } from '../../lib/saturday-dinners'
+import { dinnerTimeLabel, dinnerTimeShortLabel, saturdayDinners2026 } from '../../lib/saturday-dinners'
 import { thanksgivingDinnerDate } from '../../lib/thanksgiving-dinner'
 import { getSewerPumpOutFeeForLot } from '../../lib/sewer-pump-fees'
 import { isPumpOutWaitingForService } from '../../lib/pump-out-status'
@@ -1266,7 +1266,7 @@ export default function CamperPortalPage() {
           <section className="portal-dinner-spotlight" aria-labelledby="portal-dinner-spotlight-title">
             <span className="portal-dinner-spotlight-icon" aria-hidden="true"><Soup size={31} /></span>
             <div className="portal-dinner-spotlight-copy">
-              <small>THIS SATURDAY AT 6:00 PM</small>
+              <small>THIS SATURDAY AT {dinnerTimeLabel(nextDinner)}</small>
               <h2 id="portal-dinner-spotlight-title">{nextDinner.menu}</h2>
               <p>
                 Saturday dinner is coming up. Tell us how many are coming and
@@ -1799,7 +1799,7 @@ export default function CamperPortalPage() {
                 </div>
                 {upcomingDinners.map((dinner) => (
                   <a href={dinnerSignupHref(dinner.date)} key={dinner.id}>
-                    <small>{dinner.month} {dinner.day} · 6 PM</small>
+                    <small>{dinner.month} {dinner.day} · {dinnerTimeShortLabel(dinner)}</small>
                     <strong>{dinner.menu}</strong>
                     {dinner.theme && <em>{dinner.theme}</em>}
                   </a>

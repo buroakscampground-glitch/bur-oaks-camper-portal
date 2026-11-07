@@ -5,6 +5,7 @@ import { AlertTriangle, ArrowLeft, CalendarDays, CheckCircle2, ChefHat, Loader2,
 import { supabase } from '../../lib/supabase'
 import {
   thanksgivingDinnerDate,
+  thanksgivingDinnerTime,
   thanksgivingFoodOption,
   thanksgivingFoodOptions,
   thanksgivingWriteInMaxLength,
@@ -161,7 +162,7 @@ export default function ThanksgivingSignupPage() {
         <div className="thanksgiving-hero-copy">
           <span><UtensilsCrossed size={17} /> OUR LAST BIG MEAL OF THE SEASON</span>
           <h1>Bur Oaks Thanksgiving</h1>
-          <p>Saturday, November 7 at 6:00 PM · Help us prepare a family Thanksgiving dinner for 110–120 people.</p>
+          <p>Saturday, November 7 at {thanksgivingDinnerTime} · Help us prepare a family Thanksgiving dinner for 110–120 people.</p>
         </div>
         <div className="thanksgiving-turkey-note">
           <ChefHat size={28} />

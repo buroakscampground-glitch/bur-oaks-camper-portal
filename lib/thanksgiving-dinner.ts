@@ -1,4 +1,6 @@
 export const thanksgivingDinnerDate = '2026-11-07'
+export const thanksgivingDinnerTime = '4:00 PM'
+export const thanksgivingDinnerShortTime = '4 PM'
 
 export type ThanksgivingFoodOption = {
   id: string

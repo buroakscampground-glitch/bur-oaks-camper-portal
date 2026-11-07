@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { AlertTriangle, CalendarDays, CheckCircle2, CircleHelp, Loader2, Search, Soup, UsersRound, UtensilsCrossed, XCircle } from 'lucide-react'
 import { saturdayDinnerEngagementStartDate, saturdayDinnerMetrics } from '../../../lib/saturday-dinner-metrics'
-import { dinnerBringSlot, dinnerBringSlots, dinnerBringSuggestions, isUnlimitedDinnerBringOption, saturdayDinners2026 } from '../../../lib/saturday-dinners'
+import { dinnerBringSlot, dinnerBringSlots, dinnerBringSuggestions, dinnerTimeLabel, isUnlimitedDinnerBringOption, saturdayDinners2026 } from '../../../lib/saturday-dinners'
 import { supabase } from '../../../lib/supabase'
 import { thanksgivingDinnerDate } from '../../../lib/thanksgiving-dinner'
 
@@ -180,7 +180,7 @@ export default function AdminDinnersPage() {
         <section className="admin-dinner-feature">
           <CalendarDays size={24} />
           <div>
-            <small>{selectedDinner.month} {selectedDinner.day} · 6:00 PM</small>
+            <small>{selectedDinner.month} {selectedDinner.day} · {dinnerTimeLabel(selectedDinner)}</small>
             <h2>{selectedDinner.menu}</h2>
             {selectedDinner.note && <p>{selectedDinner.note}</p>}
             {selectedDinner.theme && <p>{selectedDinner.theme}</p>}

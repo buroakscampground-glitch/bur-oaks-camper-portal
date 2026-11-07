@@ -1,3 +1,5 @@
+import { thanksgivingDinnerShortTime } from './thanksgiving-dinner.ts'
+
 export type EventFlyer = {
   slug: string
   title: string
@@ -101,7 +103,7 @@ export const eventFlyers2026: EventFlyer[] = [
     title: 'BurOaksGiving Feast',
     date: '2026-11-07',
     displayDate: 'November 7, 2026',
-    time: 'Dinner at 6 PM',
+    time: `Dinner at ${thanksgivingDinnerShortTime}`,
     description: 'Our final big meal of the season. RSVP with your campsite headcount and claim one food item to share.',
     flyer: '/events-2026/2026-11-07-buroaksgiving.jpg',
   },

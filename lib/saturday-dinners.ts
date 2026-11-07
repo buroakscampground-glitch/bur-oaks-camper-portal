@@ -1,4 +1,4 @@
-import { thanksgivingFoodLabels } from './thanksgiving-dinner.ts'
+import { thanksgivingDinnerTime, thanksgivingFoodLabels } from './thanksgiving-dinner.ts'
 
 export type SaturdayDinner = {
   id: string
@@ -6,6 +6,7 @@ export type SaturdayDinner = {
   month: string
   day: number
   menu: string
+  time?: string
   theme?: string
   note?: string
   closed?: boolean
@@ -65,10 +66,19 @@ export const saturdayDinners2026: SaturdayDinner[] = [
     month: 'November',
     day: 7,
     menu: 'Bur Oaks Thanksgiving',
+    time: thanksgivingDinnerTime,
     theme: 'Last Big Meal of the Season',
     note: 'Anthony is preparing all of the turkeys. Campers should RSVP and claim one food item from the special Thanksgiving signup.',
   },
 ]
+
+export function dinnerTimeLabel(dinner?: Pick<SaturdayDinner, 'time'>) {
+  return dinner?.time || '6:00 PM'
+}
+
+export function dinnerTimeShortLabel(dinner?: Pick<SaturdayDinner, 'time'>) {
+  return dinnerTimeLabel(dinner).replace(':00', '')
+}
 
 export type DinnerBringSlot = {
   label: string

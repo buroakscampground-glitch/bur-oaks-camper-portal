@@ -1,10 +1,13 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { dinnerBringSuggestions, saturdayDinners2026 } from '../lib/saturday-dinners.ts'
+import { eventFlyers2026 } from '../lib/event-flyers.ts'
+import { dinnerBringSuggestions, dinnerTimeLabel, dinnerTimeShortLabel, saturdayDinners2026 } from '../lib/saturday-dinners.ts'
 import {
   thanksgivingClaimCounts,
   thanksgivingDinnerDate,
+  thanksgivingDinnerShortTime,
+  thanksgivingDinnerTime,
   thanksgivingFoodOptions,
   thanksgivingWriteInFoodItem,
   thanksgivingWriteInMaxLength,
@@ -14,6 +17,12 @@ test('Thanksgiving is a special November dinner with food-only choices', () => {
   const dinner = saturdayDinners2026.find((item) => item.date === thanksgivingDinnerDate)
   assert.equal(dinner?.menu, 'Bur Oaks Thanksgiving')
   assert.equal(thanksgivingDinnerDate, '2026-11-07')
+  assert.equal(thanksgivingDinnerTime, '4:00 PM')
+  assert.equal(thanksgivingDinnerShortTime, '4 PM')
+  assert.equal(dinnerTimeLabel(dinner), '4:00 PM')
+  assert.equal(dinnerTimeShortLabel(dinner), '4 PM')
+  assert.equal(eventFlyers2026.find((event) => event.slug === 'buroaksgiving')?.time, 'Dinner at 4 PM')
+  assert.equal(dinnerTimeLabel(saturdayDinners2026.find((item) => item.date === '2026-10-31')), '6:00 PM')
 
   const labels = thanksgivingFoodOptions.map((option) => option.label.toLowerCase())
   assert.equal(labels.includes('turkey'), false, 'turkey should not be offered')

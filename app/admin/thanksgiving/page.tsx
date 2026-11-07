@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { AlertTriangle, ArrowLeft, ChefHat, Loader2, RefreshCw, Search, UsersRound, UtensilsCrossed } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
-import { thanksgivingDinnerDate, thanksgivingFoodOption, thanksgivingFoodOptions } from '../../../lib/thanksgiving-dinner'
+import { thanksgivingDinnerDate, thanksgivingDinnerTime, thanksgivingFoodOption, thanksgivingFoodOptions } from '../../../lib/thanksgiving-dinner'
 
 type Signup = {
   id: string
@@ -76,7 +76,7 @@ export default function ThanksgivingAdminPage() {
     <main className="admin-thanksgiving-page">
       <section className="admin-thanksgiving-hero">
         <div>
-          <span><UtensilsCrossed size={17} /> NOVEMBER 7 · 6:00 PM</span>
+          <span><UtensilsCrossed size={17} /> NOVEMBER 7 · {thanksgivingDinnerTime}</span>
           <h1>Bur Oaks Thanksgiving planner</h1>
           <p>One live view of attendance and the food needed for 110–120 people. Anthony is providing all turkeys.</p>
         </div>
