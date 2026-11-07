@@ -20,6 +20,7 @@ export async function createCheckoutSession(
   invoiceIds: string[] = [],
   paymentMethod: InvoicePaymentMethod = 'card',
   extraPayment?: ExtraPaymentOptions,
+  invoicePaymentCents?: number,
 ) {
   const { supabase } = await import('./supabase')
   const { data: sessionData } = await supabase.auth.getSession()
@@ -42,6 +43,7 @@ export async function createCheckoutSession(
         invoiceIds,
         paymentMethod,
         extraPayment,
+        invoicePaymentCents,
       }),
     })
   } catch {
@@ -68,8 +70,9 @@ export async function checkoutItems(
   invoiceIds: string[] = [],
   paymentMethod: InvoicePaymentMethod = 'card',
   extraPayment?: ExtraPaymentOptions,
+  invoicePaymentCents?: number,
 ) {
-  const session = await createCheckoutSession(items, successUrl, cancelUrl, invoiceIds, paymentMethod, extraPayment);
+  const session = await createCheckoutSession(items, successUrl, cancelUrl, invoiceIds, paymentMethod, extraPayment, invoicePaymentCents);
 
   if (!session.url) {
     throw new Error('Stripe session URL is missing.');

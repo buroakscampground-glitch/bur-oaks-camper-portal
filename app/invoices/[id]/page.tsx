@@ -252,8 +252,8 @@ export default function CamperInvoiceDetailPage() {
   async function payInvoice() {
     if (payingRef.current) return
     if (!invoice) return
-    if (paymentUnderAmount) {
-      setMessage(`This invoice requires ${formatMoney(invoice.total_due)}. Enter at least the amount due.`)
+    if (paymentBelowMinimum) {
+      setMessage('Enter at least $0.50 for a payment toward this invoice.')
       return
     }
 
@@ -278,6 +278,7 @@ export default function CamperInvoiceDetailPage() {
         extraPaymentAmount > 0
           ? { amountCents: Math.round(extraPaymentAmount * 100), destination: extraPaymentDestination }
           : undefined,
+        Math.round(invoicePaymentAmount * 100),
       )
     } catch (error: any) {
       setReviewingPayment(false)
@@ -289,8 +290,8 @@ export default function CamperInvoiceDetailPage() {
   }
 
   function reviewInvoicePayment() {
-    if (paymentUnderAmount) {
-      setMessage(`This invoice requires ${formatMoney(invoice.total_due)}. Enter at least the amount due.`)
+    if (paymentBelowMinimum) {
+      setMessage('Enter at least $0.50 for a payment toward this invoice.')
       return
     }
     setMessage('')
@@ -349,8 +350,10 @@ export default function CamperInvoiceDetailPage() {
     ? receipt.allocations
     : [{ invoiceId: String(invoice.id), invoiceNumber: String(invoice.invoice_number), invoiceType: String(invoice.invoice_type || 'Campground charge'), amount: recordedTotal }]
   const enteredPaymentTotal = Math.min(10_000, Math.max(0, Number(paymentTotal) || 0))
-  const paymentUnderAmount = enteredPaymentTotal > 0 && enteredPaymentTotal < invoiceBalance
-  const paymentSubtotal = Math.max(invoiceBalance, enteredPaymentTotal || invoiceBalance)
+  const paymentBelowMinimum = enteredPaymentTotal > 0 && enteredPaymentTotal < 0.5
+  const paymentSubtotal = enteredPaymentTotal || invoiceBalance
+  const invoicePaymentAmount = Math.min(invoiceBalance, paymentSubtotal)
+  const remainingAfterPayment = Math.max(0, invoiceBalance - invoicePaymentAmount)
   const extraPaymentAmount = Math.max(0, paymentSubtotal - invoiceBalance)
   const processingFee = paymentMethod === 'card'
     ? calculateCardProcessingFee(paymentSubtotal, feeSettings)
@@ -472,11 +475,12 @@ export default function CamperInvoiceDetailPage() {
 
           {!isPaid && !isProcessing && !isClosed && (
             <div className="camper-invoice-extra-payment account-extra-payment">
-              <div><strong>Pay the bill—or pay more</strong><small>Enter the total amount you want charged. We will identify and protect any remainder.</small></div>
-              <label><span>Total payment amount</span><input type="number" min={invoiceBalance} max="10000" step="0.01" inputMode="decimal" value={paymentTotal} onChange={(event) => setPaymentTotal(event.target.value)} placeholder={formatMoney(invoiceBalance)} /></label>
-              <label><span>Put any remainder toward</span><select value={extraPaymentDestination} onChange={(event) => setExtraPaymentDestination(event.target.value === 'general' ? 'general' : 'lot_rent')}><option value="lot_rent">Future lot rent only</option><option value="general">Any future bill</option></select></label>
+              <div><strong>Pay any amount toward this bill</strong><small>Enter at least $0.50. Pay it off now or chip away whenever you have extra money.</small></div>
+              <label><span>Payment toward this invoice</span><input type="number" min="0.50" max="10000" step="0.01" inputMode="decimal" value={paymentTotal} onChange={(event) => setPaymentTotal(event.target.value)} placeholder={formatMoney(invoiceBalance)} /></label>
+              {extraPaymentAmount > 0 && <label><span>Put the extra toward</span><select value={extraPaymentDestination} onChange={(event) => setExtraPaymentDestination(event.target.value === 'general' ? 'general' : 'lot_rent')}><option value="lot_rent">Future lot rent only</option><option value="general">Any future bill</option></select></label>}
+              {remainingAfterPayment > 0 && !paymentBelowMinimum && <p><CheckCircle2 size={15} /><span><strong>{formatMoney(invoicePaymentAmount)}</strong> will be applied now. The invoice will have <strong>{formatMoney(remainingAfterPayment)} remaining</strong>, and you can pay more later.</span></p>}
               {extraPaymentAmount > 0 && <p><CheckCircle2 size={15} /><span>Payment covers <strong>{formatMoney(invoiceBalance)}</strong>. The <strong>{formatMoney(extraPaymentAmount)} remainder</strong> will be saved for {extraPaymentDestination === 'lot_rent' ? 'future lot rent only' : 'the next bill that becomes due'}.</span></p>}
-              {paymentUnderAmount && <p className="error"><span>This invoice requires <strong>{formatMoney(invoiceBalance)}</strong>. The payment cannot be lower than the amount due.</span></p>}
+              {paymentBelowMinimum && <p className="error"><span>The minimum online payment is <strong>$0.50</strong>.</span></p>}
             </div>
           )}
 
@@ -560,7 +564,7 @@ export default function CamperInvoiceDetailPage() {
             ) : isClosed ? (
               <span className="camper-invoice-paid"><CheckCircle2 size={18} /> This invoice was canceled. Nothing is owed.</span>
             ) : (
-              <button type="button" onClick={reviewInvoicePayment} disabled={paying || paymentUnderAmount}>
+              <button type="button" onClick={reviewInvoicePayment} disabled={paying || paymentBelowMinimum}>
                 <LockKeyhole size={16} /> {paying ? 'Opening checkout…' : paymentMethod === 'ach' ? `Review and Pay by ACH ${formatMoney(payToday)}` : `Review and Pay by card ${formatMoney(payToday)}`} <ChevronRight size={16} />
               </button>
             )}
@@ -571,6 +575,8 @@ export default function CamperInvoiceDetailPage() {
             paymentMethod={paymentMethod}
             invoiceCount={1}
             invoiceTotal={invoiceBalance}
+            invoicePaymentAmount={invoicePaymentAmount}
+            remainingAfterPayment={remainingAfterPayment}
             extraAmount={extraPaymentAmount}
             extraDestination={extraPaymentDestination}
             processingFee={processingFee}

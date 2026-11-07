@@ -374,11 +374,16 @@ export default function InvoicesPage() {
     .filter((invoice) => selectedInvoices.includes(invoice.id))
     .reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
   const enteredPaymentTotal = Math.min(10_000, Math.max(0, Number(paymentTotal) || 0))
+  const selectedInvoicePayment = selectedInvoices.length === 1
+    ? Math.min(selectedTotal, enteredPaymentTotal || selectedTotal)
+    : selectedTotal
+  const selectedRemaining = Math.max(0, selectedTotal - selectedInvoicePayment)
   const selectedExtraAmount = selectedInvoices.length && enteredPaymentTotal > selectedTotal
     ? enteredPaymentTotal - selectedTotal
     : 0
-  const selectedUnderpayment = selectedInvoices.length > 0 && enteredPaymentTotal > 0 && enteredPaymentTotal < selectedTotal
-  const selectedPaymentSubtotal = selectedTotal + selectedExtraAmount
+  const selectedBelowMinimum = selectedInvoices.length > 0 && enteredPaymentTotal > 0 && enteredPaymentTotal < 0.5
+  const selectedUnderpayment = selectedInvoices.length > 1 && enteredPaymentTotal > 0 && enteredPaymentTotal < selectedTotal
+  const selectedPaymentSubtotal = selectedInvoicePayment + selectedExtraAmount
   const selectedProcessingFee = selectedInvoices.length
     ? invoicePaymentMethod === 'card'
       ? calculateCardProcessingFee(selectedPaymentSubtotal, feeSettings)
@@ -423,8 +428,12 @@ export default function InvoicesPage() {
 
     const invoiceTotal = invoicesToPay.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
     const amountToReview = requestedTotal ?? (enteredPaymentTotal || invoiceTotal)
-    if (amountToReview < invoiceTotal) {
-      setCheckoutMessage(`The selected invoices require ${formatMoney(invoiceTotal)}. Enter at least that amount.`)
+    if (amountToReview < 0.5) {
+      setCheckoutMessage('Enter at least $0.50 for an online payment.')
+      return
+    }
+    if (amountToReview < invoiceTotal && invoicesToPay.length !== 1) {
+      setCheckoutMessage('To pay part of a bill, choose one invoice at a time.')
       return
     }
     setCheckoutMessage('')
@@ -435,7 +444,8 @@ export default function InvoicesPage() {
     if (checkoutRef.current || !pendingPayment) return
     const invoicesToPay = pendingPayment.invoices
     const invoiceTotal = invoicesToPay.reduce((sum, invoice) => sum + Number(invoice.total_due || 0), 0)
-    const extraAmount = pendingPayment.requestedTotal - invoiceTotal
+    const invoicePaymentAmount = Math.min(invoiceTotal, pendingPayment.requestedTotal)
+    const extraAmount = Math.max(0, pendingPayment.requestedTotal - invoiceTotal)
     checkoutRef.current = true
     setCheckoutLoading(true)
     setCheckoutMessage('Opening secure Stripe checkout…')
@@ -450,6 +460,7 @@ export default function InvoicesPage() {
         extraAmount > 0
           ? { amountCents: Math.round(extraAmount * 100), destination: extraPaymentDestination }
           : undefined,
+        Math.round(invoicePaymentAmount * 100),
       )
     } catch (error: any) {
       setPendingPayment(null)
@@ -768,11 +779,13 @@ export default function InvoicesPage() {
 
             {visiblePayableInvoices.length > 0 && (
               <div className="account-extra-payment">
-                <div><strong>Pay the bill—or pay more</strong><small>Select the bill first. Enter the total amount you want charged, and we will identify any remainder.</small></div>
-                <label><span>Total payment amount</span><input type="number" min={selectedTotal || 0} max="10000" step="0.01" inputMode="decimal" value={paymentTotal} onChange={(event) => setPaymentTotal(event.target.value)} placeholder={selectedInvoices.length ? formatMoney(selectedTotal) : 'Select a bill first'} /></label>
-                <label><span>Put any remainder toward</span><select value={extraPaymentDestination} onChange={(event) => setExtraPaymentDestination(event.target.value === 'general' ? 'general' : 'lot_rent')}><option value="lot_rent">Future lot rent only</option><option value="general">Any future bill</option></select></label>
+                <div><strong>Pay any amount toward one bill</strong><small>Select one bill, then enter at least $0.50. You can come back and pay more whenever you want.</small></div>
+                <label><span>Payment amount</span><input type="number" min={selectedInvoices.length === 1 ? 0.5 : selectedTotal || 0} max="10000" step="0.01" inputMode="decimal" value={paymentTotal} onChange={(event) => setPaymentTotal(event.target.value)} placeholder={selectedInvoices.length ? formatMoney(selectedTotal) : 'Select a bill first'} /></label>
+                {selectedExtraAmount > 0 && <label><span>Put the extra toward</span><select value={extraPaymentDestination} onChange={(event) => setExtraPaymentDestination(event.target.value === 'general' ? 'general' : 'lot_rent')}><option value="lot_rent">Future lot rent only</option><option value="general">Any future bill</option></select></label>}
+                {selectedRemaining > 0 && !selectedBelowMinimum && <p><ShieldCheck size={15} /><span><strong>{formatMoney(selectedInvoicePayment)}</strong> will be applied now. That invoice will have <strong>{formatMoney(selectedRemaining)} remaining</strong>.</span></p>}
                 {selectedExtraAmount > 0 && <p><ShieldCheck size={15} /><span>Payment covers <strong>{formatMoney(selectedTotal)}</strong>. The <strong>{formatMoney(selectedExtraAmount)} remainder</strong> will be saved for {extraPaymentDestination === 'lot_rent' ? 'future lot rent only' : 'the next bill that becomes due'}.</span></p>}
-                {selectedUnderpayment && <p className="error"><AlertTriangle size={15} /><span>The selected bills total <strong>{formatMoney(selectedTotal)}</strong>. The payment cannot be lower than the amount due.</span></p>}
+                {selectedBelowMinimum && <p className="error"><AlertTriangle size={15} /><span>The minimum online payment is <strong>$0.50</strong>.</span></p>}
+                {selectedUnderpayment && <p className="error"><AlertTriangle size={15} /><span>To pay part of a bill, choose <strong>one invoice at a time</strong>.</span></p>}
               </div>
             )}
 
@@ -792,7 +805,7 @@ export default function InvoicesPage() {
                 <div>
                   <button type="button" className="account-text-button" onClick={() => setSelectedInvoices(visiblePayableInvoices.map((invoice) => invoice.id))}>Select all shown</button>
                   {selectedInvoices.length > 0 && <button type="button" className="account-text-button" onClick={() => setSelectedInvoices([])}>Clear</button>}
-                  <button type="button" className="account-pay-button" onClick={handlePaySelected} disabled={selectedInvoices.length === 0 || selectedUnderpayment || checkoutLoading}>
+                  <button type="button" className="account-pay-button" onClick={handlePaySelected} disabled={selectedInvoices.length === 0 || selectedUnderpayment || selectedBelowMinimum || checkoutLoading}>
                     <LockKeyhole size={15} /> {checkoutLoading ? 'Opening checkout…' : invoicePaymentMethod === 'ach' ? `Review and Pay by ACH ${formatMoney(selectedChargeTotal)}` : `Review and Pay by card ${formatMoney(selectedChargeTotal)}`}
                   </button>
                 </div>
@@ -1017,6 +1030,8 @@ export default function InvoicesPage() {
         </footer>
         {pendingPayment && (() => {
           const invoiceTotal = pendingPayment.invoices.reduce((sum, item) => sum + Number(item.total_due || 0), 0)
+          const invoicePaymentAmount = Math.min(invoiceTotal, pendingPayment.requestedTotal)
+          const remainingAfterPayment = Math.max(0, invoiceTotal - invoicePaymentAmount)
           const extraAmount = Math.max(0, pendingPayment.requestedTotal - invoiceTotal)
           const fee = invoicePaymentMethod === 'card'
             ? calculateCardProcessingFee(pendingPayment.requestedTotal, feeSettings)
@@ -1026,6 +1041,8 @@ export default function InvoicesPage() {
             paymentMethod={invoicePaymentMethod}
             invoiceCount={pendingPayment.invoices.length}
             invoiceTotal={invoiceTotal}
+            invoicePaymentAmount={invoicePaymentAmount}
+            remainingAfterPayment={remainingAfterPayment}
             extraAmount={extraAmount}
             extraDestination={extraPaymentDestination}
             processingFee={fee}

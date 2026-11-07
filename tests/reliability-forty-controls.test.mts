@@ -53,7 +53,7 @@ const controls: Array<[string, () => void]> = [
   ['webhooks cryptographically verify Stripe signatures', () => assert.match(webhook, /stripe\.webhooks\.constructEvent\(payload, signature, webhookSecret\)/)],
   ['webhooks ledger every Stripe event before handling it', () => assert.match(webhook, /from\('stripe_webhook_events'\)\s+\.insert\(\{ event_id: event\.id, event_type: event\.type \}\)/)],
   ['webhooks acknowledge replayed events without applying them twice', () => assert.match(webhook, /ledgerError\?\.code === '23505'.*duplicate: true/s)],
-  ['webhooks verify received totals and camper ownership', () => assert.match(webhook, /expectedAmount \+ extraPaymentCents \+ processingFeeCents !== session\.amount_total[\s\S]*camperIds\.size !== 1/)],
+  ['webhooks verify received totals and camper ownership', () => assert.match(webhook, /paymentDetails\.invoicePaymentCents \+ extraPaymentCents \+ processingFeeCents !== session\.amount_total[\s\S]*camperIds\.size !== 1/)],
   ['account credits are unique by payment reference and applied atomically when due', () => {
     assert.match(creditMigration, /account_credits_source_reference_unique/)
     assert.match(creditMigration, /pg_advisory_xact_lock/)

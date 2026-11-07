@@ -171,7 +171,31 @@ export async function POST(request: Request) {
     const invoiceSubtotalCents = invoices.reduce((sum, invoice) => {
       return sum + Math.round(Number(invoice.total_due || 0) * 100)
     }, 0)
-    const paymentSubtotalCents = invoiceSubtotalCents + extraPaymentCents
+    const requestedInvoicePayment = body.invoicePaymentCents === undefined || body.invoicePaymentCents === null
+      ? invoiceSubtotalCents
+      : Math.round(Number(body.invoicePaymentCents))
+    if (!Number.isSafeInteger(requestedInvoicePayment) || requestedInvoicePayment < 50 || requestedInvoicePayment > invoiceSubtotalCents) {
+      return NextResponse.json(
+        { error: `Enter an invoice payment between $0.50 and $${(invoiceSubtotalCents / 100).toFixed(2)}.` },
+        { status: 400 }
+      )
+    }
+    if (requestedInvoicePayment < invoiceSubtotalCents && invoices.length !== 1) {
+      return NextResponse.json(
+        { error: 'To make a partial payment, choose one invoice at a time.' },
+        { status: 400 }
+      )
+    }
+    if (requestedInvoicePayment < invoiceSubtotalCents && extraPaymentCents > 0) {
+      return NextResponse.json(
+        { error: 'Finish paying this invoice before adding money for a future bill.' },
+        { status: 400 }
+      )
+    }
+
+    const invoicePaymentCents = requestedInvoicePayment
+    const partialPayment = invoicePaymentCents < invoiceSubtotalCents
+    const paymentSubtotalCents = invoicePaymentCents + extraPaymentCents
     const feeSettings = await loadPaymentFeeSettings(admin)
     const processingFeeCents = paymentMethod === 'card'
       ? calculateCardProcessingFeeCents(paymentSubtotalCents, feeSettings)
@@ -195,6 +219,20 @@ export async function POST(request: Request) {
         quantity: 1,
       }
     })
+
+    if (partialPayment) {
+      const invoice = invoices[0]
+      lineItems.splice(0, lineItems.length, {
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `Payment toward ${invoice.invoice_type || 'invoice'} — ${invoice.invoice_number}`,
+          },
+          unit_amount: invoicePaymentCents,
+        },
+        quantity: 1,
+      })
+    }
 
     if (extraPaymentCents > 0) {
       lineItems.push({
@@ -254,6 +292,7 @@ export async function POST(request: Request) {
         billedCamperId,
         [...verifiedInvoiceIds].sort().join(','),
         String(invoiceSubtotalCents),
+        String(invoicePaymentCents),
         String(extraPaymentCents),
         extraPaymentDestination,
         String(processingFeeCents),
@@ -285,6 +324,8 @@ export async function POST(request: Request) {
         purpose: 'invoice_payment',
         payment_method: paymentMethod,
         invoice_subtotal_cents: String(invoiceSubtotalCents),
+        invoice_payment_cents: String(invoicePaymentCents),
+        partial_payment: partialPayment ? 'true' : 'false',
         extra_payment_cents: String(extraPaymentCents),
         extra_payment_destination: extraPaymentDestination,
         processing_fee_cents: String(processingFeeCents),
@@ -298,6 +339,8 @@ export async function POST(request: Request) {
           purpose: 'invoice_payment',
           payment_method: paymentMethod,
           invoice_subtotal_cents: String(invoiceSubtotalCents),
+          invoice_payment_cents: String(invoicePaymentCents),
+          partial_payment: partialPayment ? 'true' : 'false',
           extra_payment_cents: String(extraPaymentCents),
           extra_payment_destination: extraPaymentDestination,
           processing_fee_cents: String(processingFeeCents),
@@ -307,7 +350,13 @@ export async function POST(request: Request) {
       idempotencyKey: `invoice-checkout-${checkoutFingerprint}`,
     })
 
-    return NextResponse.json({ success: true, id: session.id, url: session.url })
+    return NextResponse.json({
+      success: true,
+      id: session.id,
+      url: session.url,
+      invoicePaymentCents,
+      remainingInvoiceCents: invoiceSubtotalCents - invoicePaymentCents,
+    })
   } catch (error) {
     console.error('Unable to create checkout session:', error)
     return NextResponse.json(

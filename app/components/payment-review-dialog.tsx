@@ -10,12 +10,14 @@ function money(value: number) {
 
 export default function PaymentReviewDialog({
   open, paymentMethod, invoiceCount, invoiceTotal, extraAmount, extraDestination,
-  processingFee, chargeTotal, loading, onCancel, onConfirm,
+  invoicePaymentAmount, remainingAfterPayment, processingFee, chargeTotal, loading, onCancel, onConfirm,
 }: {
   open: boolean
   paymentMethod: InvoicePaymentMethod
   invoiceCount: number
   invoiceTotal: number
+  invoicePaymentAmount?: number
+  remainingAfterPayment?: number
   extraAmount: number
   extraDestination: ExtraPaymentDestination
   processingFee: number
@@ -36,6 +38,9 @@ export default function PaymentReviewDialog({
   if (!open) return null
 
   const isAch = paymentMethod === 'ach'
+  const amountTowardInvoices = invoicePaymentAmount ?? invoiceTotal
+  const remaining = Math.max(0, remainingAfterPayment ?? invoiceTotal - amountTowardInvoices)
+  const isPartial = remaining > 0
   return (
     <div className="payment-review-backdrop" role="presentation">
       <section className="payment-review-dialog" role="dialog" aria-modal="true" aria-labelledby="payment-review-title">
@@ -45,7 +50,9 @@ export default function PaymentReviewDialog({
           <button type="button" onClick={onCancel} disabled={loading} aria-label="Close payment review"><X /></button>
         </header>
         <div className="payment-review-lines">
-          <p><span>{invoiceCount} invoice{invoiceCount === 1 ? '' : 's'}</span><strong>{money(invoiceTotal)}</strong></p>
+          {isPartial && <p><span>Current invoice balance</span><strong>{money(invoiceTotal)}</strong></p>}
+          <p><span>{isPartial ? 'Payment toward this invoice' : `${invoiceCount} invoice${invoiceCount === 1 ? '' : 's'}`}</span><strong>{money(amountTowardInvoices)}</strong></p>
+          {isPartial && <p><span>Balance after payment confirms</span><strong>{money(remaining)}</strong></p>}
           {extraAmount > 0 && <p><span>Extra saved for {extraDestination === 'lot_rent' ? 'future lot rent' : 'any future bill'}</span><strong>{money(extraAmount)}</strong></p>}
           <p><span>{isAch ? 'ACH processing fee' : 'Card processing fee'}</span><strong>{money(processingFee)}</strong></p>
           <p className="total"><span>{isAch ? 'Total bank debit' : 'Total Stripe will charge today'}</span><strong>{money(chargeTotal)}</strong></p>
@@ -53,8 +60,8 @@ export default function PaymentReviewDialog({
         <div className="payment-review-expectation">
           <strong>{isAch ? 'What happens next' : 'Ready for secure card checkout'}</strong>
           <p>{isAch
-            ? 'Stripe will securely collect your bank details. Your invoice will show Processing—do not pay again—until the bank confirms it.'
-            : 'Stripe will securely collect your card details. After Stripe confirms payment, Billing & Payments will show the paid invoice and receipt.'}</p>
+            ? `Stripe will securely collect your bank details. Your invoice will show Processing—do not pay again—until the bank confirms it.${isPartial ? ` Then ${money(remaining)} will remain due.` : ''}`
+            : `Stripe will securely collect your card details. After Stripe confirms payment, Billing & Payments will ${isPartial ? `show the new ${money(remaining)} balance and this installment in the invoice history.` : 'show the paid invoice and receipt.'}`}</p>
         </div>
         <footer>
           <button type="button" className="secondary" onClick={onCancel} disabled={loading}><ArrowLeft /> Go back</button>

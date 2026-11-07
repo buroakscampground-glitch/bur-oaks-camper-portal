@@ -16,6 +16,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 type DuplicatePaymentInvoice = PriorPaymentInvoice & {
+  id?: string | null
   invoice_number?: string | number | null
   camper_id?: string | null
 }
@@ -55,6 +56,21 @@ function extraPaymentDetails(metadata?: Stripe.Metadata | null) {
     amountCents,
     destination: metadata?.extra_payment_destination === 'lot_rent' ? 'lot_rent' : 'general',
   } as const
+}
+
+function metadataCents(value: string | undefined, fallback: number) {
+  const amount = Math.round(Number(value))
+  return Number.isSafeInteger(amount) && amount >= 0 ? amount : fallback
+}
+
+function invoicePaymentDetails(metadata: Stripe.Metadata | null | undefined, currentInvoiceCents: number) {
+  const originalInvoiceCents = metadataCents(metadata?.invoice_subtotal_cents, currentInvoiceCents)
+  const invoicePaymentCents = metadataCents(metadata?.invoice_payment_cents, originalInvoiceCents)
+  return {
+    originalInvoiceCents,
+    invoicePaymentCents,
+    partialPayment: metadata?.partial_payment === 'true' || invoicePaymentCents < originalInvoiceCents,
+  }
 }
 
 export async function POST(request: Request) {
@@ -171,23 +187,55 @@ export async function POST(request: Request) {
       throw new Error('Unable to verify paid invoices.')
     }
 
-    const expectedAmount = invoices.reduce(
+    const currentInvoiceCents = invoices.reduce(
       (sum, invoice) => sum + Math.round(Number(invoice.total_due || 0) * 100),
       0
     )
+    const paymentDetails = invoicePaymentDetails(session.metadata, currentInvoiceCents)
     const processingFeeCents = Math.max(0, Math.round(Number(session.metadata?.processing_fee_cents || 0)))
     const extraPaymentCents = extraPaymentDetails(session.metadata).amountCents
     const camperIds = new Set(invoices.map((invoice) => String(invoice.camper_id)))
 
     if (
-      expectedAmount + extraPaymentCents + processingFeeCents !== session.amount_total ||
+      paymentDetails.invoicePaymentCents + extraPaymentCents + processingFeeCents !== session.amount_total ||
+      paymentDetails.invoicePaymentCents < 50 ||
+      paymentDetails.invoicePaymentCents > paymentDetails.originalInvoiceCents ||
+      (paymentDetails.partialPayment && invoiceIds.length !== 1) ||
       camperIds.size !== 1 ||
       (session.metadata?.camper_id && !camperIds.has(session.metadata.camper_id))
     ) {
       throw new Error('Stripe payment verification failed.')
     }
 
-    return { invoiceIds, invoices }
+    return { invoiceIds, invoices, ...paymentDetails }
+  }
+
+  async function recordOnlineInvoicePayment({
+    paymentReference,
+    invoice,
+    amountCents,
+    paymentMethod,
+  }: {
+    paymentReference: string
+    invoice: DuplicatePaymentInvoice
+    amountCents: number
+    paymentMethod: string
+  }) {
+    const { data, error } = await supabaseAdmin.rpc('record_online_invoice_payment_atomic', {
+      p_payment_reference: paymentReference,
+      p_invoice_id: String(invoice.id || ''),
+      p_amount: amountCents / 100,
+      p_payment_method: paymentMethod,
+      p_received_at: new Date().toISOString(),
+    })
+    if (error) throw error
+
+    const result = (data || {}) as {
+      duplicate?: boolean
+      appliedAmount?: number
+      creditAmount?: number
+    }
+    return result
   }
 
   async function notifyDuplicatePayment(paymentReference: string, amountCents: number, invoices: DuplicatePaymentInvoice[]) {
@@ -232,8 +280,35 @@ export async function POST(request: Request) {
     const verified = await loadAndVerifyCheckoutInvoices(session)
     if (!verified) return
 
-    const { invoiceIds, invoices } = verified
+    const { invoiceIds, invoices, invoicePaymentCents } = verified
     const paymentReference = checkoutPaymentReference(session)
+
+    const usesAtomicSingleInvoiceLedger = invoices.length === 1 && Boolean(session.metadata?.invoice_payment_cents)
+    if (usesAtomicSingleInvoiceLedger) {
+      const result = await recordOnlineInvoicePayment({
+        paymentReference,
+        invoice: invoices[0],
+        amountCents: invoicePaymentCents,
+        paymentMethod: checkoutPaymentMethod(session),
+      })
+      const extraPayment = await recordExtraPaymentCredit({
+        paymentReference,
+        camperId: String(invoices[0]?.camper_id || ''),
+        metadata: session.metadata,
+      })
+      if (!result.duplicate) {
+        await sendPaymentReceivedAlert({
+          admin: supabaseAdmin,
+          invoiceIds,
+          camperId: invoices[0]?.camper_id,
+          amountPaid: invoicePaymentCents / 100 + extraPayment,
+          paymentType: 'Online payment',
+          origin: getSiteUrl(),
+        })
+      }
+      return
+    }
+
     const alreadyPaid = invoices.some((invoice) => invoice.status === 'paid')
 
     if (alreadyPaid) {
@@ -399,21 +474,52 @@ export async function POST(request: Request) {
             throw new Error('Unable to verify paid invoices.')
           }
 
-          const invoiceSubtotalCents = invoices.reduce(
+          const currentInvoiceCents = invoices.reduce(
             (sum, invoice) => sum + Math.round(Number(invoice.total_due || 0) * 100),
             0
           )
+          const paymentDetails = invoicePaymentDetails(intent.metadata, currentInvoiceCents)
           const processingFeeCents = Math.max(0, Math.round(Number(intent.metadata.processing_fee_cents || 0)))
           const extraPaymentCents = extraPaymentDetails(intent.metadata).amountCents
           const camperIds = new Set(invoices.map((invoice) => String(invoice.camper_id)))
           const receivedAmount = intent.amount_received || intent.amount
 
           if (
-            invoiceSubtotalCents + extraPaymentCents + processingFeeCents !== receivedAmount ||
+            paymentDetails.invoicePaymentCents + extraPaymentCents + processingFeeCents !== receivedAmount ||
+            paymentDetails.invoicePaymentCents < 50 ||
+            paymentDetails.invoicePaymentCents > paymentDetails.originalInvoiceCents ||
+            (paymentDetails.partialPayment && invoiceIds.length !== 1) ||
             camperIds.size !== 1 ||
             (intent.metadata.camper_id && !camperIds.has(intent.metadata.camper_id))
           ) {
             throw new Error('Stripe payment verification failed.')
+          }
+
+          const usesAtomicSingleInvoiceLedger = invoiceIds.length === 1 && Boolean(intent.metadata.invoice_payment_cents)
+          if (usesAtomicSingleInvoiceLedger) {
+            const isAch = intent.payment_method_types.includes('us_bank_account')
+            const result = await recordOnlineInvoicePayment({
+              paymentReference: intent.id,
+              invoice: invoices[0],
+              amountCents: paymentDetails.invoicePaymentCents,
+              paymentMethod: isAch ? 'Online ACH' : 'Online card',
+            })
+            const extraPayment = await recordExtraPaymentCredit({
+              paymentReference: intent.id,
+              camperId: String(invoices[0]?.camper_id || ''),
+              metadata: intent.metadata,
+            })
+            if (!result.duplicate) {
+              await sendPaymentReceivedAlert({
+                admin: supabaseAdmin,
+                invoiceIds,
+                camperId: invoices[0]?.camper_id,
+                amountPaid: paymentDetails.invoicePaymentCents / 100 + extraPayment,
+                paymentType: 'Online payment',
+                origin: getSiteUrl(),
+              })
+            }
+            return NextResponse.json({ received: true })
           }
 
           const alreadyPaid = invoices.some((invoice) => invoice.status === 'paid')
@@ -451,7 +557,7 @@ export async function POST(request: Request) {
                 admin: supabaseAdmin,
                 invoiceIds,
                 camperId: invoices[0]?.camper_id,
-                amountPaid: invoiceSubtotalCents / 100 + extraPayment,
+                amountPaid: paymentDetails.invoicePaymentCents / 100 + extraPayment,
                 paymentType: 'Online payment',
                 origin: getSiteUrl(),
               })
