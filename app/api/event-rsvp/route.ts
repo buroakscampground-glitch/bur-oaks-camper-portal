@@ -7,6 +7,7 @@ import { sendStaffWebPush } from '../../../lib/staff-web-push'
 export const runtime = 'nodejs'
 
 const allowedResponses = ['Going', 'Maybe', 'Not Going']
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 async function findOrCreateEvent(context: NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>, slug: string) {
   const flyer = eventFlyers2026.find((event) => event.slug === slug)
@@ -47,10 +48,35 @@ async function findOrCreateEvent(context: NonNullable<Awaited<ReturnType<typeof 
   return { flyer, event: createdEvent }
 }
 
-async function getEventStatus(context: NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>, slug: string) {
-  const { flyer, event } = await findOrCreateEvent(context, slug)
+async function resolveEvent(
+  context: NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>,
+  slug: string,
+  eventId: string,
+) {
+  if (eventId) {
+    if (!uuidPattern.test(eventId)) return { flyer: null, event: null }
 
-  if (!flyer || !event) {
+    const { data: event, error } = await context.admin
+      .from('events')
+      .select('*')
+      .eq('id', eventId)
+      .maybeSingle()
+
+    if (error) throw error
+    return { flyer: null, event }
+  }
+
+  return findOrCreateEvent(context, slug)
+}
+
+async function getEventStatus(
+  context: NonNullable<Awaited<ReturnType<typeof getAuthenticatedContext>>>,
+  slug: string,
+  eventId: string,
+) {
+  const { event } = await resolveEvent(context, slug, eventId)
+
+  if (!event) {
     return null
   }
 
@@ -107,12 +133,13 @@ export async function GET(request: Request) {
   }
 
   const slug = new URL(request.url).searchParams.get('slug') || ''
+  const eventId = new URL(request.url).searchParams.get('eventId') || ''
   if (slug === 'buroaksgiving') {
     return NextResponse.json({ error: 'Use the special Thanksgiving signup.', redirect: '/thanksgiving' }, { status: 409 })
   }
 
   try {
-    const status = await getEventStatus(context, slug)
+    const status = await getEventStatus(context, slug, eventId)
 
     if (!status) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
@@ -137,6 +164,7 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}))
   const slug = String(body.slug || '')
+  const eventId = String(body.eventId || '')
   const response = String(body.response || '')
 
   if (slug === 'buroaksgiving') {
@@ -148,9 +176,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { flyer, event } = await findOrCreateEvent(context, slug)
+    const { flyer, event } = await resolveEvent(context, slug, eventId)
 
-    if (!flyer || !event) {
+    if (!event) {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 })
     }
 
@@ -175,13 +203,13 @@ export async function POST(request: Request) {
     const camperName = `${context.camper.first_name || ''} ${context.camper.last_name || ''}`.trim() || 'A camper'
     await sendStaffWebPush(context.admin, {
       title: 'New event RSVP',
-      body: `${camperName} at Site ${context.camper.lot_number || 'Unknown'} answered ${response} for ${flyer.title}.`,
+      body: `${camperName} at Site ${context.camper.lot_number || 'Unknown'} answered ${response} for ${flyer?.title || event.title}.`,
       urlByRole: { admin: '/admin/rsvps', event_coordinator: '/community/rsvps' },
       tag: 'event-rsvp',
       roles: ['event_coordinator'],
     }).catch((pushError) => console.error('RSVP app alert failed:', pushError))
 
-    const status = await getEventStatus(context, slug)
+    const status = await getEventStatus(context, slug, eventId)
 
     return NextResponse.json({ success: true, ...status })
   } catch (error) {

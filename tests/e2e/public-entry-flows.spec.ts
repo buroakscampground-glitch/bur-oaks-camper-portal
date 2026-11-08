@@ -312,6 +312,8 @@ async function installSyntheticCamperWriteSession(page: Page) {
   let pumpOutcome: Outcome = 'success'
   let maintenancePosts = 0
   let pumpPosts = 0
+  let eventRsvpPosts = 0
+  let eventRsvp = ''
   let maintenanceTickets: object[] = []
   let pumpRequests: object[] = []
   const now = Math.floor(Date.now() / 1000)
@@ -319,6 +321,7 @@ async function installSyntheticCamperWriteSession(page: Page) {
   const accessToken = `${encode({ alg: 'HS256', typ: 'JWT' })}.${encode({ sub: 'write-check-user', email: 'write-check@example.invalid', role: 'authenticated', exp: now + 3600 })}.write-check`
   const user = { id: 'write-check-user', aud: 'authenticated', role: 'authenticated', email: 'write-check@example.invalid', user_metadata: {}, app_metadata: {}, created_at: new Date(0).toISOString() }
   const camper = { id: 'write-check-camper', lot_number: 'TEST', first_name: 'Write', last_name: 'Check', email: user.email, role: 'camper', active: true }
+  const newYearsEvent = { id: '4a98e841-cbde-48fd-9c4a-8baee8f47203', title: "New Year's Eve at Bur Oaks", description: 'Ring in the New Year with your Bur Oaks campground family.', event_date: '2026-12-31' }
 
   await page.addInitScript(({ session }) => {
     const originalGetItem = Storage.prototype.getItem
@@ -340,6 +343,15 @@ async function installSyntheticCamperWriteSession(page: Page) {
     }
     if (url.pathname === '/rest/v1/maintenance_tickets') {
       await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': maintenanceTickets.length ? `0-${maintenanceTickets.length - 1}/${maintenanceTickets.length}` : '*/0' }, body: JSON.stringify(maintenanceTickets) })
+      return
+    }
+    if (url.pathname === '/rest/v1/events') {
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '0-0/1' }, body: JSON.stringify([newYearsEvent]) })
+      return
+    }
+    if (url.pathname === '/rest/v1/event_rsvps') {
+      const rows = eventRsvp ? [{ event_id: newYearsEvent.id, camper_id: camper.id, response: eventRsvp }] : []
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': rows.length ? '0-0/1' : '*/0' }, body: JSON.stringify(rows) })
       return
     }
     await route.fulfill({ status: 200, contentType: 'application/json', headers: { 'content-range': '*/0' }, body: '[]' })
@@ -385,6 +397,15 @@ async function installSyntheticCamperWriteSession(page: Page) {
       return
     }
 
+    if (pathname === '/api/event-rsvp' && request.method() === 'POST') {
+      eventRsvpPosts += 1
+      const body = request.postDataJSON() as { eventId?: string; response?: string }
+      eventRsvp = String(body.response || '')
+      await new Promise((resolve) => setTimeout(resolve, 150))
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true, eventId: body.eventId, myResponse: eventRsvp, counts: { going: eventRsvp === 'Going' ? 1 : 0, maybe: eventRsvp === 'Maybe' ? 1 : 0, notGoing: eventRsvp === 'Not Going' ? 1 : 0 } }) })
+      return
+    }
+
     const payloads: Record<string, object> = {
       '/api/messages': { messages: [] },
       '/api/camper-documents': { documents: [
@@ -406,6 +427,7 @@ async function installSyntheticCamperWriteSession(page: Page) {
   return {
     maintenancePosts: () => maintenancePosts,
     pumpPosts: () => pumpPosts,
+    eventRsvpPosts: () => eventRsvpPosts,
     setMaintenanceOutcome: (outcome: Outcome) => { maintenanceOutcome = outcome },
     setPumpOutcome: (outcome: Outcome) => { pumpOutcome = outcome },
   }
@@ -829,6 +851,22 @@ test('camper pump-out explains duplicate, rejection, and unknown results safely'
   await expect(page.getByRole('status')).toContainText('could not confirm whether your pump-out request was saved')
   await expect(page.locator('.portal-premium-pump')).toBeEnabled()
   expect(synthetic.pumpPosts()).toBe(3)
+})
+
+test('camper home makes the New Year’s Eve RSVP a one-tap phone action', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'phone-360', 'One phone width proves the isolated RSVP journey.')
+  const synthetic = await installSyntheticCamperWriteSession(page)
+  await page.goto('/portal')
+
+  const card = page.locator('.portal-nye-rsvp')
+  await expect(card.getByRole('heading', { name: "New Year's Eve at Bur Oaks" })).toBeVisible()
+  const going = card.getByRole('button', { name: 'Going' })
+  expect((await going.boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44)
+  await going.evaluate((button: HTMLButtonElement) => { button.click(); button.click() })
+  await expect(card.getByRole('status')).toContainText('Saved — going')
+  await expect(going).toHaveAttribute('aria-pressed', 'true')
+  expect(synthetic.eventRsvpPosts()).toBe(1)
+  await expectNoHorizontalOverflow(page)
 })
 
 test('camper payment detail separates a confirmed receipt from a payment still processing', async ({ page }, testInfo) => {

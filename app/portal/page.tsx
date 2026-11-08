@@ -206,6 +206,10 @@ export default function CamperPortalPage() {
   const [authorizedBillingAccounts, setAuthorizedBillingAccounts] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
   const [events, setEvents] = useState<any[]>([])
+  const [eventRsvps, setEventRsvps] = useState<any[]>([])
+  const [eventRsvpSaving, setEventRsvpSaving] = useState('')
+  const [eventRsvpMessage, setEventRsvpMessage] = useState('')
+  const eventRsvpSavingRef = useRef('')
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [alerts, setAlerts] = useState<any[]>([])
   const [maintenanceTickets, setMaintenanceTickets] = useState<any[]>([])
@@ -402,7 +406,7 @@ export default function CamperPortalPage() {
         setLoading(false)
 
         try {
-          const [electricResult, eventResult, announcementResult, alertResult, birthdayResult] = await Promise.all([
+          const [electricResult, eventResult, announcementResult, eventRsvpResult, alertResult, birthdayResult] = await Promise.all([
             lowDataModeRef.current
               ? Promise.resolve({ data: null, error: null })
               : supabase
@@ -417,13 +421,17 @@ export default function CamperPortalPage() {
               .select('*')
               .gte('event_date', today)
               .order('event_date', { ascending: true })
-              .limit(4),
+              .limit(12),
             supabase
               .from('announcements')
               .select('*')
               .eq('is_active', true)
               .order('created_at', { ascending: false })
               .limit(3),
+            supabase
+              .from('event_rsvps')
+              .select('event_id,response')
+              .eq('camper_id', camperData.id),
             supabase
               .from('text_reminders')
               .select('*')
@@ -438,7 +446,7 @@ export default function CamperPortalPage() {
               : Promise.resolve({ success: false, skippedForLowData: lowDataModeRef.current }),
           ])
 
-          const extrasReadFailed = [electricResult, eventResult, announcementResult, alertResult]
+          const extrasReadFailed = [electricResult, eventResult, eventRsvpResult, announcementResult, alertResult]
             .some((result) => Boolean(result?.error)) || !birthdayResult
           if (extrasReadFailed) {
             setExtrasError('Account tasks are current, but some campground extras could not be refreshed. You can keep using billing, documents, messages, and services safely.')
@@ -446,6 +454,7 @@ export default function CamperPortalPage() {
 
           setLatestElectric(electricResult.data || null)
           setEvents(eventResult.data || [])
+          setEventRsvps(eventRsvpResult.data || [])
           setAnnouncements((announcementResult.data || []).filter((item) => !isAnnouncementExpired(item)))
           let dismissedAlertIds = new Set<string>()
           try {
@@ -617,6 +626,47 @@ export default function CamperPortalPage() {
     }
   }
 
+  async function saveEventRsvp(eventId: string, responseValue: 'Going' | 'Maybe' | 'Not Going') {
+    if (!eventId || eventRsvpSavingRef.current) return
+
+    eventRsvpSavingRef.current = eventId
+    setEventRsvpSaving(eventId)
+    setEventRsvpMessage('Saving your New Year’s Eve RSVP…')
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        window.location.href = '/login'
+        return
+      }
+
+      const response = await fetch('/api/event-rsvp', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ eventId, response: responseValue }),
+      })
+      const result = await response.json().catch(() => null)
+
+      if (!response.ok) {
+        throw new Error(result?.error || 'Unable to save your RSVP.')
+      }
+
+      setEventRsvps((current) => [
+        ...current.filter((item) => String(item.event_id) !== eventId),
+        { event_id: eventId, response: result?.myResponse || responseValue },
+      ])
+      setEventRsvpMessage(`Saved — ${responseValue === 'Not Going' ? 'can’t make it' : responseValue.toLowerCase()}. You can change this anytime.`)
+    } catch (error: any) {
+      setEventRsvpMessage(error?.message || 'Your RSVP could not be confirmed. Please try again.')
+    } finally {
+      eventRsvpSavingRef.current = ''
+      setEventRsvpSaving('')
+    }
+  }
+
   async function sendBirthdayWish(birthday: BirthdayEntry) {
     const key = `${birthday.recipientCamperId}:${birthday.profile}`
     if (birthdaySending || birthday.sentByMe || birthday.isMine) return
@@ -767,6 +817,12 @@ export default function CamperPortalPage() {
   const upcoming30Balance = totalInvoiceBalance(upcoming30Invoices)
   const nextUpcomingBill = upcoming30Invoices[0]
   const nextEvent = events[0]
+  const newYearsEveEvent = events.find((event) => (
+    event.event_date === '2026-12-31' || /new year'?s eve/i.test(String(event.title || ''))
+  ))
+  const newYearsEveResponse = eventRsvps.find(
+    (rsvp) => String(rsvp.event_id) === String(newYearsEveEvent?.id || '')
+  )?.response || ''
   const documentsNeedingSignature = documents.filter(
     (document) =>
       document.signature_status !== 'signed' &&
@@ -1239,6 +1295,58 @@ export default function CamperPortalPage() {
             <a href="/calendar"><CalendarDays size={21} /><span><small>NEXT EVENT{nextEvent?.event_date ? ` · ${formatDate(nextEvent.event_date)}` : ''}</small><strong>{nextEvent?.title || 'Open the campground calendar'}</strong></span><ChevronRight size={17} /></a>
             <a href={dinnerSignupHref(nextDinner?.date)}><Soup size={21} /><span><small>NEXT SATURDAY DINNER</small><strong>{nextDinner?.menu || 'View dinner schedule'}</strong></span><ChevronRight size={17} /></a>
           </div>
+
+          {newYearsEveEvent && (
+            <section className="portal-nye-rsvp" aria-labelledby="portal-nye-rsvp-title">
+              <div className="portal-nye-rsvp-heading">
+                <span aria-hidden="true"><PartyPopper size={28} /></span>
+                <div>
+                  <small>THURSDAY · DECEMBER 31</small>
+                  <h2 id="portal-nye-rsvp-title">{newYearsEveEvent.title}</h2>
+                  <p>{newYearsEveEvent.description || 'Celebrate New Year’s Eve with your Bur Oaks campground family.'}</p>
+                </div>
+              </div>
+              <div className="portal-nye-rsvp-actions" role="group" aria-label="Choose your New Year’s Eve RSVP">
+                <button
+                  type="button"
+                  className={newYearsEveResponse === 'Going' ? 'selected' : ''}
+                  disabled={Boolean(eventRsvpSaving)}
+                  aria-pressed={newYearsEveResponse === 'Going'}
+                  onClick={() => saveEventRsvp(String(newYearsEveEvent.id), 'Going')}
+                >
+                  <CheckCircle2 size={19} /> Going
+                </button>
+                <button
+                  type="button"
+                  className={newYearsEveResponse === 'Maybe' ? 'selected' : ''}
+                  disabled={Boolean(eventRsvpSaving)}
+                  aria-pressed={newYearsEveResponse === 'Maybe'}
+                  onClick={() => saveEventRsvp(String(newYearsEveEvent.id), 'Maybe')}
+                >
+                  Maybe
+                </button>
+                <button
+                  type="button"
+                  className={`decline ${newYearsEveResponse === 'Not Going' ? 'selected' : ''}`}
+                  disabled={Boolean(eventRsvpSaving)}
+                  aria-pressed={newYearsEveResponse === 'Not Going'}
+                  onClick={() => saveEventRsvp(String(newYearsEveEvent.id), 'Not Going')}
+                >
+                  Can’t make it
+                </button>
+              </div>
+              <div className="portal-nye-rsvp-foot">
+                <p role="status" aria-live="polite">
+                  {eventRsvpSaving === String(newYearsEveEvent.id)
+                    ? 'Saving your RSVP…'
+                    : eventRsvpMessage || (newYearsEveResponse
+                      ? `Your RSVP is saved: ${newYearsEveResponse === 'Not Going' ? 'Can’t make it' : newYearsEveResponse}.`
+                      : 'Tap once to RSVP. You can change your answer anytime.')}
+                </p>
+                <a href="/calendar">See all event details <ArrowRight size={15} /></a>
+              </div>
+            </section>
+          )}
         </section>
 
         <details className="portal-all-tools" id="portal-all-tools">
