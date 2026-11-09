@@ -78,5 +78,6 @@ export async function checkoutItems(
     throw new Error('Stripe session URL is missing.');
   }
 
-  window.location.href = session.url;
+  window.location.assign(session.url);
+  return session;
 }

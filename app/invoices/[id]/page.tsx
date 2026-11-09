@@ -80,6 +80,7 @@ export default function CamperInvoiceDetailPage() {
   const [loading, setLoading] = useState(true)
   const [paying, setPaying] = useState(false)
   const [message, setMessage] = useState('')
+  const [checkoutRecoveryUrl, setCheckoutRecoveryUrl] = useState('')
   const [feeSettings, setFeeSettings] = useState(cardProcessingFeeSettings())
   const [authorizedFamilyBilling, setAuthorizedFamilyBilling] = useState(false)
   const [receipt, setReceipt] = useState<CamperPaymentReceipt | null>(null)
@@ -262,7 +263,7 @@ export default function CamperInvoiceDetailPage() {
     setMessage('')
 
     try {
-      await checkoutItems(
+      const session = await checkoutItems(
         [
           {
             name: `Invoice ${invoice.invoice_number}`,
@@ -280,6 +281,8 @@ export default function CamperInvoiceDetailPage() {
           : undefined,
         Math.round(invoicePaymentAmount * 100),
       )
+      setCheckoutRecoveryUrl(session.url)
+      setMessage(`Stripe checkout is ready. If it did not open automatically, tap the green secure ${paymentMethod === 'ach' ? 'bank' : 'card'} form button.`)
     } catch (error: any) {
       setReviewingPayment(false)
       setMessage(error.message || 'Secure checkout could not be opened. Check the invoice status before trying again.')
@@ -295,6 +298,7 @@ export default function CamperInvoiceDetailPage() {
       return
     }
     setMessage('')
+    setCheckoutRecoveryUrl('')
     setReviewingPayment(true)
   }
 
@@ -468,7 +472,7 @@ export default function CamperInvoiceDetailPage() {
               <small>
                 {paymentMethod === 'ach'
                   ? `Enter your routing and checking-account information securely through Stripe. The ${achProcessingFeeLabel.toLowerCase()} is shown below. ACH payments can take several business days to confirm.`
-                  : `Card payments include the ${feeSettings.label.toLowerCase()}.`}
+                  : `Card selected. Tap Pay by card below, review the total, then Stripe's secure card form will open. Card payments include the ${feeSettings.label.toLowerCase()}.`}
               </small>
             </div>
           )}
@@ -582,7 +586,8 @@ export default function CamperInvoiceDetailPage() {
             processingFee={processingFee}
             chargeTotal={payToday}
             loading={paying}
-            onCancel={() => setReviewingPayment(false)}
+            checkoutUrl={checkoutRecoveryUrl}
+            onCancel={() => { setReviewingPayment(false); setCheckoutRecoveryUrl('') }}
             onConfirm={payInvoice}
           />
         </section>

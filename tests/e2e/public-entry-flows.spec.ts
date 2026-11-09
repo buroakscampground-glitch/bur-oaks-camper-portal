@@ -935,7 +935,7 @@ test('camper payment detail separates a confirmed receipt from a payment still p
   await expect(review.getByText('Total bank debit').locator('..')).toContainText('$504.00')
   await expect(review).toContainText('do not pay again')
   expect(synthetic.checkoutPosts()).toBe(0)
-  await review.getByRole('button', { name: /Continue to Stripe/ }).click()
+  await review.getByRole('button', { name: /Open secure bank form/ }).click()
   await expect(page.getByRole('heading', { name: 'Checkout was closed.' })).toBeVisible()
   expect(synthetic.checkoutPosts()).toBe(1)
   expect(synthetic.checkoutBody()).toMatchObject({ invoiceIds: ['receipt-check-invoice'], paymentMethod: 'ach', invoicePaymentCents: 50000 })

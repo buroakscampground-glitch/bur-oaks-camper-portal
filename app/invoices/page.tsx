@@ -129,6 +129,7 @@ export default function InvoicesPage() {
   const [loadError, setLoadError] = useState('')
   const [checkoutLoading, setCheckoutLoading] = useState(false)
   const [checkoutMessage, setCheckoutMessage] = useState('')
+  const [checkoutRecoveryUrl, setCheckoutRecoveryUrl] = useState('')
   const [processingInvoiceId, setProcessingInvoiceId] = useState('')
   const [creditBalance, setCreditBalance] = useState(0)
   const [creditDetails, setCreditDetails] = useState({ lotRent: 0, general: 0 })
@@ -437,6 +438,7 @@ export default function InvoicesPage() {
       return
     }
     setCheckoutMessage('')
+    setCheckoutRecoveryUrl('')
     setPendingPayment({ invoices: invoicesToPay, requestedTotal: amountToReview })
   }
 
@@ -451,7 +453,7 @@ export default function InvoicesPage() {
     setCheckoutMessage('Opening secure Stripe checkout…')
 
     try {
-      await checkoutItems(
+      const session = await checkoutItems(
         buildCheckoutItems(invoicesToPay),
         `${window.location.origin}/success`,
         `${window.location.origin}/invoices`,
@@ -462,6 +464,8 @@ export default function InvoicesPage() {
           : undefined,
         Math.round(invoicePaymentAmount * 100),
       )
+      setCheckoutRecoveryUrl(session.url)
+      setCheckoutMessage(`Stripe checkout is ready. If it did not open automatically, tap the green secure ${invoicePaymentMethod === 'ach' ? 'bank' : 'card'} form button.`)
     } catch (error: any) {
       setPendingPayment(null)
       setCheckoutMessage(error.message || 'Secure checkout could not be opened. Check the invoice status before trying again.')
@@ -772,7 +776,7 @@ export default function InvoicesPage() {
                 <small>
                   {invoicePaymentMethod === 'ach'
                     ? `Stripe will securely collect your routing and checking-account information. The ${achProcessingFeeLabel.toLowerCase()} is shown before payment. ACH payments can take several business days to confirm.`
-                    : `Card payments include the ${feeSettings.label.toLowerCase()}. You will review the total before paying.`}
+                    : `Card selected. Tap Pay by card on the bill below. Stripe's secure card form opens after you review the total, including the ${feeSettings.label.toLowerCase()}.`}
                 </small>
               </div>
             )}
@@ -908,7 +912,7 @@ export default function InvoicesPage() {
                           <span className="account-processing-mark"><Hourglass size={17} /> {achExpectedLabel(invoice) || 'Processing'} · Do not pay again</span>
                         ) : !isPaid ? (
                           <button type="button" onClick={() => handlePayInvoice(invoice)} disabled={processingInvoiceId === invoice.id || checkoutLoading}>
-                            {processingInvoiceId === invoice.id ? 'Opening…' : 'Review payment'} <ChevronRight size={16} />
+                            {processingInvoiceId === invoice.id ? 'Opening…' : invoicePaymentMethod === 'ach' ? 'Pay by ACH' : 'Pay by card'} <ChevronRight size={16} />
                           </button>
                         ) : <span className="account-paid-mark"><CheckCircle2 size={21} /></span>}
                       </div>
@@ -1048,7 +1052,8 @@ export default function InvoicesPage() {
             processingFee={fee}
             chargeTotal={pendingPayment.requestedTotal + fee}
             loading={checkoutLoading}
-            onCancel={() => setPendingPayment(null)}
+            checkoutUrl={checkoutRecoveryUrl}
+            onCancel={() => { setPendingPayment(null); setCheckoutRecoveryUrl('') }}
             onConfirm={startReviewedPayment}
           />
         })()}

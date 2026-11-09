@@ -10,7 +10,7 @@ function money(value: number) {
 
 export default function PaymentReviewDialog({
   open, paymentMethod, invoiceCount, invoiceTotal, extraAmount, extraDestination,
-  invoicePaymentAmount, remainingAfterPayment, processingFee, chargeTotal, loading, onCancel, onConfirm,
+  invoicePaymentAmount, remainingAfterPayment, processingFee, chargeTotal, loading, checkoutUrl, onCancel, onConfirm,
 }: {
   open: boolean
   paymentMethod: InvoicePaymentMethod
@@ -23,8 +23,9 @@ export default function PaymentReviewDialog({
   processingFee: number
   chargeTotal: number
   loading: boolean
+  checkoutUrl?: string
   onCancel: () => void
-  onConfirm: () => void
+  onConfirm: () => void | Promise<void>
 }) {
   useEffect(() => {
     if (!open) return
@@ -58,14 +59,20 @@ export default function PaymentReviewDialog({
           <p className="total"><span>{isAch ? 'Total bank debit' : 'Total Stripe will charge today'}</span><strong>{money(chargeTotal)}</strong></p>
         </div>
         <div className="payment-review-expectation">
-          <strong>{isAch ? 'What happens next' : 'Ready for secure card checkout'}</strong>
-          <p>{isAch
+          <strong>{checkoutUrl ? 'Stripe checkout is ready' : isAch ? 'What happens next' : 'Ready for secure card checkout'}</strong>
+          <p>{checkoutUrl
+            ? `If Stripe did not open automatically, tap the green button below to open the secure ${isAch ? 'bank' : 'card'} form.`
+            : isAch
             ? `Stripe will securely collect your bank details. Your invoice will show Processing—do not pay again—until the bank confirms it.${isPartial ? ` Then ${money(remaining)} will remain due.` : ''}`
             : `Stripe will securely collect your card details. After Stripe confirms payment, Billing & Payments will ${isPartial ? `show the new ${money(remaining)} balance and this installment in the invoice history.` : 'show the paid invoice and receipt.'}`}</p>
         </div>
         <footer>
           <button type="button" className="secondary" onClick={onCancel} disabled={loading}><ArrowLeft /> Go back</button>
-          <button type="button" className="primary" onClick={onConfirm} disabled={loading}><LockKeyhole /> {loading ? 'Opening Stripe…' : `Continue to Stripe · ${money(chargeTotal)}`}</button>
+          {checkoutUrl ? (
+            <a className="primary" href={checkoutUrl}><LockKeyhole /> Open secure {isAch ? 'bank' : 'card'} form · {money(chargeTotal)}</a>
+          ) : (
+            <button type="button" className="primary" onClick={onConfirm} disabled={loading}><LockKeyhole /> {loading ? 'Opening Stripe…' : `Open secure ${isAch ? 'bank' : 'card'} form · ${money(chargeTotal)}`}</button>
+          )}
         </footer>
         <small className="payment-review-security">Bur Oaks never sees or stores your full card or bank-account number.</small>
       </section>
