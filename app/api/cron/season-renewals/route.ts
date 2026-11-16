@@ -287,6 +287,9 @@ async function runCron(request: Request) {
       renewal_sent_at: today,
       status: 'Awaiting Response',
       renewal_document_id: document.id,
+      auto_send_approved: false,
+      auto_send_approved_at: null,
+      review_notified_at: null,
       last_automation_at: new Date().toISOString(),
       automation_error: null,
     }).eq('id', record.id)

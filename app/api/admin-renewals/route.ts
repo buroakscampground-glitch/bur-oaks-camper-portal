@@ -163,6 +163,30 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Staff and system accounts are excluded from renewals.' }, { status: 409 })
   }
 
+  const { data: existing } = await context.admin
+    .from('season_renewals')
+    .select('*')
+    .eq('camper_id', camperId)
+    .maybeSingle()
+
+  if (['approve', 'decline', 'clear'].includes(action)) {
+    if (existing?.status === 'Renewing') {
+      return NextResponse.json({ error: 'This camper already completed the renewal. The signed or previously recorded renewal is protected and no office approval is needed for this cycle.' }, { status: 409 })
+    }
+    if (existing?.status === 'Camper Leaving') {
+      return NextResponse.json({ error: 'This camper already chose not to renew. Their saved decision cannot be replaced by an office pre-send decision.' }, { status: 409 })
+    }
+    if (existing?.renewal_sent_at) {
+      return NextResponse.json({ error: `This renewal was already delivered on ${existing.renewal_sent_at}. The pre-send decision is closed and no duplicate renewal was created.` }, { status: 409 })
+    }
+    if (action === 'approve' && existing?.status === 'Not Started' && existing.auto_send_approved) {
+      return NextResponse.json({ success: true, renewal: existing, unchanged: true })
+    }
+    if (action === 'decline' && existing?.status === 'Campground Not Renewing') {
+      return NextResponse.json({ success: true, renewal: existing, unchanged: true })
+    }
+  }
+
   const rentPaymentPlan = body.rentPaymentPlan === 'quarterly' || body.rentPaymentPlan === 'semiannual'
     ? body.rentPaymentPlan
     : camper.rent_payment_plan === 'quarterly' ? 'quarterly' : 'semiannual'
@@ -182,12 +206,6 @@ export async function POST(request: Request) {
   const annualRent = Number.isFinite(submittedAnnualRent) && submittedAnnualRent > 0
     ? Math.round(submittedAnnualRent * 100) / 100
     : 0
-
-  const { data: existing } = await context.admin
-    .from('season_renewals')
-    .select('*')
-    .eq('camper_id', camperId)
-    .maybeSingle()
 
   if (action === 'confirm-signature-exempt') {
     const policies = await loadActiveAccountPolicies(context.admin)
