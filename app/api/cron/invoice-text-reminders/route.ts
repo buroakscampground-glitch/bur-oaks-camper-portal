@@ -12,6 +12,7 @@ import {
 } from '../../../../lib/invoice-reminder-schedule'
 import { isInvoiceOutstanding } from '../../../../lib/invoice-balance'
 import { isInvoiceReadyForAccountCredit } from '../../../../lib/due-account-credits'
+import { hasAccountPolicy, loadActiveAccountPolicies } from '../../../../lib/account-policies'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,18 +70,28 @@ async function runCron(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   const camperIds = Array.from(new Set((invoices || []).map((invoice) => String(invoice.camper_id || '')).filter(Boolean)))
-  const { data: activeCredits, error: activeCreditError } = camperIds.length
-    ? await admin
-      .from('account_credits')
-      .select('camper_id,remaining_amount')
-      .in('camper_id', camperIds)
-      .eq('status', 'active')
-      .gt('remaining_amount', 0)
-    : { data: [], error: null }
+  const [activeCreditResult, camperResult, accountPolicies] = await Promise.all([
+    camperIds.length
+      ? admin
+        .from('account_credits')
+        .select('camper_id,remaining_amount')
+        .in('camper_id', camperIds)
+        .eq('status', 'active')
+        .gt('remaining_amount', 0)
+      : Promise.resolve({ data: [], error: null }),
+    camperIds.length
+      ? admin.from('campers').select('id,lot_number').in('id', camperIds)
+      : Promise.resolve({ data: [], error: null }),
+    loadActiveAccountPolicies(admin, today),
+  ])
+  const { data: activeCredits, error: activeCreditError } = activeCreditResult
+  const { data: campers, error: camperError } = camperResult
 
   if (activeCreditError && !['42P01', 'PGRST205'].includes(activeCreditError.code || '')) {
     return NextResponse.json({ error: activeCreditError.message }, { status: 500 })
   }
+  if (camperError) return NextResponse.json({ error: camperError.message }, { status: 500 })
+  const camperById = new Map((campers || []).map((camper) => [String(camper.id), camper]))
   const availableCreditByCamper = new Map<string, number>()
   for (const credit of activeCredits || []) {
     const camperId = String(credit.camper_id || '')
@@ -170,7 +181,9 @@ async function runCron(request: Request) {
       continue
     }
     const daysPastDue = Math.max(0, -daysUntilDue)
-    const lateFeeWaived = waivedInvoiceIds.has(String(invoice.id))
+    const camper = camperById.get(String(invoice.camper_id || ''))
+    const permanentLateFeeExemption = Boolean(camper && hasAccountPolicy(accountPolicies, 'late_fee_exempt', camper, today))
+    const lateFeeWaived = permanentLateFeeExemption || waivedInvoiceIds.has(String(invoice.id))
     let lateFeeWarningCompletedBeforeToday = Number(invoice.late_fee || 0) > 0
 
     if (!lateFeeWaived && daysPastDue >= LATE_FEE_WARNING_DAY && Number(invoice.late_fee || 0) <= 0) {

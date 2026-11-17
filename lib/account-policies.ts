@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-export type AccountPolicyType = 'billing_disabled' | 'lot_rent_exempt' | 'document_delivery_exempt' | 'billing_delegate' | 'pump_out_service_access'
+export type AccountPolicyType = 'billing_disabled' | 'lot_rent_exempt' | 'late_fee_exempt' | 'document_delivery_exempt' | 'billing_delegate' | 'pump_out_service_access'
 
 export type AccountPolicy = {
   id: string
@@ -70,6 +70,7 @@ export async function loadAccountPoliciesForCamper(client: SupabaseClient, campe
 export const accountPolicyLabels: Record<AccountPolicyType, string> = {
   billing_disabled: 'Billing disabled',
   lot_rent_exempt: 'Lot rent exempt',
+  late_fee_exempt: 'Never charge late fees',
   document_delivery_exempt: 'Renewal documents exempt',
   billing_delegate: 'Authorized billing contact',
   pump_out_service_access: 'Additional pump-out site access',

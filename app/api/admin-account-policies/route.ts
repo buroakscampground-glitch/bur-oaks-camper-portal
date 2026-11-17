@@ -7,6 +7,7 @@ export const runtime = 'nodejs'
 const policyTypes = new Set<AccountPolicyType>([
   'billing_disabled',
   'lot_rent_exempt',
+  'late_fee_exempt',
   'document_delivery_exempt',
   'billing_delegate',
   'pump_out_service_access',

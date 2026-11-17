@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { activeAccountPolicies, policiesForCamper } from '../lib/account-policies.ts'
+import { activeAccountPolicies, hasAccountPolicy, policiesForCamper } from '../lib/account-policies.ts'
 
 const migrationUrl = new URL('../migrations/20261009000816_camper_account_policies.sql', import.meta.url)
+const lateFeeMigrationUrl = new URL('../migrations/20261117152914_permanent_late_fee_exemption.sql', import.meta.url)
 
 test('account policies honor effective and expiration dates and exact camper identity', () => {
   const policies: any[] = [
@@ -15,6 +16,30 @@ test('account policies honor effective and expiration dates and exact camper ide
   assert.deepEqual(activeAccountPolicies(policies, '2026-10-08').map((policy) => policy.id), ['current'])
   assert.deepEqual(policiesForCamper(policies, { id: 'camper-1', lot_number: '99' }, '2026-10-08').map((policy) => policy.id), ['current'])
   assert.deepEqual(policiesForCamper(policies, { id: 'camper-2', lot_number: '99' }, '2026-10-08'), [])
+})
+
+test('permanent late-fee exemptions follow exact camper identity', () => {
+  const policies: any[] = [
+    { id: 'charlie-exemption', policy_type: 'late_fee_exempt', camper_id: 'charlie-id', lot_number: '47', reason: 'Permanent owner-approved exemption.', effective_on: '2026-11-17', active: true },
+  ]
+
+  assert.equal(hasAccountPolicy(policies, 'late_fee_exempt', { id: 'charlie-id', lot_number: '47' }, '2026-11-17'), true)
+  assert.equal(hasAccountPolicy(policies, 'late_fee_exempt', { id: 'different-camper', lot_number: '47' }, '2026-11-17'), false)
+})
+
+test('database enforcement blocks late fees for campers with an active exemption', async () => {
+  const migration = await readFile(lateFeeMigrationUrl, 'utf8')
+  assert.match(migration, /policy_type = 'late_fee_exempt'/)
+  assert.match(migration, /BEFORE INSERT OR UPDATE OF late_fee ON public\.invoices/)
+  assert.match(migration, /RAISE EXCEPTION 'Late fees are prohibited by an active camper account policy\.'/)
+  assert.match(migration, /permanent:late-fee-exempt:charlie-kimball-lot-47/)
+})
+
+test('automatic invoice reminders honor permanent late-fee exemptions', async () => {
+  const route = await readFile(new URL('../app/api/cron/invoice-text-reminders/route.ts', import.meta.url), 'utf8')
+  assert.match(route, /loadActiveAccountPolicies\(admin, today\)/)
+  assert.match(route, /hasAccountPolicy\(accountPolicies, 'late_fee_exempt', camper, today\)/)
+  assert.match(route, /const lateFeeWaived = permanentLateFeeExemption \|\| waivedInvoiceIds/)
 })
 
 test('account policy storage is admin-readable, server-write-only, and append-only', async () => {
