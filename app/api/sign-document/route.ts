@@ -180,6 +180,16 @@ export async function POST(request: Request) {
     let renewalRentSchedule: Awaited<ReturnType<typeof continueSignedRenewalRentSchedule>> | null = null
 
     if (nextSignatureStatus === 'signed') {
+      if (isRenewal) {
+        await context.admin
+          .from('admin_notifications')
+          .update({ read_at: signedAt })
+          .eq('type', 'renewal_document_incomplete')
+          .eq('source_table', 'documents')
+          .eq('source_id', document.id)
+          .is('read_at', null)
+      }
+
       if (isRenewal && /personalized renewal/i.test(String(document.document_name || ''))) {
         try {
           await finalizeStoredPersonalizedRenewal({

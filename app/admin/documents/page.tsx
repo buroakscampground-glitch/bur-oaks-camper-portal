@@ -21,6 +21,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../lib/supabase'
 import { isOperationalCamper } from '../../../lib/camper-records'
+import { renewalResponseCountdownLabel } from '../../../lib/renewal-timeline'
 
 const MAX_DOCUMENT_SIZE = 20 * 1024 * 1024
 
@@ -450,6 +451,15 @@ export default function AdminDocumentsPage() {
       month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC',
     })
   }
+  const signatureCountdownLabel = (value: unknown) => {
+    const dueDate = String(value || '').slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) return ''
+    const now = new Date()
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())
+    const [year, month, day] = dueDate.split('-').map(Number)
+    const daysRemaining = Math.round((Date.UTC(year, month - 1, day) - today) / 86_400_000)
+    return renewalResponseCountdownLabel(daysRemaining)
+  }
   const normalized = (value: unknown) => String(value || '').trim().toLowerCase()
   const camperFullName = (camper: any) =>
     `${camper.first_name || ''} ${camper.last_name || ''}`.trim()
@@ -558,6 +568,9 @@ export default function AdminDocumentsPage() {
               ? new Date(document.signed_at).toLocaleDateString()
               : null
             const responseDueDate = signatureDateLabel(document.response_due_date)
+            const responseCountdown = isWaitingSignature(document)
+              ? signatureCountdownLabel(document.response_due_date)
+              : ''
 
             return (
               <article className={isSignedDocument(document) ? 'signed' : 'waiting'} key={document.id}>
@@ -568,7 +581,7 @@ export default function AdminDocumentsPage() {
                   <p>{document.document_name || 'Untitled document'}</p>
                 </div>
                 <div className="signature-tracker-row-actions">
-                <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : `${signatureStatusLabel(document)}${responseDueDate ? ` · Due ${responseDueDate}` : ''}`}</em>
+                <em>{isSignedDocument(document) ? `Signed ${signedDate || ''}` : `${signatureStatusLabel(document)}${responseDueDate ? ` · Due ${responseDueDate}` : ''}${responseCountdown ? ` · ${responseCountdown}` : ''}`}</em>
                   <a href={`/documents/view/${document.id}`} target="_blank" rel="noreferrer" aria-label={`Open ${document.document_name || 'document'}`}>
                     <ArrowUpRight size={14} /> Open
                   </a>

@@ -281,8 +281,6 @@ async function runCron(request: Request) {
           : 'failed'
     }
 
-    const documentNotices = await runPendingDocumentSignatureReminders(admin, [String(document.id)])
-
     await admin.from('season_renewals').update({
       renewal_sent_at: today,
       status: 'Awaiting Response',
@@ -293,6 +291,11 @@ async function runCron(request: Request) {
       last_automation_at: new Date().toISOString(),
       automation_error: null,
     }).eq('id', record.id)
+
+    // Link the document before validating or reminding. Running reminders first
+    // makes a complete renewal look incomplete for the few milliseconds before
+    // renewal_document_id is saved.
+    const documentNotices = await runPendingDocumentSignatureReminders(admin, [String(document.id)])
 
     results.push({ renewalId: record.id, lot: camper.lot_number, status: 'sent', smsStatus, documentNotices })
   }

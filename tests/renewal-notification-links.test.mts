@@ -89,3 +89,17 @@ test('renewal alerts cannot be cleared by routine or individual handling control
   assert.match(notifications, /Mark routine handled/)
   assert.match(notifications, /Open until resolved/)
 })
+
+test('complete and signed renewals automatically resolve stale correction alerts', () => {
+  const renewalCron = source('app/api/cron/season-renewals/route.ts')
+  const reminders = source('lib/document-reminders.ts')
+  const signing = source('app/api/sign-document/route.ts')
+  const renewals = source('app/admin/renewals/page.tsx')
+
+  const linkPosition = renewalCron.indexOf('renewal_document_id: document.id')
+  const reminderPosition = renewalCron.indexOf('runPendingDocumentSignatureReminders(admin, [String(document.id)])')
+  assert.ok(linkPosition >= 0 && reminderPosition > linkPosition)
+  assert.match(reminders, /\.eq\('type', 'renewal_document_incomplete'\)[\s\S]*\.eq\('source_id', document\.id\)[\s\S]*\.is\('read_at', null\)/)
+  assert.match(signing, /\.update\(\{ read_at: signedAt \}\)[\s\S]*\.eq\('type', 'renewal_document_incomplete'\)/)
+  assert.match(renewals, /Lot \{row\.camper\.lot_number \|\| '—'\} · \{renewalResponseCountdownLabel\(row\.responseDaysRemaining\)\}/)
+})

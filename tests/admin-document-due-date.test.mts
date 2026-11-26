@@ -11,7 +11,10 @@ test('admin signature tracker includes the renewal response deadline', () => {
   assert.match(route, /renewal_document_id,contract_end_date/)
   assert.match(route, /response_due_date:/)
   assert.match(page, /signatureDateLabel\(document\.response_due_date\)/)
+  assert.match(page, /signatureCountdownLabel\(document\.response_due_date\)/)
+  assert.match(page, /renewalResponseCountdownLabel\(daysRemaining\)/)
   assert.match(page, /Due \$\{responseDueDate\}/)
+  assert.match(page, /\$\{responseCountdown\}/)
 })
 
 test('mobile signature actions stay together beneath the document details', () => {

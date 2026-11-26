@@ -355,6 +355,17 @@ export async function runPendingDocumentSignatureReminders(client: SupabaseClien
         })
         continue
       }
+
+      // A previously incomplete renewal may have been corrected since the
+      // notice was created. Resolve that stale office alert before sending the
+      // next valid reminder.
+      await client
+        .from('admin_notifications')
+        .update({ read_at: new Date().toISOString() })
+        .eq('type', 'renewal_document_incomplete')
+        .eq('source_table', 'documents')
+        .eq('source_id', document.id)
+        .is('read_at', null)
     }
     const delivery = await sendDocumentSignatureReminder({ client, document, camper })
     results.push({ documentId: document.id, lotNumber: camper.lot_number, ...delivery })
