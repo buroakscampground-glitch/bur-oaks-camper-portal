@@ -3,14 +3,16 @@ type AdminNotificationLinkInput = {
   camper_id?: string | null
 }
 
-const renewalRecordTypes = new Set([
+export const resolutionRequiredAdminNotificationTypes = [
   'renewal_review',
   'nonrenewal_letter_review',
   'renewal_declined',
   'renewal_document_incomplete',
   'renewal_rent_schedule',
   'renewal_rent_schedule_error',
-])
+] as const
+
+const renewalRecordTypes = new Set<string>(resolutionRequiredAdminNotificationTypes)
 
 export function adminNotificationStaysOpenUntilResolved(typeValue: unknown) {
   const type = String(typeValue || '').trim().toLowerCase()

@@ -5,7 +5,7 @@ import { AlertTriangle, BellRing, CalendarClock, CheckCheck, CircleDollarSign, C
 import { supabase } from '../../../lib/supabase'
 import AdminQuickText from '../../../components/AdminQuickText'
 import { informationalAdminNotificationTypes } from '../../../lib/admin-notification-types'
-import { adminNotificationHref, adminNotificationStaysOpenUntilResolved } from '../../../lib/admin-notification-links'
+import { adminNotificationHref, adminNotificationStaysOpenUntilResolved, resolutionRequiredAdminNotificationTypes } from '../../../lib/admin-notification-links'
 
 const typeLabels: Record<string, { label: string; icon: any; href: string }> = {
   maintenance_request: { label: 'Maintenance', icon: Wrench, href: '/admin/maintenance' },
@@ -56,11 +56,12 @@ export default function AdminNotificationsPage() {
       .update({ read_at: new Date().toISOString() })
       .is('read_at', null)
       .not('type', 'in', `(${informationalAdminNotificationTypes.join(',')})`)
+      .not('type', 'in', `(${resolutionRequiredAdminNotificationTypes.join(',')})`)
 
     if (id) query = query.eq('id', id)
 
     const { error } = await query
-    setMessage(error ? error.message : id ? 'Notification marked handled.' : 'All notifications marked handled.')
+    setMessage(error ? error.message : id ? 'Notification marked handled.' : 'Routine notifications marked handled. Renewal alerts stay open until their records are resolved.')
     if (!error) {
       window.dispatchEvent(new Event('admin-attention-changed'))
       loadNotifications()
@@ -81,6 +82,11 @@ export default function AdminNotificationsPage() {
   })
 
   const unreadCount = notifications.filter((notification) => !notification.read_at && notification.type !== 'event_rsvp').length
+  const routineUnreadCount = notifications.filter((notification) => (
+    !notification.read_at &&
+    notification.type !== 'event_rsvp' &&
+    !adminNotificationStaysOpenUntilResolved(notification.type)
+  )).length
 
   if (loading) return <main className="portal-loading"><Loader2 className="spin" /><h1>Loading notifications…</h1></main>
   if (loadError) return <main className="portal-loading" role="alert"><AlertTriangle aria-hidden="true" /><h1>Notifications are temporarily unavailable</h1><p>{loadError}</p><button className="portal-loading-retry" type="button" onClick={loadNotifications}>Try again</button></main>
@@ -93,8 +99,8 @@ export default function AdminNotificationsPage() {
           <h1>Everything that needs your attention.</h1>
           <p>Maintenance requests, camper messages, site-care reviews, and other items that genuinely need office action.</p>
         </div>
-        <button type="button" onClick={() => markSeen()} disabled={unreadCount === 0}>
-          <CheckCheck size={17} /> Mark all handled
+        <button type="button" onClick={() => markSeen()} disabled={routineUnreadCount === 0} title="Renewal alerts remain until their underlying record is resolved.">
+          <CheckCheck size={17} /> Mark routine handled
         </button>
       </section>
 
@@ -155,8 +161,11 @@ export default function AdminNotificationsPage() {
                     void markSeen(notification.id).finally(() => { window.location.href = notificationHref })
                   }}
                 >{notification.type === 'renewal_review' ? 'Review & choose' : String(notification.type || '').includes('renewal') ? 'Open renewal record' : 'Open'}</a>
-                {!notification.read_at && (
+                {!notification.read_at && !staysOpenUntilResolved && (
                   <button type="button" onClick={() => markSeen(notification.id)}>Handled</button>
+                )}
+                {!notification.read_at && staysOpenUntilResolved && (
+                  <small title="This alert closes automatically when the renewal record is resolved.">Open until resolved</small>
                 )}
               </div>
             </article>

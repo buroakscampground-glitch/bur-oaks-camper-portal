@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { adminNotificationHref, adminNotificationStaysOpenUntilResolved } from '../lib/admin-notification-links.ts'
+import { adminNotificationHref, adminNotificationStaysOpenUntilResolved, resolutionRequiredAdminNotificationTypes } from '../lib/admin-notification-links.ts'
 
 const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -71,4 +71,21 @@ test('opening a renewal record never clears the decision alert', () => {
   assert.match(notifications, /notification\.read_at \|\| staysOpenUntilResolved/)
   assert.match(renewalApi, /action === 'approve' \|\| action === 'decline'/)
   assert.match(renewalApi, /\.eq\('type', 'renewal_review'\)/)
+})
+
+test('renewal alerts cannot be cleared by routine or individual handling controls', () => {
+  assert.deepEqual(resolutionRequiredAdminNotificationTypes, [
+    'renewal_review',
+    'nonrenewal_letter_review',
+    'renewal_declined',
+    'renewal_document_incomplete',
+    'renewal_rent_schedule',
+    'renewal_rent_schedule_error',
+  ])
+
+  const notifications = source('app/admin/notifications/page.tsx')
+  assert.match(notifications, /\.not\('type', 'in', `\(\$\{resolutionRequiredAdminNotificationTypes\.join\(','\)\}\)`\)/)
+  assert.match(notifications, /!notification\.read_at && !staysOpenUntilResolved/)
+  assert.match(notifications, /Mark routine handled/)
+  assert.match(notifications, /Open until resolved/)
 })
